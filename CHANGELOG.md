@@ -1,4 +1,4 @@
-# @cushy/comfy-ts
+# comfy-ts
 
 ## 0.2.0
 

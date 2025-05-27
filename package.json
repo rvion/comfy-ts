@@ -1,7 +1,7 @@
 {
-    "name": "@cushy/comfy-ts",
+    "name": "comfy-ts",
     "version": "0.2.0",
-    "description": "Type-safe AI workflow creation and running using ComfyUI",
+    "description": "Type safe generative AI pipeline cration and execution using ComfyUI",
     "keywords": [
         "AI",
         "modern"

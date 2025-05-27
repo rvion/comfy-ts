@@ -1,4 +1,4 @@
-# @cushy/comfy-ts
+# comfy-ts
 
 [![CI](https://github.com/rvion/comfy-ts/actions/workflows/ci.yml/badge.svg)](https://github.com/rvion/comfy-ts/actions/workflows/ci.yml)
 [![npm version](https://badge.fury.io/js/%40cushy%2Fcomfy-ts.svg)](https://badge.fury.io/js/%40cushy%2Fcomfy-ts)
@@ -8,7 +8,7 @@
 ## Installation
 
 ```bash
-npm install @cushy/comfy-ts
+npm install comfy-ts
 ```
 
 
@@ -25,4 +25,16 @@ npx changeset version
 
 # Publish (done automatically via GitHub Actions)
 npm run release
+```
+
+
+## npm login
+
+```
+npm whoami
+npm adduser
+```
+
+```
+npm publish --access public
 ```
