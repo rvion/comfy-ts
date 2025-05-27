@@ -1,0 +1,16 @@
+{
+    "entryPoints": ["src/index.ts"],
+    "out": "docs/api",
+    "plugin": ["typedoc-plugin-markdown"],
+    "readme": "README.md",
+    "theme": "default",
+    "hideGenerator": true,
+    "disableSources": false,
+    "includeVersion": true,
+    "excludePrivate": true,
+    "excludeProtected": true,
+    "excludeExternals": true,
+    "categorizeByGroup": true,
+    "defaultCategory": "Other",
+    "categoryOrder": ["Classes", "Interfaces", "Types", "Functions", "Variables", "Other"]
+}
