@@ -1,78 +1,78 @@
 {
-    "name": "comfy-ts",
-    "version": "0.2.0",
-    "description": "Type safe generative AI pipeline cration and execution using ComfyUI",
-    "keywords": [
-        "AI",
-        "modern"
-    ],
-    "author": "Rémi Vion <vion.remi@gmail.com>",
-    "license": "MIT",
-    "repository": {
-        "type": "git",
-        "url": "https://github.com/rvion/comfy-ts.git"
-    },
-    "bugs": {
-        "url": "https://github.com/rvion/comfy-ts/issues"
-    },
-    "homepage": "https://rvion.github.io/comfy-ts",
-    "main": "./dist/index.js",
-    "module": "./dist/index.mjs",
-    "types": "./dist/index.d.ts",
-    "exports": {
-        ".": {
-            "types": "./dist/index.d.ts",
-            "import": "./dist/index.mjs",
-            "require": "./dist/index.js"
-        }
-    },
-    "files": [
-        "dist",
-        "README.md",
-        "LICENSE"
-    ],
-    "scripts": {
-        "build": "tsup",
-        "build:watch": "tsup --watch",
-        "dev": "tsup --watch --onSuccess 'npm run test:watch'",
-        "test": "vitest run",
-        "test:watch": "vitest",
-        "test:coverage": "vitest run --coverage",
-        "lint": "eslint src --ext .ts,.tsx",
-        "lint:fix": "eslint src --ext .ts,.tsx --fix",
-        "format": "prettier --write src/**/*.ts",
-        "format:check": "prettier --check src/**/*.ts",
-        "docs": "typedoc",
-        "docs:serve": "python -m http.server 8080 -d docs",
-        "api-extract": "api-extractor run --local",
-        "changeset": "changeset",
-        "version": "changeset version",
-        "release": "npm run build && changeset publish",
-        "prepare": "husky install",
-        "prepublishOnly": "npm run lint && npm run test && npm run build"
-    },
-    "engines": {
-        "node": ">=18.0.0"
-    },
-    "devDependencies": {
-        "@actions/core": "^1.11.1",
-        "@actions/github": "^6.0.1",
-        "@changesets/cli": "^2.29.4",
-        "@microsoft/api-extractor": "^7.52.8",
-        "@types/node": "^22.15.21",
-        "@typescript-eslint/eslint-plugin": "^8.32.1",
-        "@typescript-eslint/parser": "^8.32.1",
-        "@vitest/coverage-v8": "^3.1.4",
-        "conventional-changelog-cli": "^5.0.0",
-        "eslint": "^9.27.0",
-        "eslint-config-prettier": "^10.1.5",
-        "eslint-plugin-prettier": "^5.4.0",
-        "husky": "^9.1.7",
-        "prettier": "^3.5.3",
-        "tsup": "^8.5.0",
-        "typedoc": "^0.28.5",
-        "typedoc-plugin-markdown": "^4.6.3",
-        "typescript": "^5.8.3",
-        "vitest": "^3.1.4"
-    }
+   "name": "comfy-ts",
+   "version": "0.2.0",
+   "description": "Type safe generative AI pipeline cration and execution using ComfyUI",
+   "keywords": [
+      "AI",
+      "modern"
+   ],
+   "author": "Rémi Vion <vion.remi@gmail.com>",
+   "license": "MIT",
+   "repository": {
+      "type": "git",
+      "url": "https://github.com/rvion/comfy-ts.git"
+   },
+   "bugs": {
+      "url": "https://github.com/rvion/comfy-ts/issues"
+   },
+   "homepage": "https://rvion.github.io/comfy-ts",
+   "main": "./dist/index.js",
+   "module": "./dist/index.mjs",
+   "types": "./dist/index.d.ts",
+   "exports": {
+      ".": {
+         "types": "./dist/index.d.ts",
+         "import": "./dist/index.mjs",
+         "require": "./dist/index.js"
+      }
+   },
+   "files": [
+      "dist",
+      "README.md",
+      "LICENSE"
+   ],
+   "scripts": {
+      "build": "tsup",
+      "build:watch": "tsup --watch",
+      "dev": "tsup --watch --onSuccess 'npm run test:watch'",
+      "test": "vitest run",
+      "test:watch": "vitest",
+      "test:coverage": "vitest run --coverage",
+      "lint": "eslint src --ext .ts,.tsx",
+      "lint:fix": "eslint src --ext .ts,.tsx --fix",
+      "format": "prettier --write src/**/*.ts",
+      "format:check": "prettier --check src/**/*.ts",
+      "docs": "typedoc",
+      "docs:serve": "python3 -m http.server 8080 -d docs",
+      "api-extract": "api-extractor run --local",
+      "changeset": "changeset",
+      "version": "changeset version",
+      "release": "npm run build && changeset publish",
+      "prepare": "husky install",
+      "prepublishOnly": "npm run lint && npm run test && npm run build"
+   },
+   "engines": {
+      "node": ">=18.0.0"
+   },
+   "devDependencies": {
+      "@actions/core": "^1.11.1",
+      "@actions/github": "^6.0.1",
+      "@changesets/cli": "^2.29.4",
+      "@microsoft/api-extractor": "^7.52.8",
+      "@types/node": "^22.15.21",
+      "@typescript-eslint/eslint-plugin": "^8.32.1",
+      "@typescript-eslint/parser": "^8.32.1",
+      "@vitest/coverage-v8": "^3.1.4",
+      "conventional-changelog-cli": "^5.0.0",
+      "eslint": "^9.27.0",
+      "eslint-config-prettier": "^10.1.5",
+      "eslint-plugin-prettier": "^5.4.0",
+      "husky": "^9.1.7",
+      "prettier": "^3.5.3",
+      "tsup": "^8.5.0",
+      "typedoc": "^0.28.5",
+      "typedoc-plugin-markdown": "^4.6.3",
+      "typescript": "^5.8.3",
+      "vitest": "^3.1.4"
+   }
 }
