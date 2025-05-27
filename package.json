@@ -1,5 +1,5 @@
 {
-    "name": "@rvion/comfy-ts",
+    "name": "@cushy/comfy-ts",
     "version": "0.1.0",
     "description": "Type-safe AI workflow creation and running using ComfyUI",
     "keywords": [
