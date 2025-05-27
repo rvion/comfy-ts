@@ -1,4 +1,4 @@
-import type { CalculatorOptions, CalculationResult, MathOperation } from "./types"
+import type { CalculationResult, CalculatorOptions } from "./types"
 
 /**
  * A simple calculator class demonstrating TypeScript library patterns
