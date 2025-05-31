@@ -1,12 +1,5 @@
-import * as v from 'valibot'
+import { type } from 'arktype'
+import { ComfyManagerPluginInfo_ark } from './ComfyManagerPluginInfo'
 
-import { type ComfyManagerPluginInfo, ComfyManagerPluginInfo_valibot } from './ComfyManagerPluginInfo'
-
-export type ComfyManagerFilePluginList = {
-   custom_nodes: ComfyManagerPluginInfo[]
-}
-
-// #region valibot
-export const ComfyManagerFilePluginList_valibot = v.strictObject({
-   custom_nodes: v.array(ComfyManagerPluginInfo_valibot),
-})
+export type ComfyManagerFilePluginList = typeof ComfyManagerFilePluginList_ark.infer
+export const ComfyManagerFilePluginList_ark = type({ custom_nodes: ComfyManagerPluginInfo_ark.array() })

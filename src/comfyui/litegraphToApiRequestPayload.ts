@@ -1,3 +1,6 @@
+import { howManyWidgetValuesForThisInputType, howManyWidgetValuesForThisSchemaType } from '../core/Primitives'
+import { UnknownCustomNode } from '../core/UnknownCustomNode'
+import { bang } from '../csuite/utils/bang'
 import type { ComfySchemaL } from '../models/ComfySchema'
 import type { ComfyUIAPIRequest, ComfyUIAPIRequest_Node } from './comfyui-prompt-api'
 import type { NodeInputExt } from './comfyui-types'
@@ -7,10 +10,6 @@ import type { LiteGraphLinkID } from './litegraph/LiteGraphLinkID'
 import type { LiteGraphNode } from './litegraph/LiteGraphNode'
 import type { LiteGraphNodeInput } from './litegraph/LiteGraphNodeInput'
 import type { ComfyUIObjectInfoParsedNodeSchema } from './objectInfo/ComfyUIObjectInfoParsedNodeSchema'
-
-import { howManyWidgetValuesForThisInputType, howManyWidgetValuesForThisSchemaType } from '../core/Primitives'
-import { UnknownCustomNode } from '../core/UnknownCustomNode'
-import { bang } from '../csuite/utils/bang'
 
 /** return a valid JSON ready to send to ComfyUI */
 export const convertLiteGraphToPrompt = (
@@ -112,11 +111,10 @@ export const convertLiteGraphToPrompt = (
             // don't handle the non-primitive links
             if (MUST_CONSUME) {
                if (node.widgets_values == null) throw new Error(`node ${node.id}(${node.type}) has no widgets_values`) // prettier-ignore
-               if (node.widgets_values.length < offset+1) throw new Error(`node ${node.id}(${node.type}) has not enough widgets_values`) // prettier-ignore
+               if (node.widgets_values.length < offset + 1)
+                  throw new Error(`node ${node.id}(${node.type}) has not enough widgets_values`) // prettier-ignore
                const _value = node.widgets_values[offset]
-               LOG(
-                  `${FIELD_PREFIX} 🟰 ${field.nameInComfy} = ${_value} [VALUE] (consume ${MUST_CONSUME} fields)`,
-               )
+               LOG(`${FIELD_PREFIX} 🟰 ${field.nameInComfy} = ${_value} [VALUE] (consume ${MUST_CONSUME} fields)`)
                inputs[field.nameInComfy] = _value
                offset += MUST_CONSUME
             } else {
@@ -133,8 +131,7 @@ export const convertLiteGraphToPrompt = (
                throw new Error(`Node ${node.id}(${node.type}) references a non-existing link (id=${linkId}})`)
             const parentId = link[1]
             const parentNode = workflow.nodes.find((n) => n.id === parentId)
-            if (parentNode == null)
-               throw new Error(`link ${linkId} references a non-existent parent node ${parentId}`)
+            if (parentNode == null) throw new Error(`link ${linkId} references a non-existent parent node ${parentId}`)
             return { node: parentNode, link }
          }
 

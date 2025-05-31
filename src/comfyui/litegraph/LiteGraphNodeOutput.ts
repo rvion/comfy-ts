@@ -1,9 +1,7 @@
+import { type } from 'arktype'
 import type { IsEqual } from '../../types/Misc'
-
-import * as v from 'valibot'
-
-import { type LiteGraphLinkID, LiteGraphLinkID_valibot } from './LiteGraphLinkID'
-import { type LiteGraphSlotIndex, LiteGraphSlotIndex_valibot } from './LiteGraphSlotIndex'
+import { type LiteGraphLinkID, LiteGraphLinkID_ } from './LiteGraphLinkID'
+import { type LiteGraphSlotIndex, LiteGraphSlotIndex_ } from './LiteGraphSlotIndex'
 
 export type LiteGraphNodeOutput = {
    // ❌9 name: string // 'CONDITIONING'
@@ -14,12 +12,12 @@ export type LiteGraphNodeOutput = {
    slot_index?: LiteGraphSlotIndex
 }
 
-export const LiteGraphNodeOutput_valibot = v.strictObject({
-   name: v.string(),
-   type: v.string(),
-   links: v.nullable(v.array(LiteGraphLinkID_valibot)),
-   shape: v.optional(v.number()),
-   slot_index: v.optional(LiteGraphSlotIndex_valibot),
+export const LiteGraphNodeOutput_ark = type({
+   name: 'string',
+   type: 'string',
+   links: LiteGraphLinkID_.array().or(type.null),
+   'shape?': 'number',
+   'slot_index?': LiteGraphSlotIndex_,
 })
 
-const _: IsEqual<LiteGraphNodeOutput, v.InferInput<typeof LiteGraphNodeOutput_valibot>> = true
+true satisfies IsEqual<LiteGraphNodeOutput, typeof LiteGraphNodeOutput_valibot.infer>

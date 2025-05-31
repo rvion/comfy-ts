@@ -1,13 +1,10 @@
-import type { ComfyEnumDef, ComfyNodeSchemaJSON, ComfySchemaJSON } from './ComfyUIObjectInfoTypes'
-
 import crypto from 'crypto'
 import { isObservable, observable, toJS } from 'mobx'
-
-import { ComfyPrimitiveMapping, ComfyPrimitives } from '../../core/Primitives'
 import {
    ComfyDefaultNodeWhenUnknown_Name,
    ComfyDefaultNodeWhenUnknown_Schema,
 } from '../../models/ComfyDefaultNodeWhenUnknown'
+import type { Maybe } from '../../types'
 import { escapeJSKey } from '../../utils/codegen/escapeJSKey'
 import { convertComfyModuleAndNodeNameToCushyQualifiedNodeKey } from '../codegen/_convertComfyModuleAndNodeNameToCushyQualifiedNodeKey'
 import { getUnionNameBasedOnFirstFoundEnumName } from '../codegen/_getUnionNameBasedOnFirstFoundEnumName'
@@ -27,7 +24,9 @@ import {
    type NodeNameInCushy,
    type NodeOutputExt,
 } from '../comfyui-types'
+import { ComfyPrimitiveMapping, ComfyPrimitives } from '../core/Primitives'
 import { ComfyUIObjectInfoParsedNodeSchema } from './ComfyUIObjectInfoParsedNodeSchema'
+import type { ComfyEnumDef, ComfyNodeSchemaJSON, ComfySchemaJSON } from './ComfyUIObjectInfoTypes'
 
 export class ComfyUIObjectInfoParsed {
    codegenDTS = codegenSDK.bind(this)
@@ -85,14 +84,13 @@ export class ComfyUIObjectInfoParsed {
          const nodeDef = VV
          // console.chanel?.append(`[${nodeNameInComfy}]`)
          // apply prefix
-         const nodeNameInCushy = convertComfyModuleAndNodeNameToCushyQualifiedNodeKey(
-            pythonModule,
-            nodeNameInComfy,
-         )
+         const nodeNameInCushy = convertComfyModuleAndNodeNameToCushyQualifiedNodeKey(pythonModule, nodeNameInComfy)
          // console.log('>>', nodeTypeDef.category, nodeNameInCushy)
 
          if (typeof nodeDef.output === 'string') {
-            console.log(`[❌ ERROR] nodeDef ${nodeDef.name} has an invalid output definition: ${JSON.stringify(nodeDef.output)}`) // prettier-ignore
+            console.log(
+               `[❌ ERROR] nodeDef ${nodeDef.name} has an invalid output definition: ${JSON.stringify(nodeDef.output)}`,
+            ) // prettier-ignore
             nodeDef.output = []
          }
          this.pythonModuleByNodeNameInCushy.set(nodeNameInCushy, pythonModule)

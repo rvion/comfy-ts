@@ -1,15 +1,13 @@
-import type { ComfyManagerRepository } from '../ComfyManagerRepository'
-import type { KnownModel_Name } from '../generated/KnownModel_Name'
-import type { ComfyManagerFileModelInfo } from '../types/ComfyManagerFileModelInfo'
-import type { ValueError } from '@sinclair/typebox/value'
-
-import { Value } from '@sinclair/typebox/value'
+import { type ArkErrors, type } from 'arktype'
 import chalk from 'chalk'
 // https://github.com/ltdrdata/ComfyUI-Manager/blob/main/model-list.json
 import { readFileSync, writeFileSync } from 'fs'
-
+import type { ComfyManagerRepository } from '../ComfyManagerRepository'
+import type { KnownModel_Name } from '../generated/KnownModel_Name'
 import { extraModels } from '../json/model-list.extra'
-import { ComfyManagerModelInfo_typebox } from '../types/ComfyManagerModelInfo'
+import type { ComfyManagerFileModelInfo } from '../types/ComfyManagerFileModelInfo'
+import { ComfyManagerModelInfo_ark } from '../types/ComfyManagerModelInfo'
+import { printArkResultInConsole } from './printArkResultInConsole'
 
 export const _getKnownModels = (
    DB: ComfyManagerRepository /* {
@@ -28,12 +26,11 @@ export const _getKnownModels = (
 
       // JSON CHECKS -----------------------------------------------------------
       if (!hasErrors && DB.opts.check) {
-         const valid = Value.Check(ComfyManagerModelInfo_typebox, modelInfo)
-         if (!valid) {
-            const errors: ValueError[] = [...Value.Errors(ComfyManagerModelInfo_typebox, modelInfo)]
+         const res = ComfyManagerModelInfo_ark(modelInfo)
+         if (res instanceof type.errors) {
+            const errors: ArkErrors = res
             console.error(`❌ model doesn't match schema:`, modelInfo)
-            console.error(`❌ errors`, errors)
-            for (const i of errors) console.log(`❌`, JSON.stringify(i))
+            printArkResultInConsole(errors)
             hasErrors = true
             // debugger
          }
@@ -114,9 +111,7 @@ export const _getKnownModels = (
 
       // #region KnownModel_Name
       let out3 = ''
-      const sortedModels = knownModelList.sort((a, b) =>
-         a.name.toLowerCase().localeCompare(b.name.toLowerCase()),
-      )
+      const sortedModels = knownModelList.sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()))
       out3 += `// prettier-ignore\n`
       out3 += 'export type KnownModel_Name =\n'
       for (const mi of sortedModels) {

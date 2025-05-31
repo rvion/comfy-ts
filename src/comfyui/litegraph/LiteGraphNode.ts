@@ -1,22 +1,21 @@
-import type { IsEqual } from '../../types/Misc'
-
+import { type } from 'arktype'
 import * as v from 'valibot'
-
-import { type LiteGraphNodeInput, LiteGraphNodeInput_valibot } from './LiteGraphNodeInput'
-import { type LiteGraphNodeOutput, LiteGraphNodeOutput_valibot } from './LiteGraphNodeOutput'
+import type { EmptyRecord, IsEqual } from '../../types'
+import { type LiteGraphNodeInput, LiteGraphNodeInput_ark } from './LiteGraphNodeInput'
+import type { LiteGraphNodeOutput } from './LiteGraphNodeOutput'
 
 // prettier-ignore
 export type LiteGraphNode = {
-   id: number                        // 5
-   type: string                      // 'CLIPTextEncode'
+   id: number // 5
+   type: string // 'CLIPTextEncode'
 
    // cosmetics
-   title?: string                    // "Inpaint (Positive)",
-   color?: string                    // "#222", or  "#3f789e"
-   bgColor?: string                  // "#3f789e"
+   title?: string // "Inpaint (Positive)",
+   color?: string // "#222", or  "#3f789e"
+   bgColor?: string // "#3f789e"
    pos: { '0': number; '1': number } // was: [number, number]
    size: { '0': number; '1': number }
-   flags?: {}
+   flags?: EmptyRecord
    order?: number
    /**
     * 0 = normal
@@ -33,7 +32,7 @@ export type LiteGraphNode = {
        * S&R stands for search and replace
        * // 💬 2024-11-13 rvion: do we want to populate taht someday soon
        */
-      'Node name for S&R'?: string,
+      'Node name for S&R'?: string
 
       /** when set to true, it.... */
       showOutputText?: boolean
@@ -44,18 +43,18 @@ export type LiteGraphNode = {
    widgets_values?: any[]
 }
 
-export const LiteGraphNode_valibot = v.strictObject({
-   id: v.number(),
-   title: v.optional(v.string()),
-   color: v.optional(v.string()),
-   bgcolor: v.optional(v.string()),
-   type: v.string(),
-   pos: v.strictObject({ 0: v.number(), 1: v.number() }),
-   size: v.strictObject({ '0': v.number(), '1': v.number() }),
-   flags: v.optional(v.strictObject({})),
-   order: v.optional(v.number()),
-   mode: v.optional(v.number()),
-   inputs: v.optional(v.array(LiteGraphNodeInput_valibot)),
+export const LiteGraphNode_ark = type({
+   id: 'number',
+   'title?': 'string',
+   'color?': 'string',
+   'bgcolor?': 'string',
+   type: 'string',
+   pos: { 0: 'number', 1: 'number' },
+   size: { 0: 'number', 1: 'number' },
+   'flags?': {} as EmptyRecord, //v.strictObject({}),
+   'order?': 'number',
+   'mode?': 'number',
+   'inputs?': LiteGraphNodeInput_ark.array(),
    outputs: v.array(LiteGraphNodeOutput_valibot),
    isVirtualNode: v.optional(v.boolean()),
    properties: v.optional(
@@ -68,4 +67,4 @@ export const LiteGraphNode_valibot = v.strictObject({
    widgets_values: v.optional(v.array(v.any())),
 })
 
-const check: IsEqual<LiteGraphNode, v.InferInput<typeof LiteGraphNode_valibot>> = true
+true satisfies IsEqual<LiteGraphNode, v.InferInput<typeof LiteGraphNode_ark>>

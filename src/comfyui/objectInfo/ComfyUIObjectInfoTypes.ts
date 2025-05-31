@@ -3,14 +3,14 @@ import * as v from 'valibot'
 
 // #region ComfySchemaJSON
 export type ComfySchemaJSON = v.InferInput<typeof ComfySchemaJSON_valibot>
-export const ComfySchemaJSON_valibot = v.record(
+export const ComfySchemaJSON_ark = v.record(
    v.string(),
    v.lazy(() => ComfyNodeSchemaJSON_valibot),
 )
 
 // #region ComfyNodeSchemaJSON
 export type ComfyNodeSchemaJSON = v.InferInput<typeof ComfyNodeSchemaJSON_valibot>
-export const ComfyNodeSchemaJSON_valibot = v.strictObject({
+export const ComfyNodeSchemaJSON_ark = v.strictObject({
    input: v.strictObject({
       required: v.optional(
          v.record(
@@ -57,7 +57,7 @@ export const ComfyNodeSchemaJSON_valibot = v.strictObject({
 // #region  ComfyInputSpec
 
 export type ComfyInputSpec = v.InferInput<typeof ComfyInputSpec_valibot>
-export const ComfyInputSpec_valibot = v.union([
+export const ComfyInputSpec_ark = v.union([
    v.tuple([v.lazy(() => ComfyInputType_valibot), v.lazy(() => ComfyInputOpts_valibot)]),
    v.tuple([v.lazy(() => ComfyInputType_valibot)]),
    // means it's broken,
@@ -68,7 +68,7 @@ export const ComfyInputSpec_valibot = v.union([
 
 // #region  ComfyInputHiddenEntry
 export type ComfyInputHiddenEntrySpec = v.InferInput<typeof ComfyInputHiddenEntry_valibot>
-export const ComfyInputHiddenEntry_valibot = v.union([
+export const ComfyInputHiddenEntry_ark = v.union([
    //
    v.string(),
    // BROKEN STUFF (e.g. found in several 'rgthree' nodes)
@@ -79,7 +79,7 @@ export const ComfyInputHiddenEntry_valibot = v.union([
 
 // #region  ComfyInputType
 export type ComfyInputType = v.InferInput<typeof ComfyInputType_valibot>
-export const ComfyInputType_valibot = v.union([
+export const ComfyInputType_ark = v.union([
    v.string(), //, 'node name or primitive'),
    v.lazy(() => ComfyEnumDef_valibot),
 ])
@@ -87,7 +87,7 @@ export const ComfyInputType_valibot = v.union([
 
 // #region  ComfyEnumDef
 export type ComfyEnumDef = v.InferInput<typeof ComfyEnumDef_valibot>
-export const ComfyEnumDef_valibot = v.array(
+export const ComfyEnumDef_ark = v.array(
    v.union([
       v.string(),
       v.number(),
@@ -102,7 +102,7 @@ export const ComfyEnumDef_valibot = v.array(
 
 // #region  ComfyInputOpts
 export type ComfyInputOpts = v.InferInput<typeof ComfyInputOpts_valibot>
-export const ComfyInputOpts_valibot = v.union([
+export const ComfyInputOpts_ark = v.union([
    v.string(),
    v.strictObject({
       tooltip: v.optional(v.nullable(v.string())),

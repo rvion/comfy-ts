@@ -1,14 +1,18 @@
 {
-   "$schema": "https://biomejs.dev/schemas/1.8.3/schema.json",
-   "organizeImports": {
-      "enabled": true
-   },
+   "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
    "linter": {
       "enabled": true,
       "rules": {
          "recommended": true,
+         "nursery": {
+            "noFloatingPromises": "error"
+         },
          "style": {
-            "noInferrableTypes": "off"
+            "noInferrableTypes": "off",
+            "useTemplate": "off"
+         },
+         "suspicious": {
+            "noAssignInExpressions": "off"
          }
       }
    },
@@ -20,7 +24,9 @@
    "javascript": {
       "formatter": {
          "quoteStyle": "single",
-         "trailingCommas": "all"
+         "trailingCommas": "all",
+         "semicolons": "asNeeded",
+         "lineWidth": 120
       }
    }
 }

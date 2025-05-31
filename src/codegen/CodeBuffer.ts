@@ -1,6 +1,3 @@
-async function foo() {}
-const y = foo
-
 /** this class is used to buffer text and then write it to a file */
 export class CodeBuffer {
    public tab: string = '   '

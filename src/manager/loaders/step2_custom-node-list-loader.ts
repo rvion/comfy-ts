@@ -1,20 +1,16 @@
-import type { ComfyManagerRepository } from '../ComfyManagerRepository'
-import type { KnownComfyPluginTitle } from '../generated/KnownComfyPluginTitle'
-import type { ComfyManagerPluginID } from '../types/ComfyManagerPluginID'
-import type { ComfyManagerPluginInfo } from '../types/ComfyManagerPluginInfo'
-
+import { type } from 'arktype'
 import chalk from 'chalk'
 import { readFileSync, writeFileSync } from 'fs'
-import * as v from 'valibot'
-
-import { printValibotResultInConsole } from '../../csuite/utils/printValibotResult'
-import { RecoveryVerbosity, tryRecovering } from '../_utils/tryExtracting'
+import type { Maybe } from '../../types'
 import { githubRegexpV1 } from '../_utils/githubRegexes'
+import { RecoveryVerbosity, tryRecovering } from '../_utils/tryExtracting'
+import type { ComfyManagerRepository } from '../ComfyManagerRepository'
+import type { KnownComfyPluginTitle } from '../generated/KnownComfyPluginTitle'
 import { ComfyPluginExtra } from '../json/custom-node-list.extra'
-import {
-   type ComfyManagerFilePluginList,
-   ComfyManagerFilePluginList_valibot,
-} from '../types/ComfyManagerFilePluginList'
+import { type ComfyManagerFilePluginList, ComfyManagerFilePluginList_ark } from '../types/ComfyManagerFilePluginList'
+import type { ComfyManagerPluginID } from '../types/ComfyManagerPluginEnums'
+import type { ComfyManagerPluginInfo } from '../types/ComfyManagerPluginInfo'
+import { printArkResultInConsole } from './printArkResultInConsole'
 
 export type GetKnownPluginProps = {
    //
@@ -43,12 +39,10 @@ export const _getKnownPlugins = (DB: ComfyManagerRepository): void => {
    }
 
    // validate file is well-formed
-   const res = v.safeParse(ComfyManagerFilePluginList_valibot, knownPluginFile)
-   let hasErrors = false
+   const res = ComfyManagerFilePluginList_ark(knownPluginFile)
    if (DB.opts.check) {
-      if (!res.success) {
-         hasErrors = true
-         printValibotResultInConsole(res)
+      if (res instanceof type.errors) {
+         printArkResultInConsole(res)
          process.exit(1)
       }
    }
@@ -73,9 +67,7 @@ export const _getKnownPlugins = (DB: ComfyManagerRepository): void => {
       // TitleType
       const allPlugins = [...DB.plugins_byTitle.values()]
       const allPluginsSortedByTitles = allPlugins.sort((a, b) =>
-         (a.title ?? '❌missing-title')
-            .toLowerCase()
-            .localeCompare((b.title ?? '❌missing-title').toLowerCase()),
+         (a.title ?? '❌missing-title').toLowerCase().localeCompare((b.title ?? '❌missing-title').toLowerCase()),
       )
       out1 += '// prettier-ignore\n'
       out1 += 'export type KnownComfyPluginTitle =\n'

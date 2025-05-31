@@ -460,6 +460,11 @@ export type KnownModel_FileName =
      * see https://huggingface.co/Comfy-Org/stable-diffusion-3.5-fp8
      */
     | "clip_l.safetensors"
+    /** clip_vision_h model for Wan2.1
+     * 1.26GB - https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/resolve/main/split_files/clip_vision/clip_vision_h.safetensors
+     * see https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged
+     */
+    | "clip_vision_h.safetensors"
     /** Huyuan Video Image2Video diffusion model. repackaged version.
      * 25.6GB - https://huggingface.co/Comfy-Org/HunyuanVideo_repackaged/resolve/main/split_files/diffusion_models/hunyuan_video_image_to_video_720p_bf16.safetensors
      * see https://huggingface.co/Comfy-Org/HunyuanVideo_repackaged
@@ -495,6 +500,91 @@ export type KnownModel_FileName =
      * see https://huggingface.co/Comfy-Org/sigclip_vision_384/tree/main
      */
     | "sigclip_vision_patch14_384.safetensors"
+    /** umt5_xxl_fp16 text encoder for Wan2.1
+     * 11.4GB - https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/resolve/main/split_files/text_encoders/umt5_xxl_fp16.safetensors
+     * see https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged
+     */
+    | "umt5_xxl_fp16.safetensors"
+    /** umt5_xxl_fp8_e4m3fn_scaled text encoder for Wan2.1
+     * 6.74GB - https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/resolve/main/split_files/text_encoders/umt5_xxl_fp8_e4m3fn_scaled.safetensors
+     * see https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged
+     */
+    | "umt5_xxl_fp8_e4m3fn_scaled.safetensors"
+    /** Wan2.1 difussion model for i2v 480p 14B (bf16)
+     * 32.8GB - https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/resolve/main/split_files/diffusion_models/wan2.1_i2v_480p_14B_bf16.safetensors
+     * see https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged
+     */
+    | "wan2.1_i2v_480p_14B_bf16.safetensors"
+    /** Wan2.1 difussion model for i2v 480p 14B (fp16)
+     * 32.8GB - https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/resolve/main/split_files/diffusion_models/wan2.1_i2v_480p_14B_fp16.safetensors
+     * see https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged
+     */
+    | "wan2.1_i2v_480p_14B_fp16.safetensors"
+    /** Wan2.1 difussion model for i2v 480p 14B (fp8_e4m3fn)
+     * 16.4GB - https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/resolve/main/split_files/diffusion_models/wan2.1_i2v_480p_14B_fp8_e4m3fn.safetensors
+     * see https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged
+     */
+    | "wan2.1_i2v_480p_14B_fp8_e4m3fn.safetensors"
+    /** Wan2.1 difussion model for i2v 480p 14B (fp8_scaled)
+     * 16.4GB - https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/resolve/main/split_files/diffusion_models/wan2.1_i2v_480p_14B_fp8_scaled.safetensors
+     * see https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged
+     */
+    | "wan2.1_i2v_480p_14B_fp8_scaled.safetensors"
+    /** Wan2.1 difussion model for i2v 720p 14B (bf16)
+     * 32.8GB - https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/resolve/main/split_files/diffusion_models/wan2.1_i2v_720p_14B_bf16.safetensors
+     * see https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged
+     */
+    | "wan2.1_i2v_720p_14B_bf16.safetensors"
+    /** Wan2.1 difussion model for i2v 720p 14B (fp16)
+     * 32.8GB - https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/resolve/main/split_files/diffusion_models/wan2.1_i2v_720p_14B_fp16.safetensors
+     * see https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged
+     */
+    | "wan2.1_i2v_720p_14B_fp16.safetensors"
+    /** Wan2.1 difussion model for i2v 720p 14B (fp8_e4m3fn)
+     * 16.4GB - https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/resolve/main/split_files/diffusion_models/wan2.1_i2v_720p_14B_fp8_e4m3fn.safetensors
+     * see https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged
+     */
+    | "wan2.1_i2v_720p_14B_fp8_e4m3fn.safetensors"
+    /** Wan2.1 difussion model for i2v 720p 14B (fp8_scaled)
+     * 16.4GB - https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/resolve/main/split_files/diffusion_models/wan2.1_i2v_720p_14B_fp8_scaled.safetensors
+     * see https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged
+     */
+    | "wan2.1_i2v_720p_14B_fp8_scaled.safetensors"
+    /** Wan2.1 difussion model for t2v 1.3B (bf16)
+     * 2.84GB - https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/resolve/main/split_files/diffusion_models/wan2.1_t2v_1.3B_bf16.safetensors
+     * see https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged
+     */
+    | "wan2.1_t2v_1.3B_bf16.safetensors"
+    /** Wan2.1 difussion model for t2v 1.3B (fp16)
+     * 2.84GB - https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/resolve/main/split_files/diffusion_models/wan2.1_t2v_1.3B_fp16.safetensors
+     * see https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged
+     */
+    | "wan2.1_t2v_1.3B_fp16.safetensors"
+    /** Wan2.1 difussion model for t2v 14B (bf16)
+     * 28.6GB - https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/resolve/main/split_files/diffusion_models/wan2.1_t2v_14B_bf16.safetensors
+     * see https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged
+     */
+    | "wan2.1_t2v_14B_bf16.safetensors"
+    /** Wan2.1 difussion model for t2v 14B (fp16)
+     * 28.6GB - https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/resolve/main/split_files/diffusion_models/wan2.1_t2v_14B_fp16.safetensors
+     * see https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged
+     */
+    | "wan2.1_t2v_14B_fp16.safetensors"
+    /** Wan2.1 difussion model for t2v 14B (fp8_e4m3fn)
+     * 14.3GB - https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/resolve/main/split_files/diffusion_models/wan2.1_t2v_14B_fp8_e4m3fn.safetensors
+     * see https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged
+     */
+    | "wan2.1_t2v_14B_fp8_e4m3fn.safetensors"
+    /** Wan2.1 difussion model for t2v 14B (fp8_scaled)
+     * 14.3GB - https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/resolve/main/split_files/diffusion_models/wan2.1_t2v_14B_fp8_scaled.safetensors
+     * see https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged
+     */
+    | "wan2.1_t2v_14B_fp8_scaled.safetensors"
+    /** Wan2.1 VAE model
+     * 254MB - https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/resolve/main/split_files/vae/wan_2.1_vae.safetensors
+     * see https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged
+     */
+    | "wan_2.1_vae.safetensors"
     /** VAE model for Cosmos 1.0
      * 211MB - https://huggingface.co/comfyanonymous/cosmos_1.0_text_encoder_and_VAE_ComfyUI/resolve/main/vae/cosmos_cv8x8x8_1.0.safetensors
      * see https://huggingface.co/comfyanonymous/cosmos_1.0_text_encoder_and_VAE_ComfyUI/tree/main
@@ -922,10 +1012,10 @@ You need to this model for <B>Tiled Resample</B>
      */
     | "Hyper-SD15-4steps-lora.safetensors"
     /** Hyper-SD LoRA (4steps) - SDXL
-     * 787MB - https://huggingface.co/ByteDance/Hyper-SD/resolve/main/Hyper-SD15-4steps-lora.safetensors
+     * 787MB - https://huggingface.co/ByteDance/Hyper-SD/resolve/main/Hyper-SDXL-4steps-lora.safetensors
      * see https://huggingface.co/ByteDance/Hyper-SD
      */
-    | "Hyper-SD15-4steps-lora.safetensors"
+    | "Hyper-SDXL-4steps-lora.safetensors"
     /** Hyper-SD LoRA (8steps) - FLUX.1 [Dev]
      * 1.39GB - https://huggingface.co/ByteDance/Hyper-SD/resolve/main/Hyper-FLUX.1-dev-8steps-lora.safetensors
      * see https://huggingface.co/ByteDance/Hyper-SD
@@ -1316,6 +1406,11 @@ You need to this model for <B>Tiled Resample</B>
      * see https://huggingface.co/Kwai-Kolors/Kolors
      */
     | "diffusion_pytorch_model.safetensors"
+    /** Latent Bridge Matching (LBM) Relighting model
+     * 5.02GB - https://huggingface.co/jasperai/LBM_relighting/resolve/main/model.safetensors
+     * see https://huggingface.co/jasperai/LBM_relighting
+     */
+    | "LBM_relighting.safetensors"
     /** Latent Consistency LoRA for SD1.5
      * 134.6MB - https://huggingface.co/latent-consistency/lcm-lora-sdv1-5/resolve/main/pytorch_lora_weights.safetensors
      * see https://huggingface.co/latent-consistency/lcm-lora-sdv1-5
@@ -1341,6 +1436,11 @@ You need to this model for <B>Tiled Resample</B>
      * see https://huggingface.co/Leoxing/PIA/tree/main
      */
     | "pia.ckpt"
+    /** [SNAPSHOT] This is the f1k1_x_g9_f1k1f2k2f16k4_td FramePack for HY. [w/You cannot download this item on ComfyUI-Manager versions below V3.18]
+     * 25.75GB - lllyasviel/FramePackI2V_HY
+     * see https://huggingface.co/lllyasviel/FramePackI2V_HY
+     */
+    | "<huggingface>"
     /** Pressing 'install' directly downloads the model from the Kosinkadink/ComfyUI-AnimateDiff-Evolved extension node.
      * 1.83GB - https://huggingface.co/Lightricks/LongAnimateDiff/resolve/main/lt_long_mm_16_64_frames_v1.1.ckpt
      * see https://huggingface.co/Lightricks/LongAnimateDiff
@@ -1356,6 +1456,31 @@ You need to this model for <B>Tiled Resample</B>
      * see https://huggingface.co/Lightricks/LongAnimateDiff
      */
     | "lt_long_mm_32_frames.ckpt"
+    /** Quantized distilled version of the LTX-Video 13B model, optimized for even lower VRAM usage while maintaining quality.
+     * 15.7GB - https://huggingface.co/Lightricks/LTX-Video/resolve/main/ltxv-13b-0.9.7-distilled-fp8.safetensors
+     * see https://huggingface.co/Lightricks/LTX-Video
+     */
+    | "ltxv-13b-0.9.7-distilled-fp8.safetensors"
+    /** A LoRA adapter that transforms the standard LTX-Video 13B model into a distilled version when loaded.
+     * 1.33GB - https://huggingface.co/Lightricks/LTX-Video/resolve/main/ltxv-13b-0.9.7-distilled-lora128.safetensors
+     * see https://huggingface.co/Lightricks/LTX-Video
+     */
+    | "ltxv-13b-0.9.7-distilled-lora128.safetensors"
+    /** Distilled version of the LTX-Video 13B model, providing improved efficiency while maintaining high-resolution quality.
+     * 28.6GB - https://huggingface.co/Lightricks/LTX-Video/resolve/main/ltxv-13b-0.9.7-distilled.safetensors
+     * see https://huggingface.co/Lightricks/LTX-Video
+     */
+    | "ltxv-13b-0.9.7-distilled.safetensors"
+    /** Quantized version of the LTX-Video 13B model, optimized for lower VRAM usage while maintaining high quality.
+     * 15.7GB - https://huggingface.co/Lightricks/LTX-Video/resolve/main/ltxv-13b-0.9.7-dev-fp8.safetensors
+     * see https://huggingface.co/Lightricks/LTX-Video
+     */
+    | "ltxv-13b-0.9.7-dev-fp8.safetensors"
+    /** High-resolution quality LTX-Video 13B model.
+     * 28.6GB - https://huggingface.co/Lightricks/LTX-Video/resolve/main/ltxv-13b-0.9.7-dev.safetensors
+     * see https://huggingface.co/Lightricks/LTX-Video
+     */
+    | "ltxv-13b-0.9.7-dev.safetensors"
     /** LTX-Video is the first DiT-based video generation model capable of generating high-quality videos in real-time. It produces 24 FPS videos at a 768x512 resolution faster than they can be watched. Trained on a large-scale dataset of diverse videos, the model generates high-resolution videos with realistic and varied content.
      * 9.37GB - https://huggingface.co/Lightricks/LTX-Video/resolve/main/ltx-video-2b-v0.9.safetensors
      * see https://huggingface.co/Lightricks/LTX-Video
@@ -1371,6 +1496,16 @@ You need to this model for <B>Tiled Resample</B>
      * see https://huggingface.co/Lightricks/LTX-Video
      */
     | "ltx-video-2b-v0.9.5.safetensors"
+    /** Spatial upscaler model for LTX-Video. This model enhances the spatial resolution of generated videos.
+     * 505MB - https://huggingface.co/Lightricks/LTX-Video/resolve/main/ltxv-spatial-upscaler-0.9.7.safetensors
+     * see https://huggingface.co/Lightricks/LTX-Video
+     */
+    | "ltxv-spatial-upscaler-0.9.7.safetensors"
+    /** Temporal upscaler model for LTX-Video. This model enhances the temporal resolution and smoothness of generated videos.
+     * 524MB - https://huggingface.co/Lightricks/LTX-Video/resolve/main/ltxv-temporal-upscaler-0.9.7.safetensors
+     * see https://huggingface.co/Lightricks/LTX-Video
+     */
+    | "ltxv-temporal-upscaler-0.9.7.safetensors"
     /** Cosmos 1.0 Text2World Diffusion Model (14B)
      * 28.5GB - https://huggingface.co/mcmonkey/cosmos-1.0/resolve/main/Cosmos-1_0-Diffusion-14B-Text2World.safetensors
      * see https://huggingface.co/mcmonkey/cosmos-1.0

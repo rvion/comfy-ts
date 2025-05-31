@@ -1,9 +1,9 @@
-import type { ComfyUnionInfo, NodeInputExt, NodeOutputExt } from '../comfyui-types'
-import type { ComfyInputOpts, ComfyNodeSchemaJSON } from './ComfyUIObjectInfoTypes'
-
 import { ComfyPrimitiveMapping } from '../../core/Primitives'
+import type { Maybe } from '../../types'
 import { CodeBuffer } from '../../utils/codegen/CodeBuffer'
 import { escapeJSKey } from '../../utils/codegen/escapeJSKey'
+import type { ComfyUnionInfo, NodeInputExt, NodeOutputExt } from '../comfyui-types'
+import type { ComfyInputOpts, ComfyNodeSchemaJSON } from './ComfyUIObjectInfoTypes'
 
 export type NodeOwnEnum = { in: 'input' | 'output'; ownName: string; enum: ComfyUnionInfo }
 /**

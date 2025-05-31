@@ -1,3 +1,5 @@
+import type { Maybe } from '../../types'
+
 /** quick utility to verbosely attempt various data recovery tricks */
 export enum RecoveryVerbosity {
    Quiet = 0,
@@ -22,8 +24,7 @@ export function tryRecovering<T>({
    onFail?: (propName: string) => void
    onSuccess?: (propName: string, value: T) => void
 }): T {
-   if (verbose >= RecoveryVerbosity.Verbose)
-      console.log(`[🔶] trying to find a suitable value for ${property}...`)
+   if (verbose >= RecoveryVerbosity.Verbose) console.log(`[🔶] trying to find a suitable value for ${property}...`)
 
    for (const hack of hacks) {
       if (verbose >= RecoveryVerbosity.Verbose) console.log(`   > trying to use ${hack.attempt}...`)

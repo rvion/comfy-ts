@@ -1,15 +1,13 @@
+import { toJS } from 'mobx'
 import type { ComfyWorkflowL } from '../../models/ComfyWorkflow'
+import { bang } from '../../utils/bang'
 import type { ComfyNode } from '../livegraph/ComfyNode'
 import type { LiteGraphJSON } from './LiteGraphJSON'
 import type { LiteGraphLink } from './LiteGraphLink'
+import { asLiteGraphLinkID, type LiteGraphLinkID } from './LiteGraphLinkID'
 import type { LiteGraphNode } from './LiteGraphNode'
 import type { LiteGraphNodeInput } from './LiteGraphNodeInput'
 import type { LiteGraphNodeOutput } from './LiteGraphNodeOutput'
-
-import { toJS } from 'mobx'
-
-import { bang } from '../../csuite/utils/bang'
-import { asLiteGraphLinkID, type LiteGraphLinkID } from './LiteGraphLinkID'
 import { asLiteGraphSlotIndex } from './LiteGraphSlotIndex'
 
 export const convertFlowToLiteGraphJSON = (graph: ComfyWorkflowL): LiteGraphJSON => {
@@ -67,8 +65,7 @@ const convertNodeToLiteGraphNode = (ctx: LiteGraphCtx, node: ComfyNode<any>): Li
          widgets_values.push(raw)
       }
       // add the fake noise_seed field
-      const isSeed =
-         ipt.typeName === 'INT' && (ipt.nameInComfy === 'seed' || ipt.nameInComfy === 'noise_seed')
+      const isSeed = ipt.typeName === 'INT' && (ipt.nameInComfy === 'seed' || ipt.nameInComfy === 'noise_seed')
       if (isSeed) widgets_values.push(false)
    }
    const outputs = node.$schema.outputs.map(

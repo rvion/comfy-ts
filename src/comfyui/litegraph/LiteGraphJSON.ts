@@ -1,14 +1,18 @@
-import type { IsEqual } from '../../types/Misc'
-import type { LiteGraphLinkID } from './LiteGraphLinkID'
-
-import * as v from 'valibot'
-
-import { type LiteGraphGroup, LiteGraphGroup_valibot } from './LiteGraphGroup'
-import { type LiteGraphLink, LiteGraphLink_valibot } from './LiteGraphLink'
-import { type LiteGraphNode, LiteGraphNode_valibot } from './LiteGraphNode'
+import { type } from 'arktype'
+import type * as v from 'valibot'
+import type { IsEqual } from '../../types'
+import { type LiteGraphGroup, LiteGraphGroup_ark } from './LiteGraphGroup'
+import { type LiteGraphLink, LiteGraphLink_ark } from './LiteGraphLink'
+import { type LiteGraphNode, LiteGraphNode_ark } from './LiteGraphNode'
 
 /** comfy workflows are simply LiteGraphs workflows */
 export type ComfyWorkflowJSON = LiteGraphJSON
+
+const User = type({
+   last_node_id: 'number',
+   last_link_id: 'number',
+   nodes: type.Array,
+})
 
 /** litegraph workflow are stored... in a very unpractical format */
 export type LiteGraphJSON = {
@@ -17,7 +21,7 @@ export type LiteGraphJSON = {
    nodes: LiteGraphNode[]
    links: LiteGraphLink[]
    groups: LiteGraphGroup[]
-   config: {}
+   // config: {}
    extra: {
       ds?: {
          scale: number
@@ -27,22 +31,22 @@ export type LiteGraphJSON = {
    version: 0.4
 }
 
-export const LiteGraphJSON_valibot = v.strictObject({
-   last_node_id: v.number(),
-   last_link_id: v.number(),
-   nodes: v.array(LiteGraphNode_valibot),
-   links: v.array(LiteGraphLink_valibot),
-   groups: v.array(LiteGraphGroup_valibot),
-   config: v.strictObject({}),
-   extra: v.strictObject({
-      ds: v.optional(
-         v.strictObject({
-            scale: v.number(),
-            offset: v.strictObject({ '0': v.number(), '1': v.number() }),
-         }),
-      ),
-   }),
-   version: v.literal(0.4),
+export const LiteGraphJSON_ark = type({
+   last_node_id: 'number',
+   last_link_id: 'number',
+   nodes: LiteGraphNode_ark.array(),
+   links: LiteGraphLink_ark.array(),
+   groups: LiteGraphGroup_ark.array(),
+   config: type.Record('never', 'never'),
+   // extra: v.strictObject({
+   //    ds: v.optional(
+   //       v.strictObject({
+   //          scale: v.number(),
+   //          offset: v.strictObject({ '0': v.number(), '1': v.number() }),
+   //       }),
+   //    ),
+   // }),
+   version: '0.4', // v.literal(0.4),
 })
 
-const _: IsEqual<LiteGraphJSON, v.InferInput<typeof LiteGraphJSON_valibot>> = true
+true satisfies IsEqual<LiteGraphJSON, v.InferInput<typeof LiteGraphJSON_valibot>>

@@ -1,11 +1,8 @@
+import { CodeBuffer } from '../../codegen/CodeBuffer'
+import { escapeJSKey } from '../../codegen/escapeJSKey'
 import type { ComfyUIObjectInfoParsed } from '../objectInfo/ComfyUIObjectInfoParsed'
 
-import { CodeBuffer } from '../../utils/codegen/CodeBuffer'
-import { escapeJSKey } from '../../utils/codegen/escapeJSKey'
-import {
-   type ComfyUIObjectInfoParsedNodeSchema,
-   wrapQuote,
-} from '../objectInfo/ComfyUIObjectInfoParsedNodeSchema'
+import { type ComfyUIObjectInfoParsedNodeSchema, wrapQuote } from '../objectInfo/ComfyUIObjectInfoParsedNodeSchema'
 
 export function codegenSDK(
    this: ComfyUIObjectInfoParsed,
@@ -101,7 +98,12 @@ export function codegenSDK(
       const baseDescription = `displayName="${n.raw.display_name}" category="${n.category}" name="${n.nameInComfy}" output=[${n.outputs.map((o) => o.nameInCushy).join(', ')}]`
       if (n.raw.description) {
          p(`   /**`)
-         p(n.raw.description .split('\n').map((i) => `    * ${i}`).join('\n')) // prettier-ignore
+         p(
+            n.raw.description
+               .split('\n')
+               .map((i) => `    * ${i}`)
+               .join('\n'),
+         ) // prettier-ignore
          // p(`    *`)
          p(`    * ${baseDescription}`) // prettier-ignore
          p(`   **/`)
@@ -154,12 +156,13 @@ export function codegenSDK(
    // for (const [tp, nns] of Object.entries(this.nodesByProduction)) {
    // }
    for (const tp of slotTypes) {
-      const allProducingNodes: Maybe<ComfyUIObjectInfoParsedNodeSchema[]> =
-         this.nodesByProduction[tp.comfyType]
+      const allProducingNodes: Maybe<ComfyUIObjectInfoParsedNodeSchema[]> = this.nodesByProduction[tp.comfyType]
 
       // 1/2 Empty Interface
       if (allProducingNodes) {
-         p(`${escapeJSKey(tp.comfyType)}: Pick<Builder, ${allProducingNodes.map((i) => `'${i.nameInCushy}'`).join(' | ')}>`) // prettier-ignore
+         p(
+            `${escapeJSKey(tp.comfyType)}: Pick<Builder, ${allProducingNodes.map((i) => `'${i.nameInCushy}'`).join(' | ')}>`,
+         ) // prettier-ignore
       }
       // 2/2 Empty Interface
       else {
@@ -181,14 +184,18 @@ export function codegenSDK(
    p('')
    p('// Named signals found across all nodes')
    for (const t of slotTypes) {
-      p(`${escapeJSKey(t.comfyType)}: ${t.tsType} | HasSingle['${(t.comfyType)}'] | ((x: Producer['${t.comfyType}']) => Signal['${t.comfyType}'])`, ) // prettier-ignore
+      p(
+         `${escapeJSKey(t.comfyType)}: ${t.tsType} | HasSingle['${t.comfyType}'] | ((x: Producer['${t.comfyType}']) => Signal['${t.comfyType}'])`,
+      ) // prettier-ignore
    }
 
    // 3/3
    p('')
    p('// Unnamed signals (Unions) found across all nodes')
    for (const t of this.knownUnionByHash.values()) {
-      p(`${escapeJSKey(t.unionNameInCushy)}: Union['${t.unionNameInCushy}'] | ComfyNodeOutput<'${t.unionNameInCushy}'> `, ) // prettier-ignore
+      p(
+         `${escapeJSKey(t.unionNameInCushy)}: Union['${t.unionNameInCushy}'] | ComfyNodeOutput<'${t.unionNameInCushy}'> `,
+      ) // prettier-ignore
    }
    b.deindent()
    p(`}\n`)

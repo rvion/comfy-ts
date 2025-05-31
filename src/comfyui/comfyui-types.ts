@@ -1,3 +1,4 @@
+import type { Branded } from '../types'
 import type { ComfyInputOpts } from './objectInfo/ComfyUIObjectInfoTypes'
 
 export type ComfyUnionHash = string //  '26c34bf761d4be4554ab944105c5a3c017c99453

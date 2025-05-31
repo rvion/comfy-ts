@@ -1,17 +1,15 @@
+import chalk from 'chalk'
 import type { NodeNameInComfy, NodeNameInCushy } from '../comfyui/comfyui-types'
 import type { KnownComfyCustomNodeName } from './generated/KnownComfyCustomNodeName'
 import type { KnownComfyPluginTitle } from './generated/KnownComfyPluginTitle'
 import type { KnownComfyPluginURL } from './generated/KnownComfyPluginURL'
 import type { KnownModel_Name } from './generated/KnownModel_Name'
-import type { ComfyManagerModelInfo } from './types/ComfyManagerModelInfo'
-import type { ComfyManagerPluginInfo } from './types/ComfyManagerPluginInfo'
-
-import chalk from 'chalk'
-
 import { DownloadComfyManagerJSONs } from './loaders/step1_downloadComfyManagerJSONs'
 import { _getKnownPlugins } from './loaders/step2_custom-node-list-loader'
 import { _getCustomNodeRegistry } from './loaders/step3_extension-node-map-loader'
 import { _getKnownModels } from './loaders/step4_model-list-loader'
+import type { ComfyManagerModelInfo } from './types/ComfyManagerModelInfo'
+import type { ComfyManagerPluginInfo } from './types/ComfyManagerPluginInfo'
 
 export class ComfyManagerRepository {
    // plugins, indexed

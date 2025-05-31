@@ -1,21 +1,21 @@
 // prettier-ignore
 export type KnownModel_Type =
     | "TAESD"              // x   8
-    | "upscale"            // x  11
-    | "checkpoint"         // x  38
+    | "upscale"            // x  13
+    | "checkpoint"         // x  42
     | "deepbump"           // x   1
     | "face_restore"       // x   3
     | "zero123"            // x   5
     | "embedding"          // x   4
     | "VAE"                // x  12
-    | "diffusion_model"    // x  54
-    | "clip"               // x  24
-    | "lora"               // x  39
+    | "diffusion_model"    // x  69
+    | "clip"               // x  26
+    | "lora"               // x  40
     | "unclip"             // x   2
     | "T2I-Adapter"        // x  18
     | "T2I-Style"          // x   1
     | "controlnet"         // x  72
-    | "clip_vision"        // x   7
+    | "clip_vision"        // x   8
     | "gligen"             // x   1
     | "sam"                // x   4
     | "seecoder"           // x   3
@@ -44,24 +44,26 @@ export type KnownModel_Type =
     | "efficient_sam"      // x   2
     | "CustomNet"          // x   2
     | "Janus-Pro"          // x   2
+    | "vae"                // x   1
+    | "FramePackI2V"       // x   1
 
 export const knownModel_Type: KnownModel_Type[] = [
     "TAESD"             ,  // x   8
-    "upscale"           ,  // x  11
-    "checkpoint"        ,  // x  38
+    "upscale"           ,  // x  13
+    "checkpoint"        ,  // x  42
     "deepbump"          ,  // x   1
     "face_restore"      ,  // x   3
     "zero123"           ,  // x   5
     "embedding"         ,  // x   4
     "VAE"               ,  // x  12
-    "diffusion_model"   ,  // x  54
-    "clip"              ,  // x  24
-    "lora"              ,  // x  39
+    "diffusion_model"   ,  // x  69
+    "clip"              ,  // x  26
+    "lora"              ,  // x  40
     "unclip"            ,  // x   2
     "T2I-Adapter"       ,  // x  18
     "T2I-Style"         ,  // x   1
     "controlnet"        ,  // x  72
-    "clip_vision"       ,  // x   7
+    "clip_vision"       ,  // x   8
     "gligen"            ,  // x   1
     "sam"               ,  // x   4
     "seecoder"          ,  // x   3
@@ -90,5 +92,7 @@ export const knownModel_Type: KnownModel_Type[] = [
     "efficient_sam"     ,  // x   2
     "CustomNet"         ,  // x   2
     "Janus-Pro"         ,  // x   2
+    "vae"               ,  // x   1
+    "FramePackI2V"      ,  // x   1
 ]
 

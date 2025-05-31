@@ -10,12 +10,7 @@ export type ComfyUIAPIRequest = {
 export type ComfyUIAPIRequest_Node = {
    inputs: {
       // prettier-ignore
-      [key: string]:
-            | [string, number]
-            | string
-            | number
-            | boolean
-            | null
+      [key: string]: [string, number] | string | number | boolean | null
    }
    class_type: string
 }

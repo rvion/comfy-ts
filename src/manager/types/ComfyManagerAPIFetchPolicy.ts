@@ -1,19 +1,9 @@
-import * as v from 'valibot'
+import { type } from 'arktype'
 
 /**
- * manually checked on: ❌ // TODO
+ * 'cache' : DB: Channel (1day cache)'
+ * 'local' : local 'DB: Local'
+ * 'url'   : DB: Channel (remote)
  */
-export type ComfyManagerAPIFetchPolicy =
-   /** DB: Channel (1day cache)' */
-   | 'cache'
-   /** text: 'DB: Local' */
-   | 'local'
-   /** DB: Channel (remote) */
-   | 'url'
-
-// #region valibot
-export const ComfyManagerAPIFetchPolicy_valibot = v.union([
-   v.literal('cache'),
-   v.literal('local'),
-   v.literal('url'),
-])
+export type ComfyManagerAPIFetchPolicy = typeof ComfyManagerAPIFetchPolicy_ark.infer
+export const ComfyManagerAPIFetchPolicy_ark = type("'cache' | 'local' | 'url'")

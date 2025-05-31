@@ -1,21 +1,19 @@
+import { readFileSync, writeFileSync } from 'node:fs'
+import { type } from 'arktype'
+import chalk from 'chalk'
+import { convertComfyModuleAndNodeNameToCushyQualifiedNodeKey } from '../../comfyui/codegen/_convertComfyModuleAndNodeNameToCushyQualifiedNodeKey'
 import type { NodeNameInComfy } from '../../comfyui/comfyui-types'
+import { githubRegexpV2 } from '../_utils/githubRegexes'
 import type { ComfyManagerRepository } from '../ComfyManagerRepository'
 import type { KnownComfyCustomNodeName } from '../generated/KnownComfyCustomNodeName'
 import type { KnownComfyPluginURL } from '../generated/KnownComfyPluginURL'
-import type { ComfyManagerPluginInfo } from '../types/ComfyManagerPluginInfo'
-
-import chalk from 'chalk'
-import { readFileSync, writeFileSync } from 'fs'
-import * as v from 'valibot'
-
-import { convertComfyModuleAndNodeNameToCushyQualifiedNodeKey } from '../../comfyui/codegen/_convertComfyModuleAndNodeNameToCushyQualifiedNodeKey'
-import { printValibotResultInConsole } from '../../csuite/utils/printValibotResult'
-import { githubRegexpV2 } from '../_utils/githubRegexes'
 import {
    type ComfyManagerFilePluginContent,
-   ComfyManagerFilePluginContent_valibot,
+   ComfyManagerFilePluginContent_ark,
 } from '../types/ComfyManagerFilePluginContent'
-import { type ComfyManagerPluginContentMetadata } from '../types/ComfyManagerPluginContentMetadata'
+import type { ComfyManagerPluginContentMetadata } from '../types/ComfyManagerPluginContentMetadata'
+import type { ComfyManagerPluginInfo } from '../types/ComfyManagerPluginInfo'
+import { printArkResultInConsole } from './printArkResultInConsole'
 
 export const _getCustomNodeRegistry = (DB: ComfyManagerRepository): void => {
    let totalCustomNodeSeen: number = 0
@@ -26,12 +24,11 @@ export const _getCustomNodeRegistry = (DB: ComfyManagerRepository): void => {
    )
 
    // validate file is well-formed
-   const res = v.safeParse(ComfyManagerFilePluginContent_valibot, extensionNodeMapFile)
-   let hasErrors = false
+   const res = ComfyManagerFilePluginContent_ark(extensionNodeMapFile)
+
    if (DB.opts.check) {
-      if (!res.success) {
-         hasErrors = true
-         printValibotResultInConsole(res)
+      if (res instanceof type.errors) {
+         printArkResultInConsole(res)
          process.exit(1)
       }
    }
@@ -60,11 +57,7 @@ export const _getCustomNodeRegistry = (DB: ComfyManagerRepository): void => {
             comfyNodeNames,
             meta,
             plugin: confyPlugin,
-            pythonModule: reverseEngineerWhatComfyWillSendAsPythonModuleValueOnceInstalled(
-               confyPlugin,
-               url,
-               meta,
-            ),
+            pythonModule: reverseEngineerWhatComfyWillSendAsPythonModuleValueOnceInstalled(confyPlugin, url, meta),
          }
       },
    )
@@ -123,9 +116,7 @@ export const _getCustomNodeRegistry = (DB: ComfyManagerRepository): void => {
 
       // NameInCushy
       const allCushyNodeNames = [...DB.plugins_byNodeNameInCushy.keys()]
-      const sortedCushyNames = allCushyNodeNames.sort((a, b) =>
-         a.toLowerCase().localeCompare(b.toLowerCase()),
-      )
+      const sortedCushyNames = allCushyNodeNames.sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()))
       out += '// prettier-ignore\n'
       out += 'export type KnownComfyCustomNodeName =\n'
       for (const nodeName of sortedCushyNames) {
@@ -180,8 +171,7 @@ function reverseEngineerWhatComfyWillSendAsPythonModuleValueOnceInstalled(
    url: string,
    meta: ComfyManagerPluginContentMetadata,
 ): string {
-   if (plugin.id === 'nodes' && plugin.reference === 'https://github.com/comfyanonymous/ComfyUI')
-      return 'nodes'
+   if (plugin.id === 'nodes' && plugin.reference === 'https://github.com/comfyanonymous/ComfyUI') return 'nodes'
 
    // if (meta.pythonModule) {
    //    // console.log(`[🤠] got via pythonModule`, meta.pythonModule)

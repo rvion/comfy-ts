@@ -4,7 +4,7 @@ export type KnownModel_Base =
     | "SD3"                // x   8
     | "SDXL"               // x  90
     | "SD1.x"              // x  26
-    | "upscale"            // x  12
+    | "upscale"            // x  14
     | "deepbump"           // x   1
     | "face_restore"       // x   3
     | "SVD"                // x   2
@@ -51,10 +51,15 @@ export type KnownModel_Base =
     | "lotus"              // x   7
     | "ChatGLM3"           // x   3
     | "MoGe"               // x   2
-    | "LTX-Video"          // x   3
+    | "LTX-Video"          // x   8
     | "efficient_sam"      // x   2
     | "CustomNet"          // x   2
     | "Janus-Pro"          // x   2
+    | "Wan2.1"             // x  15
+    | "clip_vision_h"      // x   1
+    | "umt5_xxl"           // x   2
+    | "FramePackI2V"       // x   1
+    | "LBM"                // x   1
 
 // prettier-ignore
 export const knownModel_Base: KnownModel_Base[] = [
@@ -62,7 +67,7 @@ export const knownModel_Base: KnownModel_Base[] = [
     "SD3"               ,  // x   8
     "SDXL"              ,  // x  90
     "SD1.x"             ,  // x  26
-    "upscale"           ,  // x  12
+    "upscale"           ,  // x  14
     "deepbump"          ,  // x   1
     "face_restore"      ,  // x   3
     "SVD"               ,  // x   2
@@ -109,9 +114,14 @@ export const knownModel_Base: KnownModel_Base[] = [
     "lotus"             ,  // x   7
     "ChatGLM3"          ,  // x   3
     "MoGe"              ,  // x   2
-    "LTX-Video"         ,  // x   3
+    "LTX-Video"         ,  // x   8
     "efficient_sam"     ,  // x   2
     "CustomNet"         ,  // x   2
     "Janus-Pro"         ,  // x   2
+    "Wan2.1"            ,  // x  15
+    "clip_vision_h"     ,  // x   1
+    "umt5_xxl"          ,  // x   2
+    "FramePackI2V"      ,  // x   1
+    "LBM"               ,  // x   1
 ]
 

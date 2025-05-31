@@ -1,7 +1,7 @@
 // prettier-ignore
 export type KnownModel_SavePath =
     | "vae_approx"                                       // x   8
-    | "default"                                          // x  14
+    | "default"                                          // x  16
     | "upscale_models/ldsr"                              // x   1
     | "checkpoints/upscale"                              // x   1
     | "deepbump"                                         // x   1
@@ -42,7 +42,7 @@ export type KnownModel_SavePath =
     | "controlnet/SD1.5"                                 // x   9
     | "controlnet/SDXL"                                  // x  35
     | "controlnet/SDXL/TemporalNet1XL"                   // x   1
-    | "clip_vision"                                      // x   6
+    | "clip_vision"                                      // x   7
     | "controlnet/1.5"                                   // x  17
     | "gligen/SD1.5"                                     // x   1
     | "sams"                                             // x   4
@@ -104,7 +104,7 @@ export type KnownModel_SavePath =
     | "diffusion_models/PixArt-Alpha"                    // x   1
     | "checkpoints/hunyuan_dit_comfyui"                  // x   3
     | "diffusion_models/hunyuan_video"                   // x   2
-    | "text_encoders"                                    // x   3
+    | "text_encoders"                                    // x   5
     | "diffusion_models/FLUX1"                           // x  26
     | "vae/FLUX1"                                        // x   1
     | "checkpoints/FLUX1"                                // x   2
@@ -115,7 +115,7 @@ export type KnownModel_SavePath =
     | "LLM"                                              // x   3
     | "pulid"                                            // x   2
     | "MoGe"                                             // x   2
-    | "checkpoints/LTXV"                                 // x   3
+    | "checkpoints/LTXV"                                 // x   7
     | "xlabs/controlnets"                                // x   3
     | "xlabs/loras"                                      // x   3
     | "xlabs/ipadapters"                                 // x   1
@@ -123,11 +123,16 @@ export type KnownModel_SavePath =
     | "checkpoints/customnet"                            // x   2
     | "Janus-Pro"                                        // x   2
     | "vae/kolors"                                       // x   2
+    | "diffusion_models/Wan2.1"                          // x  14
+    | "vae"                                              // x   1
+    | "diffusers/lllyasviel"                             // x   1
+    | "loras"                                            // x   1
+    | "diffusion_models/LBM"                             // x   1
     | "custom_nodes/ComfyUI-BRIA_AI-RMBG/RMBG-1.4"       // x   1
 
 export const knownModel_SavePath: KnownModel_SavePath[] = [
     "vae_approx"                                      ,  // x   8
-    "default"                                         ,  // x  14
+    "default"                                         ,  // x  16
     "upscale_models/ldsr"                             ,  // x   1
     "checkpoints/upscale"                             ,  // x   1
     "deepbump"                                        ,  // x   1
@@ -168,7 +173,7 @@ export const knownModel_SavePath: KnownModel_SavePath[] = [
     "controlnet/SD1.5"                                ,  // x   9
     "controlnet/SDXL"                                 ,  // x  35
     "controlnet/SDXL/TemporalNet1XL"                  ,  // x   1
-    "clip_vision"                                     ,  // x   6
+    "clip_vision"                                     ,  // x   7
     "controlnet/1.5"                                  ,  // x  17
     "gligen/SD1.5"                                    ,  // x   1
     "sams"                                            ,  // x   4
@@ -230,7 +235,7 @@ export const knownModel_SavePath: KnownModel_SavePath[] = [
     "diffusion_models/PixArt-Alpha"                   ,  // x   1
     "checkpoints/hunyuan_dit_comfyui"                 ,  // x   3
     "diffusion_models/hunyuan_video"                  ,  // x   2
-    "text_encoders"                                   ,  // x   3
+    "text_encoders"                                   ,  // x   5
     "diffusion_models/FLUX1"                          ,  // x  26
     "vae/FLUX1"                                       ,  // x   1
     "checkpoints/FLUX1"                               ,  // x   2
@@ -241,7 +246,7 @@ export const knownModel_SavePath: KnownModel_SavePath[] = [
     "LLM"                                             ,  // x   3
     "pulid"                                           ,  // x   2
     "MoGe"                                            ,  // x   2
-    "checkpoints/LTXV"                                ,  // x   3
+    "checkpoints/LTXV"                                ,  // x   7
     "xlabs/controlnets"                               ,  // x   3
     "xlabs/loras"                                     ,  // x   3
     "xlabs/ipadapters"                                ,  // x   1
@@ -249,6 +254,11 @@ export const knownModel_SavePath: KnownModel_SavePath[] = [
     "checkpoints/customnet"                           ,  // x   2
     "Janus-Pro"                                       ,  // x   2
     "vae/kolors"                                      ,  // x   2
+    "diffusion_models/Wan2.1"                         ,  // x  14
+    "vae"                                             ,  // x   1
+    "diffusers/lllyasviel"                            ,  // x   1
+    "loras"                                           ,  // x   1
+    "diffusion_models/LBM"                            ,  // x   1
     "custom_nodes/ComfyUI-BRIA_AI-RMBG/RMBG-1.4"      ,  // x   1
 ]
 

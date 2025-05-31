@@ -350,8 +350,7 @@ export class ComfyNode<
    serializeValue(field: string, value: unknown): unknown {
       if (value == null) {
          const schema = this.$schema.inputs.find((i: NodeInputExt) => i.nameInComfy === field)
-         if (schema == null)
-            throw new Error(`❌ no schema for field "${field}" (of node ${this.$schema.nameInCushy})`)
+         if (schema == null) throw new Error(`❌ no schema for field "${field}" (of node ${this.$schema.nameInCushy})`)
          // console.log('def1=', field, schema.opts.default)
          const opts = schema.opts == null || typeof schema.opts !== 'object' ? undefined : schema.opts
          if (opts?.default != null) return opts.default
@@ -376,9 +375,7 @@ export class ComfyNode<
             const output = node._getOutputForTypeOrNull(expectedType)
             if (output != null) return [node.uid, output.slotIx]
          }
-         throw new Error(
-            `🔴 [AUTO failed] field "${field}" (of node ${this.$schema.nameInCushy}) value is null`,
-         )
+         throw new Error(`🔴 [AUTO failed] field "${field}" (of node ${this.$schema.nameInCushy}) value is null`)
       }
       if (value instanceof ComfyNodeOutput) return [value.node.uid, value.slotIx]
       if (value instanceof ComfyNode) {

@@ -1,6 +1,7 @@
 /** 🔶 NAMING DISCLAIMER: I call a "custom node package" => "PLUGIN" */
 
-import type { HostL } from '../models/Host'
+import { makeAutoObservable, observable, runInAction } from 'mobx'
+import type { Maybe } from '../types'
 import type { ComfyManagerRepository } from './ComfyManagerRepository'
 import type { KnownComfyPluginTitle } from './generated/KnownComfyPluginTitle'
 import type { KnownModel_Name } from './generated/KnownModel_Name'
@@ -11,9 +12,8 @@ import type { ComfyManagerAPIPluginList } from './types/ComfyManagerAPIPluginLis
 import type { ComfyManagerModelInfo } from './types/ComfyManagerModelInfo'
 import type { ComfyManagerPluginInfo } from './types/ComfyManagerPluginInfo'
 
-import { makeAutoObservable, observable, runInAction } from 'mobx'
-
-import { toastError, toastSuccess } from '../csuite/utils/toasts'
+const toastError = (msg: string) => console.log(`🔴 ERROR: ${msg}`)
+const toastSuccess = (msg: string) => console.log(`✅ SUCCESS: ${msg}`)
 
 export class ComfyManager {
    get repository(): ComfyManagerRepository {

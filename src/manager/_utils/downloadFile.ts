@@ -1,7 +1,8 @@
-import fs, { mkdirSync } from 'fs'
-import https from 'https'
+import fs, { mkdirSync } from 'node:fs'
+import https from 'node:https'
+import { stdout } from 'node:process'
 import { dirname } from 'pathe'
-import { stdout } from 'process'
+import type { AbsolutePath } from '../../types'
 
 /** Usage example
  * | ;(async () => {
@@ -43,9 +44,7 @@ export function downloadFile(
          // progress --------------------------------------------------
          const rawLen = response.headers['content-length']
          if (rawLen == null) {
-            console.warn(
-               `download file: progress not available because no content-length header in response.`,
-            )
+            console.warn(`download file: progress not available because no content-length header in response.`)
          } else {
             const totalSize = parseInt(rawLen, 10)
             let downloaded = 0
