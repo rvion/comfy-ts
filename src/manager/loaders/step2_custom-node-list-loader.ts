@@ -2,15 +2,15 @@ import { type } from 'arktype'
 import chalk from 'chalk'
 import { readFileSync, writeFileSync } from 'fs'
 import type { Maybe } from '../../types'
-import { githubRegexpV1 } from '../_utils/githubRegexes'
-import { RecoveryVerbosity, tryRecovering } from '../_utils/tryExtracting'
-import type { ComfyManagerRepository } from '../ComfyManagerRepository'
+import { githubRegexpV1 } from '../../utils/githubRegexes'
+import { printArkResultInConsole } from '../../utils/printArkResultInConsole'
+import { RecoveryVerbosity, tryRecovering } from '../../utils/tryExtracting'
+import type { ComfyRegistry } from '../ComfyRegistry'
 import type { KnownComfyPluginTitle } from '../generated/KnownComfyPluginTitle'
 import { ComfyPluginExtra } from '../json/custom-node-list.extra'
 import { type ComfyManagerFilePluginList, ComfyManagerFilePluginList_ark } from '../types/ComfyManagerFilePluginList'
 import type { ComfyManagerPluginID } from '../types/ComfyManagerPluginEnums'
 import type { ComfyManagerPluginInfo } from '../types/ComfyManagerPluginInfo'
-import { printArkResultInConsole } from './printArkResultInConsole'
 
 export type GetKnownPluginProps = {
    //
@@ -19,7 +19,7 @@ export type GetKnownPluginProps = {
    genTypes?: boolean
 }
 
-export const _getKnownPlugins = (DB: ComfyManagerRepository): void => {
+export const _getKnownPlugins = (DB: ComfyRegistry): void => {
    let totalFileSeen = 0
    let totalPluginSeen = 0
 

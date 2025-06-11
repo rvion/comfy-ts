@@ -1,6 +1,6 @@
 import chalk from 'chalk'
 
-import { downloadFile } from '../_utils/downloadFile'
+import { downloadFile } from '../../utils/downloadFile'
 
 export async function DownloadComfyManagerJSONs(): Promise<void> {
    await SYNC_modelList()

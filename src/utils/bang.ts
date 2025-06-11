@@ -9,6 +9,15 @@ export const bang = <T>(x: Maybe<T>, msg: string = ''): T => {
    return x
 }
 
+/** soft assertNotNull */
+export const bong = <T>(x: Maybe<T>, msg: string = ''): T => {
+   if (x == null) {
+      console.error(`[🔴] BONG FAILED`, msg)
+      return x as T
+   }
+   return x
+}
+
 export function ASSERT_ARRAY(a: unknown): a is unknown[] {
    if (!Array.isArray(a)) throw new Error('❌ not an array')
    return true

@@ -1,3 +1,9 @@
 node_modules
 tsconfig.tsbuildinfo
 docs
+src/installer/windows-machine
+src/installer/windows-machine.pub
+
+
+src/__private__
+hosts

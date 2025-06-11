@@ -2,15 +2,15 @@ import { type ArkErrors, type } from 'arktype'
 import chalk from 'chalk'
 // https://github.com/ltdrdata/ComfyUI-Manager/blob/main/model-list.json
 import { readFileSync, writeFileSync } from 'fs'
-import type { ComfyManagerRepository } from '../ComfyManagerRepository'
+import { printArkResultInConsole } from '../../utils/printArkResultInConsole'
+import type { ComfyRegistry } from '../ComfyRegistry'
 import type { KnownModel_Name } from '../generated/KnownModel_Name'
 import { extraModels } from '../json/model-list.extra'
 import type { ComfyManagerFileModelInfo } from '../types/ComfyManagerFileModelInfo'
 import { ComfyManagerModelInfo_ark } from '../types/ComfyManagerModelInfo'
-import { printArkResultInConsole } from './printArkResultInConsole'
 
 export const _getKnownModels = (
-   DB: ComfyManagerRepository /* {
+   DB: ComfyRegistry /* {
 } */,
 ): void => {
    const knownModelsFile: ComfyManagerFileModelInfo = JSON.parse(

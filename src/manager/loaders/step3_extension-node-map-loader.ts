@@ -1,10 +1,11 @@
 import { readFileSync, writeFileSync } from 'node:fs'
 import { type } from 'arktype'
 import chalk from 'chalk'
-import { convertComfyModuleAndNodeNameToCushyQualifiedNodeKey } from '../../comfyui/codegen/_convertComfyModuleAndNodeNameToCushyQualifiedNodeKey'
-import type { NodeNameInComfy } from '../../comfyui/comfyui-types'
-import { githubRegexpV2 } from '../_utils/githubRegexes'
-import type { ComfyManagerRepository } from '../ComfyManagerRepository'
+import { convertComfyModuleAndNodeNameToCushyQualifiedNodeKey } from '../../sdk-generator/_convertComfyModuleAndNodeNameToCushyQualifiedNodeKey'
+import type { NodeNameInComfy } from '../../sdk-generator/comfyui-types'
+import { githubRegexpV2 } from '../../utils/githubRegexes'
+import { printArkResultInConsole } from '../../utils/printArkResultInConsole'
+import type { ComfyRegistry } from '../ComfyRegistry'
 import type { KnownComfyCustomNodeName } from '../generated/KnownComfyCustomNodeName'
 import type { KnownComfyPluginURL } from '../generated/KnownComfyPluginURL'
 import {
@@ -13,9 +14,8 @@ import {
 } from '../types/ComfyManagerFilePluginContent'
 import type { ComfyManagerPluginContentMetadata } from '../types/ComfyManagerPluginContentMetadata'
 import type { ComfyManagerPluginInfo } from '../types/ComfyManagerPluginInfo'
-import { printArkResultInConsole } from './printArkResultInConsole'
 
-export const _getCustomNodeRegistry = (DB: ComfyManagerRepository): void => {
+export const _getCustomNodeRegistry = (DB: ComfyRegistry): void => {
    let totalCustomNodeSeen: number = 0
 
    // 1. read file

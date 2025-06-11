@@ -1,5 +1,6 @@
 {
    "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+
    "linter": {
       "enabled": true,
       "rules": {
@@ -12,6 +13,7 @@
             "useTemplate": "off"
          },
          "suspicious": {
+            "noUnsafeDeclarationMerging": "off",
             "noAssignInExpressions": "off"
          }
       }
@@ -28,5 +30,14 @@
          "semicolons": "asNeeded",
          "lineWidth": 120
       }
+   },
+   "files": {
+      "includes": [
+         "src/**/*.ts",
+         "src/**/*.js",
+         "src/**/*.mjs",
+         "src/**/*.cjs",
+         "src/**/*.json"
+      ]
    }
 }

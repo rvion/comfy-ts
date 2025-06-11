@@ -21,9 +21,10 @@
       "esModuleInterop": true,
       "allowSyntheticDefaultImports": true,
       "forceConsistentCasingInFileNames": true,
-      "skipLibCheck": true,
+      "skipDefaultLibCheck": true,
+      "skipLibCheck": false,
       "resolveJsonModule": true
    },
-   "include": ["src/**/*"],
+   "include": ["src/**/*", "hosts/default/global.d.ts"],
    "exclude": ["node_modules", "dist"]
 }
