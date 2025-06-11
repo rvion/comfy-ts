@@ -12,7 +12,18 @@ import type { ComfySchema } from '../sdk-generator/ComfySchema'
 import type { ComfyUIObjectInfoParsed } from '../sdk-generator/ComfyUIObjectInfoParsed'
 import type { ComfyUIObjectInfoParsedNodeSchema } from '../sdk-generator/ComfyUIObjectInfoParsedNodeSchema'
 import type { ComfyUIAPIRequest } from '../sdk-generator/comfyui-prompt-api'
-import { type AbsolutePath, asAbsolutePath, type ImageSaveFormat, type Maybe, type Tagged } from '../types'
+import {
+   type AbsolutePath,
+   asAbsolutePath,
+   asHTMLContent,
+   asMDContent,
+   asRelativePath,
+   HTMLContent,
+   type ImageSaveFormat,
+   type Maybe,
+   MDContent,
+   type Tagged,
+} from '../types'
 import { bang } from '../utils/bang'
 import { comfyColors } from '../utils/ComfyColors'
 import type { ApiPromptInput, PromptInfo, WsMsgExecuting, WsMsgExecutionCached, WsMsgProgress } from './ComfyWsApi'
@@ -68,10 +79,10 @@ export class ComfyWorkflow {
    }
 
    /** nodes, in creation order */
-   nodes: ComfyNode<any>[] = []
+   nodes: ComfyNode[] = []
 
    /** @internal every node constructor must call this */
-   registerNode = (node: ComfyNode<any>): void => {
+   registerNode = (node: ComfyNode): void => {
       if (this.data.comfyPromptJSON == null) throw new Error('graph not hydrated')
       this.data.comfyPromptJSON[node.uid] = node.json
       this.data.metadata[node.uid] = node.meta
@@ -129,11 +140,11 @@ export class ComfyWorkflow {
    }
 
    /** nodes that are still pending execution */
-   get pendingNodes(): ComfyNode<any>[] {
+   get pendingNodes(): ComfyNode[] {
       return this.nodes.filter((n) => n.status == null || n.status === 'waiting')
    }
 
-   get nodesByUpdatedAt(): ComfyNode<any>[] {
+   get nodesByUpdatedAt(): ComfyNode[] {
       return this.nodes //
          .filter((n) => n.status != null && n.status !== 'waiting')
          .sort((a, b) => b.updatedAt - a.updatedAt)
@@ -145,7 +156,7 @@ export class ComfyWorkflow {
    // }
 
    /** nodes, indexed by nodeID */
-   nodesIndex = new Map<string, ComfyNode<any>>()
+   nodesIndex = new Map<string, ComfyNode>()
 
    /** convert to mermaid DSL expression for nice graph rendering */
    toMermaid = (DIR: 'LR' | 'TD' = 'LR'): string => {
@@ -190,7 +201,7 @@ export class ComfyWorkflow {
    }
 
    /** @internal pointer to the currently executing node */
-   currentExecutingNode: ComfyNode<any> | null = null
+   currentExecutingNode: ComfyNode | null = null
 
    get progressCurrentNode(): Maybe<ProgressReport> {
       return this.currentExecutingNode?.progressReport
@@ -214,15 +225,15 @@ export class ComfyWorkflow {
    }
 
    getTargetWorkflowFilePath = (): AbsolutePath => {
-      return asAbsolutePath(join(cushy.cacheFolderPath, 'workflow.json'))
+      return asAbsolutePath(join(this.cacheFolderPath, 'workflow.json'))
    }
 
    getTargetPromptFilePath = (): AbsolutePath => {
-      return asAbsolutePath(join(cushy.cacheFolderPath, 'prompt.json'))
+      return asAbsolutePath(join(this.cacheFolderPath, 'prompt.json'))
    }
 
-   get cacheFolder(): AbsolutePath {
-      return cushy.cacheFolderPath
+   get cacheFolderPath(): AbsolutePath {
+      return cushy.resolve(cushy.outputPath, asRelativePath(`workflows/${this.id}`))
    }
 
    // private outputs: WsMsgExecuted[] = []
@@ -276,25 +287,25 @@ export class ComfyWorkflow {
    // }
 
    // @deprecated
-   get flowSummaryMd(): MDContent {
+   get generateMarkdownMermaidSummary(): MDContent {
       return asMDContent([`<pre class="mermaid">`, this.toMermaid(), `</pre>`].join('\n'))
    }
 
    // @deprecated
-   get flowSummaryHTML(): HTMLContent {
+   get generateHTMLSummary(): HTMLContent {
       // https://mermaid.js.org/config/usage.html
-      return asHTMLContent(marked(this.flowSummaryMd) as string)
+      return asHTMLContent(marked(this.generateMarkdownMermaidSummary) as string)
    }
 
    _uidNumber: number = 0
-   // private _nextUID = 1
-   // getUID = () => (this._nextUID++).toString()
-   getNodeOrCrash = (nodeID: ComfyNodeId): ComfyNode<any> => {
+
+   getNodeOrCrash = (nodeID: ComfyNodeId): ComfyNode => {
       const node = this.nodesIndex.get(nodeID)
       if (node == null) throw new Error('Node not found:' + nodeID)
       return node
    }
-   getNode = (nodeID: ComfyNodeId): Maybe<ComfyNode<any>> => {
+
+   getNode = (nodeID: ComfyNodeId): Maybe<ComfyNode> => {
       const node = this.nodesIndex.get(nodeID)
       return node
    }
@@ -356,10 +367,10 @@ export class ComfyWorkflow {
          this.nodes.flatMap((n) => n._incomingNodes().map((from) => [from, n.uid] as TEdge)),
       )
       const nodes = nodeIds.map((id) => this.getNode(id)!)
-      const cols: ComfyNode<any>[][] = new Array(nodeIds.length)
+      const cols: ComfyNode[][] = new Array(nodeIds.length)
 
       type NodePlacement = {
-         node: ComfyNode<any>
+         node: ComfyNode
          minCol: number
          maxCol?: number
       }

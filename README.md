@@ -32,7 +32,7 @@ await host.fetchAndUpdateSchema()
 // 3. create a workflow
 const workflow = host.createEmptyWorkflow({ id: 'simple' })
 
-// 4. build your workflow
+// 4. build a simple image-to-image workflow
 const b = workflow.builder
 const ckpt = b.CheckpointLoaderSimple({ ckpt_name: 'revAnimated_v122.safetensors' })
 const positive = b.CLIPTextEncode({ clip: ckpt, text: 'a house' })
@@ -53,12 +53,16 @@ b.PreviewImage({ images: images })
 
 // 5. execute your workflow
 await workflow.PROMPT()
+
+// 6. retrieve outputs
+// ....
+
+// 7. print summary
 ```
 
-## Scope
+## Features
 
-This used to work in CushyStudio and this repo aims to bring those feature to life, clean them, and polish them.
-
+- ✅ Install, manage, and start ComfyUI via the official ComfyUI cli
 - ✅ configure ComfyUI
   - ✅ install custom nodes
   - ✅ install models
@@ -74,16 +78,37 @@ This used to work in CushyStudio and this repo aims to bring those feature to li
   - retrieve image and other outputs
   - run workflow in parallel
 
-- ✅ Maintain a type-safe up-to-date community Library of all known nodes to help make workflows
-   - see [KnownComfyCustomNodeName](./src/manager/generated/KnownComfyCustomNodeName.ts)
-   - see [KnownComfyPluginTitle](./src/manager/generated/KnownComfyPluginTitle.ts)
-   - see [KnownComfyPluginURL](./src/manager/generated/KnownComfyPluginURL.ts)
-   - see [KnownModel_Base](./src/manager/generated/KnownModel_Base.ts)
-   - see [KnownModel_FileName](./src/manager/generated/KnownModel_FileName.ts)
-   - see [KnownModel_Name](./src/manager/generated/KnownModel_Name.ts)
-   - see [KnownModel_SavePath](./src/manager/generated/KnownModel_SavePath.ts)
-   - see [KnownModel_Type](./src/manager/generated/KnownModel_Type.ts)
 
+- ✅ Maintain a type-safe up-to-date community Library of all known nodes to help make workflows
+
+## Best-in-class Types safety
+
+Years of experience in building type-safe SDKs and APIs, this package is built with TypeScript in mind from the ground up, and pay attention to typechecking speed
+for the smoothest developer experience possible.
+
+### Examples of generated enums for a specific ComfyUI install
+
+- see [...](...)
+
+### Examples of generated enums for ComfyUI Registry.
+
+- see [KnownComfyCustomNodeName](./src/manager/generated/KnownComfyCustomNodeName.ts)
+- see [KnownComfyPluginTitle](./src/manager/generated/KnownComfyPluginTitle.ts)
+- see [KnownComfyPluginURL](./src/manager/generated/KnownComfyPluginURL.ts)
+- see [KnownModel_Base](./src/manager/generated/KnownModel_Base.ts)
+- see [KnownModel_FileName](./src/manager/generated/KnownModel_FileName.ts)
+- see [KnownModel_Name](./src/manager/generated/KnownModel_Name.ts)
+- see [KnownModel_SavePath](./src/manager/generated/KnownModel_SavePath.ts)
+- see [KnownModel_Type](./src/manager/generated/KnownModel_Type.ts)
+
+### Example of advanced QoL features
+
+Some features of the SDK have been refined for years to provide the best developer experience possible when creating workflow from scratch.
+
+- explain the HasSingle interface
+- explain the Producer interface
+- explain the Enum Interface
+- explain how to use lambda syntax to get suggestion of node that would output a value that fits
 
 ## Other Comfy-related packages:
 

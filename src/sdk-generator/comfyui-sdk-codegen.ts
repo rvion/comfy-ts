@@ -18,7 +18,7 @@ export function codegenSDK(
    // p(`import type { ComfyNodeMetadata } from '${prefix}types/ComfyNodeID'`)
    // p(`import type { ComfyNodeSchemaJSON } from '${prefix}comfyui/objectInfo/ComfyUIObjectInfoTypes'`)
    p(``)
-   p(`import type { ComfyNode, ComfyNodeOutput, ComfyNodeMetadata, ComfyNodeSchemaJSON } from '${prefix}`)
+   p(`import type { ComfyNode, ComfyNodeOutput, ComfyNodeMetadata, ComfyNodeSchemaJSON } from '${prefix}'`)
 
    p(`declare global {`)
    b.indent()

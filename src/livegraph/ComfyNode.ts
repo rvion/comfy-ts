@@ -33,7 +33,7 @@ export type ComfyNodeUID = string
  */
 export class ComfyNode<
    //
-   ComfyNode_input extends object,
+   ComfyNode_input extends object = object,
    ComfyNode_output extends object = object,
 > {
    storeAs(storeName: string): this {
