@@ -1,0 +1,36 @@
+node_modules
+tsconfig.tsbuildinfo
+/docs/
+# build output: npm gets it from prepublishOnly, git never needs it
+dist/
+
+# scratch: run logs, plan docs, throwaway scripts (the '.tmp/tmp/' pattern
+# this replaces matched neither of them)
+tmp/
+.tmp/
+
+# local working dirs, never published: the engineering journal (the full
+# blow-by-blow behind each change), transient reflections, unpublished social
+# and site copy. The PUBLIC record is CHANGELOG.md.
+.rv-journal/
+# repo-local scratch + hazards (ssh keypair, banned-keyword list, throwaway
+# scripts): OUTSIDE src/ on purpose, so no packaging whitelist can reach it
+.rv-private/
+.rv-reflections/
+.rv-social/
+.rv-rvion-fr/
+# machine-local agent context, imported by CLAUDE.md when present and simply
+# absent for everyone else
+CLAUDE.local.md
+
+# a host dump is that machine's whole model inventory + its paths (~10MB):
+# generated locally by `bun run gen:sdk`, NEVER committed (was the bare
+# pattern 'hosts', which would also have swallowed a future src/hosts/)
+.comfy-ts/hosts/
+.comfy-ts/outputs/
+# TUI drafts are local state
+.comfy-ts/drafts/
+# TUI settings + lora keywords + lora-preview cache are local state
+.comfy-ts/settings.json
+.comfy-ts/lora-keywords.json
+.comfy-ts/cache/

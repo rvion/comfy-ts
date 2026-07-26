@@ -1,0 +1,51 @@
+import { Box, Text } from 'ink'
+import { observer } from 'mobx-react-lite'
+import type { ReactNode } from 'react'
+import type { TuiSt } from 'src/cli/tui/state/TuiSt.ts'
+
+const HeaderBox = (p: { title?: string; children: ReactNode }): ReactNode => (
+   <Box borderStyle="round" borderColor="gray" paddingX={1} flexDirection="column" flexShrink={0}>
+      {p.title != null && (
+         // marginTop -1 lifts the label onto the border line: the box key IS its title
+         <Box marginTop={-1}>
+            <Text color="gray">{p.title}</Text>
+         </Box>
+      )}
+      <Box>{p.children}</Box>
+   </Box>
+)
+
+/** labeled header boxes: brand · (w)orkflow · (d)raft · (h)ost — the keys open each surface */
+export const Header = observer((p: { st: TuiSt }) => {
+   const s = p.st
+   return (
+      <Box flexDirection="row">
+         <HeaderBox>
+            <Text bold color="magenta">
+               comfy-ts
+            </Text>
+         </HeaderBox>
+         <HeaderBox title="(w)orkflow">
+            <Text bold color="yellow">
+               {s.wf.spec.id ?? 'workflow'}
+            </Text>
+         </HeaderBox>
+         <HeaderBox title="(d)raft">
+            <Text bold color="cyan">
+               {s.drafts.active ?? 'default'}
+            </Text>
+         </HeaderBox>
+         <HeaderBox title="(h)ost">
+            <Text>
+               <Text bold color="green">
+                  {s.wf.host.data.id}
+               </Text>
+               <Text color="gray">
+                  {' '}
+                  ({s.wf.host.data.host}:{s.wf.host.data.port})
+               </Text>
+            </Text>
+         </HeaderBox>
+      </Box>
+   )
+})

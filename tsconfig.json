@@ -1,0 +1,47 @@
+{
+   // ONE tsconfig at the repo root. tsc only typechecks (noEmit) —
+   // tsdown emits dist/ for npm, bun runs scripts/tests directly.
+   "compilerOptions": {
+      // real node resolution — what tsc resolves is what bun resolves at runtime
+      "module": "nodenext",
+      "moduleResolution": "nodenext",
+
+      // the pair that legalizes `from 'src/foo/Bar.ts'` — extensions are part
+      // of the exact-path search key; tsc only typechecks, bun/tsdown emit
+      "allowImportingTsExtensions": true,
+      "noEmit": true,
+
+      // THE mapping that makes 'src/...' specifiers resolve. No baseUrl —
+      // explicit paths only, so bare specifiers can't collide with packages.
+      "paths": {
+         "src/*": ["./src/*"],
+         "scripts/*": ["./scripts/*"],
+         "examples/*": ["./examples/*"],
+         // lets the generated .comfy-ts/hosts/*/sdk.d.ts import 'comfy-ts'
+         // in-repo exactly like consumers do from node_modules
+         "comfy-ts": ["./src/index.ts"]
+      },
+
+      // every file is a module even with no import/export (standalone scripts)
+      "moduleDetection": "force",
+
+      "strict": true,
+      "noUncheckedIndexedAccess": true,
+      "isolatedModules": true,
+      "skipLibCheck": true,
+      "incremental": true,
+      "tsBuildInfoFile": "node_modules/.cache/tsbuildinfo.json",
+
+      "resolveJsonModule": true,
+
+      // explicit: tsgo does not reliably auto-include @types/bun's `bun:test`
+      // module declaration (surfaced when the tui tests joined the project)
+      "types": ["node", "bun", "react", "ws"],
+
+      "jsx": "react-jsx"
+   },
+   // tests/ stays OUT of tsc on purpose: tests drive a schema-less host whose
+   // base builder is index-typed (factories possibly-undefined under
+   // noUncheckedIndexedAccess). bun test executes them; oxlint/oxfmt cover them.
+   "include": ["src", "scripts", "examples", ".comfy-ts/hosts/**/sdk.d.ts", "*.ts"]
+}

@@ -1,0 +1,32 @@
+{
+   "$schema": "./node_modules/oxlint/configuration_schema.json",
+   "categories": {
+      "correctness": "warn",
+      "suspicious": "warn"
+   },
+   "rules": {
+      "typescript/no-unsafe-declaration-merging": "off",
+      "eslint/no-unused-vars": [
+         "warn",
+         {
+            "argsIgnorePattern": "^_",
+            "varsIgnorePattern": "^_",
+            "caughtErrorsIgnorePattern": "^_"
+         }
+      ],
+      "eslint/no-underscore-dangle": "off",
+      "eslint/no-shadow": "off",
+      "eslint/no-new": "off",
+      "oxc/no-this-in-exported-function": "off",
+      "unicorn/no-array-sort": "off",
+      "unicorn/no-array-reverse": "off",
+      "unicorn/consistent-function-scoping": "off",
+      "unicorn/prefer-add-event-listener": "off"
+   },
+   "ignorePatterns": [
+      "src/manager/generated/**",
+      "output/**",
+      ".comfy-ts/**",
+      "dist/**"
+   ]
+}

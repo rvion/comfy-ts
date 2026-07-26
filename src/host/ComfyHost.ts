@@ -1,0 +1,646 @@
+import { existsSync, mkdirSync, readFileSync, statSync } from 'node:fs'
+import { type } from 'arktype'
+import type { MessageEvent } from 'ws'
+import type { KnownComfyPluginTitle } from 'src/manager/generated/KnownComfyPluginTitle.ts'
+import type { KnownComfyPluginURL } from 'src/manager/generated/KnownComfyPluginURL.ts'
+import type { ComfyManagerPluginInfo } from 'src/manager/types/ComfyManagerPluginInfo.ts'
+import type { ComfyExecution } from 'src/runner/ComfyExecution.ts'
+import type { ComfyApiJson } from 'src/sdk-generator/comfy-api-json.ts'
+import type { LiteGraphJSON } from 'src/litegraph/LiteGraphJSON.ts'
+import { convertLiteGraphToPrompt } from 'src/sdk-generator/litegraphToApiRequestPayload.ts'
+import { asComfyWorkflowID, ComfyWorkflow } from 'src/runner/ComfyWorkflow.ts'
+import {
+   type ComfyStatusData,
+   type PromptID,
+   type PromptRelated_WsMsg,
+   type WsMsg,
+   WsMsg_ark,
+} from 'src/runner/ComfyWsApi.ts'
+import { ComfySchema } from 'src/sdk-generator/ComfySchema.ts'
+import { type ComfySchemaJSON, ComfySchemaJSON_ark } from 'src/sdk-generator/ComfyUIObjectInfoTypes.ts'
+import type { EmbeddingName } from 'src/sdk-generator/comfyui-types.ts'
+import { type AbsolutePath, type Maybe, type number_Timestamp, type Tagged } from 'src/types/index.ts'
+import { exhaust } from 'src/utils/exhaust.ts'
+import { extractErrorMessage } from 'src/utils/extractErrorMessage.ts'
+import { printArkResultInConsole } from 'src/utils/printArkResultInConsole.ts'
+import { readableStringify } from 'src/utils/stringifyReadable.ts'
+import { logError as toastError, logInfo } from 'src/utils/log.ts'
+import { writeFileAsync } from 'src/utils/writeFile.ts'
+import type { ComfyInstallType } from 'src/host/ComfyInstallType.ts'
+import { ComfyManager } from 'src/host/ComfyManager.ts'
+import { ComfyUploader } from 'src/host/ComfyUploader.ts'
+import type { Requirements } from 'src/host/Requirements.ts'
+import { ResilientWebSocketClient } from 'src/host/ResilientWebsocket.ts'
+import { DefinedWorkflow, type DefineWorkflowSpec } from 'src/vars/DefinedWorkflow.ts'
+import type { VarsSpec } from 'src/vars/ComfyVars.ts'
+
+export type ComfyHostID = Tagged<string, { HostID: true }>
+export type ComfyHostData = {
+   id: string
+   host: string
+   port: number
+   https?: boolean
+
+   // for extra features using path manipulation
+   installType?: ComfyInstallType
+
+   // misc
+   onWsMessageAny?: (e: MessageEvent) => void
+   onWsMessageArrayBuffer?: (e: ArrayBuffer) => void
+   onWsMessageJSON?: (e: WsMsg) => void
+}
+
+export type ConnectOptions = {
+   /** 'auto' (default): reuse cache when fresh · 'refresh': always fetch · 'cache': never fetch */
+   schema?: 'auto' | 'refresh' | 'cache'
+   /** max cache age for 'auto' (default 24h) */
+   maxAgeMs?: number
+}
+
+// biome-ignore format: misc
+type SchemaUpdateResult = Maybe<{ type: 'success' } | { type: 'error'; error: unknown }>
+
+type ServerLog = {
+   at: string
+   content: string
+   id: number
+}
+
+export class ComfyHost<ID extends string = string> {
+   // ----- misc paths where we'll store host-related files -----
+   cacheFolder: AbsolutePath
+
+   comfyJSONPath: AbsolutePath
+   embeddingsPath: AbsolutePath
+   sdkDTSPath: AbsolutePath
+
+   /** the schema instance with all methods to interract with the host schema */
+   schema: ComfySchema
+   uploader = new ComfyUploader(this)
+
+   constructor(public data: ComfyHostData & { id: ID }) {
+      /** folder where file related to the host config will be cached */
+      this.cacheFolder = comfyts.resolveFromHosts(this.data.id)
+
+      // create the folder if it does not exist
+      const exists = existsSync(this.cacheFolder)
+      if (!exists) {
+         console.log('🟢 creating folder', this.cacheFolder)
+         mkdirSync(this.cacheFolder, { recursive: true })
+      }
+
+      this.comfyJSONPath = comfyts.resolve(this.cacheFolder, `object_info.json`)
+      this.embeddingsPath = comfyts.resolve(this.cacheFolder, `embeddings.json`)
+      this.sdkDTSPath = comfyts.resolve(this.cacheFolder, `sdk.d.ts`)
+
+      /** create a new schema */
+      this.schema = new ComfySchema({ embeddings: [], spec: {} })
+   }
+
+   /** helper to check if your host have whatever it needs to run your workflow */
+   matchRequirements = (requirements: Requirements[]): boolean => {
+      const repo = comfyts.registry
+      for (const req of requirements) {
+         if (req.optional) continue
+         if (req.type === 'customNodesByNodeKey') {
+            const plugins: ComfyManagerPluginInfo[] = repo.plugins_byNodeKey.get(req.nodeName) ?? []
+            if (!plugins.find((i) => this.manager.isPluginInstalled(i.title))) {
+               // console.log(`[❌ A] ${JSON.stringify(req)} NOT MATCHED`)
+               return false
+            }
+         } else if (req.type === 'customNodesByTitle') {
+            const plugin: ComfyManagerPluginInfo | undefined = repo.plugins_byTitle.get(req.title)
+            if (plugin == null) continue
+            if (!this.manager.isPluginInstalled(plugin.title)) {
+               // console.log(`[❌ B] ${JSON.stringify(req)} NOT MATCHED`)
+               return false
+            }
+         } else if (req.type === 'customNodesByURI') {
+            const plugin: ComfyManagerPluginInfo | undefined = repo.plugins_byFile.get(req.uri)
+            if (plugin == null) continue
+            if (!this.manager.isPluginInstalled(plugin.title)) {
+               // console.log(`[❌ C] ${JSON.stringify(req)} NOT MATCHED`)
+               return false
+            }
+         } else if (req.type === 'modelInManager') {
+            if (!this.manager.isModelInstalled(req.modelName)) {
+               // console.log(`[❌ D] ${JSON.stringify(req)} NOT MATCHED`)
+               return false
+            }
+         } else {
+            // exhaust(req.type)
+         }
+      }
+      return true
+   }
+
+   // ----- Rotating srever logs -----
+
+   /** server sent by the comfy-manager plugin */
+   readonly serverLogs: ServerLog[] = []
+
+   /** if true, request ComfyUI to forward logs */
+   private wantLog: boolean = true
+
+   /** maximum amount of logs to keep in memory */
+   readonly maxLogs: number = 200
+
+   /** last log id received */
+   private logId: number = 0
+
+   /** toggle server log forwarding so comfy-ts can  */
+   toggleServerLogs = (): Promise<unknown> => {
+      this.wantLog = !this.wantLog
+      return this.manager.configureLogging(this.wantLog)
+   }
+
+   addLog = (content: string): void => {
+      if (this.serverLogs.length > this.maxLogs) this.serverLogs.shift()
+      const d = new Date().toISOString().slice(11, 19)
+      this.serverLogs.push({ content, id: this.logId++, at: d })
+   }
+
+   // ----- Misc helpers if you work with a local Comfy -----
+
+   /** root install of ComfyUI on the host filesystem */
+   get absolutePathToComfyUI(): Maybe<string> {
+      return this.data.installType?.absolutePathToComfyRoot
+   }
+
+   // ----- Misc helpers if you work with a local Comfy -----
+
+   get manager(): ComfyManager {
+      const value = new ComfyManager(this)
+      Object.defineProperty(this, 'manager', { value })
+      return value
+   }
+
+   // INIT -----------------------------------------------------------------------------
+   installCustomNodeByFile = async (customNodeFile: KnownComfyPluginURL): Promise<boolean> => {
+      const manager = comfyts.registry
+      const plugin: ComfyManagerPluginInfo | undefined = manager.plugins_byFile.get(customNodeFile)
+      if (plugin == null) throw new Error(`Unknown custom node for file: "${customNodeFile}"`)
+      return this.manager.installPlugin(plugin)
+   }
+
+   installCustomNodeByTitle = async (customNodeTitle: KnownComfyPluginTitle): Promise<boolean> => {
+      const manager = comfyts.registry
+      const plugin: ComfyManagerPluginInfo | undefined = manager.plugins_byTitle.get(customNodeTitle)
+      if (plugin == null) throw new Error(`Unknown custom node for title: "${customNodeTitle}"`)
+      return this.manager.installPlugin(plugin)
+   }
+
+   installCustomNode = async (customNode: ComfyManagerPluginInfo): Promise<boolean> => {
+      return this.manager.installPlugin(customNode)
+   }
+
+   // URLS -----------------------------------------------------------------------------
+   getServerHostHTTP(): string {
+      const method = this.data.https ? 'https' : 'http'
+      const host = this.data.host
+      const port = this.data.port
+      return `${method}://${host}:${port}`
+   }
+
+   getWSUrl = (): string => {
+      const method = this.data.https ? 'wss' : 'ws'
+      const host = this.data.host
+      const port = this.data.port
+      return `${method}://${host}:${port}/ws`
+   }
+
+   // LOGS -----------------------------------------------------------------------------
+   schemaRetrievalLogs: string[] = []
+
+   resetLog = (): void => {
+      this.schemaRetrievalLogs.splice(0, this.schemaRetrievalLogs.length)
+   }
+
+   // STARTING -----------------------------------------------------------------------------
+   get isConnected(): boolean {
+      return this.ws?.isOpen ?? false
+   }
+
+   workflow = (p: { id?: string } = {}): ComfyWorkflow<ID> => {
+      return new ComfyWorkflow(this, {
+         metadata: {},
+         id: p.id ? asComfyWorkflowID(p.id) : undefined,
+      })
+   }
+
+   /**
+    * define a re-runnable workflow: `build` re-executes with the current var
+    * values on every run(). The standard contract for tweak & re-run drivers
+    * (scripts, the TUI).
+    */
+   defineWorkflow = <V extends VarsSpec>(spec: DefineWorkflowSpec<ID, V>): DefinedWorkflow<ID, V> => {
+      return new DefinedWorkflow(this, spec)
+   }
+
+   /** import a workflow.json (litegraph format) as a live, editable workflow */
+   importWorkflowJson = (json: LiteGraphJSON, p: { id?: string } = {}): ComfyWorkflow<ID> => {
+      const apiJson = convertLiteGraphToPrompt(this.schema, json)
+      return this.importApiJson(apiJson, p)
+   }
+
+   /** import an api.json (ComfyUI prompt format) as a live, editable workflow */
+   importApiJson = (json: ComfyApiJson, p: { id?: string } = {}): ComfyWorkflow<ID> => {
+      const wf = new ComfyWorkflow(this, {
+         apiJson: json,
+         metadata: {},
+         id: p.id ? asComfyWorkflowID(p.id) : undefined,
+      })
+      wf.onUpdate(null, wf.data) // hydrate ComfyNode instances from the json
+      return wf
+   }
+
+   private _ready: Promise<void> | null = null
+   private _readyResolve: (() => void) | null = null
+   private _readyReject: ((e: unknown) => void) | null = null
+   private _schemaStrategy: NonNullable<ConnectOptions['schema']> = 'auto'
+   private _schemaMaxAgeMs: number = 24 * 3600_000
+
+   /**
+    * open the websocket; resolves once connected AND the schema is loaded.
+    * Schema strategy:
+    *  - 'auto' (default): reuse .comfy-ts/ cache when younger than maxAgeMs — fast starts
+    *  - 'refresh': always fetch object_info + regen the sdk
+    *  - 'cache': never fetch (throws when no cache exists)
+    */
+   connect = (p: ConnectOptions = {}): Promise<void> => {
+      if (this._ready == null) {
+         this._schemaStrategy = p.schema ?? 'auto'
+         this._schemaMaxAgeMs = p.maxAgeMs ?? 24 * 3600_000
+         this._ready = new Promise<void>((res, rej) => {
+            this._readyResolve = res
+            this._readyReject = rej
+         })
+         this.initWebsocket()
+      }
+      return this._ready
+   }
+
+   /** close the websocket (e.g. to let a script exit) */
+   disconnect = (): void => {
+      this.ws?.disconnectPermanently()
+      this.ws = null
+      this._ready = null
+   }
+
+   private markReady(): void {
+      this._readyResolve?.()
+      this._readyResolve = null
+      this._readyReject = null
+   }
+
+   private markFailed(error: unknown): void {
+      // reject the pending connect() so callers fail fast instead of hanging
+      this._readyReject?.(error)
+      this._readyResolve = null
+      this._readyReject = null
+   }
+
+   private async writeSDKToDisk(): Promise<void> {
+      const comfySchemaTs = this.schema.codegenDTS({ hostId: this.data.id })
+      // skip the 4MB write when nothing changed (fast re-connects)
+      if (existsSync(this.sdkDTSPath) && readFileSync(this.sdkDTSPath, 'utf-8') === comfySchemaTs) return
+      await writeFileAsync(this.sdkDTSPath, comfySchemaTs, 'utf-8')
+   }
+
+   private shouldUseSchemaCache(): boolean {
+      if (this._schemaStrategy === 'refresh') return false
+      const exists = existsSync(this.comfyJSONPath)
+      if (this._schemaStrategy === 'cache') {
+         if (!exists) throw new Error(`connect({schema:'cache'}) but no cache at ${this.comfyJSONPath}`)
+         return true
+      }
+      if (!exists) return false
+      const ageMs = Date.now() - statSync(this.comfyJSONPath).mtimeMs
+      return ageMs < this._schemaMaxAgeMs
+   }
+
+   // WEBSCKET -----------------------------------------------------------------------------
+   /**
+    * will be created only after we've loaded cnfig file
+    * so we don't attempt to connect to some default server
+    * */
+   ws: Maybe<ResilientWebSocketClient> = null
+
+   /** resolves once the server assigned us a session id (first ws 'status' message) */
+   private _sessionResolve: (() => void) | null = null
+   private waitForSession(timeoutMs: number = 5000): Promise<void> {
+      if (this.comfySessionId !== 'temp') return Promise.resolve()
+      return new Promise<void>((res) => {
+         this._sessionResolve = res
+         // some setups never send a sid — proceed after the timeout, loudly
+         setTimeout(() => {
+            if (this._sessionResolve != null) {
+               console.error(
+                  `🔴 no session id from ${this.data.id} after ${timeoutMs}ms — executions may not route back`,
+               )
+               this._sessionResolve = null
+               res()
+            }
+         }, timeoutMs).unref?.()
+      })
+   }
+
+   private initWebsocket(): ResilientWebSocketClient {
+      logInfo(`[👢] WEBSOCKET: starting client to ComfyUI host ${this.data.id}`)
+      this.ws = new ResilientWebSocketClient({
+         onConnectOrReconnect: async (): Promise<void> => {
+            logInfo(`[👢] WEBSOCKET: connected to ComfyUI host ${this.data.id}`)
+            if (this.shouldUseSchemaCache()) {
+               try {
+                  await this.loadSchemaFromCache()
+                  // the server routes execution events by client_id: without the
+                  // session id from the first 'status' message, prompts we POST
+                  // would report to nobody. The slow fetch path masked this race.
+                  await this.waitForSession()
+                  this.markReady()
+                  return
+               } catch (error) {
+                  console.error(`🔴 schema cache load failed, falling back to fetch`, extractErrorMessage(error))
+               }
+            }
+            await this.fetchAndUpdateSchema()
+            await this.waitForSession()
+            this.markReady()
+         },
+         onMessage: (e: MessageEvent): void => this.onMessage(e),
+         url: () => this.getWSUrl(),
+         onClose: (): void => {
+            logInfo(`[👢] WEBSOCKET: closed connection to ComfyUI host ${this.data.id}`)
+         },
+      })
+      return this.ws
+   }
+
+   _isUpdatingSchema: boolean = false
+   get isUpdatingSchema(): boolean {
+      return this._isUpdatingSchema
+   }
+   set isUpdatingSchema(v: boolean) {
+      this._isUpdatingSchema = v
+   }
+
+   schemaUpdateResult: SchemaUpdateResult = null
+
+   private _schemaFromCache: Promise<void> | null = null
+
+   /** load the schema from .comfy-ts/hosts/<id>/ without connecting (offline workflows, fast starts).
+    * idempotent like connect(): N co-imported modules parse the ~4MB cache once */
+   loadSchemaFromCache(): Promise<void> {
+      this._schemaFromCache ??= (async (): Promise<void> => {
+         const object_info_json = comfyts.readJSON_<ComfySchemaJSON>(this.comfyJSONPath)
+         const embeddings_json = comfyts.readJSON_<string[]>(this.embeddingsPath, [])
+
+         // update schema
+         this.schema.update({ spec: object_info_json, embeddings: embeddings_json })
+         this.schema.RUN_BASIC_CHECKS()
+
+         // the on-disk sdk was generated from this same cache — only write when missing
+         if (!existsSync(this.sdkDTSPath)) await this.writeSDKToDisk()
+      })().catch((e: unknown) => {
+         this._schemaFromCache = null // a missing cache must stay retryable (e.g. after gen:sdk)
+         throw e
+      })
+      return this._schemaFromCache
+   }
+
+   /** POST a JSON route, preferring the /api prefix, falling back to the bare route */
+   private postJSON_ = async (route: string, body: unknown): Promise<void> => {
+      const base = this.getServerHostHTTP()
+      for (const url of [`${base}/api${route}`, `${base}${route}`]) {
+         const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+         })
+         if (res.ok) return
+      }
+      throw new Error(`POST ${route} failed on ${base} (tried /api${route} and ${route})`)
+   }
+
+   /** drop every PENDING prompt from the server queue (the running one keeps going) */
+   clearQueue = (): Promise<void> => {
+      return this.postJSON_('/queue', { clear: true })
+   }
+
+   /** interrupt the CURRENTLY RUNNING prompt */
+   interrupt = (): Promise<void> => {
+      return this.postJSON_('/interrupt', {})
+   }
+
+   /** GET a JSON route, preferring the /api prefix, falling back to the bare route */
+   private fetchJSON_ = async <T>(route: string): Promise<T> => {
+      const base = this.getServerHostHTTP()
+      for (const url of [`${base}/api${route}`, `${base}${route}`]) {
+         const res = await fetch(url, { method: 'GET' })
+         if (!res.ok) continue
+         if (!(res.headers.get('content-type') ?? '').includes('json')) continue
+         return (await res.json()) as T
+      }
+      throw new Error(`GET ${route} failed on ${base} (tried /api${route} and ${route})`)
+   }
+
+   /** retrieve the comfy spec from the schema*/
+   fetchAndUpdateSchema = async (): Promise<void> => {
+      try {
+         this.isUpdatingSchema = true
+         // 1 ------------------------------------
+         // download object_info (prefer /api/*: custom nodes hijack bare routes,
+         // e.g. lora-manager serves HTML at /embeddings)
+         const object_info_json = await this.fetchJSON_<{ [key: string]: ComfySchemaJSON[string] }>('/object_info')
+         const object_info_str = readableStringify(object_info_json, 4)
+         void writeFileAsync(this.comfyJSONPath, object_info_str, 'utf-8')
+         // use ark to check if payload match the type, and display errors if not
+         const res = ComfySchemaJSON_ark(object_info_json)
+         if (res instanceof type.errors) {
+            printArkResultInConsole(res)
+         }
+
+         // 2 ------------------------------------
+         // download embeddings
+         const embeddings_json = await this.fetchJSON_<EmbeddingName[]>('/embeddings').catch(
+            () => [] as EmbeddingName[],
+         )
+         void writeFileAsync(this.embeddingsPath, JSON.stringify(embeddings_json), 'utf-8')
+
+         // 3 ------------------------------------
+         // update schema
+         this.schema.update({ spec: object_info_json, embeddings: embeddings_json })
+         this.schema.RUN_BASIC_CHECKS()
+
+         // 3 ------------------------------------
+         // regen sdk
+         await this.writeSDKToDisk()
+         this.isUpdatingSchema = false
+         this.schemaUpdateResult = { type: 'success' }
+      } catch (error) {
+         this.isUpdatingSchema = false
+         this.schemaUpdateResult = { type: 'error', error: error }
+
+         console.error(error)
+         console.error('🔴 FAILURE TO GENERATE the typed sdk', extractErrorMessage(error))
+
+         const schemaExists = existsSync(this.sdkDTSPath)
+         if (!schemaExists) await this.writeSDKToDisk()
+         this.markFailed(error)
+      } finally {
+         this.isUpdatingSchema = false
+      }
+   }
+
+   /** executions we started */
+   executions: Map<PromptID, ComfyExecution> = new Map()
+
+   /** buffer in case we receive packets out of order */
+   _pendingMsgs = new Map<PromptID, PromptRelated_WsMsg[]>()
+
+   /** the active prompt currently running on this host */
+   private activePromptID: PromptID | null = null
+
+   /** method to either execute or buffer the incoming message */
+   routeOrBuffer(prompt_id: PromptID, msg: PromptRelated_WsMsg): void {
+      this.activePromptID = prompt_id
+      const prompt = this.executions.get(prompt_id)
+
+      // case 1. no prompt yet => just store the messages
+      if (prompt == null) {
+         const msgs = this._pendingMsgs.get(prompt_id)
+         if (msgs) msgs.push(msg)
+         else this._pendingMsgs.set(prompt_id, [msg])
+         return
+      }
+      // case 2. prompt exists => send the messages
+      prompt.onPromptRelatedMessage(msg)
+   }
+
+   /** the latent image beeing generated, in case you want to display it */
+   latentPreview: Maybe<{
+      promptID: Maybe<PromptID>
+      receivedAt: number_Timestamp
+      blob: Blob
+      url: string
+   }> = null
+
+   /** byte-level latent-preview hook (e.g. TUI live preview panel) */
+   onLatentPreview: Maybe<(p: { bytes: Uint8Array; mime: string; promptID: Maybe<PromptID> }) => void> = null
+
+   /** fires on every ws 'status' message (queue length lives there) */
+   onStatus: Maybe<(p: { queueRemaining: number }) => void> = null
+
+   /** the session assigned to us by the server */
+   comfySessionId: string = 'temp' /** send by ComfyUI server */
+
+   /** handy to keep around */
+   status: ComfyStatusData['status'] | null = null
+
+   onMessage(e: MessageEvent): void {
+      if (this.data.onWsMessageAny) this.data.onWsMessageAny(e)
+      if (e.data instanceof ArrayBuffer) {
+         // 🔴 console.log('[👢] WEBSOCKET: received ArrayBuffer', e.data)
+         const view = new DataView(e.data)
+         const eventType = view.getUint32(0)
+         const buffer = e.data.slice(4)
+         switch (eventType) {
+            case 1: {
+               const view2 = new DataView(e.data)
+               const imageType = view2.getUint32(4)
+               let imageMime: string
+               switch (imageType) {
+                  case 1:
+                     imageMime = 'image/jpeg'
+                     break
+                  case 2:
+                     imageMime = 'image/png'
+                     break
+                  default:
+                     imageMime = 'image/jpeg'
+                     break
+               }
+               const imageBytes = buffer.slice(4)
+               const imageBlob = new Blob([imageBytes], { type: imageMime })
+               const imagePreview = URL.createObjectURL(imageBlob)
+               this.latentPreview = {
+                  blob: imageBlob,
+                  url: imagePreview,
+                  receivedAt: Date.now() as number_Timestamp,
+                  promptID: this.activePromptID,
+               }
+               this.onLatentPreview?.({
+                  bytes: new Uint8Array(imageBytes),
+                  mime: imageMime,
+                  promptID: this.activePromptID,
+               })
+               break
+            }
+            default:
+               throw new Error(`Unknown binary websocket message of type ${eventType}`)
+         }
+         return
+      }
+
+      const msg_: unknown = JSON.parse(String(e.data))
+
+      // ----- crystools silent fix -----
+      if (typeof msg_ === 'object' && msg_ != null && 'type' in msg_) {
+         if (msg_.type === 'crystools.monitor') return
+      }
+
+      // ----- soft-validate against the schema -----
+      const res = WsMsg_ark(msg_)
+      if (res instanceof type.errors) {
+         console.log(`[🔴] /!\\ Websocket payload does not match schema.`)
+         printArkResultInConsole(res)
+      }
+      // wire tolerance (agent/coding.md): ComfyUI drifts faster than our schema;
+      // failures are logged above, then we still route best-effort
+      const msg = msg_ as WsMsg
+
+      if (msg.type === 'status') {
+         if (msg.data.sid) {
+            this.comfySessionId = msg.data.sid
+            this._sessionResolve?.()
+            this._sessionResolve = null
+         }
+         this.status = msg.data.status
+         this.onStatus?.({ queueRemaining: msg.data.status?.exec_info?.queue_remaining ?? 0 })
+         return
+      }
+
+      // defer accumulation to ScriptStep_prompt
+      if (msg.type === 'progress') {
+         const activePromptID = this.activePromptID
+         if (activePromptID == null) {
+            console.log(`❌ received a 'progress' msg, but activePromptID is not set`)
+            return
+         }
+         this.routeOrBuffer(activePromptID, msg)
+         return
+      }
+      if (
+         msg.type === 'execution_start' ||
+         msg.type === 'execution_cached' ||
+         msg.type === 'execution_error' ||
+         msg.type === 'execution_success' ||
+         msg.type === 'executing' ||
+         msg.type === 'executed' ||
+         msg.type === 'progress_state'
+      ) {
+         this.routeOrBuffer(msg.data.prompt_id, msg)
+         return
+      }
+
+      if (msg.type === 'manager-terminal-feedback') {
+         this.addLog(msg.data.data)
+         return
+      }
+      exhaust(msg)
+      console.log('❌', 'Unknown message:', msg)
+
+      toastError('Unknown message type: ' + JSON.stringify(msg.type))
+      // throw new Error('Unknown message type: ' + JSON.stringify(msg))
+   }
+}

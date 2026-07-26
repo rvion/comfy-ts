@@ -1,0 +1,15 @@
+# oxfmt's ignore file (it reads .gitignore + .prettierignore by default — hence
+# the prettier name; there is no prettier in this repo). The VSCode oxc
+# extension honours it too, so save-on-format leaves these alone.
+
+# captured ComfyUI dumps: fixtures must stay byte-identical to what the server
+# actually returned, reformatting them would falsify what we test against
+tests/fixtures/**
+
+# upstream ComfyUI-Manager mirrors: refreshed by `bun run gen:manager`, ours to
+# store and not to restyle (reformatting turns every refresh into a 1MB diff)
+src/manager/json/*.json
+
+# NOT ignored on purpose: src/manager/generated/** — the generator's own output
+# is formatted as the LAST step of gen:manager, which is what keeps the ci gate
+# green after a regeneration

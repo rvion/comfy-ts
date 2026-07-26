@@ -1,0 +1,136 @@
+import { existsSync, readFileSync } from 'node:fs'
+import { join } from 'pathe'
+import pkgJson from '../package.json' with { type: 'json' }
+import { ComfyHost, type ComfyHostData } from 'src/host/ComfyHost.ts'
+import { ComfyRegistry } from 'src/manager/ComfyRegistry.ts'
+import { type AbsolutePath, asAbsolutePath, type RelativePath } from 'src/types/index.ts'
+
+/** singleton */
+export class ComfyTS {
+   version = pkgJson.version
+
+   constructor(p: { rootPath?: string } = {}) {
+      // global registration: the rest of the lib resolves paths through `comfyts`
+      const globalHack = globalThis as { comfyts?: ComfyTS }
+      if (globalHack.comfyts != null) throw new Error('ComfyTS instance already created')
+      globalHack.comfyts = this
+      if (p.rootPath) this.rootPath = asAbsolutePath(p.rootPath)
+      this.baseFolder = asAbsolutePath(join(this.rootPath, '.comfy-ts'))
+      this.hostsFolder = asAbsolutePath(join(this.baseFolder, 'hosts'))
+      this.outputPath = asAbsolutePath(join(this.baseFolder, 'outputs'))
+   }
+
+   /**
+    * multi-module entrypoint: returns the existing global instance or creates
+    * it. Workflow modules MUST use this (the TUI imports many of them into one
+    * process); `new ComfyTS()` still throws on a second instance.
+    */
+   static create(p: { rootPath?: string } = {}): ComfyTS {
+      const globalHack = globalThis as { comfyts?: ComfyTS }
+      const existing = globalHack.comfyts
+      if (existing == null) return new ComfyTS(p)
+      if (p.rootPath != null && asAbsolutePath(p.rootPath) !== existing.rootPath)
+         throw new Error(
+            `ComfyTS.create({rootPath: '${p.rootPath}'}) conflicts with the existing instance rooted at '${existing.rootPath}'`,
+         )
+      return existing
+   }
+
+   /** every host created through host(), keyed by id — one instance (and one ws) per id */
+   hosts: Map<string, ComfyHost> = new Map()
+
+   host<const ID extends string>(data: ComfyHostData & { id: ID }): ComfyHost<ID> {
+      const existing = this.hosts.get(data.id)
+      if (existing != null) {
+         if (existing.data.host !== data.host || existing.data.port !== data.port || existing.data.https !== data.https)
+            throw new Error(
+               `host id '${data.id}' already registered at ${existing.data.host}:${existing.data.port} — refusing ${data.host}:${data.port}`,
+            )
+         // cast: whitelist item 7 (agent/coding.md) — id equality checked just above
+         return existing as ComfyHost<ID>
+      }
+      const created = new ComfyHost(data)
+      this.hosts.set(data.id, created)
+      return created
+   }
+
+   /**
+    * A ComfyRegistry instance that provides access to all
+    * known Comfy nodes, models, plugins, ...
+    * lazy: constructing it parses ~3MB of ComfyUI-Manager JSON, only pay when used
+    */
+   private _registry: ComfyRegistry | null = null
+   get registry(): ComfyRegistry {
+      if (this._registry == null) this._registry = new ComfyRegistry({ check: false, genTypes: false })
+      return this._registry
+   }
+
+   /** root path used to resolve things */
+   rootPath: AbsolutePath = asAbsolutePath(process.cwd())
+
+   /**
+    * every repo using comfy-ts gets ONE `.comfy-ts/` folder:
+    *    .comfy-ts/hosts/<id>/{object_info.json, embeddings.json, sdk.d.ts}
+    *    .comfy-ts/outputs/...   generated images & workflows
+    *    .comfy-ts/drafts/<workflow-id>/<draft>.json   TUI var snapshots (local, gitignored)
+    */
+   baseFolder: AbsolutePath
+   hostsFolder: AbsolutePath
+   outputPath: AbsolutePath
+
+   resolveFromDrafts(relativePath: string): AbsolutePath {
+      return asAbsolutePath(join(this.baseFolder, 'drafts', relativePath))
+   }
+
+   resolveFromCache(relativePath: string): AbsolutePath {
+      return asAbsolutePath(join(this.baseFolder, 'cache', relativePath))
+   }
+
+   /** local TUI settings (preview mode, last draft per workflow) — gitignored */
+   get settingsPath(): AbsolutePath {
+      return asAbsolutePath(join(this.baseFolder, 'settings.json'))
+   }
+
+   resolveFromHosts(relativePath: string): AbsolutePath {
+      return asAbsolutePath(join(this.hostsFolder, relativePath))
+   }
+
+   /**
+    * Resolves a relative path against an absolute path.
+    * @param from - The absolute path to resolve from.
+    * @param relativePath - The relative path to resolve.
+    * @returns The resolved absolute path.
+    */
+   resolve(from: AbsolutePath, relativePath: RelativePath): AbsolutePath {
+      return asAbsolutePath(join(from, relativePath))
+   }
+   resolveFromOutput(relativePath: string): AbsolutePath {
+      return asAbsolutePath(join(this.outputPath, relativePath))
+   }
+
+   readJSON_ = <T>(absPath: AbsolutePath, def?: T): T => {
+      const exists = existsSync(absPath)
+      if (!exists) {
+         if (def != null) return def
+         throw new Error(`file does not exist ${absPath}`)
+      }
+      const str = readFileSync(absPath, 'utf8')
+      const json = JSON.parse(str)
+      return json
+   }
+
+   // for automatic formating of produced ComfyUI workflow
+   autolayoutOpts: {
+      node_hsep: number
+      node_vsep: number
+      forceLeft: boolean
+   } = {
+      node_hsep: 50,
+      node_vsep: 50,
+      forceLeft: false,
+   }
+}
+
+declare global {
+   var comfyts: ComfyTS
+}

@@ -1,0 +1,106 @@
+{
+   "name": "comfy-ts",
+   "version": "0.3.0",
+   "description": "Type-safe generative AI pipeline creation and execution using ComfyUI",
+   "keywords": [
+      "comfyui",
+      "AI",
+      "typescript",
+      "codegen",
+      "stable-diffusion"
+   ],
+   "author": "Rémi Vion <vion.remi@gmail.com>",
+   "license": "MIT",
+   "repository": {
+      "type": "git",
+      "url": "https://github.com/rvion/comfy-ts.git"
+   },
+   "bugs": {
+      "url": "https://github.com/rvion/comfy-ts/issues"
+   },
+   "homepage": "https://github.com/rvion/comfy-ts",
+   "type": "module",
+   "main": "./dist/index.cjs",
+   "module": "./dist/index.js",
+   "types": "./dist/index.d.ts",
+   "bin": {
+      "comfy-ts": "./dist/cli.js"
+   },
+   "exports": {
+      ".": {
+         "import": {
+            "types": "./dist/index.d.ts",
+            "default": "./dist/index.js"
+         },
+         "require": {
+            "types": "./dist/index.d.cts",
+            "default": "./dist/index.cjs"
+         }
+      },
+      "./src/*": "./src/*"
+   },
+   "files": [
+      "dist",
+      "src",
+      "README.md",
+      "LICENSE"
+   ],
+   "scripts": {
+      "build": "tsdown",
+      "build:watch": "tsdown --watch",
+      "test": "bun test",
+      "test:watch": "bun test --watch",
+      "typecheck": "tsc --noEmit",
+      "typecheck:lib": "tsc -p tsconfig.lib.json",
+      "lint": "oxlint src examples scripts tests",
+      "format": "oxfmt src examples scripts tests",
+      "format:check": "oxfmt --check src examples scripts tests",
+      "imports:check": "rvt imports --check",
+      "imports:fix": "rvt imports --fix",
+      "cycles": "rvt cycles 1",
+      "rename": "rvt rename",
+      "ci": "bun run typecheck:lib && bun run lint && bun run format:check && bun run imports:check && bun test",
+      "ci:local": "bun run ci && bun run typecheck",
+      "gen:manager": "bun src/manager/script-update-manager.bun.ts",
+      "gen:sdk": "bun scripts/gen-sdk-from-cache.ts",
+      "sdk:outline": "bun scripts/sdk-outline.ts",
+      "hooks:install": "git config core.hooksPath .githooks",
+      "prepublishOnly": "bun run ci && bun run build",
+      "tui": "bun src/cli/comfy-ts-cli.ts tui"
+   },
+   "rvt": {
+      "skip": [
+         ".rv-private",
+         "tmp",
+         ".comfy-ts"
+      ]
+   },
+   "engines": {
+      "bun": ">=1.1.0",
+      "node": ">=20.0.0"
+   },
+   "dependencies": {
+      "arktype": "^2.2.3",
+      "image-meta": "^0.2.2",
+      "ink": "^7.1.1",
+      "mobx": "^6.16.1",
+      "mobx-react-lite": "^4.1.1",
+      "nanoid": "^6.0.0",
+      "pathe": "^2.0.3",
+      "react": "^19.2.8",
+      "react-dom": "^19.2.8",
+      "sharp": "^0.35.3",
+      "ws": "^8.21.1"
+   },
+   "devDependencies": {
+      "@types/bun": "^1.3.14",
+      "@types/react": "^19.2.17",
+      "@types/ws": "^8.18.1",
+      "oxfmt": "^0.60.0",
+      "oxlint": "^1.75.0",
+      "oxlint-tsgolint": "^7.0.2001",
+      "rvlib-ts-tools": "^0.2.0",
+      "tsdown": "^0.22.14",
+      "typescript": "^7.0.2"
+   }
+}

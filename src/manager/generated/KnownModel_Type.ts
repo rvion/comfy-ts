@@ -1,0 +1,97 @@
+// prettier-ignore
+export type KnownModel_Type =
+    | "TAESD"              // x   8
+    | "upscale"            // x  13
+    | "checkpoint"         // x  42
+    | "deepbump"           // x   1
+    | "face_restore"       // x   3
+    | "zero123"            // x   5
+    | "embedding"          // x   4
+    | "VAE"                // x  12
+    | "diffusion_model"    // x  69
+    | "clip"               // x  26
+    | "lora"               // x  40
+    | "unclip"             // x   2
+    | "T2I-Adapter"        // x  18
+    | "T2I-Style"          // x   1
+    | "controlnet"         // x  72
+    | "clip_vision"        // x   8
+    | "gligen"             // x   1
+    | "sam"                // x   4
+    | "seecoder"           // x   3
+    | "Ultralytics"        // x  16
+    | "animatediff"        // x  13
+    | "animatediff-pia"    // x   1
+    | "motion lora"        // x   8
+    | "IP-Adapter"         // x  25
+    | "GFPGAN"             // x   1
+    | "CodeFormer"         // x   1
+    | "facexlib"           // x   4
+    | "photomaker"         // x   2
+    | "insightface"        // x  11
+    | "instantid"          // x   2
+    | "InstanceDiffusion"  // x   3
+    | "BLIP_MODEL"         // x   1
+    | "GroundingDINO"      // x   2
+    | "RAM"                // x   3
+    | "IC-Light"           // x   3
+    | "RGT"                // x   6
+    | "depthanything"      // x   6
+    | "depth-pro"          // x   1
+    | "LLM"                // x   3
+    | "PuLID"              // x   2
+    | "MoGe"               // x   2
+    | "efficient_sam"      // x   2
+    | "CustomNet"          // x   2
+    | "Janus-Pro"          // x   2
+    | "vae"                // x   1
+    | "FramePackI2V" // x   1
+
+export const knownModel_Type: KnownModel_Type[] = [
+   'TAESD', // x   8
+   'upscale', // x  13
+   'checkpoint', // x  42
+   'deepbump', // x   1
+   'face_restore', // x   3
+   'zero123', // x   5
+   'embedding', // x   4
+   'VAE', // x  12
+   'diffusion_model', // x  69
+   'clip', // x  26
+   'lora', // x  40
+   'unclip', // x   2
+   'T2I-Adapter', // x  18
+   'T2I-Style', // x   1
+   'controlnet', // x  72
+   'clip_vision', // x   8
+   'gligen', // x   1
+   'sam', // x   4
+   'seecoder', // x   3
+   'Ultralytics', // x  16
+   'animatediff', // x  13
+   'animatediff-pia', // x   1
+   'motion lora', // x   8
+   'IP-Adapter', // x  25
+   'GFPGAN', // x   1
+   'CodeFormer', // x   1
+   'facexlib', // x   4
+   'photomaker', // x   2
+   'insightface', // x  11
+   'instantid', // x   2
+   'InstanceDiffusion', // x   3
+   'BLIP_MODEL', // x   1
+   'GroundingDINO', // x   2
+   'RAM', // x   3
+   'IC-Light', // x   3
+   'RGT', // x   6
+   'depthanything', // x   6
+   'depth-pro', // x   1
+   'LLM', // x   3
+   'PuLID', // x   2
+   'MoGe', // x   2
+   'efficient_sam', // x   2
+   'CustomNet', // x   2
+   'Janus-Pro', // x   2
+   'vae', // x   1
+   'FramePackI2V', // x   1
+]

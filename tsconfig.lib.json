@@ -1,0 +1,10 @@
+{
+   // the PORTABLE gate (what GitHub CI runs): library + scripts only, no host
+   // sdk.d.ts on disk. examples/ are excluded ON PURPOSE — they call nodes
+   // (`b.KSampler`) and name model files that only exist in a GENERATED per-host
+   // sdk, so without one they are index-typed and possibly-undefined, exactly
+   // like tests/ (see the root tsconfig). Typecheck them locally with
+   // `bun run typecheck` after `bun run gen:sdk`.
+   "extends": "./tsconfig.json",
+   "include": ["src", "scripts", "*.ts"]
+}
