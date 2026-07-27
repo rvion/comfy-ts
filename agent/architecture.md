@@ -207,10 +207,15 @@ tests/                     bun tests (headless) + fixtures
    iTerm.app/WezTerm/vscode, LC_TERMINAL iTerm2;
    `COMFY_TS_NO_ITERM_IMAGES=1` opts out) the preview panel reserves its cell
    rect as BLANK lines and `protocolImagePainter.ts` re-emits a
-   hand-rolled OSC 1337 escape at that rect after EVERY stdout flush (write
-   hook + mobx reaction), via raw stdout with cursor save/restore (content
-   row 6 — calibrated by playtest on iTerm2 2026-07-27, row 5 painted one
-   line too high) — protocol
+   hand-rolled OSC 1337 escape at that rect on EVERY stdout flush (write
+   hook + mobx reaction for byte-only changes), via raw stdout with cursor
+   save/restore (content row 6 — calibrated by playtest on iTerm2
+   2026-07-27, row 5 painted one line too high). The repaint is SYNCHRONOUS
+   within the same flush and the whole batch (ink frame + images) is
+   wrapped in DEC 2026 synchronized-update markers, so the terminal never
+   presents the erased-frame intermediate state — the deferred
+   (setImmediate) repaint was the native-mode flicker (his repro); tiny
+   writes (<64 bytes, e.g. terminal queries) skip the repaint — protocol
    images cannot go THROUGH ink (layout shreds the escape, repaints erase the
    cells) but overlay-painting after each repaint works. Geometry derives
    from the SAME observables as the layout (termCols, preview.width/height,
