@@ -11,7 +11,7 @@ export const LogsPanel = observer((p: { st: TuiSt }) => {
    return (
       <Box borderStyle="round" borderColor="gray" paddingX={1} flexDirection="column" flexShrink={0}>
          <Box marginTop={-1}>
-            <Text color="gray">logs</Text>
+            <Text color="gray">comfy host logs</Text>
          </Box>
          {rows.map((line, ix) => (
             <Text key={ix} color={ERROR_RE.test(line) ? 'red' : 'gray'} wrap="truncate-end">

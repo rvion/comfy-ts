@@ -1,6 +1,5 @@
 import { Box, Text } from 'ink'
 import { observer } from 'mobx-react-lite'
-import { overlayTopRight } from 'src/cli/tui/state/PreviewSt.ts'
 import type { TuiSt } from 'src/cli/tui/state/TuiSt.ts'
 
 /** right-side panel: selected-lora preview in the loras overlay, live latent while running,
@@ -28,7 +27,7 @@ export const PreviewPanel = observer((p: { st: TuiSt }) => {
             })}
             <Text> </Text>
             <Text color="gray" wrap="truncate">
-               ←→ change · ↑↓ move · p/esc done
+               ←→ change · ↑↓ move · ⏎/p/esc done
             </Text>
          </Box>
       )
@@ -55,9 +54,7 @@ export const PreviewPanel = observer((p: { st: TuiSt }) => {
       : loraMode
         ? s.loras.previewAnsi
         : showLatent
-          ? pv.duringRun === 'latent-small'
-             ? overlayTopRight(pv.outputAnsi, pv.latentAnsi, pv.width)
-             : (pv.latentAnsi ?? pv.outputAnsi)
+          ? (pv.latentAnsi ?? pv.outputAnsi)
           : pv.outputAnsi
    const reserveRect = pv.useNative && (pv.protocolImage != null || pv.protocolImageCorner != null)
    return (

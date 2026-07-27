@@ -174,7 +174,10 @@ tests/                     bun tests (headless) + fixtures
    successful bytes are cached at `.comfy-ts/cache/lora-previews/<sha1(url)>`
    (gitignored, read before any fetch).
 9. TUI preview: REAL images on capable terminals, half-blocks elsewhere. The
-   TUI runs in the ALTERNATE SCREEN (run-tui, TTY only). `p` OPENS THE
+   TUI runs in the ALTERNATE SCREEN (run-tui, TTY only; quitting resets SGR
+   and erases the alt screen BEFORE restoring — ED also deletes iTerm inline
+   images, otherwise the last protocol image and stray background colors
+   survive into the shell). `p` OPENS THE
    PREVIEW SETTINGS MENU inside the panel itself (mode 'preview', host-panel
    interaction: ↑↓ row, ←→/⏎/space cycle value, p/esc back — the panel
    renders even while hidden so the menu is always reachable). Three
@@ -186,9 +189,12 @@ tests/                     bun tests (headless) + fixtures
    latent / latent small / last output. `latent` paints the live latent full-
    panel; `latent small` keeps the LAST OUTPUT as the big image with the
    latent small in the panel's top-right corner in BOTH renderers (native:
-   second OSC paint on top; pixel: line-level composition — the top strip's
-   rows are replaced whole by the right-aligned ~40% latent render,
-   `overlayTopRight`, no mid-line escape surgery); `last output` ignores
+   second OSC paint on top, its cell box sized from the latent's REAL
+   dimensions via image-meta so iTerm doesn't letterbox a mismatched rect;
+   pixel: sharp composites the latent thumb onto
+   the last output at gravity northeast, then ONE half-block render —
+   string-level overlay was tried and dropped, its space padding reads as
+   black bars); `last output` ignores
    latent frames entirely (renderLatent short-circuits). Any settings change
    re-renders the last output. Run start clears LATENTS ONLY — the last
    output must survive so 'latent small' / 'last output' have a big image;
@@ -201,8 +207,15 @@ tests/                     bun tests (headless) + fixtures
    iTerm.app/WezTerm/vscode, LC_TERMINAL iTerm2;
    `COMFY_TS_NO_ITERM_IMAGES=1` opts out) the preview panel reserves its cell
    rect as BLANK lines and `protocolImagePainter.ts` re-emits a
-   hand-rolled OSC 1337 escape at that rect after EVERY stdout flush (write
-   hook + mobx reaction), via raw stdout with cursor save/restore — protocol
+   hand-rolled OSC 1337 escape at that rect on EVERY stdout flush (write
+   hook + mobx reaction for byte-only changes), via raw stdout with cursor
+   save/restore (content row 6 — calibrated by playtest on iTerm2
+   2026-07-27, row 5 painted one line too high). The repaint is SYNCHRONOUS
+   within the same flush and the whole batch (ink frame + images) is
+   wrapped in DEC 2026 synchronized-update markers, so the terminal never
+   presents the erased-frame intermediate state — the deferred
+   (setImmediate) repaint was the native-mode flicker (his repro); tiny
+   writes (<64 bytes, e.g. terminal queries) skip the repaint — protocol
    images cannot go THROUGH ink (layout shreds the escape, repaints erase the
    cells) but overlay-painting after each repaint works. Geometry derives
    from the SAME observables as the layout (termCols, preview.width/height,
@@ -255,11 +268,16 @@ tests/                     bun tests (headless) + fixtures
    CHUNKS, not lines: LogsSt assembles them (`\n` commits a line, `\r`
    resets the partial — tqdm redraws collapse to their last state, and the
    live partial renders as the panel's last row). ANSI is stripped
-   (stripAnsi in utils/ansi.ts), blank lines dropped, ring capped at 400.
-   LogsPanel sits below the vars panel (~8 rows, 4 when the terminal is
-   short, error-ish lines red), hidden while an overlay owns the vars area
-   (typing space > logs); stream failures surface AS a log line, not on the
-   console. Switching hosts best-effort unsubscribes the old one (it stays
+   (stripAnsi in utils/ansi.ts), cp1252-mangled UTF-8 repaired
+   (utils/mojibake.ts — the Windows server decodes its own UTF-8 output as
+   cp1252, so `█` arrives as `â–ˆ`; repair reverses the cp1252 map and
+   re-decodes, falling back to the original on any unmappable or invalid
+   byte), blank lines dropped, ring capped at 400.
+   LogsPanel (titled `comfy host logs`) sits at the BOTTOM of the center
+   column, below the progress line and the outputs box (~8 rows, 4 when the
+   terminal is short, error-ish lines red), hidden while an overlay owns
+   the vars area (typing space > logs); stream failures surface AS a log
+   line, not on the console. Switching hosts best-effort unsubscribes the old one (it stays
    connected in loadedHosts and would keep streaming to nobody). The host panel shows
    the same status first, then stats (nodes/loras/embeddings/queue/ws) and
    runs actions: re-codegen SDK

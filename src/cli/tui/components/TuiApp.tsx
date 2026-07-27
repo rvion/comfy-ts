@@ -137,11 +137,12 @@ export const TuiApp = observer((p: { st: TuiSt }) => {
          }
          if (s.mode === 'preview') {
             const pv = s.preview
-            if (key.escape || input === 'p' || input === 'v') return pv.blurMenu()
+            // ⏎ CONFIRMS (closes): ←→ already changed the value in place
+            if (key.escape || key.return || input === 'p' || input === 'v') return pv.blurMenu()
             if (key.upArrow) return pv.menuMove(-1)
             if (key.downArrow) return pv.menuMove(1)
             if (key.leftArrow) return pv.menuCycle(-1)
-            if (key.rightArrow || key.return || input === ' ') return pv.menuCycle(1)
+            if (key.rightArrow || input === ' ') return pv.menuCycle(1)
             // global keys keep working from the menu (mirrors the tree)
             if (input === 'r') return void s.exec.run()
             if (input === 's') return s.exec.randomizeSeedAndRun()
@@ -222,8 +223,6 @@ export const TuiApp = observer((p: { st: TuiSt }) => {
                ) : (
                   <VarsPanel st={s} />
                )}
-               {/* hidden while an overlay owns the vars area: typing space > logs */}
-               {!s.mode.startsWith('overlay-') && !(s.mode === 'edit' && s.editor.isCustom) && <LogsPanel st={s} />}
                <Box paddingX={1}>
                   <ProgressLine st={s} />
                </Box>
@@ -236,6 +235,8 @@ export const TuiApp = observer((p: { st: TuiSt }) => {
                      ))}
                   </Box>
                )}
+               {/* hidden while an overlay owns the vars area: typing space > logs */}
+               {!s.mode.startsWith('overlay-') && !(s.mode === 'edit' && s.editor.isCustom) && <LogsPanel st={s} />}
             </Box>
             {(s.preview.show || s.preview.menuOpen) && <PreviewPanel st={s} />}
          </Box>
