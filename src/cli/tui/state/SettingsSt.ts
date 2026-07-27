@@ -4,40 +4,61 @@ import { dirname } from 'pathe'
 import { protocolCapable } from 'src/cli/tui/state/PreviewSt.ts'
 import type { TuiSt } from 'src/cli/tui/state/TuiSt.ts'
 
-export type PreviewMode = 'native' | 'ansi' | 'off'
+export type PreviewRenderer = 'native' | 'pixel'
+export type PreviewDuringRun = 'latent' | 'latent-small' | 'last-output'
+
+export type PreviewSettings = {
+   previewPanel: boolean
+   previewRenderer: PreviewRenderer
+   previewDuringRun: PreviewDuringRun
+}
+
+/** read stored preview settings, migrating the legacy single `previewMode`
+ * (native|ansi|off) into the three independent axes */
+export function migratePreviewSettings(raw: Record<string, unknown>, defaults: PreviewSettings): PreviewSettings {
+   const out = { ...defaults }
+   const legacy = raw.previewMode
+   if (legacy === 'native') out.previewRenderer = 'native'
+   if (legacy === 'ansi') out.previewRenderer = 'pixel'
+   if (legacy === 'off') out.previewPanel = false
+   if (typeof raw.previewPanel === 'boolean') out.previewPanel = raw.previewPanel
+   if (raw.previewRenderer === 'native' || raw.previewRenderer === 'pixel') out.previewRenderer = raw.previewRenderer
+   if (
+      raw.previewDuringRun === 'latent' ||
+      raw.previewDuringRun === 'latent-small' ||
+      raw.previewDuringRun === 'last-output'
+   )
+      out.previewDuringRun = raw.previewDuringRun
+   return out
+}
 
 /** persisted TUI settings at `.comfy-ts/settings.json` (LOCAL state, gitignored) */
 export class SettingsSt {
    constructor(private st: TuiSt) {
       this.load()
-      // a non-protocol terminal can't do native — fall the stored setting back to ansi
-      if (this.previewMode === 'native' && !protocolCapable()) this.previewMode = 'ansi'
+      // a non-protocol terminal can't do native — fall the stored setting back to pixel
+      if (this.previewRenderer === 'native' && !protocolCapable()) this.previewRenderer = 'pixel'
       makeAutoObservable<SettingsSt, 'st'>(this, { st: false })
       this.st.disposers.push(
          reaction(
-            () => JSON.stringify({ previewMode: this.previewMode, lastDraft: this.lastDraft }),
+            () =>
+               JSON.stringify({
+                  previewPanel: this.previewPanel,
+                  previewRenderer: this.previewRenderer,
+                  previewDuringRun: this.previewDuringRun,
+                  lastDraft: this.lastDraft,
+               }),
             (json) => this.write(json),
             { delay: 300 },
          ),
       )
    }
 
-   previewMode: PreviewMode = protocolCapable() ? 'native' : 'ansi'
+   previewPanel: boolean = true
+   previewRenderer: PreviewRenderer = protocolCapable() ? 'native' : 'pixel'
+   previewDuringRun: PreviewDuringRun = 'latent'
    /** module basename → the draft that was active last time (reopened on load) */
    lastDraft: Record<string, string> = {}
-
-   setPreviewMode(mode: PreviewMode): void {
-      this.previewMode = mode
-      this.st.preview.onModeChanged()
-   }
-
-   /** `p` cycles native → ansi → off (native skipped when the terminal can't do it) */
-   cyclePreviewMode(): void {
-      const order: PreviewMode[] = protocolCapable() ? ['native', 'ansi', 'off'] : ['ansi', 'off']
-      const next = order[(order.indexOf(this.previewMode) + 1) % order.length] ?? 'off'
-      this.setPreviewMode(next)
-      this.st.exec.notice = `preview: ${next}`
-   }
 
    rememberDraft(moduleKey: string, draft: string): void {
       this.lastDraft[moduleKey] = draft
@@ -49,9 +70,15 @@ export class SettingsSt {
       try {
          const raw: unknown = JSON.parse(readFileSync(path, 'utf8'))
          if (raw == null || typeof raw !== 'object') return
-         const o = raw as { previewMode?: unknown; lastDraft?: unknown }
-         if (o.previewMode === 'native' || o.previewMode === 'ansi' || o.previewMode === 'off')
-            this.previewMode = o.previewMode
+         const o = raw as Record<string, unknown>
+         const preview = migratePreviewSettings(o, {
+            previewPanel: this.previewPanel,
+            previewRenderer: this.previewRenderer,
+            previewDuringRun: this.previewDuringRun,
+         })
+         this.previewPanel = preview.previewPanel
+         this.previewRenderer = preview.previewRenderer
+         this.previewDuringRun = preview.previewDuringRun
          if (o.lastDraft != null && typeof o.lastDraft === 'object')
             this.lastDraft = { ...(o.lastDraft as Record<string, string>) }
       } catch {

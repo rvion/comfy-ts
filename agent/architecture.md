@@ -69,7 +69,7 @@ src/cli/tui/               ink+mobx TUI, per build/app-state-tree doctrine:
    state/SettingsSt.ts     persisted TUI settings (.comfy-ts/settings.json):
                            preview mode + last draft per workflow
    state/ExecSt.ts         run/progress/outputs/notice/clipboard/open
-   state/PreviewSt.ts      preview modes (native/ansi/off), renders, panel sizing
+   state/PreviewSt.ts      preview renders, panel sizing, `p` settings menu (panel/renderer/while-running)
    components/*.tsx        stateless views: TuiApp (layout+keys), VarsPanel,
                            overlays, PreviewPanel, StatusBar
    keys.ts                 modified-⏎ translation for xterm modifyOtherKeys
@@ -174,10 +174,30 @@ tests/                     bun tests (headless) + fixtures
    successful bytes are cached at `.comfy-ts/cache/lora-previews/<sha1(url)>`
    (gitignored, read before any fetch).
 9. TUI preview: REAL images on capable terminals, half-blocks elsewhere. The
-   TUI runs in the ALTERNATE SCREEN (run-tui, TTY only). `p` CYCLES the
-   preview MODE native → ansi → off (native skipped on non-protocol
-   terminals; mode persisted via SettingsSt; cycling re-renders the last
-   output for the new mode). On iTerm-protocol terminals (TERM_PROGRAM
+   TUI runs in the ALTERNATE SCREEN (run-tui, TTY only). `p` OPENS THE
+   PREVIEW SETTINGS MENU inside the panel itself (mode 'preview', host-panel
+   interaction: ↑↓ row, ←→/⏎/space cycle value, p/esc back — the panel
+   renders even while hidden so the menu is always reachable). Three
+   independent, individually-persisted settings (SettingsSt; the legacy
+   single `previewMode` value migrates on load, see
+   `migratePreviewSettings`): `panel` on/off (off hides the panel), `renderer`
+   native/pixel (native = protocol images, auto-downgraded and cycle-skipped
+   on non-protocol terminals; pixel = ▄ half-blocks), and `while running`
+   latent / latent small / last output. `latent` paints the live latent full-
+   panel; `latent small` keeps the LAST OUTPUT as the big image with the
+   latent small in the panel's top-right corner in BOTH renderers (native:
+   second OSC paint on top; pixel: line-level composition — the top strip's
+   rows are replaced whole by the right-aligned ~40% latent render,
+   `overlayTopRight`, no mid-line escape surgery); `last output` ignores
+   latent frames entirely (renderLatent short-circuits). Any settings change
+   re-renders the last output. Run start clears LATENTS ONLY — the last
+   output must survive so 'latent small' / 'last output' have a big image;
+   the full preview reset belongs to workflow switches. NO-LATENTS DETECTION: PreviewSt tracks
+   `latentSeenThisRun`; when a run is ≥20% in (the gate keeps healthy runs
+   from red-flashing before their first frame), latents are wanted, and
+   none arrived, the panel title appends a red `no latents!` and the empty
+   panel explains the server-side fix (`--preview-method auto`) — the
+   2026-07-27 silent failure, surfaced. On iTerm-protocol terminals (TERM_PROGRAM
    iTerm.app/WezTerm/vscode, LC_TERMINAL iTerm2;
    `COMFY_TS_NO_ITERM_IMAGES=1` opts out) the preview panel reserves its cell
    rect as BLANK lines and `protocolImagePainter.ts` re-emits a

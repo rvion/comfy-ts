@@ -50,7 +50,10 @@ export class ExecSt {
             this.progress = null
             this.notice = null
             this.currentPromptId = null
-            this.st.preview.reset()
+            // latents only: the LAST OUTPUT must survive the run start — the
+            // 'latent small' / 'last output' preview settings show it while
+            // running (full reset belongs to workflow switches)
+            this.st.preview.clearLatent()
             // installed while ANY run is in flight, so queued prompts keep painting latents
             host.onLatentPreview = (p) => void this.st.preview.renderLatent(p.bytes)
          }

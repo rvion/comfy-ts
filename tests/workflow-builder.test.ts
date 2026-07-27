@@ -711,7 +711,7 @@ describe('tui tree ↔ vars focus round trip', () => {
 })
 
 describe('tui settings persistence', () => {
-   it('remembers preview mode and the last draft per workflow across TuiSt instances', async () => {
+   it('remembers preview settings and the last draft per workflow across TuiSt instances', async () => {
       const { asAbsolutePath } = await import('src/types/index.ts')
       const { v } = await import('src/vars/ComfyVars.ts')
       const { TuiSt } = await import('src/cli/tui/state/TuiSt.ts')
@@ -725,19 +725,28 @@ describe('tui settings persistence', () => {
          const wf = host.defineWorkflow({ id: 'set-test', vars: { seed: v.seed(1) }, build: () => {} })
 
          const st1 = new TuiSt(wf)
-         st1.settings.setPreviewMode('ansi')
+         const { runInAction } = await import('mobx')
+         runInAction(() => {
+            st1.settings.previewRenderer = 'pixel'
+            st1.settings.previewDuringRun = 'latent-small'
+         })
          st1.drafts.createNamed('night') // writes night.json AND remembers it active
          expect(st1.drafts.active).toBe('night')
          // force a synchronous settings write (the reaction is debounced)
          const { writeFileSync } = await import('node:fs')
          writeFileSync(
             comfyts.settingsPath,
-            JSON.stringify({ previewMode: st1.settings.previewMode, lastDraft: st1.settings.lastDraft }),
+            JSON.stringify({
+               previewRenderer: st1.settings.previewRenderer,
+               previewDuringRun: st1.settings.previewDuringRun,
+               lastDraft: st1.settings.lastDraft,
+            }),
          )
          st1.dispose()
 
          const st2 = new TuiSt(wf)
-         expect(st2.settings.previewMode).toBe('ansi')
+         expect(st2.settings.previewRenderer).toBe('pixel')
+         expect(st2.settings.previewDuringRun).toBe('latent-small')
          // the night draft file exists, so reopening the workflow reopens it
          expect(st2.drafts.active).toBe('night')
          st2.dispose()

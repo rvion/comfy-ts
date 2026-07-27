@@ -125,6 +125,11 @@ const MODE_KEYS: Partial<Record<string, Hint[]>> = {
       ['↑↓', 'move'],
       ['h/esc', 'back'],
    ],
+   preview: [
+      ['←→/⏎', 'change'],
+      ['↑↓', 'move'],
+      ['p/esc', 'back'],
+   ],
 }
 
 /** persistent 2-line keybar: EVERYTHING available right now, always visible */
@@ -139,16 +144,17 @@ export const KeyBar = observer((p: { st: TuiSt }) => {
    // keys already advertised by a panel title (t/v/p) or a header box (w/d/h)
    // are NOT repeated here — one letter, one place
    const globalHints: Hint[] =
-      s.mode === 'nav' || s.mode === 'tree' || s.mode === 'host'
+      s.mode === 'nav' || s.mode === 'tree' || s.mode === 'host' || s.mode === 'preview'
          ? [
               ['r', 'run'],
               ['s', 'reroll+run'],
               ...(s.mode === 'nav' ? ([['e', 'rename draft']] as Hint[]) : []),
               // the preview panel carries `p` in its title — unless it is hidden
-              ...(s.preview.show ? [] : ([['p', 'preview off']] as Hint[])),
+              ...(s.preview.show || s.mode === 'preview' ? [] : ([['p', 'preview (off)']] as Hint[])),
               ['o', 'open image'],
-              // c is duplicate inside the tree — don't advertise the copy pair there
-              ...(s.mode === 'tree' ? [] : ([['c/C', 'copy wf/api']] as Hint[])),
+              // c is duplicate inside the tree — don't advertise the copy pair
+              // there; the preview menu doesn't forward it either
+              ...(s.mode === 'tree' || s.mode === 'preview' ? [] : ([['c/C', 'copy wf/api']] as Hint[])),
               ['q', 'quit'],
            ]
          : [

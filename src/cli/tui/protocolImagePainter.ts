@@ -14,23 +14,30 @@ type WriteCb = (err?: Error | null) => void
  * why a useEffect painter missed frames (his report: image waited for input).
  */
 export function installProtocolImagePainter(st: TuiSt): () => void {
-   // capability, not current mode: `p` can switch to native at any time —
-   // protocolImage returns null while the mode is ansi/off, so painting no-ops
+   // capability, not current setting: the menu can switch to native at any
+   // time — protocolImage returns null while pixel/hidden, so painting no-ops
    if (!protocolCapable() || process.stdout.isTTY !== true) return () => {}
    const original = process.stdout.write.bind(process.stdout)
 
-   const paint = (): void => {
-      const bytes = st.preview.protocolImage
-      if (bytes == null) return
-      const pv = st.preview
-      // panel outer left edge +1 border +1 padding; content row = header(3) + border(1) + 1
-      const col = Math.max(1, st.termCols - (pv.width + 4) + 3)
+   const emit = (bytes: Uint8Array, row: number, col: number, w: number, h: number): void => {
       const b64 = Buffer.from(bytes).toString('base64')
       // cursor save → CUP → image sized in CELLS → cursor restore; via the
       // ORIGINAL write so the hook never re-triggers itself
       original(
-         `\u001b7\u001b[5;${col}H\u001b]1337;File=inline=1;size=${bytes.byteLength};width=${pv.width};height=${pv.height};preserveAspectRatio=1:${b64}\u0007\u001b8`,
+         `\u001b7\u001b[${row};${col}H\u001b]1337;File=inline=1;size=${bytes.byteLength};width=${w};height=${h};preserveAspectRatio=1:${b64}\u0007\u001b8`,
       )
+   }
+
+   const paint = (): void => {
+      const pv = st.preview
+      const main = pv.protocolImage
+      const corner = pv.protocolImageCorner
+      if (main == null && corner == null) return
+      // panel outer left edge +1 border +1 padding; content row = header(3) + border(1) + 1
+      const col = Math.max(1, st.termCols - (pv.width + 4) + 3)
+      if (main != null) emit(main, 5, col, pv.width, pv.height)
+      // small latent anchored top-right, painted AFTER the big image so it stays on top
+      if (corner != null) emit(corner, 5, col + pv.width - pv.cornerWidth, pv.cornerWidth, pv.cornerHeight)
    }
 
    let scheduled = false
@@ -51,7 +58,7 @@ export function installProtocolImagePainter(st: TuiSt): () => void {
    }) as typeof process.stdout.write
 
    process.stdout.write = patched
-   const disposeReaction = reaction(() => st.preview.protocolImage, schedule)
+   const disposeReaction = reaction(() => [st.preview.protocolImage, st.preview.protocolImageCorner], schedule)
    return () => {
       process.stdout.write = original
       disposeReaction()

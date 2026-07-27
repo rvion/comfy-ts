@@ -15,11 +15,13 @@ import { WorkflowsSt } from 'src/cli/tui/state/WorkflowsSt.ts'
 import type { DefinedWorkflow } from 'src/vars/DefinedWorkflow.ts'
 
 // nav = vars list · tree = left workflow panel · host = host stats/actions ·
+// preview = `p` settings menu in the preview panel ·
 // edit = inline single-line (numbers + custom prompts) · overlay-* = modal popups
 export type TuiMode =
    | 'nav'
    | 'tree'
    | 'host'
+   | 'preview'
    | 'edit'
    | 'overlay-text'
    | 'overlay-choice'

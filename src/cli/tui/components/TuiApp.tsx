@@ -115,7 +115,7 @@ export const TuiApp = observer((p: { st: TuiSt }) => {
             if (input === 's') return s.exec.randomizeSeedAndRun()
             if (input === 'd') return s.drafts.begin()
             if (input === 'h') return s.host.begin()
-            if (input === 'p') return s.settings.cyclePreviewMode()
+            if (input === 'p') return s.preview.beginMenu()
             if (input === 'o') return s.exec.openLastOutput()
             if (input === 'q') {
                s.onExit()
@@ -129,6 +129,25 @@ export const TuiApp = observer((p: { st: TuiSt }) => {
             if (key.return || input === ' ') return void h.commit()
             if (key.upArrow) return h.move(-1)
             if (key.downArrow) return h.move(1)
+            if (input === 'q') {
+               s.onExit()
+               return app.exit()
+            }
+            return
+         }
+         if (s.mode === 'preview') {
+            const pv = s.preview
+            if (key.escape || input === 'p' || input === 'v') return pv.blurMenu()
+            if (key.upArrow) return pv.menuMove(-1)
+            if (key.downArrow) return pv.menuMove(1)
+            if (key.leftArrow) return pv.menuCycle(-1)
+            if (key.rightArrow || key.return || input === ' ') return pv.menuCycle(1)
+            // global keys keep working from the menu (mirrors the tree)
+            if (input === 'r') return void s.exec.run()
+            if (input === 's') return s.exec.randomizeSeedAndRun()
+            if (input === 'd') return s.drafts.begin()
+            if (input === 'h') return s.host.begin()
+            if (input === 'o') return s.exec.openLastOutput()
             if (input === 'q') {
                s.onExit()
                return app.exit()
@@ -168,7 +187,7 @@ export const TuiApp = observer((p: { st: TuiSt }) => {
          if (input === 't' || input === 'w') return s.tree.focus()
          if (input === 'h') return s.host.begin()
          if (input === 'd') return s.drafts.begin()
-         if (input === 'p') return s.settings.cyclePreviewMode()
+         if (input === 'p') return s.preview.beginMenu()
          if (input === 'o') return s.exec.openLastOutput()
          if (input === 'c') return void s.exec.copyWorkflowJson()
          if (input === 'C') return void s.exec.copyApiJson()
@@ -218,7 +237,7 @@ export const TuiApp = observer((p: { st: TuiSt }) => {
                   </Box>
                )}
             </Box>
-            {s.preview.show && <PreviewPanel st={s} />}
+            {(s.preview.show || s.preview.menuOpen) && <PreviewPanel st={s} />}
          </Box>
          <KeyBar st={s} />
       </Box>
