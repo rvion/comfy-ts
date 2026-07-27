@@ -137,11 +137,12 @@ export const TuiApp = observer((p: { st: TuiSt }) => {
          }
          if (s.mode === 'preview') {
             const pv = s.preview
-            if (key.escape || input === 'p' || input === 'v') return pv.blurMenu()
+            // ⏎ CONFIRMS (closes): ←→ already changed the value in place
+            if (key.escape || key.return || input === 'p' || input === 'v') return pv.blurMenu()
             if (key.upArrow) return pv.menuMove(-1)
             if (key.downArrow) return pv.menuMove(1)
             if (key.leftArrow) return pv.menuCycle(-1)
-            if (key.rightArrow || key.return || input === ' ') return pv.menuCycle(1)
+            if (key.rightArrow || input === ' ') return pv.menuCycle(1)
             // global keys keep working from the menu (mirrors the tree)
             if (input === 'r') return void s.exec.run()
             if (input === 's') return s.exec.randomizeSeedAndRun()

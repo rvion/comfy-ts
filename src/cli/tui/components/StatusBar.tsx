@@ -126,9 +126,9 @@ const MODE_KEYS: Partial<Record<string, Hint[]>> = {
       ['h/esc', 'back'],
    ],
    preview: [
-      ['←→/⏎', 'change'],
+      ['←→', 'change'],
       ['↑↓', 'move'],
-      ['p/esc', 'back'],
+      ['⏎/p/esc', 'done'],
    ],
 }
 

@@ -28,7 +28,7 @@ export const PreviewPanel = observer((p: { st: TuiSt }) => {
             })}
             <Text> </Text>
             <Text color="gray" wrap="truncate">
-               ←→ change · ↑↓ move · p/esc done
+               ←→ change · ↑↓ move · ⏎/p/esc done
             </Text>
          </Box>
       )
