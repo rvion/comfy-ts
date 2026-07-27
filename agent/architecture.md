@@ -186,9 +186,10 @@ tests/                     bun tests (headless) + fixtures
    latent / latent small / last output. `latent` paints the live latent full-
    panel; `latent small` keeps the LAST OUTPUT as the big image with the
    latent small in the panel's top-right corner in BOTH renderers (native:
-   second OSC paint on top; pixel: line-level composition — the top strip's
-   rows are replaced whole by the right-aligned ~40% latent render,
-   `overlayTopRight`, no mid-line escape surgery); `last output` ignores
+   second OSC paint on top; pixel: sharp composites the latent thumb onto
+   the last output at gravity northeast, then ONE half-block render —
+   string-level overlay was tried and dropped, its space padding reads as
+   black bars); `last output` ignores
    latent frames entirely (renderLatent short-circuits). Any settings change
    re-renders the last output. Run start clears LATENTS ONLY — the last
    output must survive so 'latent small' / 'last output' have a big image;

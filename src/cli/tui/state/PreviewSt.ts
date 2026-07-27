@@ -1,7 +1,6 @@
 import { makeAutoObservable, runInAction } from 'mobx'
 import sharp from 'sharp'
 import { imageBufferToAnsi } from 'src/utils/ansiImage.ts'
-import { stripAnsi } from 'src/utils/ansi.ts'
 import { extractErrorMessage } from 'src/utils/extractErrorMessage.ts'
 import type { PreviewDuringRun, PreviewRenderer } from 'src/cli/tui/state/SettingsSt.ts'
 import type { TuiSt } from 'src/cli/tui/state/TuiSt.ts'
@@ -15,23 +14,9 @@ export function protocolCapable(): boolean {
 
 type MenuRow = { key: 'panel' | 'renderer' | 'during-run'; label: string; value: string }
 
-/** pixel-renderer 'latent small': replace the output's top rows WHOLE with the
- * right-aligned small latent (each half-block line is self-contained, so
- * whole-line swaps need no mid-line escape surgery) */
-export function overlayTopRight(outputAnsi: string | null, latentAnsi: string | null, cols: number): string | null {
-   if (latentAnsi == null) return outputAnsi
-   const latentLines = latentAnsi.split('\n')
-   const latentCols = stripAnsi(latentLines[0] ?? '').length
-   const pad = ' '.repeat(Math.max(0, cols - latentCols))
-   const overlaid = latentLines.map((l) => pad + l)
-   if (outputAnsi == null) return overlaid.join('\n')
-   const outLines = outputAnsi.split('\n')
-   return [...overlaid, ...outLines.slice(latentLines.length)].join('\n')
-}
-
 /** small-latent corner: fraction of the panel each dimension takes */
 const CORNER_FRACTION = 0.38
-/** pixel renderer can't composite a corner overlay — small latent renders at this fraction */
+/** pixel 'latent small': the sharp-composited thumb takes this fraction of the panel */
 const PIXEL_SMALL_FRACTION = 0.4
 
 /**
@@ -243,12 +228,10 @@ export class PreviewSt {
       if (this._busy) return
       this._busy = true
       try {
-         // pixel renderer can't composite a corner: 'latent small' renders small, alone
-         const small = this.duringRun === 'latent-small'
-         const ansi = await imageBufferToAnsi(bytes, {
-            width: Math.max(8, Math.floor(this.width * (small ? PIXEL_SMALL_FRACTION : 1))),
-            height: Math.max(4, Math.floor(this.height * (small ? PIXEL_SMALL_FRACTION : 1))),
-         })
+         const ansi =
+            this.duringRun === 'latent-small'
+               ? await this.renderLatentSmallPixel(bytes)
+               : await imageBufferToAnsi(bytes, { width: this.width, height: this.height })
          runInAction(() => {
             this.latentAnsi = ansi
          })
@@ -259,5 +242,29 @@ export class PreviewSt {
       } finally {
          this._busy = false
       }
+   }
+
+   /** pixel 'latent small': sharp-composite the latent thumb onto the last
+    * output (top-right), then ONE half-block render — a string-level overlay
+    * was tried and dropped: its space padding reads as black bars */
+   private async renderLatentSmallPixel(bytes: Uint8Array): Promise<string> {
+      const pxW = this.width
+      const pxH = this.height * 2
+      const thumb = await sharp(bytes)
+         .resize(
+            Math.max(8, Math.floor(pxW * PIXEL_SMALL_FRACTION)),
+            Math.max(8, Math.floor(pxH * PIXEL_SMALL_FRACTION)),
+            { fit: 'inside' },
+         )
+         .png()
+         .toBuffer()
+      const outPath = this.lastOutputPath
+      if (outPath == null) return imageBufferToAnsi(thumb, { width: this.width, height: this.height })
+      const base = await sharp(outPath).resize(pxW, pxH, { fit: 'inside' }).png().toBuffer()
+      const composed = await sharp(base)
+         .composite([{ input: thumb, gravity: 'northeast' }])
+         .png()
+         .toBuffer()
+      return imageBufferToAnsi(composed, { width: this.width, height: this.height })
    }
 }
