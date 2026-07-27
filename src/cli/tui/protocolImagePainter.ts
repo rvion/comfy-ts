@@ -28,16 +28,20 @@ export function installProtocolImagePainter(st: TuiSt): () => void {
       )
    }
 
+   // first image row: header(3) + panel border(1) + 1 content row — row 6,
+   // calibrated by playtest on iTerm2 (2026-07-27: row 5 painted one line too high)
+   const CONTENT_ROW = 6
+
    const paint = (): void => {
       const pv = st.preview
       const main = pv.protocolImage
       const corner = pv.protocolImageCorner
       if (main == null && corner == null) return
-      // panel outer left edge +1 border +1 padding; content row = header(3) + border(1) + 1
+      // panel outer left edge +1 border +1 padding
       const col = Math.max(1, st.termCols - (pv.width + 4) + 3)
-      if (main != null) emit(main, 5, col, pv.width, pv.height)
+      if (main != null) emit(main, CONTENT_ROW, col, pv.width, pv.height)
       // small latent anchored top-right, painted AFTER the big image so it stays on top
-      if (corner != null) emit(corner, 5, col + pv.width - pv.cornerWidth, pv.cornerWidth, pv.cornerHeight)
+      if (corner != null) emit(corner, CONTENT_ROW, col + pv.width - pv.cornerWidth, pv.cornerWidth, pv.cornerHeight)
    }
 
    let scheduled = false

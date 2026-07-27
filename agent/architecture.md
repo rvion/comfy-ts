@@ -202,7 +202,9 @@ tests/                     bun tests (headless) + fixtures
    `COMFY_TS_NO_ITERM_IMAGES=1` opts out) the preview panel reserves its cell
    rect as BLANK lines and `protocolImagePainter.ts` re-emits a
    hand-rolled OSC 1337 escape at that rect after EVERY stdout flush (write
-   hook + mobx reaction), via raw stdout with cursor save/restore — protocol
+   hook + mobx reaction), via raw stdout with cursor save/restore (content
+   row 6 — calibrated by playtest on iTerm2 2026-07-27, row 5 painted one
+   line too high) — protocol
    images cannot go THROUGH ink (layout shreds the escape, repaints erase the
    cells) but overlay-painting after each repaint works. Geometry derives
    from the SAME observables as the layout (termCols, preview.width/height,
