@@ -268,10 +268,11 @@ tests/                     bun tests (headless) + fixtures
    cp1252, so `█` arrives as `â–ˆ`; repair reverses the cp1252 map and
    re-decodes, falling back to the original on any unmappable or invalid
    byte), blank lines dropped, ring capped at 400.
-   LogsPanel sits below the vars panel (~8 rows, 4 when the terminal is
-   short, error-ish lines red), hidden while an overlay owns the vars area
-   (typing space > logs); stream failures surface AS a log line, not on the
-   console. Switching hosts best-effort unsubscribes the old one (it stays
+   LogsPanel (titled `comfy host logs`) sits at the BOTTOM of the center
+   column, below the progress line and the outputs box (~8 rows, 4 when the
+   terminal is short, error-ish lines red), hidden while an overlay owns
+   the vars area (typing space > logs); stream failures surface AS a log
+   line, not on the console. Switching hosts best-effort unsubscribes the old one (it stays
    connected in loadedHosts and would keep streaming to nobody). The host panel shows
    the same status first, then stats (nodes/loras/embeddings/queue/ws) and
    runs actions: re-codegen SDK

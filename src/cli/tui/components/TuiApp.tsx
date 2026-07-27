@@ -223,8 +223,6 @@ export const TuiApp = observer((p: { st: TuiSt }) => {
                ) : (
                   <VarsPanel st={s} />
                )}
-               {/* hidden while an overlay owns the vars area: typing space > logs */}
-               {!s.mode.startsWith('overlay-') && !(s.mode === 'edit' && s.editor.isCustom) && <LogsPanel st={s} />}
                <Box paddingX={1}>
                   <ProgressLine st={s} />
                </Box>
@@ -237,6 +235,8 @@ export const TuiApp = observer((p: { st: TuiSt }) => {
                      ))}
                   </Box>
                )}
+               {/* hidden while an overlay owns the vars area: typing space > logs */}
+               {!s.mode.startsWith('overlay-') && !(s.mode === 'edit' && s.editor.isCustom) && <LogsPanel st={s} />}
             </Box>
             {(s.preview.show || s.preview.menuOpen) && <PreviewPanel st={s} />}
          </Box>
