@@ -1,5 +1,43 @@
 # comfy-ts
 
+## 0.4.0
+
+Everything user-facing that landed since 0.3.0. No breaking changes.
+
+### Host awareness in the TUI
+
+- The `(h)ost` header box carries a LIVE reachability dot: green when the
+  host answers, red when it doesn't, gray while unknown. The truth comes
+  from an HTTP probe every 5s, so a dead host turns red even when a
+  half-open websocket still claims to be connected. While down, the box
+  shows the probe loop working: a spinner during the attempt, then a
+  `↻ Ns` countdown to the next one.
+- New `comfy host logs` panel below the run area: the ComfyUI server
+  console streams into the TUI (backfill + live follow, ANSI stripped,
+  progress-bar redraws collapsed to their latest state, error lines red).
+  If the server sends no latent previews mid-run, the preview panel says
+  so and names the fix (`--preview-method auto`).
+
+### Preview settings menu
+
+- `p` no longer blind-cycles: it opens a settings menu inside the preview
+  panel. Three independent, persisted settings: `panel` on/off, `renderer`
+  native (real images) / pixel (half-blocks), and `while running` latent /
+  latent small / last output. `latent small` keeps the last output as the
+  big image with the live latent in the top-right corner; `last output`
+  ignores latent frames entirely. ←→ change values, ⏎/p/esc close.
+- Native rendering is now flicker-free (repaints are synchronized with the
+  frame that damaged them, DEC 2026) and the terminal is restored clean on
+  quit (no leftover image, no stray colors).
+
+### Library
+
+- `ComfyHost.onSession(sid)` fires on every websocket session assignment
+  (first connect AND reconnects) — the hook for per-session server state.
+- `ComfyHost.onLogs` + `subscribeLogs({ enabled, clientId })` +
+  `fetchRawLogs()` expose ComfyUI's `/internal/logs` console stream; the
+  `logs` websocket message type is part of the typed `WsMsg` union.
+
 ## 0.3.0
 
 Everything user-facing that landed since 0.2.0. Breaking changes are marked 💥.
