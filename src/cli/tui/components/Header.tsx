@@ -37,6 +37,7 @@ export const Header = observer((p: { st: TuiSt }) => {
          </HeaderBox>
          <HeaderBox title="(h)ost">
             <Text>
+               <Text color={s.host.status === 'up' ? 'green' : s.host.status === 'down' ? 'red' : 'gray'}>● </Text>
                <Text bold color="green">
                   {s.wf.host.data.id}
                </Text>

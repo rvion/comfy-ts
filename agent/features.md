@@ -55,7 +55,9 @@ Types for every KNOWN custom node / plugin / model in the ecosystem
 features have different implementations per locality (e.g. retrieving media:
 local can read files straight from the Comfy output dir, remote must HTTP /view).
 
-- ✅ type distinction + ssh port-forward helpers (`ssh-host-manager/`)
+- ✅ type distinction + ssh helpers (`ssh-host-manager/`: config upsert,
+  remote exec — port-forward tunnels DELETED 2026-07-27: they died silently,
+  connect straight to the host instead)
 - 🔶 locality-aware media retrieval fast-path — planned
 
 ## G7 — sidekick CLI

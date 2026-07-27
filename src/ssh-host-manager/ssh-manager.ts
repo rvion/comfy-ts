@@ -12,21 +12,6 @@ export class SSHHost {
       this.activeProcesses = new Set()
    }
 
-   async ensurePortForward(port: number): Promise<void> {
-      try {
-         // Check if master connection exists
-         await execAsync(`ssh -O check ${this.host} 2>/dev/null`)
-         console.log('✅ SSH connection already active')
-      } catch {
-         // Establish master connection
-         console.log('🔌 Establishing SSH connection...')
-         // reverse tunnel form: ssh -fN -R 8084:localhost:8084 <ssh-host>
-         // https://explainshell.com/explain?cmd=ssh+-fN+-L
-         await execAsync(`ssh -fN -L ${port}:127.0.0.1:${port} ${this.host}`)
-         console.log('✅ SSH connection established')
-      }
-   }
-
    async executeCommand(command: string): Promise<string> {
       const { stdout, stderr } = await execAsync(`ssh ${this.host} "${command}"`)
       if (stderr) console.error('SSH Error:', stderr)

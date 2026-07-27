@@ -1,14 +1,62 @@
-import { makeAutoObservable, runInAction } from 'mobx'
+import { makeAutoObservable, reaction, runInAction } from 'mobx'
 import { extractErrorMessage } from 'src/utils/extractErrorMessage.ts'
 import type { ComfyHost } from 'src/host/ComfyHost.ts'
 import type { TuiSt } from 'src/cli/tui/state/TuiSt.ts'
 
 type HostAction = { key: 'refresh' | 'restart' | 'clear-queue' | 'interrupt'; label: string }
 
+export type HostStatus = 'unknown' | 'up' | 'down'
+
+const PROBE_EVERY_MS = 5000
+const PROBE_TIMEOUT_MS = 3000
+
 /** host panel (`h`): stats about the connected host + maintenance actions */
 export class HostSt {
    constructor(private st: TuiSt) {
       makeAutoObservable<HostSt, 'st'>(this, { st: false })
+      void this.probe()
+      const timer = setInterval(() => void this.probe(), PROBE_EVERY_MS)
+      timer.unref?.()
+      this.st.disposers.push(() => clearInterval(timer))
+      // switching workflows can switch hosts: back to unknown, re-probe now
+      this.st.disposers.push(
+         reaction(
+            () => this.st.wf,
+            () => {
+               runInAction(() => {
+                  this.status = 'unknown'
+                  this.statusVia = null
+               })
+               void this.probe()
+            },
+         ),
+      )
+   }
+
+   /** live reachability — down is a state, not an error: the dot is the loud surface */
+   status: HostStatus = 'unknown'
+   /** 'ws' when the live socket is open, 'http' when only the probe reaches the host */
+   statusVia: 'ws' | 'http' | null = null
+
+   /** http is the ground truth: a half-open ws keeps isOpen=true forever, and
+    * trusting it would re-create the exact silent-death this dot exists to expose */
+   private async probe(): Promise<void> {
+      const host = this.host
+      let ok = false
+      try {
+         const res = await fetch(`${host.getServerHostHTTP()}/api/prompt`, {
+            signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
+         })
+         void res.body?.cancel()
+         ok = res.ok
+      } catch {
+         ok = false
+      }
+      if (this.host !== host) return // workflow switched mid-flight: stale verdict
+      runInAction(() => {
+         this.status = ok ? 'up' : 'down'
+         this.statusVia = ok ? (host.isConnected ? 'ws' : 'http') : null
+      })
    }
 
    ix: number = 0
@@ -29,6 +77,7 @@ export class HostSt {
    get stats(): { label: string; value: string }[] {
       const schema = this.host.schema
       return [
+         { label: 'status', value: this.status + (this.statusVia != null ? ` (${this.statusVia})` : '') },
          { label: 'node types', value: String(schema.nodes.length) },
          { label: 'loras', value: String(schema.getLoras().length) },
          { label: 'embeddings', value: String(schema.data.embeddings.length) },

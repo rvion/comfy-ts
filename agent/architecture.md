@@ -62,7 +62,7 @@ src/cli/tui/               ink+mobx TUI, per build/app-state-tree doctrine:
                            lora-manager preview into the preview panel)
    state/WorkflowsSt.ts    module loading + host set (data layer under TreeSt)
    state/TreeSt.ts         left tree: workflows + nested drafts, fold/unfold, focus
-   state/HostSt.ts         host panel: stats + actions (re-codegen SDK, restart)
+   state/HostSt.ts         host panel: stats + actions (re-codegen SDK, restart) + live up/down probe
    state/DraftsSt.ts       named var snapshots, autosave reaction (owned disposer)
    state/SettingsSt.ts     persisted TUI settings (.comfy-ts/settings.json):
                            preview mode + last draft per workflow
@@ -76,7 +76,7 @@ src/cli/tui/               ink+mobx TUI, per build/app-state-tree doctrine:
 src/litegraph/             ComfyUI saved-workflow JSON format (types + arktype), converter
 src/sdk-generator/         object_info parsing + per-host codegen (see agent/sdk-codegen.md)
 src/manager/               ComfyUI-Manager registry mirror (json/ + generated/ + loaders)
-src/ssh-host-manager/      ssh port-forward helpers for remote GPU boxes
+src/ssh-host-manager/      ssh config upsert + remote-exec helpers for remote GPU boxes
 src/image-utils/           png/webp/exif metadata extraction
 src/utils/                 bang, CodeBuffer, ansi, log, toposort, …
 scripts/                   bun-run tooling (gen-sdk-from-cache, sdk-outline, check-banned)
@@ -212,8 +212,18 @@ tests/                     bun tests (headless) + fixtures
    overlay): `n` new, `e` rename, `c` duplicate, `x` delete — every name
    prompt is an EditorSt custom session rendered as `PromptOverlay`. The
    header is a row of labeled boxes `comfy-ts · (w)orkflow · (d)raft ·
-   (h)ost` (`w` tree, `d` drafts, `h` host panel). The host panel shows
-   stats (nodes/loras/embeddings/queue/ws) and runs actions: re-codegen SDK
+   (h)ost` (`w` tree, `d` drafts, `h` host panel). The host box carries a
+   LIVE reachability dot (green up / red down / gray unknown): HostSt owns
+   `status`, refreshed every 5s by an HTTP probe of `/api/prompt` (3s
+   timeout). The probe is the GROUND TRUTH even when the ws claims open — a
+   half-open socket keeps `isOpen` true forever, trusting it would re-create
+   the silent-dead-tunnel failure the dot exists to expose; ws-open only
+   picks the `(ws)`/`(http)` label. Switching workflows resets the status to
+   unknown and re-probes immediately; a stale in-flight verdict for the
+   previous host is dropped. Down is a STATE, not an error: the dot is the
+   loud surface, no console spam. The host panel shows
+   the same status first, then stats (nodes/loras/embeddings/queue/ws) and
+   runs actions: re-codegen SDK
    (fetchAndUpdateSchema + cache-busted module reload so var option lists
    refresh), restart ComfyUI via manager reboot, clear pending queue,
    interrupt the current run. The server queue length is LIVE

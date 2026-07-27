@@ -4,7 +4,7 @@
 import { ComfyTS, v } from 'comfy-ts'
 
 const comfy = ComfyTS.create()
-const host = comfy.host({ id: 'windows-1', host: '127.0.0.1', port: 8085 })
+const host = comfy.host({ id: 'windows-1', host: 'desktop-im18794', port: 8085 })
 await host.loadSchemaFromCache() // offline import; run() connects lazily
 
 export const txt2img = host.defineWorkflow({

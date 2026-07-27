@@ -216,9 +216,9 @@ bunx comfy-ts tui                # no arg: scans cwd
 ```
 
 ```
-┌ comfy-ts ┐┌ (w)orkflow ─┐┌ (d)raft ─┐┌ (h)ost ──────────────────┐
-│ comfy-ts ││ 01-txt2img  ││ default  ││ windows-1 (127.0.0.1:8085)│
-└──────────┘└─────────────┘└──────────┘└──────────────────────────┘
+┌ comfy-ts ┐┌ (w)orkflow ─┐┌ (d)raft ─┐┌ (h)ost ────────────────────┐
+│ comfy-ts ││ 01-txt2img  ││ default  ││ ● windows-1 (127.0.0.1:8085)│
+└──────────┘└─────────────┘└──────────┘└────────────────────────────┘
 ┌ (t)ree ────────────┐┌ (v)ars ─────────────────────────────┐┌ (p)review ─────┐
 │ ▾ 01-txt2img       ││ ▸ prompt  [text]  a cozy house in a… ││                │
 │     default        ││   seed    [seed]  ? 42               ││  ▄▓▓▒▒░▄▄▓▒░░  │

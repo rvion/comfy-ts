@@ -7,7 +7,7 @@ import { dirname, resolve } from 'pathe'
 import sharp from 'sharp'
 
 const comfy = ComfyTS.create()
-const host = comfy.host({ id: 'windows-1', host: '127.0.0.1', port: 8085 })
+const host = comfy.host({ id: 'windows-1', host: 'desktop-im18794', port: 8085 })
 await host.loadSchemaFromCache() // offline import; run() connects lazily
 
 /** empty path → a generated flat-color placeholder (keeps the example self-contained) */
