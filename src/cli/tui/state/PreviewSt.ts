@@ -1,5 +1,6 @@
 import { makeAutoObservable, runInAction } from 'mobx'
 import sharp from 'sharp'
+import { imageMeta } from 'image-meta'
 import { imageBufferToAnsi } from 'src/utils/ansiImage.ts'
 import { extractErrorMessage } from 'src/utils/extractErrorMessage.ts'
 import type { PreviewDuringRun, PreviewRenderer } from 'src/cli/tui/state/SettingsSt.ts'
@@ -38,6 +39,8 @@ export class PreviewSt {
    /** native mode: pre-shrunk output bytes / raw latent jpeg for the painter */
    outputBytes: Uint8Array | null = null
    latentBytes: Uint8Array | null = null
+   /** the latent's pixel dimensions (image-meta) — sizes the native corner box */
+   latentDims: { width: number; height: number } | null = null
    /** at least one latent frame arrived this run — false + progress = server sends none */
    latentSeenThisRun: boolean = false
    /** last output path, so a settings change can re-render it */
@@ -131,6 +134,7 @@ export class PreviewSt {
       this.latentAnsi = null
       this.outputBytes = null
       this.latentBytes = null
+      this.latentDims = null
       this.latentSeenThisRun = false
       this.lastOutputPath = null
    }
@@ -139,6 +143,7 @@ export class PreviewSt {
    clearLatent(): void {
       this.latentAnsi = null
       this.latentBytes = null
+      this.latentDims = null
       this.latentSeenThisRun = false
    }
 
@@ -169,11 +174,21 @@ export class PreviewSt {
       return null
    }
 
-   get cornerWidth(): number {
-      return Math.max(8, Math.floor(this.width * CORNER_FRACTION))
-   }
-   get cornerHeight(): number {
-      return Math.max(4, Math.floor(this.height * CORNER_FRACTION))
+   /** corner cell box matched to the latent's REAL aspect (a mismatched box
+    * letterboxes in iTerm — his repro: "some vertical rectangle"). Cells are
+    * ~1:2 (w:h), hence the ×2 when converting image aspect to cells. */
+   get cornerBox(): { w: number; h: number } {
+      let w = Math.max(8, Math.floor(this.width * CORNER_FRACTION))
+      const maxH = Math.max(4, Math.floor(this.height * CORNER_FRACTION))
+      const dims = this.latentDims
+      if (dims == null || dims.width === 0 || dims.height === 0) return { w, h: maxH }
+      const aspect = dims.width / dims.height
+      let h = Math.max(2, Math.round(w / aspect / 2))
+      if (h > maxH) {
+         h = maxH
+         w = Math.max(4, Math.round(h * aspect * 2))
+      }
+      return { w, h }
    }
 
    get width(): number {
@@ -221,8 +236,11 @@ export class PreviewSt {
       })
       if (!this.show || this.duringRun === 'last-output') return
       if (this.useNative) {
-         // server jpegs pass through untouched — the terminal scales them
+         // server jpegs pass through untouched — the terminal scales them;
+         // dims feed cornerBox so the corner rect matches the image aspect
+         const meta = imageMeta(bytes)
          this.latentBytes = bytes
+         this.latentDims = meta.width != null && meta.height != null ? { width: meta.width, height: meta.height } : null
          return
       }
       if (this._busy) return

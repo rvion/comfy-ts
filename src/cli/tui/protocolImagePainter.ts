@@ -40,8 +40,13 @@ export function installProtocolImagePainter(st: TuiSt): () => void {
       // panel outer left edge +1 border +1 padding
       const col = Math.max(1, st.termCols - (pv.width + 4) + 3)
       if (main != null) emit(main, CONTENT_ROW, col, pv.width, pv.height)
-      // small latent anchored top-right, painted AFTER the big image so it stays on top
-      if (corner != null) emit(corner, CONTENT_ROW, col + pv.width - pv.cornerWidth, pv.cornerWidth, pv.cornerHeight)
+      // small latent anchored top-right, painted AFTER the big image so it stays
+      // on top; its cell box matches the latent's aspect (cornerBox) — a
+      // mismatched rect letterboxes in iTerm
+      if (corner != null) {
+         const box = pv.cornerBox
+         emit(corner, CONTENT_ROW, col + pv.width - box.w, box.w, box.h)
+      }
    }
 
    let scheduled = false

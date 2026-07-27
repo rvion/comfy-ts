@@ -186,7 +186,9 @@ tests/                     bun tests (headless) + fixtures
    latent / latent small / last output. `latent` paints the live latent full-
    panel; `latent small` keeps the LAST OUTPUT as the big image with the
    latent small in the panel's top-right corner in BOTH renderers (native:
-   second OSC paint on top; pixel: sharp composites the latent thumb onto
+   second OSC paint on top, its cell box sized from the latent's REAL
+   dimensions via image-meta so iTerm doesn't letterbox a mismatched rect;
+   pixel: sharp composites the latent thumb onto
    the last output at gravity northeast, then ONE half-block render —
    string-level overlay was tried and dropped, its space padding reads as
    black bars); `last output` ignores
