@@ -174,7 +174,10 @@ tests/                     bun tests (headless) + fixtures
    successful bytes are cached at `.comfy-ts/cache/lora-previews/<sha1(url)>`
    (gitignored, read before any fetch).
 9. TUI preview: REAL images on capable terminals, half-blocks elsewhere. The
-   TUI runs in the ALTERNATE SCREEN (run-tui, TTY only). `p` OPENS THE
+   TUI runs in the ALTERNATE SCREEN (run-tui, TTY only; quitting resets SGR
+   and erases the alt screen BEFORE restoring — ED also deletes iTerm inline
+   images, otherwise the last protocol image and stray background colors
+   survive into the shell). `p` OPENS THE
    PREVIEW SETTINGS MENU inside the panel itself (mode 'preview', host-panel
    interaction: ↑↓ row, ←→/⏎/space cycle value, p/esc back — the panel
    renders even while hidden so the menu is always reachable). Three

@@ -67,7 +67,10 @@ export async function runTui(args: string[]): Promise<number> {
       st.dispose()
    } finally {
       uninstallPainter()
-      if (altScreen) process.stdout.write('\u001b[>4;0m\u001b[?1049l')
+      // reset colors + erase WHILE STILL in the alt screen: ED deletes iTerm
+      // inline images too — without this the last protocol image and stray
+      // background colors survive into the shell (his repro)
+      if (altScreen) process.stdout.write('\u001b[0m\u001b[2J\u001b[H\u001b[>4;0m\u001b[?1049l')
    }
    return 0
 }
