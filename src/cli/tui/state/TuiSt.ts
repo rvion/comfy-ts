@@ -4,6 +4,7 @@ import { DraftsSt } from 'src/cli/tui/state/DraftsSt.ts'
 import { EditorSt } from 'src/cli/tui/state/EditorSt.ts'
 import { ExecSt } from 'src/cli/tui/state/ExecSt.ts'
 import { HostSt } from 'src/cli/tui/state/HostSt.ts'
+import { LogsSt } from 'src/cli/tui/state/LogsSt.ts'
 import { LorasSt } from 'src/cli/tui/state/LorasSt.ts'
 import { PickerSt } from 'src/cli/tui/state/PickerSt.ts'
 import { PreviewSt } from 'src/cli/tui/state/PreviewSt.ts'
@@ -45,6 +46,7 @@ export class TuiSt {
    preview: PreviewSt
    host: HostSt
    queue: QueueSt
+   logs: LogsSt
    settings: SettingsSt
 
    /** owned cleanups (reactions, listeners) — flushed by dispose() */
@@ -68,6 +70,7 @@ export class TuiSt {
          preview: false,
          host: false,
          queue: false,
+         logs: false,
          settings: false,
       })
       this.settings = new SettingsSt(this)
@@ -81,6 +84,7 @@ export class TuiSt {
       this.preview = new PreviewSt(this)
       this.host = new HostSt(this)
       this.queue = new QueueSt(this)
+      this.logs = new LogsSt(this)
       // the TUI is ALWAYS in a draft from the very first frame: the one this
       // workflow was last in (settings), else 'default'; the current workflow
       // starts unfolded so its drafts are visible in the tree

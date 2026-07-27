@@ -39,7 +39,8 @@ New dep = a decision. First ask: can ~20 lines of current code do it?
   3. `globalThis as { comfyts?: ComfyTS }` in `src/state.ts` — global registration.
   4. wire tolerance: ws messages / manager endpoints are ark-soft-validated then
      cast — ComfyUI drifts faster than our schemas; failures are LOGGED first
-     (`ComfyHost.onMessage`, `ComfyManager.fetch*` without validator).
+     (`ComfyHost.onMessage`, `ComfyHost.fetchRawLogs`, `ComfyManager.fetch*`
+     without validator).
   5. sentinels: `auto()` returns a marker object replaced at serialization time
      (`src/graph/autoValue.ts`).
   6. kind-discriminated `ComfyVar` narrowing (`sel as ToggleVar` after checking
@@ -75,6 +76,8 @@ style disagrees, not because the code is wrong:
   built is fine and cheaper than a copy.
 - `unicorn/consistent-function-scoping` — locals stay next to their only caller.
 - `unicorn/prefer-add-event-listener` — `ws` exposes `on*` handlers.
+- `eslint/no-control-regex`, `src/utils/ansi.ts` ONLY (override) — stripAnsi
+  matches ESC on purpose; everywhere else the rule stays on.
 
 Formatting ignores live in `.prettierignore` (oxfmt reads it, so does the VSCode
 oxc extension): captured fixtures and upstream json mirrors are DATA, never

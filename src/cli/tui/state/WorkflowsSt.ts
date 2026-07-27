@@ -69,6 +69,7 @@ export class WorkflowsSt {
             this.loadedHosts.add(wf.host)
             this.st.wf = wf
             this.st.queue.attach(wf.host)
+            this.st.logs.attach(wf.host)
             this.currentPath = path
             this.st.selIx = 0
             this.st.mode = 'nav'

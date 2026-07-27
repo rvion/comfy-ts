@@ -24,3 +24,10 @@ function styler(open: string = '', close: string = ''): Styler {
 }
 
 export const ansi: Styler = styler()
+
+// CSI sequences + lone ESC-letter escapes (server logs re-rendered inside ink)
+const ANSI_RE = /\x1b\[[0-9;?]*[A-Za-z]|\x1b[A-Za-z]/g
+
+export function stripAnsi(s: string): string {
+   return s.replace(ANSI_RE, '')
+}

@@ -103,6 +103,14 @@ const tempScope = scope({
       data: 'WSMsgManagerFeedbackData',
    },
 
+   // server console stream (/internal/logs): entries are WRITE CHUNKS, not lines
+   LogEntry: { t: 'string', m: 'string' },
+   _WsMsgLogsData: { entries: 'LogEntry[]', 'size?': 'unknown' },
+   WsMsgLogs: {
+      type: "'logs'",
+      data: '_WsMsgLogsData',
+   },
+
    // WsMsgProgress must be after NodeProgress
    WsMsgProgress: { type: "'progress'", data: 'NodeProgress' },
 
@@ -119,7 +127,7 @@ const tempScope = scope({
    // UNION TYPES
    PromptRelated_WsMsg:
       'WsMsgExecutionStart | WsMsgExecutionCached | WsMsgExecuting | WsMsgProgress | WsMsgProgressState | WsMsgExecuted | WsMsgExecutionError | WsMsgExecutionSuccess',
-   WsMsg: 'WsMsgStatus | WSMsgManagerFeedback | PromptRelated_WsMsg',
+   WsMsg: 'WsMsgStatus | WSMsgManagerFeedback | WsMsgLogs | PromptRelated_WsMsg',
 })
 
 export const types = tempScope.export()
@@ -145,6 +153,8 @@ export type WsMsgExecuted = typeof types.WsMsgExecuted.infer
 export type WsMsgExecutionSuccess = typeof types.WsMsgExecutionSuccess.infer
 export type WsMsgExecutionError = typeof types.WsMsgExecutionError.infer
 export type WSMsgManagerFeedback = typeof types.WSMsgManagerFeedback.infer
+export type LogEntry = typeof types.LogEntry.infer
+export type WsMsgLogs = typeof types.WsMsgLogs.infer
 export type _WsMsgExecutionStartData = typeof types._WsMsgExecutionStartData.infer
 export type _WsMsgExecutionCachedData = typeof types._WsMsgExecutionCachedData.infer
 export type ComfyImageInfo = typeof types.ComfyImageInfo.infer
@@ -157,3 +167,4 @@ export const PromptInfo_ark = type({ prompt_id: types.PromptID }).as<PromptInfo>
 
 export const WsMsg_ark = types.WsMsg
 export const ComfyImageInfo_ark = types.ComfyImageInfo
+export const WsMsgLogsData_ark = types._WsMsgLogsData

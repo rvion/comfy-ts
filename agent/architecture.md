@@ -63,6 +63,8 @@ src/cli/tui/               ink+mobx TUI, per build/app-state-tree doctrine:
    state/WorkflowsSt.ts    module loading + host set (data layer under TreeSt)
    state/TreeSt.ts         left tree: workflows + nested drafts, fold/unfold, focus
    state/HostSt.ts         host panel: stats + actions (re-codegen SDK, restart) + live up/down probe
+   state/LogsSt.ts         server console lines: /internal/logs backfill + ws 'logs' stream, chunk→line assembly
+   components/LogsPanel.tsx  last server log lines below the vars panel
    state/DraftsSt.ts       named var snapshots, autosave reaction (owned disposer)
    state/SettingsSt.ts     persisted TUI settings (.comfy-ts/settings.json):
                            preview mode + last draft per workflow
@@ -221,7 +223,24 @@ tests/                     bun tests (headless) + fixtures
    picks the `(ws)`/`(http)` label. Switching workflows resets the status to
    unknown and re-probes immediately; a stale in-flight verdict for the
    previous host is dropped. Down is a STATE, not an error: the dot is the
-   loud surface, no console spam. The host panel shows
+   loud surface, no console spam. While down the box also shows WHAT the
+   probe loop is doing: a braille spinner during the in-flight probe, then
+   `↻ Ns` counting down to the next attempt (probes self-schedule via
+   setTimeout so the countdown is exact; nothing shown while up).
+   THE SERVER CONSOLE IS IN THE TUI: LogsSt mirrors ComfyUI's log stream —
+   backfill from GET `/internal/logs/raw`, then live ws `logs` messages
+   after PATCH `/internal/logs/subscribe` with the CURRENT session id
+   (ComfyHost.onSession fires on every sid change, so reconnects
+   re-subscribe; ComfyHost.onLogs delivers entries). Entries are WRITE
+   CHUNKS, not lines: LogsSt assembles them (`\n` commits a line, `\r`
+   resets the partial — tqdm redraws collapse to their last state, and the
+   live partial renders as the panel's last row). ANSI is stripped
+   (stripAnsi in utils/ansi.ts), blank lines dropped, ring capped at 400.
+   LogsPanel sits below the vars panel (~8 rows, 4 when the terminal is
+   short, error-ish lines red), hidden while an overlay owns the vars area
+   (typing space > logs); stream failures surface AS a log line, not on the
+   console. Switching hosts best-effort unsubscribes the old one (it stays
+   connected in loadedHosts and would keep streaming to nobody). The host panel shows
    the same status first, then stats (nodes/loras/embeddings/queue/ws) and
    runs actions: re-codegen SDK
    (fetchAndUpdateSchema + cache-busted module reload so var option lists

@@ -9,6 +9,7 @@ import { ChoiceOverlay, SizeOverlay } from 'src/cli/tui/components/PickerOverlay
 import { PreviewPanel } from 'src/cli/tui/components/PreviewPanel.tsx'
 import { PromptOverlay } from 'src/cli/tui/components/PromptOverlay.tsx'
 import { KeyBar, ProgressLine } from 'src/cli/tui/components/StatusBar.tsx'
+import { LogsPanel } from 'src/cli/tui/components/LogsPanel.tsx'
 import { TextOverlay } from 'src/cli/tui/components/TextOverlay.tsx'
 import { TreePanel } from 'src/cli/tui/components/TreePanel.tsx'
 import { VarsPanel } from 'src/cli/tui/components/VarsPanel.tsx'
@@ -202,6 +203,8 @@ export const TuiApp = observer((p: { st: TuiSt }) => {
                ) : (
                   <VarsPanel st={s} />
                )}
+               {/* hidden while an overlay owns the vars area: typing space > logs */}
+               {!s.mode.startsWith('overlay-') && !(s.mode === 'edit' && s.editor.isCustom) && <LogsPanel st={s} />}
                <Box paddingX={1}>
                   <ProgressLine st={s} />
                </Box>

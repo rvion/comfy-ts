@@ -45,6 +45,10 @@ export const Header = observer((p: { st: TuiSt }) => {
                   {' '}
                   ({s.wf.host.data.host}:{s.wf.host.data.port})
                </Text>
+               {/* while down, show the probe loop living: spinner in flight, countdown between tries */}
+               {s.host.status === 'down' && (
+                  <Text color="red"> {s.host.probing ? s.host.spinner : `↻ ${s.host.retryInS}s`}</Text>
+               )}
             </Text>
          </HeaderBox>
       </Box>

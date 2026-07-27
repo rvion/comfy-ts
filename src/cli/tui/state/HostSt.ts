@@ -10,15 +10,22 @@ export type HostStatus = 'unknown' | 'up' | 'down'
 const PROBE_EVERY_MS = 5000
 const PROBE_TIMEOUT_MS = 3000
 
+const SPIN_FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏']
+
 /** host panel (`h`): stats about the connected host + maintenance actions */
 export class HostSt {
    constructor(private st: TuiSt) {
       makeAutoObservable<HostSt, 'st'>(this, { st: false })
-      void this.probe()
-      const timer = setInterval(() => void this.probe(), PROBE_EVERY_MS)
-      timer.unref?.()
-      this.st.disposers.push(() => clearInterval(timer))
-      // switching workflows can switch hosts: back to unknown, re-probe now
+      void this.probeLoop()
+      this.st.disposers.push(() => {
+         this.disposed = true
+         if (this.loopTimer != null) clearTimeout(this.loopTimer)
+         if (this.spinTimer != null) clearInterval(this.spinTimer)
+         if (this.countdownTimer != null) clearInterval(this.countdownTimer)
+      })
+      // switching workflows can switch hosts: back to unknown, re-probe now.
+      // probeGen++ kills a chain that is mid-await (its loopTimer isn't set yet,
+      // clearing timers alone would leave it alive → duplicate chains forever)
       this.st.disposers.push(
          reaction(
             () => this.st.wf,
@@ -27,7 +34,10 @@ export class HostSt {
                   this.status = 'unknown'
                   this.statusVia = null
                })
-               void this.probe()
+               this.probeGen++
+               if (this.loopTimer != null) clearTimeout(this.loopTimer)
+               if (this.countdownTimer != null) clearInterval(this.countdownTimer)
+               void this.probeLoop()
             },
          ),
       )
@@ -37,11 +47,61 @@ export class HostSt {
    status: HostStatus = 'unknown'
    /** 'ws' when the live socket is open, 'http' when only the probe reaches the host */
    statusVia: 'ws' | 'http' | null = null
+   /** a probe is in flight (drives the spinner while down) */
+   probing: boolean = false
+   /** seconds until the next probe (shown while down) */
+   retryInS: number = 0
+   spinFrame: number = 0
+
+   private disposed = false
+   private probeGen = 0
+   private loopTimer: NodeJS.Timeout | null = null
+   private spinTimer: NodeJS.Timeout | null = null
+   private countdownTimer: NodeJS.Timeout | null = null
+
+   get spinner(): string {
+      return SPIN_FRAMES[this.spinFrame % SPIN_FRAMES.length] ?? '⠋'
+   }
+
+   /** probe → schedule the next one (setTimeout chain: the countdown is exact) */
+   private async probeLoop(): Promise<void> {
+      const gen = this.probeGen
+      await this.probe()
+      if (this.disposed || gen !== this.probeGen) return
+      const nextAt = Date.now() + PROBE_EVERY_MS
+      runInAction(() => {
+         this.retryInS = Math.ceil(PROBE_EVERY_MS / 1000)
+      })
+      if (this.countdownTimer != null) clearInterval(this.countdownTimer)
+      this.countdownTimer = setInterval(() => {
+         runInAction(() => {
+            this.retryInS = Math.max(0, Math.ceil((nextAt - Date.now()) / 1000))
+         })
+      }, 250)
+      this.countdownTimer.unref?.()
+      this.loopTimer = setTimeout(() => {
+         if (this.countdownTimer != null) clearInterval(this.countdownTimer)
+         void this.probeLoop()
+      }, PROBE_EVERY_MS)
+      this.loopTimer.unref?.()
+   }
 
    /** http is the ground truth: a half-open ws keeps isOpen=true forever, and
     * trusting it would re-create the exact silent-death this dot exists to expose */
    private async probe(): Promise<void> {
       const host = this.host
+      runInAction(() => {
+         this.probing = true
+      })
+      // spin interval is LOCAL: an old probe overlapping a reaction-started new
+      // one must only clear its own, and only the installed one drives the flag
+      const spin = setInterval(() => {
+         runInAction(() => {
+            this.spinFrame++
+         })
+      }, 120)
+      spin.unref?.()
+      this.spinTimer = spin
       let ok = false
       try {
          const res = await fetch(`${host.getServerHostHTTP()}/api/prompt`, {
@@ -51,6 +111,14 @@ export class HostSt {
          ok = res.ok
       } catch {
          ok = false
+      } finally {
+         clearInterval(spin)
+         if (this.spinTimer === spin) {
+            this.spinTimer = null
+            runInAction(() => {
+               this.probing = false
+            })
+         }
       }
       if (this.host !== host) return // workflow switched mid-flight: stale verdict
       runInAction(() => {
@@ -77,7 +145,13 @@ export class HostSt {
    get stats(): { label: string; value: string }[] {
       const schema = this.host.schema
       return [
-         { label: 'status', value: this.status + (this.statusVia != null ? ` (${this.statusVia})` : '') },
+         {
+            label: 'status',
+            value:
+               this.status === 'down'
+                  ? `down · ${this.probing ? `${this.spinner} probing…` : `retry in ${this.retryInS}s`}`
+                  : this.status + (this.statusVia != null ? ` (${this.statusVia})` : ''),
+         },
          { label: 'node types', value: String(schema.nodes.length) },
          { label: 'loras', value: String(schema.getLoras().length) },
          { label: 'embeddings', value: String(schema.data.embeddings.length) },

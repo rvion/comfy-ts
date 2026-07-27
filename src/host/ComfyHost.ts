@@ -11,10 +11,12 @@ import { convertLiteGraphToPrompt } from 'src/sdk-generator/litegraphToApiReques
 import { asComfyWorkflowID, ComfyWorkflow } from 'src/runner/ComfyWorkflow.ts'
 import {
    type ComfyStatusData,
+   type LogEntry,
    type PromptID,
    type PromptRelated_WsMsg,
    type WsMsg,
    WsMsg_ark,
+   WsMsgLogsData_ark,
 } from 'src/runner/ComfyWsApi.ts'
 import { ComfySchema } from 'src/sdk-generator/ComfySchema.ts'
 import { type ComfySchemaJSON, ComfySchemaJSON_ark } from 'src/sdk-generator/ComfyUIObjectInfoTypes.ts'
@@ -432,6 +434,34 @@ export class ComfyHost<ID extends string = string> {
       return this.postJSON_('/interrupt', {})
    }
 
+   // SERVER LOGS ----------------------------------------------------------------------
+   // /internal routes are served bare (no /api prefix, no custom-node hijacks)
+
+   /** the server's recent console buffer (entries are write CHUNKS, not lines) */
+   fetchRawLogs = async (): Promise<{ entries: LogEntry[] }> => {
+      const res = await fetch(`${this.getServerHostHTTP()}/internal/logs/raw`)
+      if (!res.ok) throw new Error(`GET /internal/logs/raw failed: ${res.status}`)
+      const json: unknown = await res.json()
+      // wire tolerance (agent/coding.md cast #4): soft-validate, log, still cast
+      const checked = WsMsgLogsData_ark(json)
+      if (checked instanceof type.errors) {
+         console.log(`[🔴] /!\\ /internal/logs/raw payload does not match schema.`)
+         printArkResultInConsole(checked)
+      }
+      return json as { entries: LogEntry[] }
+   }
+
+   /** (un)subscribe THIS session to ws 'logs' messages — per-sid server state,
+    * must be re-sent after every reconnect (see onSession) */
+   subscribeLogs = async (p: { enabled: boolean; clientId: string }): Promise<void> => {
+      const res = await fetch(`${this.getServerHostHTTP()}/internal/logs/subscribe`, {
+         method: 'PATCH',
+         headers: { 'Content-Type': 'application/json' },
+         body: JSON.stringify({ enabled: p.enabled, clientId: p.clientId }),
+      })
+      if (!res.ok) throw new Error(`PATCH /internal/logs/subscribe failed: ${res.status}`)
+   }
+
    /** GET a JSON route, preferring the /api prefix, falling back to the bare route */
    private fetchJSON_ = async <T>(route: string): Promise<T> => {
       const base = this.getServerHostHTTP()
@@ -531,6 +561,13 @@ export class ComfyHost<ID extends string = string> {
    /** fires on every ws 'status' message (queue length lives there) */
    onStatus: Maybe<(p: { queueRemaining: number }) => void> = null
 
+   /** fires when the server assigns a NEW session id (first connect AND every
+    * reconnect — per-sid server state like log subscriptions must be redone) */
+   onSession: Maybe<(sid: string) => void> = null
+
+   /** fires on ws 'logs' messages (server console stream, see subscribeLogs) */
+   onLogs: Maybe<(p: { entries: LogEntry[] }) => void> = null
+
    /** the session assigned to us by the server */
    comfySessionId: string = 'temp' /** send by ComfyUI server */
 
@@ -601,9 +638,11 @@ export class ComfyHost<ID extends string = string> {
 
       if (msg.type === 'status') {
          if (msg.data.sid) {
+            const sidChanged = msg.data.sid !== this.comfySessionId
             this.comfySessionId = msg.data.sid
             this._sessionResolve?.()
             this._sessionResolve = null
+            if (sidChanged) this.onSession?.(msg.data.sid)
          }
          this.status = msg.data.status
          this.onStatus?.({ queueRemaining: msg.data.status?.exec_info?.queue_remaining ?? 0 })
@@ -635,6 +674,11 @@ export class ComfyHost<ID extends string = string> {
 
       if (msg.type === 'manager-terminal-feedback') {
          this.addLog(msg.data.data)
+         return
+      }
+
+      if (msg.type === 'logs') {
+         this.onLogs?.(msg.data)
          return
       }
       exhaust(msg)

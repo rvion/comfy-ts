@@ -23,6 +23,14 @@
       "unicorn/consistent-function-scoping": "off",
       "unicorn/prefer-add-event-listener": "off"
    },
+   "overrides": [
+      {
+         "files": ["src/utils/ansi.ts"],
+         "rules": {
+            "eslint/no-control-regex": "off"
+         }
+      }
+   ],
    "ignorePatterns": [
       "src/manager/generated/**",
       "output/**",
