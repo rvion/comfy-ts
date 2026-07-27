@@ -260,7 +260,11 @@ tests/                     bun tests (headless) + fixtures
    CHUNKS, not lines: LogsSt assembles them (`\n` commits a line, `\r`
    resets the partial — tqdm redraws collapse to their last state, and the
    live partial renders as the panel's last row). ANSI is stripped
-   (stripAnsi in utils/ansi.ts), blank lines dropped, ring capped at 400.
+   (stripAnsi in utils/ansi.ts), cp1252-mangled UTF-8 repaired
+   (utils/mojibake.ts — the Windows server decodes its own UTF-8 output as
+   cp1252, so `█` arrives as `â–ˆ`; repair reverses the cp1252 map and
+   re-decodes, falling back to the original on any unmappable or invalid
+   byte), blank lines dropped, ring capped at 400.
    LogsPanel sits below the vars panel (~8 rows, 4 when the terminal is
    short, error-ish lines red), hidden while an overlay owns the vars area
    (typing space > logs); stream failures surface AS a log line, not on the

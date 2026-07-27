@@ -1,6 +1,7 @@
 import { makeAutoObservable, runInAction } from 'mobx'
 import { extractErrorMessage } from 'src/utils/extractErrorMessage.ts'
 import { stripAnsi } from 'src/utils/ansi.ts'
+import { repairMojibake } from 'src/utils/mojibake.ts'
 import type { LogEntry } from 'src/runner/ComfyWsApi.ts'
 import type { ComfyHost } from 'src/host/ComfyHost.ts'
 import type { TuiSt } from 'src/cli/tui/state/TuiSt.ts'
@@ -13,7 +14,7 @@ const MAX_LINES = 400
 export function assembleLogChunks(p: { lines: string[]; partial: string; entries: LogEntry[] }): string {
    let partial = p.partial
    for (const entry of p.entries) {
-      for (const piece of stripAnsi(entry.m).split(/(\r\n|\n|\r)/)) {
+      for (const piece of stripAnsi(repairMojibake(entry.m)).split(/(\r\n|\n|\r)/)) {
          if (piece === '\n' || piece === '\r\n') {
             if (partial.trim() !== '') p.lines.push(partial)
             partial = ''
