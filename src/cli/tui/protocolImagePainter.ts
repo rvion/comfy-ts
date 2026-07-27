@@ -49,13 +49,18 @@ export function installProtocolImagePainter(st: TuiSt): () => void {
       }
    }
 
+   // disposed kills PENDING paints too: a repaint queued by ink's final frame
+   // would otherwise fire after the alt-screen restore and stamp the image
+   // onto the shell (his repro: ghost image after q)
+   let disposed = false
    let scheduled = false
    const schedule = (): void => {
-      if (scheduled) return
+      if (scheduled || disposed) return
       scheduled = true
       setImmediate(() => {
-         paint()
          scheduled = false
+         if (disposed) return
+         paint()
       })
    }
 
@@ -69,6 +74,7 @@ export function installProtocolImagePainter(st: TuiSt): () => void {
    process.stdout.write = patched
    const disposeReaction = reaction(() => [st.preview.protocolImage, st.preview.protocolImageCorner], schedule)
    return () => {
+      disposed = true
       process.stdout.write = original
       disposeReaction()
    }
