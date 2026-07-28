@@ -26,7 +26,7 @@
    "js/ts.format.enabled": false,
    "workbench.colorCustomizations": {
       "activityBar.activeBackground": "#3b053b",
-      "activityBar.background": "#200320",
+      "activityBar.background": "#3b053b",
       "activityBar.foreground": "#e7e7e7",
       "activityBar.inactiveForeground": "#e7e7e799",
       "activityBarBadge.background": "#585807",
@@ -45,7 +45,7 @@
       "statusBarItem.hoverBackground": "#3b053b",
       "statusBarItem.remoteBackground": "#585807",
       "statusBarItem.remoteForeground": "#e7e7e7",
-      "titleBar.activeBackground": "#1e041e",
+      "titleBar.activeBackground": "#260426",
       "titleBar.activeForeground": "#e7e7e7",
       "titleBar.inactiveBackground": "#0c010c99",
       "titleBar.inactiveForeground": "#e7e7e799"
