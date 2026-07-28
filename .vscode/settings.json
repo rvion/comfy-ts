@@ -6,11 +6,9 @@
    // THE key pair: auto-import inserts 'src/...' absolute specifiers, never './relative'
    "js/ts.preferences.importModuleSpecifier": "non-relative",
    "js/ts.preferences.importModuleSpecifierPreference": "non-relative",
-   "typescript.preferences.importModuleSpecifier": "non-relative",
 
    // use the workspace typescript, not vscode's bundled one
    "js/ts.tsdk.path": "node_modules/typescript/lib",
-   "typescript.tsdk": "node_modules/typescript/lib",
 
    // auto-imports emit `import type`
    "js/ts.preferences.preferTypeOnlyAutoImports": true,
@@ -21,7 +19,6 @@
 
    // oxc lints + formats in-editor; formatter owns formatting, not tsserver
    "oxc.enable": true,
-   "oxc.fmt.experimental": true,
    "eslint.enable": false,
    "js/ts.format.enabled": false,
    "workbench.colorCustomizations": {
