@@ -34,3 +34,5 @@ CLAUDE.local.md
 .comfy-ts/settings.json
 .comfy-ts/lora-keywords.json
 .comfy-ts/cache/
+# mirrored upstream data cache, refetched by `bun run templates:fetch`
+.comfy-ts/templates/

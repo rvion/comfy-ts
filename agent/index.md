@@ -19,6 +19,10 @@ locally before anything reaches GitHub or npm.
   a generated `.comfy-ts/hosts/*/sdk.d.ts`) — use this one while developing here
 - `bun run gen:sdk` — regenerate `.comfy-ts/hosts/<id>/sdk.d.ts` from cached object_info
 - `bun run sdk:outline` — inspect a generated sdk.d.ts section by section
+- `bun run templates:fetch` — mirror every official Comfy-Org template/blueprint
+  JSON into `.comfy-ts/templates/` (gitignored upstream data cache)
+- `bun run templates:check` — compat sweep of that corpus against our litegraph
+  schemas; the failure ranking is the format-grind worklist
 - `bun run tui` opens the TUI over `**/*.cflow.ts` under cwd (tweak & re-run)
 - `bun run hooks:install` activates the banned-keywords commit guard (`.githooks/`)
 - examples in `examples/` are `*.cflow.ts` workflow modules: they import offline

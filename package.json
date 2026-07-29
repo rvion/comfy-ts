@@ -64,6 +64,8 @@
       "gen:manager": "bun src/manager/script-update-manager.bun.ts",
       "gen:sdk": "bun scripts/gen-sdk-from-cache.ts",
       "sdk:outline": "bun scripts/sdk-outline.ts",
+      "templates:fetch": "bun scripts/fetch-templates.ts",
+      "templates:check": "bun scripts/check-templates.ts",
       "hooks:install": "git config core.hooksPath .githooks",
       "prepublishOnly": "bun run ci && bun run build",
       "tui": "bun src/cli/comfy-ts-cli.ts tui"
