@@ -1,8 +1,10 @@
-import type { LiteGraphJSON } from 'src/litegraph/LiteGraphJSON.ts'
-import type { LiteGraphLink } from 'src/litegraph/LiteGraphLink.ts'
+import type {
+   CanonicalInput,
+   CanonicalLink,
+   CanonicalNode,
+   CanonicalWorkflow,
+} from 'src/litegraph/CanonicalWorkflow.ts'
 import type { LiteGraphLinkID } from 'src/litegraph/LiteGraphLinkID.ts'
-import type { LiteGraphNode } from 'src/litegraph/LiteGraphNode.ts'
-import type { LiteGraphNodeInput } from 'src/litegraph/LiteGraphNodeInput.ts'
 import type { ComfySchema } from 'src/sdk-generator/ComfySchema.ts'
 import type { ComfyNodeSchema } from 'src/sdk-generator/ComfyNodeSchema.ts'
 import type { ComfyApiJson, ComfyApiNodeJson } from 'src/sdk-generator/comfy-api-json.ts'
@@ -10,13 +12,32 @@ import type { NodeInputExt } from 'src/sdk-generator/comfyui-types.ts'
 import {
    howManyWidgetValuesForThisInputType,
    howManyWidgetValuesForThisSchemaType,
-   UnknownCustomNode,
 } from 'src/sdk-generator/Primitives.ts'
 import type { Maybe } from 'src/types/index.ts'
 
+export type WorkflowConvertErrorCode =
+   | 'unknown-node'
+   | 'missing-widget-value'
+   | 'invalid-widget-value'
+   | 'dangling-link'
+   | 'missing-required-input'
+   | 'unsupported-feature'
+
+/** a canonical workflow the converter cannot turn into a prompt — the code NAMES the feature that failed */
+export class WorkflowConvertError extends Error {
+   constructor(
+      public code: WorkflowConvertErrorCode,
+      message: string,
+      public node?: { id: number; type: string },
+   ) {
+      super(`[workflow ${code}] ${message}`)
+      this.name = 'WorkflowConvertError'
+   }
+}
+
 /**
- * convert a saved ComfyUI workflow.json (litegraph format) into the api.json
- * (prompt format) ComfyUI's POST /prompt takes.
+ * convert a normalized workflow (CanonicalWorkflow — see parseWorkflowJson)
+ * into the api.json (prompt format) ComfyUI's POST /prompt takes.
  * Handles: muted nodes, Note/Reroute/PrimitiveNode virtual nodes (reroutes
  * unwrapped, primitives inlined into their consumers), widget-value offsets
  * (incl. the phantom `control_after_generate` value after seeds).
@@ -24,8 +45,8 @@ import type { Maybe } from 'src/types/index.ts'
 export const convertLiteGraphToPrompt = (
    /** the ComfySchema object (to look for references/definitions) */
    schema: ComfySchema,
-   /** the litegraph */
-   workflow: LiteGraphJSON,
+   /** the normalized litegraph document */
+   workflow: CanonicalWorkflow,
    opts: { verbose?: boolean } = {},
 ): ComfyApiJson => {
    const prompt: ComfyApiJson = {}
@@ -35,31 +56,38 @@ export const convertLiteGraphToPrompt = (
    const PRIMITIVE_VALUES: { [nodeId: string]: unknown } = {}
    for (const node of workflow.nodes) {
       if (node.type === 'PrimitiveNode') {
-         const widgetValues = node.widgets_values
-         if (widgetValues == null || widgetValues.length === 0) {
-            throw new Error(`PrimitiveNode#${node.id} has no widget values`)
-         }
-         PRIMITIVE_VALUES[node.id] = widgetValues[0]
+         if (node.widgets.positional.length === 0)
+            throw new WorkflowConvertError(
+               'missing-widget-value',
+               `PrimitiveNode#${node.id} has no widget values`,
+               node,
+            )
+         PRIMITIVE_VALUES[node.id] = node.widgets.positional[0]
       }
    }
 
    // 2. every executable node
    for (const node of workflow.nodes) {
       if (node.isVirtualNode) continue // frontend-only nodes
-      if (node.mode === 2) continue // muted
+      if (node.mode === 'muted') continue
       if (node.type === 'Reroute') continue // unwrapped below
       if (node.type === 'Note') continue // comments
       if (node.type === 'PrimitiveNode') continue // inlined into consumers
 
       const inputs: ComfyApiNodeJson['inputs'] = {}
-      const fieldNamesWithLinks = new Set((node.inputs ?? []).map((i) => i.name))
+      const fieldNamesWithLinks = new Set(node.inputs.map((i) => i.name))
       const nodeSchema_ = schema.nodesByNameInComfy[node.type]
-      if (nodeSchema_ == null) throw new UnknownCustomNode(node)
+      if (nodeSchema_ == null)
+         throw new WorkflowConvertError(
+            'unknown-node',
+            `node ${node.id}(${node.type}) has no schema on this host; a custom node (or subgraph support) is missing`,
+            node,
+         )
       const nodeSchema: ComfyNodeSchema = nodeSchema_
 
-      // 2.a widget values, consumed in schema order
+      // 2.a widget values, consumed positionally in schema order
       let offset = 0
-      const inputsInNodeJSON: LiteGraphNodeInput[] = node.inputs ?? []
+      const inputsInNodeJSON: CanonicalInput[] = node.inputs
       const inputsInNodeSchema: NodeInputExt[] = nodeSchema.inputs
       for (const field of inputsInNodeSchema) {
          const input = inputsInNodeJSON.find((i) => i.name === field.nameInComfy)
@@ -68,41 +96,53 @@ export const convertLiteGraphToPrompt = (
             : howManyWidgetValuesForThisSchemaType(field)
 
          if (MUST_CONSUME > 0) {
-            if (node.widgets_values == null)
-               throw new Error(
-                  `node ${node.id}(${node.type}) has no widgets_values but "${field.nameInComfy}" needs one`,
+            if (node.widgets.positional.length < offset + 1)
+               throw new WorkflowConvertError(
+                  'missing-widget-value',
+                  `node ${node.id}(${node.type}) has not enough widget values for "${field.nameInComfy}"`,
+                  node,
                )
-            if (node.widgets_values.length < offset + 1)
-               throw new Error(`node ${node.id}(${node.type}) has not enough widgets_values for "${field.nameInComfy}"`)
-            const _value = node.widgets_values[offset]
+            const _value = node.widgets.positional[offset]
             LOG(`${node.type}#${node.id}.${field.nameInComfy} = ${_value} (widget, consumes ${MUST_CONSUME})`)
             if (!isValidValue(_value))
-               throw new Error(
+               throw new WorkflowConvertError(
+                  'invalid-widget-value',
                   `node ${node.id}(${node.type}) has an invalid widget value for "${field.nameInComfy}": ${JSON.stringify(_value)}`,
+                  node,
                )
             inputs[field.nameInComfy] = _value
             offset += MUST_CONSUME
          } else if (!fieldNamesWithLinks.has(field.nameInComfy)) {
             if (field.required)
-               throw new Error(
+               throw new WorkflowConvertError(
+                  'missing-required-input',
                   `node ${node.id}(${node.type}): required input "${field.nameInComfy}" (${field.typeName}) has neither widget value nor link`,
+                  node,
                )
          }
       }
 
       // 2.b links
-      type ParentInfo = { node: LiteGraphNode; link: LiteGraphLink }
+      type ParentInfo = { node: CanonicalNode; link: CanonicalLink }
       const getParentNode = (linkId: LiteGraphLinkID): ParentInfo => {
-         const link = workflow.links.find((link) => link[0] === linkId)
+         const link = workflow.links.find((link) => link.id === linkId)
          if (link == null)
-            throw new Error(`Node ${node.id}(${node.type}) references a non-existing link (id=${linkId})`)
-         const parentId = link[1]
-         const parentNode = workflow.nodes.find((n) => n.id === parentId)
-         if (parentNode == null) throw new Error(`link ${linkId} references a non-existent parent node ${parentId}`)
+            throw new WorkflowConvertError(
+               'dangling-link',
+               `node ${node.id}(${node.type}) references a non-existing link (id=${linkId})`,
+               node,
+            )
+         const parentNode = workflow.nodes.find((n) => n.id === link.originId)
+         if (parentNode == null)
+            throw new WorkflowConvertError(
+               'dangling-link',
+               `link ${linkId} references a non-existent parent node ${link.originId}`,
+               node,
+            )
          return { node: parentNode, link }
       }
 
-      INPT: for (const ipt of node.inputs ?? []) {
+      INPT: for (const ipt of node.inputs) {
          const isPrimitive = howManyWidgetValuesForThisInputType(ipt.type, ipt.name) > 0
          if (isPrimitive) continue
 
@@ -116,14 +156,15 @@ export const convertLiteGraphToPrompt = (
          // unwrap reroute chains
          let max = 100
          while (parent != null && parent.node.type === 'Reroute' && max-- > 0) {
-            const firstParentInput = parent.node.inputs?.[0]
+            const firstParentInput = parent.node.inputs[0]
             if (firstParentInput?.link == null) {
                LOG(`${node.type}#${node.id}.${ipt.name}: reroute chain ends on an empty slot`)
                continue INPT
             }
             parent = getParentNode(firstParentInput.link)
          }
-         if (parent == null) throw new Error(`no parent found for ${node.id}.${ipt.name}`)
+         if (parent == null)
+            throw new WorkflowConvertError('dangling-link', `no parent found for ${node.id}.${ipt.name}`, node)
 
          // inline primitive nodes as plain values
          if (parent.node.type === 'PrimitiveNode') {
@@ -132,8 +173,8 @@ export const convertLiteGraphToPrompt = (
             continue
          }
 
-         LOG(`${node.type}#${node.id}.${ipt.name} = [${parent.node.id}, ${parent.link[2]}] (link)`)
-         inputs[ipt.name] = [String(parent.node.id), parent.link[2]]
+         LOG(`${node.type}#${node.id}.${ipt.name} = [${parent.node.id}, ${parent.link.originSlot}] (link)`)
+         inputs[ipt.name] = [String(parent.node.id), parent.link.originSlot]
       }
 
       prompt[String(node.id)] = { inputs, class_type: node.type }

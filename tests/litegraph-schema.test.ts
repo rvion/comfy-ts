@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import { type } from 'arktype'
 import { LiteGraphJSON_ark } from 'src/litegraph/LiteGraphJSON.ts'
 import { printArkResultInConsole } from 'src/utils/printArkResultInConsole.ts'
+import { parseWorkflowJson } from 'src/litegraph/normalizeWorkflow.ts'
 import { ComfySchema } from 'src/sdk-generator/ComfySchema.ts'
 import { convertLiteGraphToPrompt } from 'src/sdk-generator/litegraphToApiRequestPayload.ts'
 
@@ -29,13 +30,17 @@ describe('litegraph -> api conversion (real saved workflows)', () => {
    schema.update({})
 
    it('converts the simple workflow', () => {
-      const wf = JSON.parse(readFileSync('tests/fixtures/ComfyUI-Workflow-2024-11-13-Simple.json', 'utf-8'))
+      const wf = parseWorkflowJson(
+         JSON.parse(readFileSync('tests/fixtures/ComfyUI-Workflow-2024-11-13-Simple.json', 'utf-8')),
+      )
       const prompt = convertLiteGraphToPrompt(schema, wf)
       expect(Object.keys(prompt).length).toBe(8)
    })
 
    it('converts the advanced 32-node workflow', () => {
-      const wf = JSON.parse(readFileSync('tests/fixtures/ComfyUI-Workflow-2024-11-14-Advanced.json', 'utf-8'))
+      const wf = parseWorkflowJson(
+         JSON.parse(readFileSync('tests/fixtures/ComfyUI-Workflow-2024-11-14-Advanced.json', 'utf-8')),
+      )
       const prompt = convertLiteGraphToPrompt(schema, wf)
       expect(Object.keys(prompt).length).toBe(32)
    })

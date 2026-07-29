@@ -3,7 +3,7 @@ import type { ComfyWorkflow } from 'src/runner/ComfyWorkflow.ts'
 import { bang } from 'src/utils/bang.ts'
 import { howManyWidgetValuesForThisSchemaType } from 'src/sdk-generator/Primitives.ts'
 import type { LiteGraphJSON } from 'src/litegraph/LiteGraphJSON.ts'
-import type { LiteGraphLink } from 'src/litegraph/LiteGraphLink.ts'
+import type { LiteGraphLinkTuple } from 'src/litegraph/LiteGraphLink.ts'
 import { asLiteGraphLinkID, type LiteGraphLinkID } from 'src/litegraph/LiteGraphLinkID.ts'
 import type { LiteGraphNode } from 'src/litegraph/LiteGraphNode.ts'
 import type { LiteGraphNodeInput } from 'src/litegraph/LiteGraphNodeInput.ts'
@@ -21,7 +21,7 @@ export const convertFlowToLiteGraphJSON = (graph: ComfyWorkflow): LiteGraphJSON 
       const n = xx.liteGraphNode
       n.pos[0] = bang(xx.comfyNode.x)
       n.pos[1] = bang(xx.comfyNode.y)
-      for (const o of n.outputs) {
+      for (const o of n.outputs ?? []) {
          o.links = ctx.links.filter((l) => l[3] === n.id && l[4] === o.slot_index).map((l) => l[0])
       }
    }
@@ -99,7 +99,7 @@ const _isLink = (v: unknown): v is [string, number] => {
 export class LiteGraphCtx {
    constructor(public graph: ComfyWorkflow) {}
    nextLinkId: number = 0
-   links: LiteGraphLink[] = []
+   links: LiteGraphLinkTuple[] = []
    allocateLink = (
       fromNodeId: number,
       fromNodeOutputIx: number,

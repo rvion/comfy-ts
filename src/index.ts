@@ -49,6 +49,18 @@ export type { ComfyApiJson, ComfyApiNodeJson } from 'src/sdk-generator/comfy-api
 // litegraph (ComfyUI saved-workflow JSON format)
 export type { LiteGraphJSON } from 'src/litegraph/LiteGraphJSON.ts'
 export { convertFlowToLiteGraphJSON } from 'src/litegraph/convertFlowToLiteGraphJSON.ts'
+export type {
+   CanonicalGroup,
+   CanonicalInput,
+   CanonicalLink,
+   CanonicalNode,
+   CanonicalOutput,
+   CanonicalWidgetValues,
+   CanonicalWorkflow,
+   NodeMode,
+} from 'src/litegraph/CanonicalWorkflow.ts'
+export { normalizeWorkflow, parseWorkflowJson, WorkflowNormalizeError } from 'src/litegraph/normalizeWorkflow.ts'
+export { convertLiteGraphToPrompt, WorkflowConvertError } from 'src/sdk-generator/litegraphToApiRequestPayload.ts'
 
 // vars + re-runnable workflows
 export {

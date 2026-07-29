@@ -1,0 +1,399 @@
+{
+  "7": {
+    "inputs": {
+      "images": [
+        "54",
+        0
+      ]
+    },
+    "class_type": "PreviewImage"
+  },
+  "9": {
+    "inputs": {
+      "detection_hint": "mask-points",
+      "dilation": 10,
+      "threshold": 0.96,
+      "bbox_expansion": 0,
+      "mask_hint_threshold": 0.9,
+      "mask_hint_use_negative": "False",
+      "sam_model": [
+        "10",
+        0
+      ],
+      "segs": [
+        "13",
+        0
+      ],
+      "image": [
+        "34",
+        0
+      ]
+    },
+    "class_type": "SAMDetectorCombined"
+  },
+  "10": {
+    "inputs": {
+      "model_name": "sam_vit_b_01ec64.pth",
+      "device_mode": "AUTO"
+    },
+    "class_type": "SAMLoader"
+  },
+  "13": {
+    "inputs": {
+      "combined": true,
+      "crop_factor": 2,
+      "bbox_fill": false,
+      "drop_size": 10,
+      "contour_fill": false,
+      "mask": [
+        "63",
+        1
+      ]
+    },
+    "class_type": "MaskToSEGS"
+  },
+  "18": {
+    "inputs": {
+      "ckpt_name": "AOM3A3_orangemixs.safetensors"
+    },
+    "class_type": "CheckpointLoaderSimple"
+  },
+  "19": {
+    "inputs": {
+      "text": "blurry, low quality, watermark, text",
+      "clip": [
+        "18",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode"
+  },
+  "20": {
+    "inputs": {
+      "text": "a cozy house in a snowy forest, warm windows, best quality",
+      "clip": [
+        "18",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode"
+  },
+  "21": {
+    "inputs": {
+      "images": [
+        "67",
+        3
+      ]
+    },
+    "class_type": "PreviewImage"
+  },
+  "22": {
+    "inputs": {
+      "images": [
+        "67",
+        4
+      ]
+    },
+    "class_type": "PreviewImage"
+  },
+  "23": {
+    "inputs": {
+      "filename_prefix": "Result",
+      "images": [
+        "67",
+        0
+      ]
+    },
+    "class_type": "SaveImage"
+  },
+  "33": {
+    "inputs": {
+      "width": 704,
+      "height": 1024,
+      "batch_size": 1
+    },
+    "class_type": "EmptyLatentImage"
+  },
+  "34": {
+    "inputs": {
+      "samples": [
+        "37",
+        0
+      ],
+      "vae": [
+        "49",
+        2
+      ]
+    },
+    "class_type": "VAEDecode"
+  },
+  "35": {
+    "inputs": {
+      "filename_prefix": "original",
+      "images": [
+        "34",
+        0
+      ]
+    },
+    "class_type": "SaveImage"
+  },
+  "37": {
+    "inputs": {
+      "seed": 1049630688121004,
+      "steps": 20,
+      "cfg": 8,
+      "sampler_name": "euler",
+      "scheduler": "karras",
+      "denoise": 1,
+      "model": [
+        "49",
+        0
+      ],
+      "positive": [
+        "49",
+        3
+      ],
+      "negative": [
+        "49",
+        4
+      ],
+      "latent_image": [
+        "33",
+        0
+      ]
+    },
+    "class_type": "KSampler"
+  },
+  "38": {
+    "inputs": {
+      "text": "a cozy house in a snowy forest, warm windows, best quality",
+      "clip": [
+        "18",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode"
+  },
+  "44": {
+    "inputs": {
+      "model": [
+        "18",
+        0
+      ],
+      "clip": [
+        "18",
+        1
+      ],
+      "vae": [
+        "18",
+        2
+      ],
+      "positive": [
+        "20",
+        0
+      ],
+      "negative": [
+        "19",
+        0
+      ]
+    },
+    "class_type": "ToBasicPipe"
+  },
+  "48": {
+    "inputs": {
+      "basic_pipe": [
+        "44",
+        0
+      ],
+      "positive": [
+        "38",
+        0
+      ],
+      "negative": [
+        "60",
+        0
+      ]
+    },
+    "class_type": "EditBasicPipe"
+  },
+  "49": {
+    "inputs": {
+      "basic_pipe": [
+        "44",
+        0
+      ]
+    },
+    "class_type": "FromBasicPipe"
+  },
+  "52": {
+    "inputs": {
+      "mask": [
+        "9",
+        0
+      ]
+    },
+    "class_type": "MaskToImage"
+  },
+  "53": {
+    "inputs": {
+      "images": [
+        "52",
+        0
+      ]
+    },
+    "class_type": "PreviewImage"
+  },
+  "54": {
+    "inputs": {
+      "mask": [
+        "63",
+        1
+      ]
+    },
+    "class_type": "MaskToImage"
+  },
+  "57": {
+    "inputs": {
+      "combined": false,
+      "crop_factor": 2,
+      "bbox_fill": false,
+      "drop_size": 10,
+      "contour_fill": false,
+      "mask": [
+        "9",
+        0
+      ]
+    },
+    "class_type": "MaskToSEGS"
+  },
+  "60": {
+    "inputs": {
+      "text": "",
+      "clip": [
+        "18",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode"
+  },
+  "63": {
+    "inputs": {
+      "image": "$63-0",
+      "block": false,
+      "restore_mask": "never",
+      "images": [
+        "34",
+        0
+      ]
+    },
+    "class_type": "PreviewBridge"
+  },
+  "64": {
+    "inputs": {
+      "images": [
+        "67",
+        5
+      ]
+    },
+    "class_type": "PreviewImage"
+  },
+  "67": {
+    "inputs": {
+      "guide_size": 384,
+      "guide_size_for": true,
+      "max_size": 768,
+      "seed": 1039530304738894,
+      "steps": 20,
+      "cfg": 8,
+      "sampler_name": "euler",
+      "scheduler": "normal",
+      "denoise": 0.63,
+      "feather": 5,
+      "noise_mask": true,
+      "force_inpaint": true,
+      "wildcard": "",
+      "refiner_ratio": 0.2,
+      "cycle": 1,
+      "inpaint_model": false,
+      "noise_mask_feather": 20,
+      "image": [
+        "34",
+        0
+      ],
+      "segs": [
+        "57",
+        0
+      ],
+      "basic_pipe": [
+        "48",
+        0
+      ]
+    },
+    "class_type": "DetailerForEachDebugPipe"
+  },
+  "69": {
+    "inputs": {
+      "model_name": "sam_vit_b_01ec64.pth",
+      "device_mode": "AUTO"
+    },
+    "class_type": "SAMLoader"
+  },
+  "84": {
+    "inputs": {
+      "model_name": "bbox/hand_yolov8n.pt"
+    },
+    "class_type": "UltralyticsDetectorProvider"
+  },
+  "85": {
+    "inputs": {
+      "threshold": 0.5,
+      "dilation": 10,
+      "crop_factor": 3,
+      "drop_size": 10,
+      "labels": "all",
+      "bbox_detector": [
+        "84",
+        0
+      ],
+      "image": [
+        "34",
+        0
+      ]
+    },
+    "class_type": "BboxDetectorSEGS"
+  },
+  "86": {
+    "inputs": {
+      "segs": [
+        "85",
+        0
+      ]
+    },
+    "class_type": "SegsToCombinedMask"
+  },
+  "90": {
+    "inputs": {
+      "threshold": 0.5,
+      "dilation": 10,
+      "crop_factor": 3,
+      "drop_size": 10,
+      "labels": "all",
+      "segm_detector": [
+        "84",
+        1
+      ]
+    },
+    "class_type": "SegmDetectorSEGS"
+  },
+  "92": {
+    "inputs": {
+      "threshold": 0.5,
+      "dilation": 0,
+      "image": [
+        "34",
+        0
+      ]
+    },
+    "class_type": "SegmDetectorCombined_v2"
+  }
+}

@@ -1,4 +1,3 @@
-import type { LiteGraphNode } from 'src/litegraph/LiteGraphNode.ts'
 import type { ComfyNodeSchemaJSON } from 'src/sdk-generator/ComfyUIObjectInfoTypes.ts'
 import type { NodeInputExt } from 'src/sdk-generator/comfyui-types.ts'
 
@@ -67,10 +66,4 @@ export const ComfyDefaultNodeWhenUnknown_Schema: ComfyNodeSchemaJSON = {
    output_is_list: [],
    output_node: false,
    python_module: 'nodes',
-}
-
-export class UnknownCustomNode extends Error {
-   constructor(public node: LiteGraphNode) {
-      super(`❌ node ${node.id}(${node.type}) has no known schema; you probably need to install some custom node`)
-   }
 }

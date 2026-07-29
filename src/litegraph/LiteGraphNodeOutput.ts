@@ -4,10 +4,9 @@ import { type LiteGraphLinkID, LiteGraphLinkID_ } from 'src/litegraph/LiteGraphL
 import { type LiteGraphSlotIndex, LiteGraphSlotIndex_ } from 'src/litegraph/LiteGraphSlotIndex.ts'
 
 export type LiteGraphNodeOutput = {
-   // ❌9 name: string // 'CONDITIONING'
    name: string
    type: string // 'CONDITIONING'
-   links: LiteGraphLinkID[] | null
+   links?: LiteGraphLinkID[] | null // unconnected outputs may omit the key
    shape?: number // '2D'
    slot_index?: LiteGraphSlotIndex
 }
@@ -15,7 +14,7 @@ export type LiteGraphNodeOutput = {
 export const LiteGraphNodeOutput_ark = type({
    name: 'string',
    type: 'string',
-   links: LiteGraphLinkID_.array().or(type.null),
+   'links?': LiteGraphLinkID_.array().or(type.null),
    'shape?': 'number',
    'slot_index?': LiteGraphSlotIndex_,
 })

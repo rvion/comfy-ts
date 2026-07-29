@@ -6,7 +6,7 @@ import type { KnownComfyPluginURL } from 'src/manager/generated/KnownComfyPlugin
 import type { ComfyManagerPluginInfo } from 'src/manager/types/ComfyManagerPluginInfo.ts'
 import type { ComfyExecution } from 'src/runner/ComfyExecution.ts'
 import type { ComfyApiJson } from 'src/sdk-generator/comfy-api-json.ts'
-import type { LiteGraphJSON } from 'src/litegraph/LiteGraphJSON.ts'
+import { parseWorkflowJson } from 'src/litegraph/normalizeWorkflow.ts'
 import { convertLiteGraphToPrompt } from 'src/sdk-generator/litegraphToApiRequestPayload.ts'
 import { asComfyWorkflowID, ComfyWorkflow } from 'src/runner/ComfyWorkflow.ts'
 import {
@@ -239,9 +239,14 @@ export class ComfyHost<ID extends string = string> {
       return new DefinedWorkflow(this, spec)
    }
 
-   /** import a workflow.json (litegraph format) as a live, editable workflow */
-   importWorkflowJson = (json: LiteGraphJSON, p: { id?: string } = {}): ComfyWorkflow<ID> => {
-      const apiJson = convertLiteGraphToPrompt(this.schema, json)
+   /**
+    * import a workflow.json (litegraph format) as a live, editable workflow.
+    * Accepts unknown: the JSON is ark-validated + normalized (parseWorkflowJson)
+    * before conversion — invalid documents throw WorkflowNormalizeError.
+    */
+   importWorkflowJson = (json: unknown, p: { id?: string } = {}): ComfyWorkflow<ID> => {
+      const canonical = parseWorkflowJson(json)
+      const apiJson = convertLiteGraphToPrompt(this.schema, canonical)
       return this.importApiJson(apiJson, p)
    }
 
