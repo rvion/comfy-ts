@@ -360,11 +360,21 @@ unknown ──LiteGraphJSON_ark──▶ LiteGraphJSON (loose wire type)
   named-shadowed slots whenever a positional array exists). Failures are
   `WorkflowConvertError` with a `code` (`unknown-node`, `dangling-link`, …)
   naming the feature — never a misleading generic message.
-- **Metric split** (`scripts/check-templates.ts`): `unknown-node` failures
+- **Metric split** (`scripts/check-templates.ts`): the sweep runs the FULL
+  chain per file (parse → ark → normalize → convert) against ONE cached
+  object_info (`.comfy-ts/hosts/windows-1/` when present, else the committed
+  `tests/fixtures/object_info.json`, printed loudly). `unknown-node` failures
   (template needs a custom node this host lacks) are counted APART from
   converter defects; structural success = ok + unknown-node. Sweeping 779
   templates against one cached object_info makes unknown-node expected, not
-  a bug.
+  a bug. The script prints the missing-node histogram ("install X to unlock
+  N templates") and the convert/normalize defect causes.
+- **Compat ratchet** (`tests/template-ratchet.test.ts`): every committed
+  fixture under `tests/fixtures/workflows/` (auto-enrolled via readdirSync)
+  must schema-pass, normalize, and structurally convert against the committed
+  2024 object_info — `unknown-node` is the one acceptable convert outcome.
+  Compat only moves forward; a converter change that breaks a fixture goes red
+  in CI, not in the next sweep.
 - Fixtures: real corpus files copied verbatim under `tests/fixtures/workflows/`
   (`.prettierignore` already exempts `tests/fixtures/**` — fixtures are DATA);
   execution-semantics permutations (e.g. bypass rewiring) mutate a small
