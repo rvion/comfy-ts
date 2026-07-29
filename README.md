@@ -3,11 +3,13 @@
 [![CI](https://github.com/rvion/comfy-ts/actions/workflows/ci.yml/badge.svg)](https://github.com/rvion/comfy-ts/actions/workflows/ci.yml)
 [![npm version](https://img.shields.io/npm/v/comfy-ts.svg)](https://www.npmjs.com/package/comfy-ts)
 
-**Your ComfyUI install, as types.** Every node, model, sampler and lora on
-your machine becomes autocomplete. Wrong workflow? Compile error. Right
-workflow? Images, straight back into your code.
-
-![the comfy-ts TUI: workflow tree, typed knobs, live latent preview](screenshots/tui-screen-1.png)
+**Everything ComfyUI, from TypeScript.** Build workflows in code with
+autocomplete on every node and model of your exact install. Run them on any
+host, from the box under your desk to a cloud GPU, and get the images
+straight back into your code. Drive them from a terminal UI with live
+latent previews. Let scripts and agents discover and install whatever the
+ecosystem offers. Import and export both ComfyUI JSON formats. One library,
+the whole pipeline.
 
 **Jump to:**
 [60 second start](#60-second-start) ·
@@ -77,8 +79,10 @@ dual ESM/CJS.
 
 ## The SDK: workflows as code
 
-Not "a ComfyUI type package" someone published once. Each host gets its own
-namespace, generated from that host's live `/object_info`:
+Not "a ComfyUI type package" someone published once. Wrong workflow?
+Compile error. Every node, model, sampler and lora on your machine becomes
+autocomplete: each host gets its own namespace, generated from that host's
+live `/object_info`:
 
 ```ts
 declare global {
@@ -135,6 +139,8 @@ await txt2img.run({ log: true }) // fresh graph, fresh image
 loras' trigger keywords. Name the file `*.cflow.ts` and the TUI finds it.
 
 ## The TUI
+
+![the comfy-ts TUI: workflow tree, typed knobs, live latent preview](screenshots/tui-screen-1.png)
 
 ```bash
 bunx comfy-ts tui examples/
