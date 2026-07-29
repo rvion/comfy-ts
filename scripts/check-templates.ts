@@ -1,8 +1,15 @@
 // compat sweep over .comfy-ts/templates/: classify every downloaded JSON, then
 // run workflow-format ones through the FULL import chain (ark schema →
-// normalize → convert) against ONE cached object_info. The metric split:
-// `unknown-node` (host inventory gap, expected when sweeping 779 templates
-// against one host) is counted APART from converter defects (ours).
+// normalize → convert) against ONE cached object_info. The metric split
+// (agent/architecture.md "Metric split"): THREE acceptable non-defect
+// outcomes counted APART from converter defects (ours) —
+//   unknown-node          host inventory gap (expected sweeping 779 vs one host)
+//   incomplete-template   missing-required-input on a BLUEPRINT corpus file:
+//                         those repos are subgraph libraries, an unconnected
+//                         required boundary input is the file's intended open
+//                         boundary (e.g. GLSLShader autogrow images.image0)
+//   host-drift            unknown-dynamic-combo-option: template newer than
+//                         this host's node (e.g. recraftv4_1)
 // REPORT ONLY: this script never fixes anything.
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'pathe'
@@ -20,7 +27,21 @@ const ROOT = '.comfy-ts/templates'
 // in play changes every unknown-node count, so it is printed loudly below.
 const OBJECT_INFO_CANDIDATES = ['.comfy-ts/hosts/windows-1/object_info.json', 'tests/fixtures/object_info.json']
 
-type Outcome = 'ok' | 'schema-fail' | 'normalize-fail' | 'unknown-node' | 'convert-fail' | 'parse-fail' | 'skipped'
+type Outcome =
+   | 'ok'
+   | 'schema-fail'
+   | 'normalize-fail'
+   | 'unknown-node'
+   | 'incomplete-template'
+   | 'host-drift'
+   | 'convert-fail'
+   | 'parse-fail'
+   | 'skipped'
+
+// subgraph-library corpora: every file is a fragment meant to be dropped INTO
+// a workflow. Source-based on purpose — the same missing-required-input on a
+// standalone-workflow corpus stays a defect.
+const BLUEPRINT_SOURCES: ReadonlySet<string> = new Set(['comfyui-blueprints', 'workflow-templates-blueprints'])
 
 type FileResult = {
    file: string
@@ -101,6 +122,8 @@ const results: FileResult[] = []
 const schemaCauses = new CauseTally()
 const normalizeCauses = new CauseTally()
 const convertCauses = new CauseTally()
+const incompleteCauses = new CauseTally()
+const hostDriftCauses = new CauseTally()
 // first missing node type per file (the converter throws on the FIRST unknown
 // node, so a file needing several custom packs counts under one type)
 const missingNodeTypes = new CauseTally()
@@ -157,6 +180,20 @@ for (const file of walk(ROOT)) {
          err instanceof WorkflowConvertError
             ? `${err.code} @ ${err.node?.type ?? '?'}: ${err.message.replace(/node \d+/g, 'node *')}`
             : `unexpected: ${String(err)}`
+      if (
+         err instanceof WorkflowConvertError &&
+         err.code === 'missing-required-input' &&
+         BLUEPRINT_SOURCES.has(source)
+      ) {
+         incompleteCauses.add({ cause, example: file })
+         results.push({ file, source, format, outcome: 'incomplete-template', cause })
+         continue
+      }
+      if (err instanceof WorkflowConvertError && err.code === 'unknown-dynamic-combo-option') {
+         hostDriftCauses.add({ cause, example: file })
+         results.push({ file, source, format, outcome: 'host-drift', cause })
+         continue
+      }
       convertCauses.add({ cause, example: file })
       results.push({ file, source, format, outcome: 'convert-fail', cause })
    }
@@ -169,6 +206,8 @@ const emptyRow = (): Row => ({
    'schema-fail': 0,
    'normalize-fail': 0,
    'unknown-node': 0,
+   'incomplete-template': 0,
+   'host-drift': 0,
    'convert-fail': 0,
    'parse-fail': 0,
    skipped: 0,
@@ -184,6 +223,8 @@ for (const r of results) {
 const COLS: { header: string; outcome: Outcome }[] = [
    { header: 'ok', outcome: 'ok' },
    { header: 'unode', outcome: 'unknown-node' },
+   { header: 'itmpl', outcome: 'incomplete-template' },
+   { header: 'drift', outcome: 'host-drift' },
    { header: 'cfail', outcome: 'convert-fail' },
    { header: 'nfail', outcome: 'normalize-fail' },
    { header: 'sfail', outcome: 'schema-fail' },
@@ -201,7 +242,7 @@ for (const [key, row] of [...rows.entries()].sort()) {
 const count = (outcome: Outcome): number => results.filter((r) => r.outcome === outcome).length
 const workflowFiles = results.length - count('skipped') - count('parse-fail')
 const okCount = count('ok')
-const structural = okCount + count('unknown-node')
+const structural = okCount + count('unknown-node') + count('incomplete-template') + count('host-drift')
 const pct = (n: number): string => (workflowFiles === 0 ? '?' : `${((100 * n) / workflowFiles).toFixed(1)}%`)
 console.log(`\ntotal files: ${results.length} | workflow-format: ${workflowFiles} | parse-fail: ${count('parse-fail')}`)
 console.log(
@@ -209,13 +250,18 @@ console.log(
 )
 console.log(`normalize-fail:       ${count('normalize-fail')} | convert-fail (defects, OURS): ${count('convert-fail')}`)
 console.log(
-   `STRUCTURAL success:   ${structural}/${workflowFiles} (${pct(structural)})  ← ok + unknown-node: the converter did its job`,
+   `acceptable non-defects: unknown-node ${count('unknown-node')} | incomplete-template ${count('incomplete-template')} | host-drift ${count('host-drift')}`,
+)
+console.log(
+   `STRUCTURAL success:   ${structural}/${workflowFiles} (${pct(structural)})  ← ok + acceptable: the converter did its job`,
 )
 console.log(`executable on host:   ${okCount}/${workflowFiles} (${pct(okCount)})  ← host-dependent (${objectInfoPath})`)
 
 schemaCauses.print({ title: 'schema failure causes (first arktype error per file):' })
 normalizeCauses.print({ title: 'normalize failure causes:' })
 convertCauses.print({ title: 'convert DEFECT causes (ours, grind these):' })
+incompleteCauses.print({ title: 'incomplete-template (blueprint corpus, open boundary by design — acceptable):' })
+hostDriftCauses.print({ title: 'host-drift (template newer than this host node — acceptable):' })
 missingNodeTypes.print({
    title: 'missing node types (first per file) — install X to unlock N templates:',
    n: 20,
