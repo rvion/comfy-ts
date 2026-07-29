@@ -9,7 +9,7 @@ import type { LiteGraphLinkID } from 'src/litegraph/LiteGraphLinkID.ts'
  * reach around the pipeline to the raw document.
  */
 export type CanonicalWorkflow = {
-   /** subgraph instances are expanded away by normalization (next arc); until then they surface as unknown-node */
+   /** subgraph instances with a definition are expanded away by normalization (expandSubgraphs.ts) */
    nodes: CanonicalNode[]
    /** object form only, both wire eras unified */
    links: CanonicalLink[]

@@ -9,12 +9,14 @@ import type {
    CanonicalWorkflow,
    NodeMode,
 } from 'src/litegraph/CanonicalWorkflow.ts'
+import { type CanonicalSubgraphDef, expandSubgraphs } from 'src/litegraph/expandSubgraphs.ts'
 import type { LiteGraphGroup } from 'src/litegraph/LiteGraphGroup.ts'
 import { type LiteGraphJSON, LiteGraphJSON_ark } from 'src/litegraph/LiteGraphJSON.ts'
 import type { LiteGraphLink } from 'src/litegraph/LiteGraphLink.ts'
 import type { LiteGraphNode } from 'src/litegraph/LiteGraphNode.ts'
 import type { LiteGraphNodeInput } from 'src/litegraph/LiteGraphNodeInput.ts'
 import type { LiteGraphNodeOutput } from 'src/litegraph/LiteGraphNodeOutput.ts'
+import type { LiteGraphSubgraphDef } from 'src/litegraph/LiteGraphSubgraphDef.ts'
 
 export type WorkflowNormalizeErrorCode = 'schema-reject' | 'subgraph-cycle' | 'subgraph-io-mismatch' | 'bad-document'
 
@@ -42,15 +44,31 @@ export const parseWorkflowJson = (json: unknown): CanonicalWorkflow => {
 
 /**
  * loose wire document → strict canonical document. Defaults filled, both link
- * eras unified, cosmetic fields dropped. Subgraph EXPANSION (definitions →
- * inlined nodes) is the next arc and will live here too; until then instance
- * nodes pass through and the converter reports them as unknown-node.
+ * eras unified, cosmetic fields dropped, subgraph definitions expanded away
+ * (see expandSubgraphs.ts — def interiors go through the SAME per-shape
+ * normalizers, they are v1 bodies).
  */
 export const normalizeWorkflow = (raw: LiteGraphJSON): CanonicalWorkflow => {
-   return {
+   const wf: CanonicalWorkflow = {
       nodes: raw.nodes.map(normalizeNode),
       links: raw.links.map(normalizeLink),
       groups: (raw.groups ?? []).map(normalizeGroup),
+   }
+   const rawDefs = raw.definitions?.subgraphs ?? []
+   if (rawDefs.length === 0) return wf
+   const defs = new Map<string, CanonicalSubgraphDef>()
+   for (const d of rawDefs) defs.set(d.id, normalizeSubgraphDef(d))
+   return expandSubgraphs(wf, defs)
+}
+
+const normalizeSubgraphDef = (d: LiteGraphSubgraphDef): CanonicalSubgraphDef => {
+   return {
+      id: d.id,
+      name: d.name,
+      inputs: d.inputs.map((io) => ({ name: io.name, type: io.type })),
+      outputs: d.outputs.map((io) => ({ name: io.name, type: io.type })),
+      nodes: d.nodes.map(normalizeNode),
+      links: d.links.map(normalizeLink),
    }
 }
 
