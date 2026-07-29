@@ -368,14 +368,18 @@ unknown ──LiteGraphJSON_ark──▶ LiteGraphJSON (loose wire type)
   naming the feature — never a misleading generic message.
 - **Bypass passthrough mirrors frontend `ExecutableNodeDTO._getBypassSlotIndex`**
   (ComfyUI_frontend `src/lib/litegraph/src/subgraph/ExecutableNodeDTO.ts`,
-  verified 2026-07-29): the type compared during the walk is the CONSUMER
-  input's declared type (`resolveInput` passes `type ?? input.type` down, so
-  it stays fixed through a bypass chain — the link's own type is never the
-  criterion). Parent-input pick order: consumer type `*`/'' short-circuits to
-  the input at the SAME slot index as the resolved output (else input 0);
-  otherwise prefer the same-slot input when its type is connection-valid
-  against both the output type and the consumer type; else first EXACT
-  consumer-type match; else first wildcard-tolerant match. The first
+  verified 2026-07-29, corrected same day after review): the match type starts
+  as the CONSUMER input's declared type and is RE-DERIVED at each bypass hop
+  from the picked pass-through input's own type — the frontend's bypass branch
+  in `resolveOutput` calls `resolveInput(matchingIndex, visited)` WITHOUT the
+  type param, so every hop matches on the input it walked through, not on the
+  original consumer (the link's own type is never the criterion). Type
+  matching is `isValidConnection` parity: exact, `*`, or any member of a
+  comma-separated multi-type. Parent-input pick order: match type `*`/''
+  short-circuits to the input at the SAME slot index as the resolved output
+  (else input 0); otherwise prefer the same-slot input when its type is
+  connection-valid against both the output type and the match type; else
+  first EXACT match; else first wildcard-tolerant match. The first
   type-matching input wins even when unlinked (then the consumer resolves
   unconnected, like the frontend's null link).
 - **Widget-ness is decided from the input CONFIG, never from a type-name
@@ -399,9 +403,11 @@ unknown ──LiteGraphJSON_ark──▶ LiteGraphJSON (loose wire type)
      COMFY_MATCHTYPE_V3, a SLOT — `template` alone is ambiguous on purpose.
   7. `socketless: true` → widget with no socket (IMAGECOMPARE, COLOR).
   8. else → slot.
-  Seed phantom: a widget consumes 2 values when its config carries
-  `control_after_generate: true`; when the KEY is absent (2024 era) the
-  legacy INT-named-seed/noise_seed heuristic applies. A serialized input
+  Seed phantom: a widget consumes 2 values when its config carries a TRUTHY
+  `control_after_generate` (booleans and string modes like `'fixed'`, the
+  windows-1 SeedNode spelling — the frontend creates the control widget on
+  truthiness); when the KEY is absent (2024 era) the legacy
+  INT-named-seed/noise_seed heuristic applies. A serialized input
   entry carrying a `widget` marker overrides a slot verdict (era drift:
   the file proves that frontend serialized a widget value).
 - **Dynamic inputs mirror backend expansion** (`_io.py

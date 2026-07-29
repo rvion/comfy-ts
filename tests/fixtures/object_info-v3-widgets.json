@@ -405,7 +405,7 @@
           "megapixels": [
            "FLOAT",
            {
-            "tooltip": "Target total megapixels (e.g., 1.0 ≈ 1024×1024). Aspect ratio is preserved.",
+            "tooltip": "Target total megapixels (e.g., 1.0 \u2248 1024\u00d71024). Aspect ratio is preserved.",
             "default": 1,
             "min": 0.01,
             "max": 16,
@@ -727,6 +727,42 @@
   "description": "synthetic: typed outputs for link tests",
   "python_module": "nodes",
   "category": "test",
+  "output_node": false
+ },
+ "TestControlString": {
+  "input": {
+   "required": {
+    "seed": [
+     "INT",
+     {
+      "default": 0,
+      "min": 0,
+      "max": 1125899906842624,
+      "control_after_generate": "fixed"
+     }
+    ],
+    "label": [
+     "STRING",
+     {
+      "default": ""
+     }
+    ]
+   }
+  },
+  "output": [
+   "INT"
+  ],
+  "output_is_list": [
+   false
+  ],
+  "output_name": [
+   "INT"
+  ],
+  "name": "TestControlString",
+  "display_name": "Test Control String",
+  "description": "",
+  "python_module": "nodes",
+  "category": "testing",
   "output_node": false
  }
 }

@@ -212,6 +212,52 @@ describe('converter: bypass (mode 4) passthrough', () => {
       mustFind(ks.inputs ?? [], (i) => i.name === 'latent_image', 'latent_image input').link = 71
       expect(convert(raw)).toEqual(expectedSimple())
    })
+
+   it('RE-DERIVES the match type at each hop of a bypass chain (frontend resolveOutput parity)', () => {
+      // KSampler.latent_image(LATENT) → bypassed FakeAnyPass whose slot-0
+      // input is *-typed → bypassed FakeDualSource(slot 0 MODEL ← ckpt,
+      // slot 1 LATENT ← EmptyLatentImage). The frontend resolves the second
+      // hop with the PICKED input's type (*, wildcard short-circuit → slot 0
+      // → the MODEL parent); a consumer type held fixed across the chain
+      // would exact-match LATENT at slot 1 instead. Assert frontend behavior.
+      const raw = simple()
+      raw.nodes.push({
+         id: 30,
+         type: 'FakeAnyPass',
+         mode: 4,
+         pos: [0, 0],
+         size: [100, 100],
+         inputs: [{ name: 'any', type: '*', link: 81 }],
+         outputs: [{ name: 'out', type: 'LATENT', links: [80] }],
+      })
+      raw.nodes.push({
+         id: 31,
+         type: 'FakeDualSource',
+         mode: 4,
+         pos: [0, 0],
+         size: [100, 100],
+         inputs: [
+            { name: 'model_in', type: 'MODEL', link: 82 },
+            { name: 'latent_in', type: 'LATENT', link: 2 },
+         ],
+         outputs: [{ name: 'out', type: '*', links: [81] }],
+      })
+      const ckpt = mustFind(raw.nodes, (n) => n.id === 4, 'CheckpointLoaderSimple')
+      ckpt.outputs?.[0]?.links?.push(82)
+      raw.links.push([82, 4, 0, 31, 0, 'MODEL'])
+      const link2 = mustFind(raw.links, (l) => l[0] === 2, 'link 2')
+      link2[3] = 31
+      link2[4] = 1
+      raw.links.push([81, 31, 0, 30, 0, '*'])
+      raw.links.push([80, 30, 0, 3, 3, 'LATENT'])
+      const ks = mustFind(raw.nodes, (n) => n.id === 3, 'KSampler')
+      mustFind(ks.inputs ?? [], (i) => i.name === 'latent_image', 'latent_image input').link = 80
+      expect(convert(raw)['3']?.inputs['latent_image']).toEqual(['4', 0])
+   })
+
+   it('matches comma-separated multi-types when walking through (frontend isValidConnection parity)', () => {
+      expect(convert(withLatentUpscale({ mode: 4, inputType: 'LATENT,IMAGE' }))).toEqual(expectedSimple())
+   })
 })
 
 describe('converter: linked trailing widget (positional array shorter than schema)', () => {

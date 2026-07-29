@@ -29,12 +29,14 @@ export const isRecord = (x: unknown): x is Record<string, unknown> =>
    typeof x === 'object' && x != null && !Array.isArray(x)
 
 /**
- * seed phantom: `control_after_generate: true` (2026 spelling) adds one
- * consumed value; when the KEY is absent (2024 era) the INT-named-seed
+ * seed phantom: a TRUTHY `control_after_generate` adds one consumed value.
+ * The frontend creates the control widget on truthiness, and real 2026 hosts
+ * spell it as `true` OR as a string mode like `'fixed'` (PrimitiveInt.value,
+ * SeedNode.seed). When the KEY is absent (2024 era) the INT-named-seed
  * heuristic applies.
  */
 const controlConsumes = (o: Record<string, unknown> | null, typeName: string, name: string): 1 | 2 => {
-   if (o != null && 'control_after_generate' in o) return o['control_after_generate'] === true ? 2 : 1
+   if (o != null && 'control_after_generate' in o) return o['control_after_generate'] ? 2 : 1
    if (typeName === 'INT' && (name === 'seed' || name === 'noise_seed')) return 2
    return 1
 }

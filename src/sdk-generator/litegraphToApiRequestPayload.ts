@@ -51,7 +51,14 @@ const VIRTUAL_NODE_TYPES: ReadonlySet<string> = new Set(['Note', 'MarkdownNote',
 const isNeverExecuted = (node: CanonicalNode): boolean => node.isVirtualNode || VIRTUAL_NODE_TYPES.has(node.type)
 
 /** exact match, or `*` wildcard on either side (Reroute-style slots) */
-const linkTypeMatches = (a: string, b: string): boolean => a === b || a === '*' || b === '*'
+/** frontend isValidConnection parity: exact, `*` wildcard, or any member of a comma-separated multi-type */
+const linkTypeMatches = (a: string, b: string): boolean => {
+   if (a === b || a === '*' || b === '*') return true
+   if (!a.includes(',') && !b.includes(',')) return false
+   const as = a.split(',')
+   const bs = b.split(',')
+   return as.some((x) => bs.includes(x))
+}
 
 /** what an inlined PrimitiveNode may contribute: scalar widget values only */
 const isPromptScalar = (v: unknown): v is string | number | boolean | null =>
@@ -318,10 +325,11 @@ export const convertLiteGraphToPrompt = (
       }
 
       // walk through follow-through parents: Reroute unwraps, bypassed nodes
-      // redirect per pickBypassInput above — the type carried through the walk
-      // is the CONSUMER input's, fixed across a bypass chain (frontend
-      // resolveInput passes `type ?? input.type` down); muted parents and
-      // dead-end bypasses resolve UNCONNECTED. Visited-set guards link cycles.
+      // redirect per pickBypassInput above. The match type is RE-DERIVED at
+      // each bypass hop from the picked input (frontend resolveOutput calls
+      // resolveInput WITHOUT the type param, so the next hop matches on that
+      // input's own type); muted parents and dead-end bypasses resolve
+      // UNCONNECTED. Visited-set guards link cycles.
       type LinkResolution =
          | { kind: 'link'; nodeId: number; slot: number }
          | { kind: 'primitive'; nodeId: number }
@@ -329,6 +337,7 @@ export const convertLiteGraphToPrompt = (
       const resolveThroughParents = (startLink: LiteGraphLinkID, consumerType: string): LinkResolution => {
          const visited = new Set<number>()
          let linkId = startLink
+         let effectiveType = consumerType
          while (true) {
             const parent: ParentInfo = getParentNode(linkId)
             if (visited.has(parent.node.id))
@@ -352,14 +361,15 @@ export const convertLiteGraphToPrompt = (
                   inputs: parent.node.inputs,
                   outSlot: parent.link.originSlot,
                   outputType,
-                  consumerType,
+                  consumerType: effectiveType,
                })
                if (through?.link == null)
                   return {
                      kind: 'unconnected',
-                     reason: `bypassed parent ${parent.node.id}(${parent.node.type}) has no connected ${consumerType} input to pass through`,
+                     reason: `bypassed parent ${parent.node.id}(${parent.node.type}) has no connected ${effectiveType} input to pass through`,
                   }
                linkId = through.link
+               effectiveType = through.type
                continue
             }
             if (parent.node.type === 'PrimitiveNode') {

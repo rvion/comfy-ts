@@ -291,6 +291,29 @@ describe('config-driven consumption details', () => {
       })
    })
 
+   it('a STRING control_after_generate mode (windows-1 SeedNode spelling) still consumes the phantom slot', () => {
+      // seed INT with control_after_generate: 'fixed' consumes 2, so 'increment'
+      // is the phantom and label aligns to 'hello'; a boolean-only check would
+      // shift label onto the phantom
+      const prompt = convert(
+         doc(
+            {
+               id: 2,
+               type: 'TestControlString',
+               mode: 0,
+               pos: [0, 0],
+               size: [100, 100],
+               widgets_values: [7, 'increment', 'hello'],
+            },
+            [],
+         ),
+      )
+      expect(prompt['2']).toEqual({
+         class_type: 'TestControlString',
+         inputs: { seed: 7, label: 'hello' },
+      })
+   })
+
    it('widgetType names the widget for a multi-type file union (Preview3D model_file)', () => {
       const prompt = convert(
          doc(
