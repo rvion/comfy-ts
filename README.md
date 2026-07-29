@@ -1,46 +1,36 @@
 # comfy-ts
 
-> Type-safe ComfyUI companion for TypeScript. Connect to any number of ComfyUI
-> hosts, get ONE generated SDK per host (global `Comfy.<HostNs>.*` namespaces),
-> build workflows in code with full autocomplete, execute them over websocket,
-> get your images back. Plus a terminal UI to tweak and re-run any workflow.
+**The full-featured, type-safe TypeScript library for ComfyUI.** One generated
+SDK per host, typed down to the model names on that exact machine. Build
+workflows in code with full autocomplete, run them over websocket, watch live
+progress, get your images back. A terminal UI to tweak and re-run. Typed
+discovery and install for the whole custom-node ecosystem. Import and export
+both ComfyUI JSON formats. Nothing else on npm covers this much, this safely.
 
 [![CI](https://github.com/rvion/comfy-ts/actions/workflows/ci.yml/badge.svg)](https://github.com/rvion/comfy-ts/actions/workflows/ci.yml)
 [![npm version](https://img.shields.io/npm/v/comfy-ts.svg)](https://www.npmjs.com/package/comfy-ts)
 
-## Table of contents
+## What you get
 
-- [Goals](#goals)
-- [Install](#install)
-- [Quick start](#quick-start)
-- [The per-host typed SDK](#the-per-host-typed-sdk)
-- [Vars: tweak and re-run](#vars-tweak-and-re-run)
-- [The TUI](#the-tui)
-- [The sidekick CLI](#the-sidekick-cli)
-- [Examples](#examples)
-- [The `.comfy-ts/` folder](#the-comfy-ts-folder)
-- [Feature status](#feature-status)
-- [DX goodies](#dx-goodies)
-- [Related projects](#related-projects)
-
-## Goals
-
-1. **Create and execute workflows from TypeScript**, including uploading and
-   retrieving assets, with smart abstractions leaning on content addressing
-   (uploads are hash-named and deduped before any byte is sent).
-2. **Fully type-safe, per host.** Every host you connect to gets its own
-   generated SDK: node inputs, model names, samplers, loras, embeddings are
-   literal types **from that actual install**.
-3. **Ecosystem discovery codegen**: typed unions of every custom node,
-   plugin, and model known to the ComfyUI-Manager registry.
-4. **Import both ComfyUI JSON formats**: `api.json` (prompt) and
-   `workflow.json` (litegraph graph) into code.
-5. **Export both formats**: `api.json` for execution, plus an easy-to-read,
-   autolayouted `workflow.json` you can drag into the ComfyUI editor.
-6. **Local and remote instances**: same API whether Comfy runs next to you
-   or on a GPU box over ssh.
-7. **A sidekick CLI**: codegen and an interactive TUI, without writing a line
-   of code.
+1. **The best typed SDK for ComfyUI.** Every node, every input, every enum is
+   a literal type generated from your actual install. Model names, samplers,
+   loras, embeddings autocomplete in your editor. Wrong wiring is a compile
+   error, not a failed run.
+2. **A CLI that codegens typings for any host**, local or remote. One command
+   fetches the schema and writes a full SDK: safe methods and enums for all
+   the nodes, models and images that host really has. Multiple hosts coexist
+   in one codebase, each with its own types.
+3. **The best TUI to drive Comfy from a terminal.** Browse your workflows,
+   edit every knob, run and queue, watch the latent preview render live,
+   see the final image right in the terminal. Named drafts persist your
+   setups between sessions.
+4. **Ecosystem tools built for automation.** Typed unions of every custom
+   node, plugin and model known to the ComfyUI-Manager registry, plus typed
+   install methods. A script (or an agent) can discover and install what a
+   workflow needs.
+5. **Workflow import and export in both JSON formats.** Read `api.json` and
+   `workflow.json` into code. Write both back out, including an autolayouted
+   `workflow.json` you can drag straight into the ComfyUI editor.
 
 ## Install
 
@@ -50,9 +40,56 @@ bun add comfy-ts     # or npm / pnpm / yarn
 
 Runs under Bun and node ≥ 20. Ships dual ESM/CJS.
 
-## Quick start
+## Your first image
 
-A workflow module (from [`examples/01-txt2img.cflow.ts`](examples/01-txt2img.cflow.ts)):
+The smallest possible txt2img. `connect()` fetches the host schema and writes
+the typed SDK on first contact.
+
+```ts
+import { ComfyTS } from 'comfy-ts'
+
+const comfy = ComfyTS.create()
+const host = comfy.host({ id: 'my-gpu', host: '127.0.0.1', port: 8188 })
+await host.connect()
+
+const txt2img = host.defineWorkflow({
+   vars: {},
+   build: (b) => {
+      // b is typed: autocomplete on EVERY node of THIS host
+      const ckpt = b.CheckpointLoaderSimple({ ckpt_name: 'SD1.5\\v1-5-pruned-emaonly.ckpt' })
+      const samples = b.KSampler({
+         model: ckpt,
+         positive: b.CLIPTextEncode({ clip: ckpt, text: 'a cozy house in a snowy forest' }),
+         negative: b.CLIPTextEncode({ clip: ckpt, text: 'blurry, low quality' }),
+         latent_image: b.EmptyLatentImage({ width: 512, height: 512, batch_size: 1 }),
+         seed: 42, steps: 20, cfg: 7,
+         sampler_name: 'euler', scheduler: 'normal', denoise: 1,
+      })
+      b.SaveImage({ images: b.VAEDecode({ samples, vae: ckpt }) })
+   },
+})
+
+const execution = await txt2img.run({ log: true }) // ▶ [██████░░] 71% · KSampler · 10s
+for (const img of execution.images) console.log(img.absPath) // downloaded outputs
+host.disconnect()
+```
+
+One tsconfig line activates the generated types:
+
+```jsonc
+{ "include": ["src", ".comfy-ts/hosts/**/sdk.d.ts"] }
+```
+
+Before the first codegen, builder methods fall back to permissive base types.
+Your code compiles either way; the types sharpen once the generated sdk is in
+scope. Prefer generating without writing code? `bunx comfy-ts gen --id my-gpu
+--host http://127.0.0.1:8188` does the same thing from the shell.
+
+## Then add knobs: vars
+
+Declare the tweakable parts once and `build` re-executes with the current
+values on every `run()`. This is what the TUI edits, and what makes a
+workflow module re-runnable instead of a one-shot script.
 
 ```ts
 import { ComfyTS, v } from 'comfy-ts'
@@ -70,115 +107,34 @@ export const txt2img = host.defineWorkflow({
       size: v.size({ width: 512, height: 512 }),
    },
    build: (b, vars) => {
-      // b is typed: Comfy.MyGpu.Builder, autocomplete on EVERY node of THIS host
-      const ckpt = b.CheckpointLoaderSimple({ ckpt_name: 'SD1.5\\v1-5-pruned-emaonly.ckpt' })
-      const samples = b.KSampler({
-         model: ckpt,
-         positive: b.CLIPTextEncode({ clip: ckpt, text: vars.prompt }),
-         negative: b.CLIPTextEncode({ clip: ckpt, text: 'blurry, low quality' }),
-         latent_image: b.EmptyLatentImage({ width: vars.size.width, height: vars.size.height, batch_size: 1 }),
-         seed: vars.seed,
-         steps: vars.steps,
-         cfg: 7,
-         sampler_name: 'euler',
-         scheduler: 'normal',
-         denoise: 1,
-      })
-      b.SaveImage({ images: b.VAEDecode({ samples, vae: ckpt }) })
+      /* same graph as above, reading vars.prompt, vars.seed, vars.steps, vars.size */
    },
 })
-
 export default txt2img
 
 // standalone run, skipped when a driver (e.g. the TUI) imports this module
 if (import.meta.main) {
-   const execution = await txt2img.run({ log: true }) // ▶ [██████░░] 71% · KSampler · 10s
-   for (const img of execution.images) console.log(img.absPath) // downloaded outputs
+   await txt2img.run({ log: true })
+   txt2img.vars.seed.randomize()
+   await txt2img.run({ log: true })
    host.disconnect()
 }
 ```
 
-First time on a host, generate its schema cache and typed SDK once:
-
-```bash
-bunx comfy-ts gen --id my-gpu --host http://127.0.0.1:8188
-```
-
-(or replace `loadSchemaFromCache()` with `await host.connect()`, which fetches
-the schema and writes the SDK itself). One tsconfig line activates the
-generated types:
-
-```jsonc
-{ "include": ["src", ".comfy-ts/hosts/**/sdk.d.ts"] }
-```
-
-Before the first codegen, builder methods fall back to permissive base types.
-Your code compiles either way; the types sharpen once the generated sdk is in
-scope.
-
-## The per-host typed SDK
-
-Each host gets its own namespace inside the global `Comfy` namespace, plus a
-registry entry, so several hosts coexist in one codebase:
-
-```ts
-declare global {
-   namespace Comfy {
-      namespace MyGpu {          // ← generated from THIS host's /object_info
-         interface IN { … }      //   input types per node
-         interface OUT { … }     //   output slots per node
-         interface Builder { … } //   one factory per node
-         interface Union { … }   //   every enum: model names, samplers, loras, …
-         // + Node, Slots, Accepts, Producer, Embeddings, Schemas, NodeType
-      }
-      interface Hosts { 'my-gpu': MyGpu.Sdk }
-   }
-}
-```
-
-`workflow.builder` resolves through `Comfy.Hosts`, so a workflow created on
-`comfy.host({ id: 'my-gpu', … })` is typed with **that** host's nodes and
-models. Unknown host ids fall back to permissive base types.
-
-## Vars: tweak and re-run
-
-`host.defineWorkflow({ vars, build })` is the re-run contract: declare the
-knobs once, and `build` re-executes with the current values on every `run()`,
-producing a fresh graph each time.
-
-```ts
-export const asset = host.defineWorkflow({
-   id: 'asset',
-   vars: {
-      prompt: v.text('spherical sheep'),
-      seed: v.seed(517),
-      steps: v.int(8, { min: 1, max: 40 }),
-      size: v.size({ width: 1024, height: 1024 }),   // SDXL-bucket presets + WxH custom
-      removeBg: v.toggle(true, 'remove bg'),
-      ratio: v.choice(['square', 'wide'] as const, 'square'),
-      loras: v.loras(/krea-?2/i),                    // multi-select, resolved against the host's real loras
-   },
-   build: async (b, vars, wf) => { /* typed builder code reading vars.* */ },
-})
-
-await asset.run({ log: true })
-asset.vars.seed.randomize()
-await asset.run({ log: true })
-```
+Name the file `*.cflow.ts` and the TUI finds it.
 
 - var kinds: `v.text` / `v.int` / `v.float` / `v.seed` / `v.toggle` /
   `v.choice` / `v.size` / `v.loras` / `v.prompt`.
-- `v.loras` takes a RegExp (resolved against the host's real lora list at
-  define time) or any dynamic list such as `host.schema.getLoras(/xl/i)`;
-  `activeLoras(vars.loras)` normalizes the selection to
-  `{ lora_name, strength_model, strength_clip }[]`, ready for a standard
-  `LoraLoader` chain.
+- `v.seed` is a mode plus a number (`+ N` / `- N` / `= N` / `? N`) and
+  advances itself after every run, so a queued batch gets distinct seeds.
 - `v.prompt` builds a structured `{ positive, negative }`: `//` lines are
   comments (stripped), `- ` lines become the negative prompt, and
   `v.prompt({ loraKeywordsFrom: lorasVar })` prefixes the active loras'
   trigger keywords.
-- `v.seed` is a mode plus a number (`+ N` / `- N` / `= N` / `? N`) and advances
-  itself after every run, so a queued batch gets distinct seeds.
+- `v.loras` takes a RegExp resolved against the host's real lora list, fully
+  typed; `activeLoras(vars.loras)` normalizes the selection to
+  `{ lora_name, strength_model, strength_clip }[]`, ready for a standard
+  `LoraLoader` chain.
 - `vars` may be a lambda that RECEIVES `v`, giving cross-referencing vars one
   scope with the host's own types injected:
 
@@ -192,22 +148,104 @@ export const asset = host.defineWorkflow({
    build: async (b, vars, wf) => { /* … */ },
 })
 ```
+
 - `build` may be async (image uploads etc., the third `wf` param feeds
   `MediaImage` upload helpers).
-- `run()` opens with `await host.connect()`, which is idempotent (cached ready
-  promise, one websocket per host, ever). Modules import OFFLINE from the
-  schema cache and connect lazily on first run.
-- `ComfyTS.create()` returns the existing global instance or creates it, and
-  `comfy.host({ id })` is a registry (same id, same instance back). Many
-  workflow modules can safely import each other, or be co-imported by the TUI,
-  in one process.
-- fast start: `connect()` reuses the `.comfy-ts/` schema cache when younger
-  than 24h (`connect({ schema: 'refresh' })` forces a re-fetch,
-  `{ schema: 'cache' }` never fetches).
+- `ComfyTS.create()` and `comfy.host({ id })` are registries: same id, same
+  instance back. Many workflow modules can import each other, or be
+  co-imported by the TUI, in one process. `connect()` is idempotent: one
+  websocket per host, ever, and it reuses the `.comfy-ts/` schema cache when
+  younger than 24h.
 
-Name your workflow modules `*.cflow.ts` and the TUI finds them.
+## Full examples
+
+Every example is a runnable `*.cflow.ts` module: run it standalone with bun,
+or point the TUI at `examples/`.
+
+| example                                                                                  | shows                                                                                                                  |
+| ---------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| [`examples/01-txt2img.cflow.ts`](examples/01-txt2img.cflow.ts)                           | typed builder, vars, execution, downloaded outputs                                                                     |
+| [`examples/02-img2img-upload.cflow.ts`](examples/02-img2img-upload.cflow.ts)             | hash-named deduped upload, img2img, async build                                                                        |
+| [`examples/03-export-workflow-json.cflow.ts`](examples/03-export-workflow-json.cflow.ts) | OFFLINE graph building, export api.json + readable workflow.json                                                       |
+| [`examples/04-krea2-turbo-t2i.cflow.ts`](examples/04-krea2-turbo-t2i.cflow.ts)           | a real pipeline: krea2 turbo + `v.loras` multi-select stack (standard LoraLoader chain) + RMBG cutout → transparent png |
+
+## Why the DX is unmatched
+
+### Types from your actual install
+
+Not "a ComfyUI type package" someone published once. Each host you connect to
+gets its own namespace, generated from that host's live `/object_info`:
+
+```ts
+declare global {
+   namespace Comfy {
+      namespace MyGpu {          // ← generated from THIS host's /object_info
+         interface IN { … }      //   input types per node
+         interface OUT { … }     //   output slots per node
+         interface Builder { … } //   one factory per node
+         interface Union { … }   //   every enum: model names, samplers, loras, …
+      }
+      interface Hosts { 'my-gpu': MyGpu.Sdk }
+   }
+}
+```
+
+So `ckpt_name` only accepts checkpoints that machine really has, custom nodes
+like `b['rmbg.RMBG']` are first-class, and a workflow written against
+`my-gpu` will not silently reference a model that only exists on `my-laptop`.
+Unknown host ids fall back to permissive base types, so the library compiles
+with no generated SDK on disk at all.
+
+### Content-addressed uploads
+
+Uploads are hash-named and deduped against the host before any byte is sent.
+Run the same img2img a hundred times, the input image travels once:
+
+```ts
+build: async (b, vars, wf) => {
+   const img = new MediaImage({ path: asAbsolutePath(vars.image) })
+   const loaded = await img.loadInWorkflow_viaLoadImageNode(wf) // hash-named, deduped
+   b.KSampler({ latent_image: b.VAEEncode({ pixels: loaded, vae: ckpt }), /* … */ })
+}
+```
+
+### Tweak and re-run, seeds included
+
+A workflow is a living thing, not a frozen graph. Change a var, run again,
+get a fresh graph. Seeds advance themselves (`? 42` rerolls, `+ 42`
+increments), so queueing five runs gives five different images without
+touching anything:
+
+```ts
+await asset.run({ log: true })
+asset.vars.seed.randomize()
+await asset.run({ log: true })
+```
+
+### Export you can drag into the editor
+
+`workflow.toApiJson()` gives the executable prompt format.
+`await workflow.toWorkflowJson()` gives an autolayouted litegraph file: drop
+it on the ComfyUI canvas and see the graph you wrote in code, readably laid
+out. Both import paths exist too (`host.importApiJson`,
+`host.importWorkflowJson`), covered by round-trip tests. Newer editor
+features (subgraphs) are the current compat frontier: we sweep every official
+Comfy-Org template against our schemas to grind that gap down.
+
+### And the small things that add up
+
+- **`auto<T>()`**: leave a slot blank; comfy-ts wires the most recent node
+  producing the right type.
+- **functional inputs**: any input accepts `(producers) => value`, with
+  `producers` narrowed to the nodes able to output the expected type.
+- **`HasSingle` shortcuts**: pass a whole node wherever it has exactly one
+  output of the expected type (`model: ckpt` instead of `ckpt._MODEL`).
+- **problems, not crashes**: invalid graphs accumulate precise messages in
+  `workflow.problems` before Comfy ever sees them.
 
 ## The TUI
+
+![the comfy-ts TUI](screenshots/tui-screen-1.png)
 
 ```bash
 bunx comfy-ts tui examples/      # a dir: scans **/*.cflow.ts
@@ -215,61 +253,30 @@ bunx comfy-ts tui my.cflow.ts    # a file: scans its folder, file preselected
 bunx comfy-ts tui                # no arg: scans cwd
 ```
 
-```
-┌ comfy-ts ┐┌ (w)orkflow ─┐┌ (d)raft ─┐┌ (h)ost ────────────────────┐
-│ comfy-ts ││ 01-txt2img  ││ default  ││ ● windows-1 (127.0.0.1:8085)│
-└──────────┘└─────────────┘└──────────┘└────────────────────────────┘
-┌ (t)ree ────────────┐┌ (v)ars ─────────────────────────────┐┌ (p)review ─────┐
-│ ▾ 01-txt2img       ││ ▸ prompt  [text]  a cozy house in a… ││                │
-│     default        ││   seed    [seed]  ? 42               ││  ▄▓▓▒▒░▄▄▓▒░░  │
-│     night-take     ││   steps   [int]   20                 ││  ▓▒░▄▄▓▓▒▒░▄▓  │
-│ ▸ 04-krea2-turbo   ││   size    [size]  512×512            ││  live latent / │
-│                    ││   loras   [loras] (2) styleA, styleB ││  last output   │
-└────────────────────┘└──────────────────────────────────────┘└────────────────┘
- ▶ [██████░░░░░░░░░░] 42% · KSampler · 12s · queue 1
- ↑↓ select · ← tree · ⏎/→ edit
- r run · s reroll+run · e rename draft · o open image · c/C copy wf/api · q quit
-```
-
 Keyboard-first, three panels, a persistent keybar showing every key available
-in the current mode. Every panel and header box is titled with the key that
-opens it, and no key is advertised twice.
+in the current mode.
 
-- **(t)ree** (left): every `*.cflow.ts` workflow found, with its drafts nested
-  under it. ↑↓ move, ← folds, → unfolds a workflow or hops into the vars panel
-  from a draft row, ⏎ loads a workflow or a draft directly.
-- **(v)ars** (center): the knobs of the loaded workflow. You are always in a
-  draft (`default` auto-active per workflow); edits autosave to
-  `.comfy-ts/drafts/`, `e` renames the active draft inline, `d` opens the
-  drafts overlay (load / new / duplicate / delete). Drafts are named var-value
-  snapshots, so one workflow carries many setups, and reopening a workflow
-  lands back in the draft you left it in.
-- **(p)review** (right, `p` cycles native → ansi → off): LIVE latent previews
-  while a run is in flight (launch ComfyUI with `--preview-method auto`), then
-  the final output. On iTerm2, WezTerm and VS Code terminals "native" paints
-  the REAL image over the panel; everywhere else it renders truecolor
-  half-blocks.
-- **(h)ost** (header box): node / lora / embedding counts, live server queue
-  length, and actions — re-run the SDK codegen, restart ComfyUI, clear the
-  pending queue, interrupt the current run.
+- **(t)ree**: every `*.cflow.ts` workflow found, with its drafts nested under
+  it. Drafts are named var-value snapshots, autosaved to `.comfy-ts/drafts/`,
+  so one workflow carries many setups and reopening lands you back where you
+  left off.
+- **(v)ars**: every knob of the loaded workflow. Numbers edit inline, text
+  and prompts open a real multiline editor (line ops, `⌘/` comments), choice
+  and size open a fuzzy picker, loras open a multi-select overlay with
+  per-lora strengths and trigger keywords.
+- **(p)review**: LIVE latent previews while a run is in flight, then the
+  final output. On iTerm2, WezTerm and VS Code terminals it paints the REAL
+  image over the panel; everywhere else it renders truecolor half-blocks.
+- **(h)ost**: node / lora / embedding counts, live server queue length, and
+  actions: re-run the SDK codegen, restart ComfyUI, clear the queue,
+  interrupt the current run.
 
-Editing a var opens the right surface for its kind: numbers edit inline
-(readline word ops included), text and prompt vars open a real multiline editor
-(⏎ saves, ⇧⏎ or ⌥⏎ inserts a newline, ⌘←→ and ⌃A/⌃E move by logical line, ⌥↑↓
-move a line, ⌘/ toggles a `// ` comment), choice and size open a
-fuzzy-filterable picker (type `WxH` for a custom size), loras open a
-multi-select overlay (type to filter, space ticks, ←→ steps strengths, ⌃A/⌃N
-tick/untick all filtered, ⌃K assigns that lora's trigger keywords). A seed row
-takes `+` `-` `=` `?` to set its mode and `*` to reroll. If the host has the
+`r` runs, `s` rerolls the seed and runs, `o` opens the last output in the OS
+viewer, `c` / `C` copy workflow.json / api.json. Pressing `r` mid-run QUEUES
+another prompt with the values as they are right now, and the progress bar
+and previews follow each queued run in turn. With the optional
 [ComfyUI-Lora-Manager](https://github.com/willmiao/ComfyUI-Lora-Manager)
-extension installed, the preview panel shows the selected lora's preview image
-while you browse; without it, everything else keeps working.
-
-Global keys: `r` run, `s` reroll seed + run, `o` open the last output in the
-OS image viewer (full resolution), `c` copy workflow.json, `C` copy api.json,
-`⌃R` run from any mode, `q` quit. Pressing `r` while a run is in flight QUEUES
-another prompt on the server (built from the values as they are right now), and
-the progress bar, latent preview and outputs follow each queued run in turn.
+extension installed, browsing loras shows their preview images.
 
 ## The sidekick CLI
 
@@ -283,18 +290,39 @@ bunx comfy-ts outline --section Builder --lines 40
 bunx comfy-ts tui [dir | module.cflow.ts]      # see above
 ```
 
-## Examples
+Works against any reachable host: the box under your desk or a GPU machine
+across the network, same command, same output.
 
-Runnable from the repo (they expect a live ComfyUI). Every example is a
-`*.cflow.ts` workflow module: run it standalone with bun, or point the TUI at
-`examples/`.
+## Ecosystem discovery and install
 
-| example                                                                          | shows                                                                                                                    |
-| -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| [`examples/01-txt2img.cflow.ts`](examples/01-txt2img.cflow.ts)                   | typed builder, vars, execution, downloaded outputs                                                                       |
-| [`examples/02-img2img-upload.cflow.ts`](examples/02-img2img-upload.cflow.ts)     | hash-named deduped upload, img2img, async build                                                                          |
-| [`examples/03-export-workflow-json.cflow.ts`](examples/03-export-workflow-json.cflow.ts) | OFFLINE graph building, export api.json + readable workflow.json                                                 |
-| [`examples/04-krea2-turbo-t2i.cflow.ts`](examples/04-krea2-turbo-t2i.cflow.ts)   | a real pipeline: krea2 turbo + `v.loras` multi-select stack (standard LoraLoader chain) + RMBG cutout → transparent png |
+comfy-ts mirrors the ComfyUI-Manager registry into generated types: every
+known custom node pack, plugin title and model is a typed union. On top of
+that, typed install methods:
+
+```ts
+await host.installCustomNodeByTitle('ComfyUI Impact Pack') // autocompletes across the ecosystem
+await host.manager.installModel(modelInfo)
+```
+
+This is the automation building block: a script or an agent can look at a
+workflow, see what is missing, and install it by name with the compiler
+checking the spelling.
+
+The install endpoints target the ComfyUI-Manager v2 API. Manager v3 moved
+them behind a new queue API; v3 support is being ground down right now (see
+the feature table).
+
+## For AI agents
+
+comfy-ts is built to be driven by agents as much as by people. After
+installing, add this line to your `CLAUDE.md`:
+
+```
+@./node_modules/comfy-ts/guide-for-agents.md
+```
+
+It teaches your agent the whole library: the builder, vars, execution, the
+CLI, and the ecosystem install methods.
 
 ## The `.comfy-ts/` folder
 
@@ -314,10 +342,9 @@ Every repo using comfy-ts gets one `.comfy-ts/` folder at its root:
 
 Everything under `.comfy-ts/` is local state: gitignore it. `hosts/` in
 particular is a full dump of that machine's models, loras and paths (often
-~10MB per host), so committing it publishes your setup — regenerate it instead
-with `bun run gen:sdk` or a first `connect()`. In a PRIVATE repo, committing
-`hosts/` is what buys you typed CI. This repo does not commit it, and the
-library is built to typecheck with no generated SDK on disk at all.
+~10MB per host), so committing it publishes your setup. In a PRIVATE repo,
+committing `hosts/` is what buys you typed CI. The library typechecks with no
+generated SDK on disk at all.
 
 ## Feature status
 
@@ -335,22 +362,34 @@ library is built to typecheck with no generated SDK on disk at all.
 | import workflow.json (litegraph → api conversion)              |   ✅   |
 | sidekick CLI (`gen`, `outline`, `tui`)                         |   ✅   |
 | ComfyUI-Manager registry mirror + Known\* ecosystem unions     |   ✅   |
-| install custom nodes / models via ComfyUI-Manager              |   ✅   |
+| install custom nodes / models via ComfyUI-Manager (v2 API)     |   🔶   |
 | locality-aware media retrieval fast-path (local vs remote)     |   🔶   |
 | content-addressed local asset cache                            |   🔶   |
 
 ✅ working and exercised · 🔶 partial / in progress
 
-## DX goodies
+## A lib you can trust, made to last
 
-- **`auto<T>()`**: leave a slot blank; comfy-ts wires the most recent node
-  producing the right type.
-- **functional inputs**: any input accepts `(producers) => value`, with
-  `producers` narrowed to the nodes able to output the expected type.
-- **`HasSingle` shortcuts**: pass a whole node wherever it has exactly one
-  output of the expected type (`model: ckpt` instead of `ckpt._MODEL`).
-- **problems, not crashes**: invalid graphs accumulate precise messages in
-  `workflow.problems` before Comfy ever sees them.
+The glitter above sits on boring foundations:
+
+- **Strict TypeScript everywhere.** `strict` + `noUncheckedIndexedAccess`,
+  no `any`, and every remaining cast is individually justified in a
+  reviewed whitelist.
+- **A hard CI gate on every commit.** Typecheck, zero-warning lint (a
+  warning is fixed or the rule is disabled on purpose, never ignored),
+  format check, import hygiene, and the full headless test suite.
+- **Runtime validation with arktype.** Wire messages and JSON formats are
+  schema-validated. When ComfyUI drifts faster than the schemas, failures
+  are logged loud, never swallowed.
+- **Codegen you can regenerate, never hand-edit.** The SDK, the manager
+  unions and the snapshot tests around them all rebuild from source data
+  with one command each.
+- **A compat grind loop, not compat hope.** The full official template
+  corpus (~780 workflows from Comfy-Org) is mirrored locally and swept
+  against our schemas on demand, so upstream format changes surface as a
+  failing report line, not as your broken pipeline.
+- **Boring packaging.** Dual ESM/CJS, Bun and node ≥ 20, `src/` shipped in
+  the tarball for go-to-definition.
 
 ## Related projects
 
