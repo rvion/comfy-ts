@@ -1,7 +1,7 @@
 import type { ComfyNode } from 'src/graph/ComfyNode.ts'
 import type { ComfyWorkflow } from 'src/runner/ComfyWorkflow.ts'
 import { bang } from 'src/utils/bang.ts'
-import { howManyWidgetValuesForThisSchemaType } from 'src/sdk-generator/Primitives.ts'
+import { howManyWidgetValuesForThisSchemaType } from 'src/sdk-generator/inputWidgetKind.ts'
 import type { LiteGraphJSON } from 'src/litegraph/LiteGraphJSON.ts'
 import type { LiteGraphLinkTuple } from 'src/litegraph/LiteGraphLink.ts'
 import { asLiteGraphLinkID, type LiteGraphLinkID } from 'src/litegraph/LiteGraphLinkID.ts'

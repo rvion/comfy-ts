@@ -1,5 +1,4 @@
 import type { ComfyNodeSchemaJSON } from 'src/sdk-generator/ComfyUIObjectInfoTypes.ts'
-import type { NodeInputExt } from 'src/sdk-generator/comfyui-types.ts'
 
 export const ComfyPrimitiveMapping: { [key: string]: string } = {
    // BACK
@@ -19,24 +18,14 @@ export const ComfyPrimitiveMapping: { [key: string]: string } = {
 
 export const ComfyPrimitives: string[] = Object.keys(ComfyPrimitiveMapping)
 
-/**
- * when a litegraph node has no input for a given ComfyUI node input
- * (e.g. a seed or an enum that has not been turned into a primitive)
- */
-export const howManyWidgetValuesForThisSchemaType = (input: NodeInputExt): number => {
-   if (input.typeName === 'INT') {
-      if (input.nameInComfy === 'seed' || input.nameInComfy === 'noise_seed') return 2
-   }
-   if (input.isPrimitive) return 1
-   // 🔴
-   if (input.typeName.startsWith('E_')) return 1
-   // console.log(343, input)
-   return 0
-}
+// schema-driven widget counting moved to src/sdk-generator/inputWidgetKind.ts
+// (config-driven classification); what stays below is the LEGACY serialized-
+// type path, used only when an old file carries a widget-marked input whose
+// schema now says slot.
 
 /**
- * then a litegraph node has an input entry, some convoluted logic seems to be necessary
- * to determine how many Field_values need to be consumed for this input
+ * when a litegraph node has an input entry with a widget marker, the
+ * serialized TYPE string decides how many widgets_values it consumed in that era
  */
 export const howManyWidgetValuesForThisInputType = (type: string, nameInComfy: string): number => {
    if (type === 'INT') {

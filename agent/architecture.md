@@ -360,6 +360,61 @@ unknown ──LiteGraphJSON_ark──▶ LiteGraphJSON (loose wire type)
   named-shadowed slots whenever a positional array exists). Failures are
   `WorkflowConvertError` with a `code` (`unknown-node`, `dangling-link`, …)
   naming the feature — never a misleading generic message.
+- **Widget-ness is decided from the input CONFIG, never from a type-name
+  whitelist** (`src/sdk-generator/inputWidgetKind.ts`, `classifyWidgetInput`).
+  2026 object_info spells widget inputs as arbitrary STRING types
+  (`COMBO`, `COMFY_DYNAMICCOMBO_V3`, `IMAGECOMPARE`, …); upstream's own
+  decision is a frontend widget REGISTRY we cannot mirror, but every
+  registry-backed spelling carries a config signal, verified against
+  ComfyUI_frontend `litegraphService.addNodeInput` + backend
+  `comfy_api/latest/_io.py` (2026-07-29). Signals, in precedence order:
+  1. `forceInput: true` → SLOT (frontend gates widget creation on it).
+  2. array type / `E_*` union → combo widget.
+  3. `widgetType: <name>` → widget of that type (frontend:
+     `widgets.get(inputSpec.widgetType ?? inputSpec.type)`; e.g. Preview3D
+     `model_file` multi-type union with `widgetType: "STRING"`).
+  4. primitive type (INT/FLOAT/STRING/BOOLEAN) → widget.
+  5. `options: [...]` array → combo family: entries shaped `{key, inputs}`
+     → DYNAMIC COMBO, else plain COMBO widget.
+  6. `template` object WITH a nested `input` section → AUTOGROW container;
+     `template` WITHOUT one (`{template_id, allowed_types}`) is
+     COMFY_MATCHTYPE_V3, a SLOT — `template` alone is ambiguous on purpose.
+  7. `socketless: true` → widget with no socket (IMAGECOMPARE, COLOR).
+  8. else → slot.
+  Seed phantom: a widget consumes 2 values when its config carries
+  `control_after_generate: true`; when the KEY is absent (2024 era) the
+  legacy INT-named-seed/noise_seed heuristic applies. A serialized input
+  entry carrying a `widget` marker overrides a slot verdict (era drift:
+  the file proves that frontend serialized a widget value).
+- **Dynamic inputs mirror backend expansion** (`_io.py
+  get_finalized_class_inputs`): DYNAMIC COMBO consumes 1 positional value
+  (the option key, typed throw when the key is not in `options`) THEN the
+  selected branch's inputs inline, recursively (branch widgets emit as
+  dotted prompt keys `decl.sub`, branch slots arrive as dotted serialized
+  inputs and resolve like any link). AUTOGROW consumes ZERO widget values —
+  the backend force-inputs widget templates, so instances are always link
+  slots named `decl.<name_i>` (template `names` list or `prefix`+ordinal);
+  the declaration itself is never required by name, but the first
+  `template.min` instances are required WHEN the template input section is
+  `required` — missing/unlinked ones throw typed `missing-required-input`.
+- **Absent widget value → schema-default fill, never a throw** (decided
+  2026-07-29). ComfyUI itself default-fills: loading an old file under a
+  newer schema creates the grown widget with its schema default and the
+  prompt serializes that default (frontend `getWidgetDefaultValue`), so a
+  typed throw would reject files ComfyUI runs fine — the wrong model of
+  reality. Fill order: config `default`, else INT/FLOAT 0, BOOLEAN false,
+  STRING '', combo first option, custom widgets `null` (never DROP a
+  required key: the backend accepts explicit null, `execute(x=None)`, but
+  errors on absence). Fills are logged through the converter's verbose LOG.
+  Typed throws remain for what IS a defect: garbage values in strict scalar
+  domains (`invalid-widget-value`), unknown dynamic-combo keys, missing
+  required autogrow instances.
+- **Array widget values emit wrapped as `{__value__: [...]}`** — the
+  backend reads any bare 2-list in a prompt as a LINK reference
+  (`execution.py validate_inputs`), so the frontend wraps arrays and
+  unwraps server-side; we mirror it. Custom-widget values (IMAGECOMPARE
+  `{before, after}` UI state) pass through as objects — `ComfyApiNodeJson`
+  input values include the object form.
 - **Metric split** (`scripts/check-templates.ts`): the sweep runs the FULL
   chain per file (parse → ark → normalize → convert) against ONE cached
   object_info (`.comfy-ts/hosts/windows-1/` when present, else the committed

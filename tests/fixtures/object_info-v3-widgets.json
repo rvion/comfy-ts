@@ -1,0 +1,732 @@
+{
+ "SaveVideo": {
+  "input": {
+   "required": {
+    "video": [
+     "VIDEO",
+     {
+      "tooltip": "The video to save."
+     }
+    ],
+    "filename_prefix": [
+     "STRING",
+     {
+      "tooltip": "The prefix for the file to save. This may include formatting information such as %date:yyyy-MM-dd% or %Empty Latent Image.width% to include values from nodes.",
+      "default": "video/ComfyUI",
+      "multiline": false
+     }
+    ],
+    "format": [
+     "COMBO",
+     {
+      "tooltip": "The format to save the video as.",
+      "default": "auto",
+      "multiselect": false,
+      "options": [
+       "auto",
+       "mp4"
+      ]
+     }
+    ],
+    "codec": [
+     "COMBO",
+     {
+      "tooltip": "The codec to use for the video.",
+      "default": "auto",
+      "multiselect": false,
+      "options": [
+       "auto",
+       "h264"
+      ]
+     }
+    ]
+   },
+   "hidden": {
+    "prompt": [
+     "PROMPT"
+    ],
+    "extra_pnginfo": [
+     "EXTRA_PNGINFO"
+    ]
+   }
+  },
+  "input_order": {
+   "required": [
+    "video",
+    "filename_prefix",
+    "format",
+    "codec"
+   ],
+   "hidden": [
+    "prompt",
+    "extra_pnginfo"
+   ]
+  },
+  "is_input_list": false,
+  "output": [
+   "VIDEO"
+  ],
+  "output_is_list": [
+   false
+  ],
+  "output_name": [
+   "video"
+  ],
+  "output_tooltips": [
+   null
+  ],
+  "output_matchtypes": null,
+  "name": "SaveVideo",
+  "display_name": "Save Video",
+  "description": "Saves the input images to your ComfyUI output directory.",
+  "python_module": "comfy_extras.nodes_video",
+  "category": "video",
+  "output_node": true,
+  "deprecated": false,
+  "experimental": false,
+  "dev_only": false,
+  "api_node": false,
+  "price_badge": null,
+  "search_aliases": [
+   "export video"
+  ],
+  "essentials_category": "Basics",
+  "has_intermediate_output": false
+ },
+ "CreateVideo": {
+  "input": {
+   "required": {
+    "images": [
+     "IMAGE",
+     {
+      "tooltip": "The images to create a video from."
+     }
+    ],
+    "fps": [
+     "FLOAT",
+     {
+      "default": 30,
+      "min": 1,
+      "max": 120,
+      "step": 1
+     }
+    ]
+   },
+   "optional": {
+    "audio": [
+     "AUDIO",
+     {
+      "tooltip": "The audio to add to the video."
+     }
+    ],
+    "bit_depth": [
+     "INT",
+     {
+      "tooltip": "Bit depth of the created video. 10-bit keeps smoother gradients with less banding, but some players and downstream nodes may not support it.",
+      "default": 8,
+      "min": 8,
+      "max": 10,
+      "step": 2,
+      "display": "number"
+     }
+    ]
+   }
+  },
+  "input_order": {
+   "required": [
+    "images",
+    "fps"
+   ],
+   "optional": [
+    "audio",
+    "bit_depth"
+   ]
+  },
+  "is_input_list": false,
+  "output": [
+   "VIDEO"
+  ],
+  "output_is_list": [
+   false
+  ],
+  "output_name": [
+   "VIDEO"
+  ],
+  "output_tooltips": [
+   null
+  ],
+  "output_matchtypes": null,
+  "name": "CreateVideo",
+  "display_name": "Create Video",
+  "description": "Create a video from images.",
+  "python_module": "comfy_extras.nodes_video",
+  "category": "video",
+  "output_node": false,
+  "deprecated": false,
+  "experimental": false,
+  "dev_only": false,
+  "api_node": false,
+  "price_badge": null,
+  "search_aliases": [
+   "images to video"
+  ],
+  "essentials_category": "Video Tools",
+  "has_intermediate_output": false
+ },
+ "ImageCompare": {
+  "input": {
+   "required": {
+    "compare_view": [
+     "IMAGECOMPARE",
+     {
+      "socketless": true
+     }
+    ]
+   },
+   "optional": {
+    "image_a": [
+     "IMAGE",
+     {}
+    ],
+    "image_b": [
+     "IMAGE",
+     {}
+    ]
+   },
+   "hidden": {
+    "prompt": [
+     "PROMPT"
+    ],
+    "extra_pnginfo": [
+     "EXTRA_PNGINFO"
+    ]
+   }
+  },
+  "input_order": {
+   "required": [
+    "compare_view"
+   ],
+   "optional": [
+    "image_a",
+    "image_b"
+   ],
+   "hidden": [
+    "prompt",
+    "extra_pnginfo"
+   ]
+  },
+  "is_input_list": false,
+  "output": [],
+  "output_is_list": [],
+  "output_name": [],
+  "output_tooltips": [],
+  "output_matchtypes": null,
+  "name": "ImageCompare",
+  "display_name": "Compare Images",
+  "description": "Compares two images side by side with a slider.",
+  "python_module": "comfy_extras.nodes_image_compare",
+  "category": "image",
+  "output_node": true,
+  "deprecated": false,
+  "experimental": true,
+  "dev_only": false,
+  "api_node": false,
+  "price_badge": null,
+  "search_aliases": null,
+  "essentials_category": "Image Tools",
+  "has_intermediate_output": false
+ },
+ "ComfyMathExpression": {
+  "input": {
+   "required": {
+    "expression": [
+     "STRING",
+     {
+      "default": "a + b",
+      "multiline": true
+     }
+    ],
+    "values": [
+     "COMFY_AUTOGROW_V3",
+     {
+      "template": {
+       "input": {
+        "required": {
+         "value": [
+          "FLOAT,INT,BOOLEAN",
+          {}
+         ]
+        }
+       },
+       "names": [
+        "a",
+        "b",
+        "c",
+        "d",
+        "e",
+        "f",
+        "g",
+        "h",
+        "i",
+        "j",
+        "k",
+        "l",
+        "m",
+        "n",
+        "o",
+        "p",
+        "q",
+        "r",
+        "s",
+        "t",
+        "u",
+        "v",
+        "w",
+        "x",
+        "y",
+        "z"
+       ],
+       "min": 1
+      }
+     }
+    ]
+   }
+  },
+  "input_order": {
+   "required": [
+    "expression",
+    "values"
+   ]
+  },
+  "is_input_list": false,
+  "output": [
+   "FLOAT",
+   "INT",
+   "BOOLEAN"
+  ],
+  "output_is_list": [
+   false,
+   false,
+   false
+  ],
+  "output_name": [
+   "FLOAT",
+   "INT",
+   "BOOL"
+  ],
+  "output_tooltips": [
+   null,
+   null,
+   null
+  ],
+  "output_matchtypes": null,
+  "name": "ComfyMathExpression",
+  "display_name": "Math Expression",
+  "description": "",
+  "python_module": "comfy_extras.nodes_math",
+  "category": "utilities",
+  "output_node": false,
+  "deprecated": false,
+  "experimental": false,
+  "dev_only": false,
+  "api_node": false,
+  "price_badge": null,
+  "search_aliases": [
+   "expression",
+   "formula",
+   "calculate",
+   "calculator",
+   "eval",
+   "math"
+  ],
+  "essentials_category": null,
+  "has_intermediate_output": false
+ },
+ "ResizeImageMaskNode": {
+  "input": {
+   "required": {
+    "input": [
+     "COMFY_MATCHTYPE_V3",
+     {
+      "template": {
+       "template_id": "input_type",
+       "allowed_types": "IMAGE,MASK"
+      }
+     }
+    ],
+    "resize_type": [
+     "COMFY_DYNAMICCOMBO_V3",
+     {
+      "tooltip": "Select how to resize: by exact dimensions, scale factor, matching another image, etc.",
+      "options": [
+       {
+        "key": "scale dimensions",
+        "inputs": {
+         "required": {
+          "width": [
+           "INT",
+           {
+            "tooltip": "Target width in pixels. Set to 0 to auto-calculate from height while preserving aspect ratio.",
+            "default": 512,
+            "min": 0,
+            "max": 16384,
+            "step": 1
+           }
+          ],
+          "height": [
+           "INT",
+           {
+            "tooltip": "Target height in pixels. Set to 0 to auto-calculate from width while preserving aspect ratio.",
+            "default": 512,
+            "min": 0,
+            "max": 16384,
+            "step": 1
+           }
+          ],
+          "crop": [
+           "COMBO",
+           {
+            "tooltip": "How to handle aspect ratio mismatch: 'disabled' stretches to fit, 'center' crops to maintain aspect ratio.",
+            "default": "center",
+            "multiselect": false,
+            "options": [
+             "disabled",
+             "center"
+            ]
+           }
+          ]
+         }
+        }
+       },
+       {
+        "key": "scale total pixels",
+        "inputs": {
+         "required": {
+          "megapixels": [
+           "FLOAT",
+           {
+            "tooltip": "Target total megapixels (e.g., 1.0 ≈ 1024×1024). Aspect ratio is preserved.",
+            "default": 1,
+            "min": 0.01,
+            "max": 16,
+            "step": 0.01
+           }
+          ]
+         }
+        }
+       },
+       {
+        "key": "match size",
+        "inputs": {
+         "required": {
+          "match": [
+           "IMAGE,MASK",
+           {
+            "tooltip": "Resize input to match the dimensions of this reference image or mask."
+           }
+          ],
+          "crop": [
+           "COMBO",
+           {
+            "tooltip": "How to handle aspect ratio mismatch: 'disabled' stretches to fit, 'center' crops to maintain aspect ratio.",
+            "default": "center",
+            "multiselect": false,
+            "options": [
+             "disabled",
+             "center"
+            ]
+           }
+          ]
+         }
+        }
+       }
+      ]
+     }
+    ],
+    "scale_method": [
+     "COMBO",
+     {
+      "tooltip": "Interpolation algorithm. 'area' is best for downscaling, 'lanczos' for upscaling, 'nearest-exact' for pixel art.",
+      "default": "area",
+      "multiselect": false,
+      "options": [
+       "nearest-exact",
+       "bilinear",
+       "area",
+       "bicubic",
+       "lanczos"
+      ]
+     }
+    ]
+   }
+  },
+  "input_order": {
+   "required": [
+    "input",
+    "resize_type",
+    "scale_method"
+   ]
+  },
+  "is_input_list": false,
+  "output": [
+   "COMFY_MATCHTYPE_V3"
+  ],
+  "output_is_list": [
+   false
+  ],
+  "output_name": [
+   "resized"
+  ],
+  "output_tooltips": [
+   null
+  ],
+  "output_matchtypes": [
+   "input_type"
+  ],
+  "name": "ResizeImageMaskNode",
+  "display_name": "Resize Image/Mask",
+  "description": "Resize an image or mask using various scaling methods.",
+  "python_module": "comfy_extras.nodes_post_processing",
+  "category": "image/transform",
+  "output_node": false,
+  "deprecated": false,
+  "experimental": false,
+  "dev_only": false,
+  "api_node": false,
+  "price_badge": null,
+  "search_aliases": [
+   "resize",
+   "resize image",
+   "resize mask",
+   "scale",
+   "scale image",
+   "scale mask",
+   "image resize",
+   "change size",
+   "dimensions",
+   "shrink",
+   "enlarge"
+  ],
+  "essentials_category": null,
+  "has_intermediate_output": false
+ },
+ "Preview3D": {
+  "input": {
+   "required": {
+    "model_file": [
+     "STRING,FILE_3D_GLB,FILE_3D_GLTF,FILE_3D_FBX,FILE_3D_OBJ,FILE_3D_STL,FILE_3D_USDZ,FILE_3D",
+     {
+      "default": "",
+      "widgetType": "STRING",
+      "multiline": false,
+      "tooltip": "3D model file or path string"
+     }
+    ]
+   },
+   "optional": {
+    "camera_info": [
+     "LOAD3D_CAMERA",
+     {
+      "advanced": true
+     }
+    ],
+    "bg_image": [
+     "IMAGE",
+     {
+      "advanced": true
+     }
+    ]
+   },
+   "hidden": {
+    "prompt": [
+     "PROMPT"
+    ],
+    "extra_pnginfo": [
+     "EXTRA_PNGINFO"
+    ]
+   }
+  },
+  "input_order": {
+   "required": [
+    "model_file"
+   ],
+   "optional": [
+    "camera_info",
+    "bg_image"
+   ],
+   "hidden": [
+    "prompt",
+    "extra_pnginfo"
+   ]
+  },
+  "is_input_list": false,
+  "output": [],
+  "output_is_list": [],
+  "output_name": [],
+  "output_tooltips": [],
+  "output_matchtypes": null,
+  "name": "Preview3D",
+  "display_name": "Preview 3D & Animation",
+  "description": "",
+  "python_module": "comfy_extras.nodes_load_3d",
+  "category": "3d",
+  "output_node": true,
+  "deprecated": false,
+  "experimental": true,
+  "dev_only": false,
+  "api_node": false,
+  "price_badge": null,
+  "search_aliases": [
+   "view mesh",
+   "3d viewer"
+  ],
+  "essentials_category": null,
+  "has_intermediate_output": false
+ },
+ "VoxelToMesh": {
+  "input": {
+   "required": {
+    "voxel": [
+     "VOXEL",
+     {}
+    ],
+    "algorithm": [
+     "COMBO",
+     {
+      "multiselect": false,
+      "options": [
+       "surface net",
+       "basic"
+      ]
+     }
+    ],
+    "threshold": [
+     "FLOAT",
+     {
+      "default": 0.6,
+      "min": -1,
+      "max": 1,
+      "step": 0.01
+     }
+    ]
+   }
+  },
+  "input_order": {
+   "required": [
+    "voxel",
+    "algorithm",
+    "threshold"
+   ]
+  },
+  "is_input_list": false,
+  "output": [
+   "MESH"
+  ],
+  "output_is_list": [
+   false
+  ],
+  "output_name": [
+   "MESH"
+  ],
+  "output_tooltips": [
+   null
+  ],
+  "output_matchtypes": null,
+  "name": "VoxelToMesh",
+  "display_name": "Voxel to Mesh",
+  "description": "Converts a voxel grid to a mesh.",
+  "python_module": "comfy_extras.nodes_hunyuan3d",
+  "category": "3d",
+  "output_node": false,
+  "deprecated": false,
+  "experimental": false,
+  "dev_only": false,
+  "api_node": false,
+  "price_badge": null,
+  "search_aliases": null,
+  "essentials_category": null,
+  "has_intermediate_output": false
+ },
+ "TestControlCombo": {
+  "input": {
+   "required": {
+    "mode": [
+     "COMBO",
+     {
+      "options": [
+       "a",
+       "b"
+      ],
+      "control_after_generate": true,
+      "default": "a"
+     }
+    ],
+    "seed": [
+     "INT",
+     {
+      "default": 0,
+      "min": 0,
+      "max": 100,
+      "control_after_generate": false
+     }
+    ],
+    "text": [
+     "STRING",
+     {
+      "forceInput": true
+     }
+    ],
+    "steps": [
+     "INT",
+     {
+      "default": 20,
+      "min": 1,
+      "max": 100
+     }
+    ]
+   }
+  },
+  "output": [],
+  "output_is_list": [],
+  "output_name": [],
+  "name": "TestControlCombo",
+  "display_name": "TestControlCombo",
+  "description": "synthetic: config-driven control_after_generate + forceInput",
+  "python_module": "nodes",
+  "category": "test",
+  "output_node": true
+ },
+ "TestProducer": {
+  "input": {},
+  "output": [
+   "VIDEO",
+   "IMAGE",
+   "AUDIO",
+   "VOXEL",
+   "STRING",
+   "*"
+  ],
+  "output_is_list": [
+   false,
+   false,
+   false,
+   false,
+   false,
+   false
+  ],
+  "output_name": [
+   "VIDEO",
+   "IMAGE",
+   "AUDIO",
+   "VOXEL",
+   "STRING",
+   "*"
+  ],
+  "name": "TestProducer",
+  "display_name": "TestProducer",
+  "description": "synthetic: typed outputs for link tests",
+  "python_module": "nodes",
+  "category": "test",
+  "output_node": false
+ }
+}

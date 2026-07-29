@@ -181,7 +181,7 @@ describe('converter: named widget values', () => {
       })
    })
 
-   it('throws typed missing-widget-value when a required named value is absent', () => {
+   it('fills the schema default for an absent named value (what the frontend does), never throws', () => {
       const doc: RawWf = {
          version: 0.4,
          nodes: [
@@ -196,7 +196,10 @@ describe('converter: named widget values', () => {
          ],
          links: [],
       }
-      expectConvertError(doc, 'missing-widget-value')
+      expect(convert(doc)['1']).toEqual({
+         class_type: 'EmptyLatentImage',
+         inputs: { width: 640, height: 512, batch_size: 1 },
+      })
    })
 
    it('lets a named override shadow a positional slot while the offset still advances (subgraph promotion case)', () => {

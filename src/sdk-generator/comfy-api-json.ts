@@ -9,8 +9,10 @@ export type ComfyApiJson = {
 
 export type ComfyApiNodeJson = {
    inputs: {
+      // object form: custom-widget values pass through verbatim, array widget
+      // values ride wrapped as { __value__: [...] } (a bare 2-list is a link)
       // prettier-ignore
-      [key: string]: [string, number] | string | number | boolean | null
+      [key: string]: [string, number] | string | number | boolean | null | { [key: string]: unknown }
    }
    class_type: string
 }
