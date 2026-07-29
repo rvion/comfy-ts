@@ -95,15 +95,16 @@ const expandOneInstance = (wf: CanonicalWorkflow, instance: CanonicalNode, def: 
    const remapNodeId = (id: number): number | null => newNodeIds.get(id) ?? null
 
    // 2. instance input slot → def input slot, BY NAME (instances may serialize
-   // a subset of the def's inputs; positional fallback only when names are absent)
+   // a subset of the def's inputs). A name matching NO def input is LOUD:
+   // silently falling back to the positional index would wire the outer feed
+   // into the wrong inner slot (corpus-absent today, so a throw is safe)
    const defSlotOfInstanceSlot = new Map<number, number>()
    for (const [k, input] of instance.inputs.entries()) {
-      const byName = def.inputs.findIndex((d) => d.name === input.name)
-      const defSlot = byName >= 0 ? byName : k
-      if (defSlot >= def.inputs.length)
+      const defSlot = def.inputs.findIndex((d) => d.name === input.name)
+      if (defSlot < 0)
          throw new WorkflowNormalizeError(
             'subgraph-io-mismatch',
-            `subgraph instance ${instance.id}(${def.name}): input "${input.name}" (slot ${k}) matches no definition input`,
+            `subgraph instance ${instance.id}(${def.name}): input "${input.name}" (slot ${k}) matches no definition input (defined: ${def.inputs.map((d) => d.name).join(', ')})`,
          )
       defSlotOfInstanceSlot.set(k, defSlot)
    }
@@ -244,7 +245,8 @@ const expandOneInstance = (wf: CanonicalWorkflow, instance: CanonicalNode, def: 
 }
 
 /**
- * instance widget values land in inner nodes' `named` overrides. TWO eras:
+ * instance widget values land in inner nodes' `named` overrides. TWO eras for
+ * the POSITIONAL values:
  * - proxyWidgets era: `properties.proxyWidgets` pairs [innerNodeId, widgetName]
  *   zip against the instance's positional values (incl. `control_after_generate`
  *   phantom pairs — written to `named` and simply never read, no schema input
@@ -253,6 +255,10 @@ const expandOneInstance = (wf: CanonicalWorkflow, instance: CanonicalNode, def: 
  *   widget-kind input slots in def order, one value per slot (no phantom —
  *   corpus-verified). An outer link into the same slot wins in the converter;
  *   the named override is still written, matching ComfyUI.
+ * PLUS, in both eras, NAMED overrides on the instance keyed by def-input name:
+ * that is how a NESTED instance receives its outer values (the previous pass
+ * wrote them to `named`), so they must forward through THIS expansion too —
+ * named wins over positional, same precedence as the converter.
  */
 const promoteInstanceWidgets = (
    instance: CanonicalNode,
@@ -260,6 +266,31 @@ const promoteInstanceWidgets = (
    splicedNodes: CanonicalNode[],
    newNodeIds: Map<number, number>,
    boundaryTargetsByInSlot: Map<number, { nodeId: number; slot: number }[]>,
+): void => {
+   const promoteToSlotTargets = (slot: number, value: unknown): void => {
+      for (const t of boundaryTargetsByInSlot.get(slot) ?? []) {
+         const target = splicedNodes.find((n) => n.id === t.nodeId)
+         const input = innerInputAt(splicedNodes, t)
+         if (target == null || input == null) continue
+         target.widgets.named[input.name] = value
+      }
+   }
+
+   promotePositionalWidgets(instance, def, splicedNodes, newNodeIds, boundaryTargetsByInSlot, promoteToSlotTargets)
+
+   for (const [slot, io] of def.inputs.entries()) {
+      if (!Object.hasOwn(instance.widgets.named, io.name)) continue
+      promoteToSlotTargets(slot, instance.widgets.named[io.name])
+   }
+}
+
+const promotePositionalWidgets = (
+   instance: CanonicalNode,
+   def: CanonicalSubgraphDef,
+   splicedNodes: CanonicalNode[],
+   newNodeIds: Map<number, number>,
+   boundaryTargetsByInSlot: Map<number, { nodeId: number; slot: number }[]>,
+   promoteToSlotTargets: (slot: number, value: unknown) => void,
 ): void => {
    const values = instance.widgets.positional
    if (values.length === 0) return // inner nodes keep their serialized defaults
@@ -285,12 +316,7 @@ const promoteInstanceWidgets = (
                   'subgraph-io-mismatch',
                   `subgraph instance ${instance.id}(${def.name}): proxyWidgets pair ${k} names io widget "${widgetName}" but no definition input matches`,
                )
-            for (const t of boundaryTargetsByInSlot.get(slot) ?? []) {
-               const targetNode = splicedNodes.find((n) => n.id === t.nodeId)
-               const input = innerInputAt(splicedNodes, t)
-               if (targetNode == null || input == null) continue
-               targetNode.widgets.named[input.name] = values[k]
-            }
+            promoteToSlotTargets(slot, values[k])
             continue
          }
          const target = splicedNodes.find((n) => n.id === newNodeIds.get(innerId))
@@ -313,13 +339,7 @@ const promoteInstanceWidgets = (
             : PRIMITIVE_WIDGET_TYPES.has(io.type)
       if (!isWidgetSlot) continue
       if (valueIndex >= values.length) break
-      const value = values[valueIndex++]
-      for (const t of targets) {
-         const target = splicedNodes.find((n) => n.id === t.nodeId)
-         const input = innerInputAt(splicedNodes, t)
-         if (target == null || input == null) continue
-         target.widgets.named[input.name] = value
-      }
+      promoteToSlotTargets(slot, values[valueIndex++])
    }
 }
 

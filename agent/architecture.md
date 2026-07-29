@@ -347,19 +347,37 @@ unknown ──LiteGraphJSON_ark──▶ LiteGraphJSON (loose wire type)
   `ComfyHost.importWorkflowJson` goes through it (the import validation gate).
   Subgraph expansion: iterative, nested defs supported (depth cap → typed
   cycle error), fresh numeric ids, boundary links (-10/-20) rewired (instance
-  inputs map to def slots BY NAME — instances may serialize a subset), BOTH
+  inputs map to def slots BY NAME — instances may serialize a subset; a name
+  matching NO def input is a typed `subgraph-io-mismatch`, never a silent
+  positional fallback — corpus-absent, so loud is safe), BOTH
   widget-promotion eras (properties.proxyWidgets pairs; io-widget order),
-  only `normal`-mode instances expand (muted drop, bypassed left for the
-  converter's passthrough).
+  PLUS named overrides on the instance itself keyed by def-input name (that
+  is how a NESTED instance receives its outer values: promotion writes them
+  to `named`, so the next expansion pass must read them back — named wins
+  over positional, matching the converter), only `normal`-mode instances
+  expand (muted drop, bypassed left for the converter's passthrough).
 - **Converter owns EXECUTION semantics** on canonical input only: virtual
   skip set (`Note, MarkdownNote, Reroute, PrimitiveNode` + isVirtualNode —
   closed set, PrimitiveString/Int are real backend nodes), mute skip, bypass
-  passthrough (link resolution walks through bypassed parents to the first
-  type-matching input, `*` wildcards, shared visited-guard with reroute
-  unwrap), named-then-positional widget resolution (offset advances past
-  named-shadowed slots whenever a positional array exists). Failures are
-  `WorkflowConvertError` with a `code` (`unknown-node`, `dangling-link`, …)
+  passthrough (see below), named-then-positional widget resolution (offset
+  advances past named-shadowed slots whenever a positional array exists).
+  Inlined PrimitiveNode values are GUARDED scalars (string/number/boolean/
+  null) — a non-scalar value is a typed `invalid-widget-value`, never a cast
+  into the prompt. Failures are `WorkflowConvertError` with a `code`
+  (`unknown-node`, `dangling-link`, `unknown-dynamic-combo-option`, …)
   naming the feature — never a misleading generic message.
+- **Bypass passthrough mirrors frontend `ExecutableNodeDTO._getBypassSlotIndex`**
+  (ComfyUI_frontend `src/lib/litegraph/src/subgraph/ExecutableNodeDTO.ts`,
+  verified 2026-07-29): the type compared during the walk is the CONSUMER
+  input's declared type (`resolveInput` passes `type ?? input.type` down, so
+  it stays fixed through a bypass chain — the link's own type is never the
+  criterion). Parent-input pick order: consumer type `*`/'' short-circuits to
+  the input at the SAME slot index as the resolved output (else input 0);
+  otherwise prefer the same-slot input when its type is connection-valid
+  against both the output type and the consumer type; else first EXACT
+  consumer-type match; else first wildcard-tolerant match. The first
+  type-matching input wins even when unlinked (then the consumer resolves
+  unconnected, like the frontend's null link).
 - **Widget-ness is decided from the input CONFIG, never from a type-name
   whitelist** (`src/sdk-generator/inputWidgetKind.ts`, `classifyWidgetInput`).
   2026 object_info spells widget inputs as arbitrary STRING types
@@ -407,8 +425,11 @@ unknown ──LiteGraphJSON_ark──▶ LiteGraphJSON (loose wire type)
   required key: the backend accepts explicit null, `execute(x=None)`, but
   errors on absence). Fills are logged through the converter's verbose LOG.
   Typed throws remain for what IS a defect: garbage values in strict scalar
-  domains (`invalid-widget-value`), unknown dynamic-combo keys, missing
-  required autogrow instances.
+  domains (`invalid-widget-value`, non-string dynamic-combo keys included),
+  a dynamic-combo key absent from the HOST's options
+  (`unknown-dynamic-combo-option` — its OWN code because it is usually
+  version drift, the template newer than the host's node, same class as
+  `unknown-node`), missing required autogrow instances.
 - **Array widget values emit wrapped as `{__value__: [...]}`** — the
   backend reads any bare 2-list in a prompt as a LINK reference
   (`execution.py validate_inputs`), so the frontend wraps arrays and
@@ -418,12 +439,24 @@ unknown ──LiteGraphJSON_ark──▶ LiteGraphJSON (loose wire type)
 - **Metric split** (`scripts/check-templates.ts`): the sweep runs the FULL
   chain per file (parse → ark → normalize → convert) against ONE cached
   object_info (`.comfy-ts/hosts/windows-1/` when present, else the committed
-  `tests/fixtures/object_info.json`, printed loudly). `unknown-node` failures
-  (template needs a custom node this host lacks) are counted APART from
-  converter defects; structural success = ok + unknown-node. Sweeping 779
-  templates against one cached object_info makes unknown-node expected, not
-  a bug. The script prints the missing-node histogram ("install X to unlock
-  N templates") and the convert/normalize defect causes.
+  `tests/fixtures/object_info.json`, printed loudly). THREE acceptable
+  non-defect outcomes are counted APART from converter defects, each in its
+  own visible bucket:
+  1. `unknown-node` — template needs a custom node this host lacks (sweeping
+     779 templates against one cached object_info makes this expected).
+  2. `incomplete-template` — `missing-required-input` on a file from a
+     BLUEPRINT corpus (`comfyui-blueprints`, `workflow-templates-blueprints`):
+     those repos are subgraph libraries, every file a fragment meant to be
+     dropped INTO a workflow, so an unconnected required boundary input
+     (e.g. GLSLShader autogrow `images.image0`) is the file's intended open
+     boundary, not a converter bug. Source-based on purpose: the same error
+     on a standalone-workflow corpus stays a defect.
+  3. `host-drift` — `unknown-dynamic-combo-option`: the template's combo key
+     is absent from THIS host's options (template newer than the host's node,
+     e.g. recraftv4_1), same class as unknown-node.
+  Structural success = ok + those three. The script prints the missing-node
+  histogram ("install X to unlock N templates"), both new buckets, and the
+  convert/normalize defect causes.
 - **Compat ratchet** (`tests/template-ratchet.test.ts`): every committed
   fixture under `tests/fixtures/workflows/` (auto-enrolled via readdirSync)
   must schema-pass, normalize, and structurally convert against the committed

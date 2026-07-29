@@ -25,6 +25,7 @@ export type WorkflowConvertErrorCode =
    | 'unknown-node'
    | 'missing-widget-value'
    | 'invalid-widget-value'
+   | 'unknown-dynamic-combo-option'
    | 'dangling-link'
    | 'missing-required-input'
    | 'unsupported-feature'
@@ -51,6 +52,10 @@ const isNeverExecuted = (node: CanonicalNode): boolean => node.isVirtualNode || 
 
 /** exact match, or `*` wildcard on either side (Reroute-style slots) */
 const linkTypeMatches = (a: string, b: string): boolean => a === b || a === '*' || b === '*'
+
+/** what an inlined PrimitiveNode may contribute: scalar widget values only */
+const isPromptScalar = (v: unknown): v is string | number | boolean | null =>
+   v === null || typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean'
 
 /**
  * convert a normalized workflow (CanonicalWorkflow — see parseWorkflowJson)
@@ -182,9 +187,11 @@ export const convertLiteGraphToPrompt = (
                node,
             )
          const opt = p.options.find((o) => o.key === key)
+         // own code: usually the template is NEWER than this host's node
+         // (version drift, same class as unknown-node), not a garbage value
          if (opt == null)
             throw new WorkflowConvertError(
-               'invalid-widget-value',
+               'unknown-dynamic-combo-option',
                `node ${node.id}(${node.type}): "${key}" is not an option of dynamic combo "${p.path}" (options: ${p.options.map((o) => o.key).join(', ')})`,
                node,
             )
@@ -281,15 +288,45 @@ export const convertLiteGraphToPrompt = (
          return { node: parentNode, link }
       }
 
+      // mirrors frontend ExecutableNodeDTO._getBypassSlotIndex (verified
+      // 2026-07-29, agent/architecture.md "Bypass passthrough"): wildcard
+      // consumer type short-circuits to the same-slot input; else same-slot
+      // preferred when connection-valid against output AND consumer type; else
+      // first EXACT consumer-type match; else first wildcard-tolerant match.
+      // The pick ignores link-state on purpose — an unlinked winner resolves
+      // unconnected, like the frontend's null link.
+      const pickBypassInput = (p: {
+         inputs: CanonicalInput[]
+         outSlot: number
+         outputType: string
+         consumerType: string
+      }): CanonicalInput | null => {
+         const sameSlot = p.inputs[p.outSlot]
+         if (p.consumerType === '*' || p.consumerType === '') return sameSlot ?? p.inputs[0] ?? null
+         if (
+            sameSlot != null &&
+            linkTypeMatches(sameSlot.type, p.outputType) &&
+            linkTypeMatches(sameSlot.type, p.consumerType)
+         )
+            return sameSlot
+         const exact = p.inputs.find((i) => i.type === p.consumerType)
+         if (exact != null) return exact
+         return (
+            p.inputs.find((i) => linkTypeMatches(i.type, p.outputType) && linkTypeMatches(i.type, p.consumerType)) ??
+            null
+         )
+      }
+
       // walk through follow-through parents: Reroute unwraps, bypassed nodes
-      // redirect to their first type-matching input (frontend getInputLink
-      // semantics, `*` wildcard on either side); muted parents and dead-end
-      // bypasses resolve UNCONNECTED. Visited-set guards link cycles.
+      // redirect per pickBypassInput above — the type carried through the walk
+      // is the CONSUMER input's, fixed across a bypass chain (frontend
+      // resolveInput passes `type ?? input.type` down); muted parents and
+      // dead-end bypasses resolve UNCONNECTED. Visited-set guards link cycles.
       type LinkResolution =
          | { kind: 'link'; nodeId: number; slot: number }
          | { kind: 'primitive'; nodeId: number }
          | { kind: 'unconnected'; reason: string }
-      const resolveThroughParents = (startLink: LiteGraphLinkID): LinkResolution => {
+      const resolveThroughParents = (startLink: LiteGraphLinkID, consumerType: string): LinkResolution => {
          const visited = new Set<number>()
          let linkId = startLink
          while (true) {
@@ -310,11 +347,17 @@ export const convertLiteGraphToPrompt = (
             if (parent.node.mode === 'muted')
                return { kind: 'unconnected', reason: `parent ${parent.node.id}(${parent.node.type}) is muted` }
             if (parent.node.mode === 'bypassed') {
-               const through = parent.node.inputs.find((i) => linkTypeMatches(i.type, parent.link.type))
+               const outputType = parent.node.outputs[parent.link.originSlot]?.type ?? parent.link.type
+               const through = pickBypassInput({
+                  inputs: parent.node.inputs,
+                  outSlot: parent.link.originSlot,
+                  outputType,
+                  consumerType,
+               })
                if (through?.link == null)
                   return {
                      kind: 'unconnected',
-                     reason: `bypassed parent ${parent.node.id}(${parent.node.type}) has no connected ${parent.link.type} input to pass through`,
+                     reason: `bypassed parent ${parent.node.id}(${parent.node.type}) has no connected ${consumerType} input to pass through`,
                   }
                linkId = through.link
                continue
@@ -333,11 +376,20 @@ export const convertLiteGraphToPrompt = (
             LOG(`${node.type}#${node.id}.${ipt.name}: empty input slot (widget-backed or optional)`)
             continue
          }
-         const resolved = resolveThroughParents(ipt.link)
+         const resolved = resolveThroughParents(ipt.link, ipt.type)
          if (resolved.kind === 'primitive') {
-            // inline primitive nodes as plain values
-            inputs[ipt.name] = PRIMITIVE_VALUES[resolved.nodeId] as ComfyApiNodeJson['inputs'][string]
-            LOG(`${node.type}#${node.id}.${ipt.name} = ${inputs[ipt.name]} (inlined primitive)`)
+            // inline primitive nodes as plain values — GUARDED: primitives are
+            // scalar widgets, a non-scalar value would cast garbage (or a
+            // fake link 2-array) into the prompt
+            const pv: unknown = PRIMITIVE_VALUES[resolved.nodeId]
+            if (!isPromptScalar(pv))
+               throw new WorkflowConvertError(
+                  'invalid-widget-value',
+                  `node ${node.id}(${node.type}): PrimitiveNode#${resolved.nodeId} value is not a scalar: ${JSON.stringify(pv)}`,
+                  node,
+               )
+            inputs[ipt.name] = pv
+            LOG(`${node.type}#${node.id}.${ipt.name} = ${pv} (inlined primitive)`)
             continue
          }
          if (resolved.kind === 'link') {

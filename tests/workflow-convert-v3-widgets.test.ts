@@ -180,8 +180,8 @@ describe('COMFY_DYNAMICCOMBO_V3: key + selected branch consumed inline', () => {
       expect(prompt['2']?.inputs['resize_type.crop']).toBe('center')
    })
 
-   it('unknown key throws typed invalid-widget-value', () => {
-      expectConvertError(resize(['no such branch', 1, 'area']), 'invalid-widget-value')
+   it('unknown key throws typed unknown-dynamic-combo-option (host drift, same class as unknown-node)', () => {
+      expectConvertError(resize(['no such branch', 1, 'area']), 'unknown-dynamic-combo-option')
    })
 })
 

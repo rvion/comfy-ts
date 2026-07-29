@@ -149,6 +149,98 @@ describe('converter: bypass (mode 4) passthrough', () => {
       mustFind(raw.nodes, (n) => n.id === 8, 'VAEDecode').mode = 4 // no IMAGE-typed input to pass through
       expectConvertError(raw, 'missing-required-input')
    })
+
+   it('prefers the parent input at the SAME slot index as the resolved output (frontend _getBypassSlotIndex parity)', () => {
+      // bypassed 2-in/2-out mixer between both CLIPTextEncode nodes and KSampler:
+      // positive rides slot 0, negative rides slot 1 — a first-type-match scan
+      // would send BOTH conditionings back to node 6
+      const raw = simple()
+      raw.nodes.push({
+         id: 25,
+         type: 'FakeCondMixer',
+         mode: 4,
+         pos: [0, 0],
+         size: [100, 100],
+         inputs: [
+            { name: 'cond_a', type: 'CONDITIONING', link: 4 },
+            { name: 'cond_b', type: 'CONDITIONING', link: 6 },
+         ],
+         outputs: [
+            { name: 'out_a', type: 'CONDITIONING', links: [62] },
+            { name: 'out_b', type: 'CONDITIONING', links: [63] },
+         ],
+      })
+      const link4 = mustFind(raw.links, (l) => l[0] === 4, 'link 4')
+      link4[3] = 25
+      link4[4] = 0
+      const link6 = mustFind(raw.links, (l) => l[0] === 6, 'link 6')
+      link6[3] = 25
+      link6[4] = 1
+      raw.links.push([62, 25, 0, 3, 1, 'CONDITIONING'])
+      raw.links.push([63, 25, 1, 3, 2, 'CONDITIONING'])
+      const ks = mustFind(raw.nodes, (n) => n.id === 3, 'KSampler')
+      mustFind(ks.inputs ?? [], (i) => i.name === 'positive', 'positive input').link = 62
+      mustFind(ks.inputs ?? [], (i) => i.name === 'negative', 'negative input').link = 63
+      expect(convert(raw)).toEqual(expectedSimple())
+   })
+
+   it('matches on the CONSUMER input type, not the link type, through a *-typed output (frontend parity)', () => {
+      // bypassed router: CONDITIONING at slot 0, LATENT at slot 1, *-typed
+      // output at slot 0 — link-type matching (* matches anything) would pass
+      // the consumer LATENT through to the CONDITIONING parent
+      const raw = simple()
+      raw.nodes.push({
+         id: 26,
+         type: 'FakeRouter',
+         mode: 4,
+         pos: [0, 0],
+         size: [100, 100],
+         inputs: [
+            { name: 'any_a', type: 'CONDITIONING', link: 70 },
+            { name: 'any_b', type: 'LATENT', link: 2 },
+         ],
+         outputs: [{ name: 'out', type: '*', links: [71] }],
+      })
+      raw.links.push([70, 6, 0, 26, 0, 'CONDITIONING'])
+      const clip = mustFind(raw.nodes, (n) => n.id === 6, 'CLIPTextEncode')
+      clip.outputs?.[0]?.links?.push(70)
+      const link2 = mustFind(raw.links, (l) => l[0] === 2, 'link 2')
+      link2[3] = 26
+      link2[4] = 1
+      raw.links.push([71, 26, 0, 3, 3, '*'])
+      const ks = mustFind(raw.nodes, (n) => n.id === 3, 'KSampler')
+      mustFind(ks.inputs ?? [], (i) => i.name === 'latent_image', 'latent_image input').link = 71
+      expect(convert(raw)).toEqual(expectedSimple())
+   })
+})
+
+describe('converter: linked trailing widget (positional array shorter than schema)', () => {
+   /** seed becomes a linked input while widgets_values goes EMPTY: every widget sits past the array end */
+   const withLinkedSeed = (p: { sourceMode?: number }): RawWf => {
+      const raw = simple()
+      raw.nodes.push({
+         id: 41,
+         type: 'EmptyLatentImage',
+         mode: p.sourceMode ?? 0,
+         pos: [0, 0],
+         size: [100, 100],
+         outputs: [{ name: 'LATENT', type: 'LATENT', links: [51] }],
+         widgets_values: [512, 512, 1],
+      })
+      const ks = mustFind(raw.nodes, (n) => n.id === 3, 'KSampler')
+      ks.inputs = [...(ks.inputs ?? []), { name: 'seed', type: 'INT', link: 51, widget: { name: 'seed' } }]
+      ks.widgets_values = []
+      raw.links.push([51, 41, 0, 3, 4, 'INT'])
+      return raw
+   }
+
+   it('a LIVE link on the trailing widget wins: no throw, no spurious fill', () => {
+      expect(convert(withLinkedSeed({}))['3']?.inputs['seed']).toEqual(['41', 0])
+   })
+
+   it('a DEAD link (muted parent) falls back to the schema default, never an error', () => {
+      expect(convert(withLinkedSeed({ sourceMode: 2 }))['3']?.inputs['seed']).toBe(0)
+   })
 })
 
 describe('converter: muted parents resolve unconnected', () => {
@@ -214,7 +306,7 @@ describe('converter: named widget values', () => {
 
 describe('converter: PrimitiveNode inline', () => {
    /** wire a PrimitiveNode into KSampler.seed (widget-backed input, new slot 4) */
-   const withPrimitiveSeed = (p: { value?: number }): RawWf => {
+   const withPrimitiveSeed = (p: { value?: unknown }): RawWf => {
       const raw = simple()
       raw.nodes.push({
          id: 40,
@@ -223,7 +315,7 @@ describe('converter: PrimitiveNode inline', () => {
          pos: [0, 0],
          size: [100, 100],
          outputs: [{ name: 'connect to widget input', type: '*', links: [50] }],
-         ...(p.value != null ? { widgets_values: [p.value] } : {}),
+         ...(p.value !== undefined ? { widgets_values: [p.value] } : {}),
       })
       const ks = mustFind(raw.nodes, (n) => n.id === 3, 'KSampler')
       ks.inputs = [...(ks.inputs ?? []), { name: 'seed', type: 'INT', link: 50, widget: { name: 'seed' } }]
@@ -237,6 +329,10 @@ describe('converter: PrimitiveNode inline', () => {
 
    it('a VALUELESS PrimitiveNode (corpus reality) leaves the consumer on its own widget value', () => {
       expect(convert(withPrimitiveSeed({}))).toEqual(expectedSimple())
+   })
+
+   it('a NON-SCALAR primitive value throws typed invalid-widget-value instead of casting garbage into the prompt', () => {
+      expectConvertError(withPrimitiveSeed({ value: { evil: true } }), 'invalid-widget-value')
    })
 })
 
@@ -384,6 +480,84 @@ describe('subgraph expansion', () => {
       def.links.push({ id: 901, origin_id: 90, origin_slot: 0, target_id: 679, target_slot: 0, type: 'CONDITIONING' })
       const pristine = convertLiteGraphToPrompt(schema, parseWorkflowJson(corpus('01_get_started_text_to_image.json')))
       expect(convertLiteGraphToPrompt(schema, parseWorkflowJson(raw))).toEqual(pristine)
+   })
+
+   it('throws typed subgraph-io-mismatch when an instance input name matches NO def input (renamed slot)', () => {
+      const raw = loadRaw('tests/fixtures/workflows/01_get_started_text_to_image.json')
+      const inst = mustFind(raw.nodes, (n) => n.id === 104, 'instance')
+      mustFind(inst.inputs ?? [], (i) => i.name === 'text', 'text input').name = 'renamed_text'
+      let err: unknown
+      try {
+         parseWorkflowJson(raw)
+      } catch (e) {
+         err = e
+      }
+      expect(err).toBeInstanceOf(WorkflowNormalizeError)
+      expect((err as WorkflowNormalizeError).code).toBe('subgraph-io-mismatch')
+   })
+
+   it('named overrides on a NESTED subgraph instance survive the next expansion pass (hand-built)', () => {
+      const boundary = {
+         inputNode: { id: -10, bounding: [0, 0, 0, 0] },
+         outputNode: { id: -20, bounding: [0, 0, 0, 0] },
+      }
+      const defB = {
+         id: 'bbbbbbbb-0000-4000-8000-000000000000',
+         name: 'inner',
+         version: 1,
+         nodes: [
+            {
+               id: 10,
+               type: 'CLIPTextEncode',
+               mode: 0,
+               pos: [0, 0],
+               size: [100, 100],
+               inputs: [{ name: 'text', type: 'STRING', link: 100, widget: { name: 'text' } }],
+               outputs: [],
+               widgets_values: ['inner default'],
+            },
+         ],
+         links: [{ id: 100, origin_id: -10, origin_slot: 0, target_id: 10, target_slot: 0, type: 'STRING' }],
+         ...boundary,
+         inputs: [{ id: 'io-b-text', name: 'text', type: 'STRING' }],
+         outputs: [],
+         widgets: [],
+      }
+      const defA = {
+         id: 'aaaaaaaa-0000-4000-8000-000000000000',
+         name: 'outer',
+         version: 1,
+         nodes: [
+            {
+               id: 20,
+               type: defB.id,
+               mode: 0,
+               pos: [0, 0],
+               size: [100, 100],
+               inputs: [{ name: 'text', type: 'STRING', link: 200, widget: { name: 'text' } }],
+               outputs: [],
+               widgets_values: [],
+            },
+         ],
+         links: [{ id: 200, origin_id: -10, origin_slot: 0, target_id: 20, target_slot: 0, type: 'STRING' }],
+         ...boundary,
+         inputs: [{ id: 'io-a-text', name: 'text', type: 'STRING' }],
+         outputs: [],
+         widgets: [],
+      }
+      const doc = {
+         version: 0.4,
+         nodes: [
+            // io-widget era: the root instance's positional value promotes into
+            // the NESTED instance as a named override; pass 2 must forward it
+            { id: 1, type: defA.id, mode: 0, pos: [0, 0], size: [100, 100], widgets_values: ['OUTER OVERRIDE'] },
+         ],
+         links: [],
+         definitions: { subgraphs: [defA, defB] },
+      }
+      const wf = parseWorkflowJson(doc)
+      const cte = mustFind(wf.nodes, (n) => n.type === 'CLIPTextEncode', 'inner CLIPTextEncode')
+      expect(cte.widgets.named['text']).toBe('OUTER OVERRIDE')
    })
 
    it('throws a typed subgraph-cycle error on self-referencing definitions', () => {
