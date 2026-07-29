@@ -43,6 +43,7 @@
       "dist",
       "src",
       "README.md",
+      "guide-for-agents.md",
       "LICENSE"
    ],
    "scripts": {
