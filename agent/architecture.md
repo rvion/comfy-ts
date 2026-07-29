@@ -75,7 +75,18 @@ src/cli/tui/               ink+mobx TUI, per build/app-state-tree doctrine:
    keys.ts                 modified-⏎ translation for xterm modifyOtherKeys
    run-tui.tsx             entry: scan, load module, keyboard protocols, mount,
                            dispose
-src/litegraph/             ComfyUI saved-workflow JSON format (types + arktype), converter
+src/litegraph/             ComfyUI saved-workflow JSON format, 3 layers (see
+                           "Workflow import pipeline" below):
+   LiteGraph*.ts           TOLERANT wire schemas (arktype + IsEqual TS mirror):
+                           model what upstream actually serializes, v0.4 tuple
+                           links AND v1 object links, subgraph definitions
+   CanonicalWorkflow.ts    the ONE strict internal type (zero optional fields);
+                           everything downstream consumes only this
+   normalizeWorkflow.ts    parseWorkflowJson: validate → normalize → expand;
+                           throws WorkflowNormalizeError, never casts
+   expandSubgraphs.ts      inlines definitions.subgraphs instances (remapped
+                           ids, boundary rewiring, widget promotion)
+   convertFlowToLiteGraphJSON.ts  EXPORT path (our own emission, v0.4 tuples)
 src/sdk-generator/         object_info parsing + per-host codegen (see agent/sdk-codegen.md)
 src/manager/               ComfyUI-Manager registry mirror (json/ + generated/ + loaders)
 src/ssh-host-manager/      ssh config upsert + remote-exec helpers for remote GPU boxes
@@ -300,6 +311,65 @@ tests/                     bun tests (headless) + fixtures
    wrap INSIDE the value column (text capped ~300 chars in the row, full text
    in the editor overlay).
 
+## Workflow import pipeline (litegraph → canonical → prompt)
+
+Full design: `tmp/20260729-format-grind-design.md` (session doc); the durable
+contract is here. Rémi's constraint (2026-07-29, binding): tolerant input
+schemas model loose upstream reality; ONE normalization step produces ONE
+canonical strict type; optionality never leaks past normalization; a
+validation failure is a loud typed error, never a cast.
+
+```
+unknown ──LiteGraphJSON_ark──▶ LiteGraphJSON (loose wire type)
+        ──normalizeWorkflow──▶ CanonicalWorkflow (strict, no optionals)
+        ──convertLiteGraphToPrompt(schema, canonical)──▶ ComfyApiJson
+```
+
+- **Wire layer** (`LiteGraph*.ts`): arktype schemas + `IsEqual` TS mirrors,
+  relaxed to the corpus (widget.config?, root config/groups/extra?,
+  group font_size/color?, widgets_values array OR object, inputs.link?,
+  outputs?; field is `bgcolor`, lowercase, like upstream). Links are a union:
+  v0.4 6-tuple (`LiteGraphLinkTuple`) | v1 object. `definitions.subgraphs`
+  (hybrid files: v0.4 root, v1-shaped interiors) validated via
+  `LiteGraphSubgraphDef`. arktype's undeclared-key tolerance stays on.
+- **Canonical layer** (`CanonicalWorkflow.ts`): plain TS, ZERO optional
+  fields — semantic absence is `null`, serializer noise gets a default.
+  Links object-form only. `mode` is `'normal' | 'muted' | 'bypassed'`
+  (0/1/3 collapse to normal). Widget values are ONE shape
+  `{ positional: unknown[], named: Record<string, unknown> }` covering array
+  form, object form (VHS_*), and subgraph promotion overrides. Cosmetic-only
+  wire fields are dropped; a new consumer ADDS a field to canonical rather
+  than reading the raw document.
+- **Normalize is an explicit typed function, NOT arktype morphs** (decided:
+  subgraph expansion is whole-document graph surgery a value-scoped morph
+  can't express; morphs also break the IsEqual mirror pattern and our typed
+  errors). `parseWorkflowJson(unknown)` is the single entry;
+  `ComfyHost.importWorkflowJson` goes through it (the import validation gate).
+  Subgraph expansion: iterative, nested defs supported (depth cap → typed
+  cycle error), fresh numeric ids, boundary links (-10/-20) rewired (instance
+  inputs map to def slots BY NAME — instances may serialize a subset), BOTH
+  widget-promotion eras (properties.proxyWidgets pairs; io-widget order),
+  only `normal`-mode instances expand (muted drop, bypassed left for the
+  converter's passthrough).
+- **Converter owns EXECUTION semantics** on canonical input only: virtual
+  skip set (`Note, MarkdownNote, Reroute, PrimitiveNode` + isVirtualNode —
+  closed set, PrimitiveString/Int are real backend nodes), mute skip, bypass
+  passthrough (link resolution walks through bypassed parents to the first
+  type-matching input, `*` wildcards, shared visited-guard with reroute
+  unwrap), named-then-positional widget resolution (offset advances past
+  named-shadowed slots whenever a positional array exists). Failures are
+  `WorkflowConvertError` with a `code` (`unknown-node`, `dangling-link`, …)
+  naming the feature — never a misleading generic message.
+- **Metric split** (`scripts/check-templates.ts`): `unknown-node` failures
+  (template needs a custom node this host lacks) are counted APART from
+  converter defects; structural success = ok + unknown-node. Sweeping 779
+  templates against one cached object_info makes unknown-node expected, not
+  a bug.
+- Fixtures: real corpus files copied verbatim under `tests/fixtures/workflows/`
+  (`.prettierignore` already exempts `tests/fixtures/**` — fixtures are DATA);
+  execution-semantics permutations (e.g. bypass rewiring) mutate a small
+  fixture in-test instead of multiplying files.
+
 ## Frozen invariants
 
 - `bun run typecheck:lib` (src + scripts, `tsconfig.lib.json`) must pass with
@@ -312,6 +382,11 @@ tests/                     bun tests (headless) + fixtures
 - generated sdk files import ONLY `'comfy-ts'` (mapped to src/index.ts in-repo).
 - one global singleton: `comfyts`. No second registration path.
 - every wire payload has an arktype schema next to its TS type.
+- optionality never crosses `normalizeWorkflow`: every consumer of an IMPORTED
+  workflow JSON (converter, sweeps, TUI) reads `CanonicalWorkflow` only, and
+  `CanonicalWorkflow` has no optional fields. A schema/normalize failure throws
+  a typed error, never a lying cast. (The EXPORT path builds its complete v0.4
+  document from scratch and is exempt by construction.)
 
 Renaming a file, moving a responsibility, or changing a frozen invariant requires
 updating this doc FIRST. Signatures live in the files — read them, don't duplicate here.
