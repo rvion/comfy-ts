@@ -113,10 +113,18 @@ export async function runTui(args: string[]): Promise<number> {
    // editor keys); unsupporting terminals ignore it.
    const altScreen = process.stdout.isTTY === true
    if (altScreen) process.stdout.write('\u001b[?1049h\u001b[H\u001b[>4;1m')
+   // RAW MODE BEFORE RENDER: ink's kittyKeyboard auto-detect sends its `CSI ? u`
+   // query from the Ink constructor, but raw mode only turns on later when
+   // useInput mounts. In that window the terminal's `CSI ? 0 u` reply is echoed
+   // by termios (ECHOCTL) as literal `^[[?0u` into the first frame (his repro).
+   // Raw mode off = echo on, so flip it ourselves first (inside the try so the
+   // finally always restores); ink owns it afterwards and restores cooked mode
+   // on exit.
    // REAL images over the preview panel rect on OSC-1337 terminals (repaints
    // after every stdout flush + on image change — NOT a React effect)
    const uninstallPainter = installProtocolImagePainter(st)
    try {
+      if (process.stdin.isTTY === true) process.stdin.setRawMode(true)
       // kittyKeyboard auto: ink queries `CSI ? u` and enables CSI-u encoding
       // where supported (iTerm2 3.5+/WezTerm/kitty/ghostty) — ⇧⏎ parsed natively
       const app = render(<TuiApp st={st} />, { kittyKeyboard: { mode: 'auto' } })
@@ -125,6 +133,8 @@ export async function runTui(args: string[]): Promise<number> {
       await app.waitUntilExit()
       st.dispose()
    } finally {
+      // ink restores cooked mode on clean exit; this covers a throw before mount
+      if (process.stdin.isTTY === true) process.stdin.setRawMode(false)
       uninstallPainter()
       // reset colors + erase WHILE STILL in the alt screen: ED deletes iTerm
       // inline images too — without this the last protocol image and stray
