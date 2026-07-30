@@ -196,6 +196,17 @@ fully offline:
 4. At most ONE live cloud run exists for the whole zoo effort — a cheap small
    t2i in the final Verify phase, never by builders.
 
+Machine enforcement (2026-07-30, the final sweep): bars 1-2 are tests, not
+promises. `tests/examples-offline.test.ts` auto-enrolls EVERY
+`examples/**/*.cflow.ts` (headless import, keyless env, cacheless consumer
+cwd — a new zoo file is covered the moment it exists);
+`tests/zoo-build.test.ts` builds every zoo module with the uploader stubbed
+(never a live call) and asserts `workflow.problems` EMPTY against the
+machine-local cloud schema cache. That cache
+(`.comfy-ts/hosts/comfy-cloud/object_info.json`) is gitignored, so the build
+sweep `describe.skipIf`s loudly on a fresh clone/CI; `bun run gen:sdk:cloud`
+(or any cloud connect) restores it.
+
 ## Build matrix (family × mode ← source template)
 
 Cross of `.comfy-ts/templates/workflow-templates/index.json` (779 files,

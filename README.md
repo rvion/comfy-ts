@@ -330,8 +330,9 @@ comfy.host({ id: 'modal', url: 'https://you--comfy.modal.run', headers: { 'Modal
 `X-API-Key` on every request and the websocket, outputs download through the
 signed-url redirect, live latent previews stream into the TUI, and the whole
 cloud catalog ships as a committed, browsable SDK
-([`examples/comfy-cloud/sdk.d.ts`](examples/comfy-cloud/sdk.d.ts), run it
-with [example 05](examples/05-comfy-cloud.cflow.ts)).
+([`examples/comfy-cloud/sdk.d.ts`](examples/comfy-cloud/sdk.d.ts)) with a
+whole [model zoo of 46 ready workflows](#the-model-zoo-46-cloud-workflows-32-model-families)
+built against it.
 
 Reaching a Comfy running on another one of your machines:
 
@@ -391,8 +392,10 @@ library:
 
 ## 📚 Examples
 
-Every example is a runnable `*.cflow.ts` module: run it with bun, or point
-the TUI at `examples/`.
+Every example is a runnable `*.cflow.ts` module: run it with bun, or just
+`bunx comfy-ts tui` — the TUI finds them all.
+
+Start with the didactic five:
 
 | example                                                                                  | shows                                                                     |
 | ---------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
@@ -401,6 +404,26 @@ the TUI at `examples/`.
 | [`03-export-workflow-json`](examples/03-export-workflow-json.cflow.ts)                   | OFFLINE graph building, export api.json + readable workflow.json            |
 | [`04-krea2-turbo-t2i`](examples/04-krea2-turbo-t2i.cflow.ts)                             | a real pipeline: krea2 turbo, lora stack, RMBG cutout → transparent png     |
 | [`05-comfy-cloud`](examples/05-comfy-cloud.cflow.ts)                                     | the same code on Comfy Cloud: `url` + `apiKey` host, typechecked against the committed catalog SDK |
+
+### The model zoo: 46 cloud workflows, 32 model families
+
+[`examples/comfy-cloud/`](examples/comfy-cloud/) holds one runnable example
+per family × mode (`<family>-<mode>.cflow.ts`), each transcribed from the
+official ComfyUI template of that model, typechecked against the committed
+cloud catalog, and runnable on [Comfy Cloud](https://cloud.comfy.org) with
+one env var (`COMFY_CLOUD_API_KEY`). Image, video and audio:
+
+| mode                | families                                                                                                                             |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| **t2i** text→image  | sd15 (= example 05), sdxl, sd35, flux1, flux2, qwen-image, z-image, chroma, hidream, omnigen2, kandinsky5, capybara, krea2, lens, ernie, longcat, ovis, pixeldit, anima, newbie, ideogram4 |
+| **i2i** image edit  | flux1, flux2, qwen-image, hidream, omnigen2, capybara, longcat, boogu, firered                                                        |
+| **t2v** text→video  | wan21, wan22, wan22-5b, ltxv, hunyuan-video, kandinsky5                                                                               |
+| **i2v** image→video | wan21, wan22, ltxv, hunyuan-video, kandinsky5, capybara, svd                                                                          |
+| **t2a** text→audio  | ace-step (song), stable-audio (sfx/music), chatterbox (tts)                                                                           |
+
+Every zoo file imports offline and headless (no key, no cache needed — CI
+proves it), builds a validated graph, and doubles as a TUI app with typed
+knobs: prompt, seed, steps, size, input image, …
 
 ## 🗂️ The `.comfy-ts/` folder
 

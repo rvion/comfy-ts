@@ -79,6 +79,9 @@ style disagrees, not because the code is wrong:
 - `unicorn/prefer-add-event-listener` — `ws` exposes `on*` handlers.
 - `eslint/no-control-regex`, `src/utils/ansi.ts` ONLY (override) — stripAnsi
   matches ESC on purpose; everywhere else the rule stays on.
+- `unicorn/require-module-specifiers`, `examples/comfy-cloud/sdk.d.ts` ONLY
+  (override) — the generated sdk ends with `export {}` to force module-ness;
+  generated files are never hand-edited, so the warning is unfixable there.
 
 Formatting ignores live in `.prettierignore` (oxfmt reads it, so does the VSCode
 oxc extension): captured fixtures and upstream json mirrors are DATA, never

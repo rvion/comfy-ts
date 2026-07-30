@@ -1,55 +1,59 @@
 import { describe, expect, it } from 'bun:test'
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync, readdirSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'pathe'
 
+const examplesDir = join(import.meta.dir, '..', 'examples')
+
+/** every runnable example module, zoo included — auto-enrolled so a new file is covered the moment it exists */
+function allCflowFiles(): string[] {
+   const out: string[] = []
+   const walk = (dir: string): void => {
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+         if (entry.isDirectory()) walk(join(dir, entry.name))
+         else if (entry.name.endsWith('.cflow.ts')) out.push(join(dir, entry.name))
+      }
+   }
+   walk(examplesDir)
+   return out.sort()
+}
+
 // his ask 2026-07-30: `comfy-ts tui` with no arg must include the PACKAGED
 // examples, so they must open from a fresh consumer project where
-// .comfy-ts/hosts/<id>/ does not exist. Before the fix the examples' top-level
-// `await host.loadSchemaFromCache()` threw at IMPORT time (file does not
-// exist .../object_info.json) and took the whole TUI down.
-describe('bundled examples in a consumer project without a schema cache', () => {
-   it('module import degrades to base types with a loud log instead of throwing', () => {
+// .comfy-ts/hosts/<id>/ does not exist AND no api key is set. Before the fix
+// the examples' top-level `await host.loadSchemaFromCache()` threw at IMPORT
+// time and took the whole TUI down; the cloud zoo would have painted one red ✗
+// row per file on a keyless machine (agent/examples.md owns the bar).
+describe('every example imports headlessly (auto-enrolled)', () => {
+   it('all *.cflow.ts import keyless in a cacheless consumer cwd', () => {
+      const files = allCflowFiles()
+      // a broken walk returning [] must never silently pass — the zoo alone is 40+
+      expect(files.length).toBeGreaterThan(40)
       const consumerCwd = mkdtempSync(join(tmpdir(), 'comfy-ts-consumer-'))
-      const example = join(import.meta.dir, '..', 'examples', '01-txt2img.cflow.ts')
-      try {
-         const res = spawnSync('bun', ['-e', `await import(${JSON.stringify(example)}); console.log('IMPORT_OK')`], {
-            cwd: consumerCwd,
-            encoding: 'utf8',
-         })
-         expect(res.stderr).toContain('no schema cache')
-         expect(res.stdout).toContain('IMPORT_OK')
-         expect(res.status).toBe(0)
-      } finally {
-         rmSync(consumerCwd, { recursive: true, force: true })
-      }
-   })
-})
-
-// the cloud examples are IMPORT-SAFE without an api key (agent/examples.md,
-// zoo pattern 2026-07-30: 20 zoo files must never paint 20 red ✗ tree rows on
-// a keyless machine — the key is only needed at run time, requireCloudKey()
-// fronts standalone runs, TUI runs get the typed 401)
-describe('cloud example without COMFY_CLOUD_API_KEY', () => {
-   const example = join(import.meta.dir, '..', 'examples', '05-comfy-cloud.cflow.ts')
-   const importCmd = `await import(${JSON.stringify(example)}); console.log('IMPORT_OK')`
-
-   it('import succeeds keyless (key is a run-time concern)', () => {
-      const consumerCwd = mkdtempSync(join(tmpdir(), 'comfy-ts-consumer-'))
+      const script = [
+         `const files = ${JSON.stringify(files)}`,
+         `for (const f of files) { await import(f); console.log('IMPORT_OK ' + f) }`,
+      ].join('\n')
       try {
          const env = { ...process.env }
          delete env.COMFY_CLOUD_API_KEY
-         const res = spawnSync('bun', ['-e', importCmd], { cwd: consumerCwd, encoding: 'utf8', env })
-         expect(res.stdout).toContain('IMPORT_OK')
+         const res = spawnSync('bun', ['-e', script], { cwd: consumerCwd, encoding: 'utf8', env })
+         expect(res.stderr).toContain('no schema cache') // degraded with a loud log, never thrown
+         const missing = files.filter((f) => !res.stdout.includes(`IMPORT_OK ${f}`))
+         expect(missing).toEqual([])
          expect(res.status).toBe(0)
       } finally {
          rmSync(consumerCwd, { recursive: true, force: true })
       }
-   })
+   }, 120_000)
+})
 
+// the cloud examples are IMPORT-SAFE without an api key (covered for ALL files
+// above); what remains specific here is the RUN-time key story
+describe('cloud example without COMFY_CLOUD_API_KEY', () => {
    it('standalone run gate throws a clear message naming the env var', () => {
-      const helper = join(import.meta.dir, '..', 'examples', 'comfy-cloud', 'cloudHost.ts')
+      const helper = join(examplesDir, 'comfy-cloud', 'cloudHost.ts')
       const cmd = `const { requireCloudKey } = await import(${JSON.stringify(helper)}); requireCloudKey()`
       const env = { ...process.env }
       delete env.COMFY_CLOUD_API_KEY
@@ -59,6 +63,8 @@ describe('cloud example without COMFY_CLOUD_API_KEY', () => {
    })
 
    it('with a key set, import degrades offline like any bundled example', () => {
+      const example = join(examplesDir, '05-comfy-cloud.cflow.ts')
+      const importCmd = `await import(${JSON.stringify(example)}); console.log('IMPORT_OK')`
       const consumerCwd = mkdtempSync(join(tmpdir(), 'comfy-ts-consumer-'))
       try {
          // never the guarded key shape — presence is all the module checks at import

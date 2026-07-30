@@ -29,6 +29,12 @@
          "rules": {
             "eslint/no-control-regex": "off"
          }
+      },
+      {
+         "files": ["examples/comfy-cloud/sdk.d.ts"],
+         "rules": {
+            "unicorn/require-module-specifiers": "off"
+         }
       }
    ],
    "ignorePatterns": [
