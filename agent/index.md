@@ -56,4 +56,5 @@ Read the matching doc before touching a surface:
 | goals & feature matrix (what the lib promises)| `agent/features.md`     |
 | any file layout / class / data-flow question  | `agent/architecture.md` |
 | the per-host codegen or `Comfy.*` namespaces  | `agent/sdk-codegen.md`  |
+| examples/ (zoo layout, vars, verification)    | `agent/examples.md`     |
 | recent changes / why a thing is the way it is | `.rv-journal/changelog.md` |

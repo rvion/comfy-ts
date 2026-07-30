@@ -516,6 +516,47 @@ unknown ──LiteGraphJSON_ark──▶ LiteGraphJSON (loose wire type)
   execution-semantics permutations (e.g. bypass rewiring) mutate a small
   fixture in-test instead of multiplying files.
 
+## Manager registry mirror (src/manager/)
+
+The ComfyUI-Manager community registry, mirrored and typed. Same trust
+doctrine as the workflow import pipeline: loose input schemas model what
+upstream actually ships, ONE normalization step produces the canonical types
+the codegen and the runtime registry consume, and a row that fails validation
+is REPORTED and skipped deliberately, never cast.
+
+- **Sources** (refreshed 2026-07-30; the canonical repo is
+  Comfy-Org/ComfyUI-Manager — the old ltdrdata raw URLs still redirect but
+  that is goodwill, not contract):
+  `https://raw.githubusercontent.com/Comfy-Org/ComfyUI-Manager/main/<file>`
+  for the five files `custom-node-list.json`, `model-list.json`,
+  `extension-node-map.json`, `alter-list.json`, `github-stats.json`.
+  Mirrored verbatim into `src/manager/json/` (DATA: never restyled) by
+  `bun run gen:manager` (`script-update-manager.bun.ts` →
+  `ComfyRegistry.DownloadAndUpdate` → loaders → codegen → oxfmt on
+  `generated/` only).
+- **Parse pipeline** (`loaders/step2..step6`): each list is JSON.parsed as
+  `unknown`, root shape checked (typed `ManagerParseError` on failure), then
+  validated PER ROW against the loose `...Raw..._ark` input schemas in
+  `types/`, normalized (custom-node-list: `id` recovered from title, else
+  the github repo name — absent on ~76% of upstream rows 2026-07-30), then
+  indexed. A failing row lands in a reason bucket of `ManagerParseReport`
+  (`loaders/parseReport.ts`, FIRST error kept verbatim per bucket); the
+  report prints on EVERY registry build (total, accepted, skipped by cause),
+  so upstream drift is visible on every regen instead of crashing it.
+  extension-node-map rows pointing at a repo absent from custom-node-list
+  (upstream data bugs, ~10 rows) skip as `unknown-plugin-url`.
+- **Canonical types** stay the manager wire shapes (`ComfyManagerPluginInfo`
+  with `id` ALWAYS present post-normalization): the plugin object is also
+  the Manager v2 install POST body, where absent and null differ on the
+  python side, so the rarely-shipped optional tail fields (`pip`,
+  `nodename_pattern`, …) stay optional ON PURPOSE — nothing in comfy-ts
+  reads them, they ride along for the install body.
+- **Generated unions** (`generated/`, 8 files) are codegen output of the
+  loaders (`genTypes: true`): `KnownComfyPluginTitle`/`URL`,
+  `KnownComfyCustomNodeName`, `KnownModel_*`. Never hand-edited; the
+  `built-in` pseudo-plugin (core ComfyUI) is seeded into the registry BEFORE
+  codegen so its title/url are legitimate union members, not casts.
+
 ## Cloud & remote hosts (designed 2026-07-30, code landed same day)
 
 Ground truth: `.rv-journal/cloud-audit.md` (the 2026-07-29 inventory: 16 bare
@@ -635,10 +676,13 @@ Live cloud proving is still pending — never from tests, CI has no key.
   true), set `false` by the cloud example, keeps live `connect()` / TUI
   re-codegen from writing any sdk.d.ts (schema updates stay in-memory — the
   committed catalog changes only through a deliberate gen run).
-- Cloud example: `examples/05-comfy-cloud.cflow.ts` — `url:` + `apiKey` from
-  `process.env.COMFY_CLOUD_API_KEY`, throws at import naming the env var when
-  it is absent (the TUI surfaces that as a red ✗ tree row, its designed
-  degrade path — never a crash), typechecks against the committed catalog.
+- Cloud examples: `examples/05-comfy-cloud.cflow.ts` (reference) + the zoo
+  under `examples/comfy-cloud/` — all through the shared
+  `examples/comfy-cloud/cloudHost.ts` helper, key from
+  `process.env.COMFY_CLOUD_API_KEY`. IMPORT-SAFE on a keyless machine (no
+  throw at import — the TUI tree stays clean); standalone runs fail fast via
+  `requireCloudKey()`, TUI runs via the typed 401. Layout, vars conventions
+  and the verification bar: `agent/examples.md`.
 - Cloud ws previews arrive as binary type 4 (`PREVIEW_IMAGE_WITH_METADATA`,
   per the imported api-reference: 4B type, 4B metadata_len, metadata JSON,
   then raw JPEG/PNG) — found live 2026-07-30, the first cloud run threw

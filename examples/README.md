@@ -1,0 +1,30 @@
+# comfy-ts examples
+
+Every `*.cflow.ts` file here is a runnable workflow module: run it directly
+with bun, or browse them all in the TUI (`bunx comfy-ts tui` lists them under
+"comfy-ts examples", tweak vars, ⌃R to run).
+
+## Layout
+
+- `01…04-*.cflow.ts` — the didactic sequence against a LOCAL ComfyUI host
+  (edit the `comfy.host({...})` line to point at yours, then first run
+  generates a typed SDK for it).
+- `05-comfy-cloud.cflow.ts` — the same t2i against [Comfy Cloud]
+  (https://cloud.comfy.org): no local GPU needed, the typed catalog ships
+  committed at `comfy-cloud/sdk.d.ts`.
+- `comfy-cloud/<family>-<mode>.cflow.ts` — the model zoo: one clean example
+  per model family × mode (`t2i`, `i2i`, `t2v`, `i2v`, `t2a`), each mirroring
+  an official ComfyUI template (flux, qwen-image, z-image, wan, hidream,
+  ace-step, …). All share `comfy-cloud/cloudHost.ts`.
+
+## Cloud API key
+
+Cloud examples read `COMFY_CLOUD_API_KEY` (create one at cloud.comfy.org,
+paid tiers). Without it everything still loads and typechecks — only `run()`
+needs the key:
+
+```sh
+COMFY_CLOUD_API_KEY=… bun examples/05-comfy-cloud.cflow.ts "a fox in the snow" 42
+```
+
+Cloud runs bill compute to your account — start with a small t2i.
