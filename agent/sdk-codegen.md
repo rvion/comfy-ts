@@ -54,4 +54,16 @@ Regen paths:
   half of the contract: everything typechecks with NO sdk.d.ts on disk.
 - names: `E_<EnumName>` / `E_<hash>` for unions; qualified node keys like
   `impact-pack.FaceDetailer` for custom nodes, bare `KSampler` for builtins.
+- autogrow containers (`template` WITH a nested `input` section, e.g.
+  `TextEncodeBooguEdit.images`) never appear in `IN` under their own name —
+  the declaration is never a prompt input (agent/architecture.md, converter
+  section). Instead codegen emits ONE key per instance name
+  (`'images.image_1'?: Accepts['IMAGE']`), typed from the template's single
+  sub-input, the first `template.min` of them required when the template
+  input section is required; the sub-input slot type registers into
+  Accepts/Producer like any slot. ComfySchema marks the container input
+  non-required so the runtime builder records no missing-value problem for
+  it. Multi-sub-input templates are corpus-absent (2026-07-30 cloud sweep:
+  27/27 single) — when one appears, no instance keys are emitted and the
+  container stays `builderBase` territory.
 - inspect big generated files with `bun run sdk:outline` — never Read 2MB blind.

@@ -93,6 +93,23 @@ const parseContainer = (template: Record<string, unknown>): InputWidgetKind => {
    }
 }
 
+/**
+ * the single template sub-input's slot type of an autogrow container
+ * (`'IMAGE'` for TextEncodeBooguEdit.images). null when opts are not an
+ * autogrow template or the template has several sub-inputs (corpus-absent
+ * 2026-07-30, 27/27 single on the cloud catalog) — then codegen emits no
+ * typed instance keys and the container stays builderBase territory.
+ */
+export const containerInstanceSlotType = (opts: unknown): string | null => {
+   const o = isRecord(opts) ? opts : null
+   const template = o?.['template']
+   if (!isRecord(template) || !isRecord(template['input'])) return null
+   const subs = flattenInputSections(template['input'])
+   const first = subs[0]
+   if (subs.length !== 1 || first == null || typeof first.type !== 'string') return null
+   return first.type
+}
+
 export const classifyWidgetInput = (p: {
    name: string
    type: string | readonly unknown[]

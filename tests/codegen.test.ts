@@ -65,3 +65,21 @@ describe('per-host sdk codegen', () => {
       expect(again).toBe(dts)
    })
 })
+
+describe('autogrow containers in codegen', () => {
+   const spec = JSON.parse(readFileSync('tests/fixtures/object_info-v3-widgets.json', 'utf-8'))
+   const dts = new ComfySchema({ spec, embeddings: [] }).codegenDTS({ hostId: 'test-host-v3' })
+
+   it('emits dotted instance keys instead of the container declaration', () => {
+      // template.min = 1 → the first instance is required, the rest optional
+      expect(dts).toContain(`"values.a": Accepts["FLOAT,INT,BOOLEAN"]`)
+      expect(dts).toContain(`"values.b"?: Accepts["FLOAT,INT,BOOLEAN"]`)
+      expect(dts).toContain(`"values.z"?: Accepts["FLOAT,INT,BOOLEAN"]`)
+      expect(dts).not.toContain(`values: Accepts["COMFY_AUTOGROW_V3"]`)
+      expect(dts).not.toContain(`values?: Accepts["COMFY_AUTOGROW_V3"]`)
+   })
+
+   it('registers the template sub-input slot type like any slot', () => {
+      expect(dts).toContain(`"FLOAT,INT,BOOLEAN":`)
+   })
+})

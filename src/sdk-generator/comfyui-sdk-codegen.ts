@@ -4,6 +4,7 @@ import { escapeJSKey } from 'src/utils/escapeJSKey.ts'
 import type { ComfySchema } from 'src/sdk-generator/ComfySchema.ts'
 
 import { type ComfyNodeSchema, wrapQuote } from 'src/sdk-generator/ComfyNodeSchema.ts'
+import { classifySchemaInput, containerInstanceSlotType } from 'src/sdk-generator/inputWidgetKind.ts'
 
 /**
  * convert a host id to the namespace name it gets inside the global `Comfy` namespace
@@ -76,6 +77,20 @@ export function codegenSDK(this: ComfySchema, opts: CodegenOptions): string {
    for (const n of nodes) {
       p(`${escapeJSKey(n.nodeKey)}: {`)
       for (const i of n.inputs) {
+         // autogrow container: emit dotted instance keys, never the container
+         // decl itself — the backend prompt input is `<name>.<inst>`, the
+         // first template.min instances required (agent/sdk-codegen.md)
+         const kind = classifySchemaInput(i)
+         if (kind.kind === 'dynamic-container') {
+            const instType = containerInstanceSlotType(i.opts)
+            if (instType != null) {
+               kind.instanceNames.forEach((instName, ix) => {
+                  const opt = ix >= kind.requiredCount ? '?' : ''
+                  p(`    ${escapeJSKey(`${i.nameInComfy}.${instName}`)}${opt}: Accepts[${JSON.stringify(instType)}]`)
+               })
+            }
+            continue
+         }
          const opts_ = typeof i.opts === 'string' ? null : i.opts
          let type = `Accepts[${JSON.stringify(i.typeName)}]`
          // COMBO inputs (ComfyUI ≥ 0.3.x) carry literal choices in opts.options

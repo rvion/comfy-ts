@@ -4,6 +4,7 @@ import { toQualifiedNodeKey } from 'src/sdk-generator/_toQualifiedNodeKey.ts'
 import { ComfyNodeSchema } from 'src/sdk-generator/ComfyNodeSchema.ts'
 import type { ComfyEnumDef, ComfyNodeSchemaJSON, ComfySchemaJSON } from 'src/sdk-generator/ComfyUIObjectInfoTypes.ts'
 import { codegenSDK } from 'src/sdk-generator/comfyui-sdk-codegen.ts'
+import { classifyWidgetInput, containerInstanceSlotType } from 'src/sdk-generator/inputWidgetKind.ts'
 import {
    asComfyNodeSlotName,
    asComfyNodeSlotTypeName,
@@ -233,9 +234,21 @@ export class ComfySchema {
                )
             }
 
+            // autogrow container: the declaration is never a prompt input
+            // (instances are `<name>.<inst>` link slots) — never required, and
+            // its template sub-input slot type registers like any slot so
+            // codegen can type the dotted instance keys (agent/sdk-codegen.md)
+            const isAutogrowContainer =
+               typeof slotType === 'string' &&
+               classifyWidgetInput({ name: ipt.name, type: slotType, opts: slotOpts }).kind === 'dynamic-container'
+            if (isAutogrowContainer) {
+               const instType = containerInstanceSlotType(slotOpts)
+               if (instType != null) this.knownSlotTypes.add(asComfyNodeSlotTypeName(instType))
+            }
+
             node.inputs.push({
                slotName: inputSlotName,
-               required: ipt.required,
+               required: ipt.required && !isAutogrowContainer,
                nameInComfy: inputNameInComfy,
                nameInComfyEscaped: escapeJSKey(inputNameInComfy),
                typeName: inputTypeName,

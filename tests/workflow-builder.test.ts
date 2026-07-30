@@ -783,3 +783,31 @@ describe('tui settings persistence', () => {
       }
    })
 })
+
+describe('autogrow containers (builder face)', () => {
+   it('the container decl is never required; dotted instance keys wire as links, problems stay empty', async () => {
+      const { bang } = await import('src/utils/bang.ts')
+      const hostV3 = comfy.host({ id: 'test-host-v3', host: '127.0.0.1', port: 65501 })
+      const spec = JSON.parse(readFileSync('tests/fixtures/object_info-v3-widgets.json', 'utf-8'))
+      hostV3.schema.update({ spec, embeddings: [] })
+
+      const wf = hostV3.workflow({ id: 'autogrow-test' })
+      const bb = wf.builderBase
+      const prod = bang(bb.TestProducer, 'fixture has TestProducer')({})
+      bang(
+         bb.ComfyMathExpression,
+         'fixture has ComfyMathExpression',
+      )({
+         expression: '1 + a',
+         'values.a': bang(prod.outputs.STRING),
+      })
+
+      // the container decl ("values") consumes no prompt value: its absence is not a problem
+      expect(wf.problems).toEqual([])
+
+      const prompt = wf.toApiJson('use_stringified_numbers_only')
+      const math = Object.values(prompt).find((n) => n.class_type === 'ComfyMathExpression')
+      expect(math?.inputs['values.a']).toEqual([prod.uid, 4])
+      expect(Object.keys(math?.inputs ?? {})).not.toContain('values')
+   })
+})

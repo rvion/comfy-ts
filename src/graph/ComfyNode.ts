@@ -179,7 +179,10 @@ export class ComfyNode<
       for (const i of this.$schema.inputs) {
          _done.add(i.nameInComfy)
          const value = this.serializeValue(i.nameInComfy, promptExt.inputs[i.nameInComfy])
-         inputs[i.nameInComfy] = value
+         // absent optionals (autogrow containers included) stay OUT of the
+         // prompt: an `undefined` value would already be dropped by JSON
+         // serialization, keeping the key would only lie to Object.keys
+         if (value !== undefined) inputs[i.nameInComfy] = value
       }
       for (const [nameInComfy, rawVal] of Object.entries(promptExt.inputs)) {
          if (_done.has(nameInComfy)) continue
