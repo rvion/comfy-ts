@@ -127,7 +127,7 @@ wires `vars.prompt.positive` and, when the graph has a negative branch,
 | i2i  | `image: v.text('', 'image path')` (empty → generated placeholder, like example 02), `steps`, `denoise: v.float` when the template exposes it. Upload via async build + `MediaImage.loadInWorkflow_viaLoadImageNode(wf)` |
 | t2v  | `steps`, `cfg` (when used), `size` (when free), `length: v.int` (frames), `fps: v.int` (wired to CreateVideo/SaveVideo) |
 | i2v  | `image` (as i2i), `length`, `fps`, `steps`                          |
-| t2a  | `seconds: v.float`, `steps` (tags/lyrics ride in `prompt`)          |
+| t2a  | `seconds: v.float`, `steps` (tags/lyrics ride in `prompt`: when the encode node splits them — ace-step — the FIRST prompt line is the tags, the remaining lines are the lyrics, split at build time) |
 
 Model-specific extras (shift, guidance, …) are allowed when the template
 exposes them as top-level widgets, kept to what a user would actually tweak.
