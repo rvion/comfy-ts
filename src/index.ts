@@ -10,7 +10,14 @@ export * from 'src/types/comfy-sdk.ts'
 export { ComfyTS } from 'src/state.ts'
 
 // host
-export { ComfyHost, type ComfyHostData, type ComfyHostID, type ConnectOptions } from 'src/host/ComfyHost.ts'
+export {
+   ComfyHost,
+   ComfyHostAuthError,
+   type ComfyHostData,
+   type ComfyHostID,
+   type ConnectOptions,
+} from 'src/host/ComfyHost.ts'
+export { type ParsedHostBase, parseHostBase, renderHttpBase, renderWsUrl } from 'src/host/hostUrl.ts'
 export { ComfyManager } from 'src/host/ComfyManager.ts'
 export { ComfyUploader, type ComfyUploadImageResult } from 'src/host/ComfyUploader.ts'
 export { ComfyWorkflowBuilder } from 'src/host/ComfyWorkflowBuilder.ts'

@@ -21,7 +21,12 @@ import { softValidate } from 'src/utils/softValidate.ts'
 import type { PluginInstallStatus } from 'src/host/Requirements.ts'
 
 export class ComfyManager {
-   constructor(public host: { getServerHostHTTP: () => string }) {
+   constructor(
+      public host: {
+         getServerHostHTTP: () => string
+         fetch: (route: string, init?: RequestInit, p?: { apiPrefix?: boolean }) => Promise<Response>
+      },
+   ) {
       // void this.updateHostPluginsAndModels()
    }
 
@@ -58,11 +63,10 @@ export class ComfyManager {
                no()
             }
             if (abortCtrl) abortCtrl.abort()
-            const url = this.host.getServerHostHTTP()
             abortCtrl = new AbortController()
             try {
                console.log(`   - trying...`)
-               await fetch(url, { signal: abortCtrl.signal })
+               await this.host.fetch('/', { signal: abortCtrl.signal }, { apiPrefix: false })
                clearInterval(interval)
                yes(true)
             } catch {
@@ -200,8 +204,7 @@ export class ComfyManager {
 
    // --------------------------------------------------------------
    private fetchPost = async <IN, OUT = unknown>(endpoint: string, body: IN, validator?: Type<OUT>): Promise<OUT> => {
-      const url = this.host.getServerHostHTTP() + endpoint
-      const response = await fetch(url, {
+      const response = await this.host.fetch(endpoint, {
          method: 'POST',
          headers: { 'Content-Type': 'application/json' },
          body: JSON.stringify(body),
@@ -214,8 +217,7 @@ export class ComfyManager {
    }
 
    private fetchGetJSON = async <OUT = unknown>(endpoint: string, validator?: Type<OUT>): Promise<OUT> => {
-      const url = this.host.getServerHostHTTP() + endpoint
-      const response = await fetch(url)
+      const response = await this.host.fetch(endpoint)
       if (!response.ok) throw new Error(`GET ${endpoint} failed: ${response.status} ${response.statusText}`)
       const jsonResult = await response.json()
       if (validator) return softValidate(validator, jsonResult)
@@ -224,8 +226,7 @@ export class ComfyManager {
    }
 
    private fetchGetText = async (endopint: string): Promise<string> => {
-      const url = this.host.getServerHostHTTP() + endopint
-      const response = await fetch(url)
+      const response = await this.host.fetch(endopint)
       const status = await response.text()
       return status
    }

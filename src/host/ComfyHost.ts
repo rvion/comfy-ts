@@ -31,6 +31,7 @@ import { writeFileAsync } from 'src/utils/writeFile.ts'
 import type { ComfyInstallType } from 'src/host/ComfyInstallType.ts'
 import { ComfyManager } from 'src/host/ComfyManager.ts'
 import { ComfyUploader } from 'src/host/ComfyUploader.ts'
+import { type ParsedHostBase, parseHostBase, renderHttpBase, renderWsUrl } from 'src/host/hostUrl.ts'
 import type { Requirements } from 'src/host/Requirements.ts'
 import { ResilientWebSocketClient } from 'src/host/ResilientWebsocket.ts'
 import { DefinedWorkflow, type DefineWorkflowSpec } from 'src/vars/DefinedWorkflow.ts'
@@ -39,9 +40,20 @@ import type { VarsSpec } from 'src/vars/ComfyVars.ts'
 export type ComfyHostID = Tagged<string, { HostID: true }>
 export type ComfyHostData = {
    id: string
-   host: string
-   port: number
+
+   /** full base url as pasted from a provider (https://cloud.comfy.org,
+    * https://xxx.modal.run, http://192.168.1.5:8188/comfy).
+    * Exactly ONE of url OR the legacy host+port (+https?) spelling. */
+   url?: string
+   host?: string
+   port?: number
    https?: boolean
+
+   /** sent as X-API-Key on every request AND the ws upgrade.
+    * NEVER persist the value: read it from an env var (e.g. COMFY_CLOUD_API_KEY) */
+   apiKey?: string
+   /** extra headers merged into every request + the ws upgrade (Modal-style auth pairs) */
+   headers?: Record<string, string>
 
    // for extra features using path manipulation
    installType?: ComfyInstallType
@@ -68,6 +80,20 @@ type ServerLog = {
    id: number
 }
 
+/** auth failure with a SPECIFIC meaning (per the Comfy Cloud error table):
+ * 401 invalid/missing key · 402 insufficient credits · 429 subscription inactive
+ * (or plain rate limiting on non-cloud hosts). The key value never appears here. */
+export class ComfyHostAuthError extends Error {
+   constructor(
+      public code: 401 | 402 | 429,
+      public hostId: string,
+      message: string,
+   ) {
+      super(message)
+      this.name = 'ComfyHostAuthError'
+   }
+}
+
 export class ComfyHost<ID extends string = string> {
    // ----- misc paths where we'll store host-related files -----
    cacheFolder: AbsolutePath
@@ -80,7 +106,12 @@ export class ComfyHost<ID extends string = string> {
    schema: ComfySchema
    uploader = new ComfyUploader(this)
 
+   /** parsed ONCE from data (url-first or legacy host/port/https) — the url ground truth */
+   readonly base: ParsedHostBase
+
    constructor(public data: ComfyHostData & { id: ID }) {
+      this.base = parseHostBase(this.data)
+
       /** folder where file related to the host config will be cached */
       this.cacheFolder = comfyts.resolveFromHosts(this.data.id)
 
@@ -198,17 +229,106 @@ export class ComfyHost<ID extends string = string> {
 
    // URLS -----------------------------------------------------------------------------
    getServerHostHTTP(): string {
-      const method = this.data.https ? 'https' : 'http'
-      const host = this.data.host
-      const port = this.data.port
-      return `${method}://${host}:${port}`
+      return renderHttpBase(this.base)
    }
 
    getWSUrl = (): string => {
-      const method = this.data.https ? 'wss' : 'ws'
-      const host = this.data.host
-      const port = this.data.port
-      return `${method}://${host}:${port}/ws`
+      return renderWsUrl(this.base)
+   }
+
+   // HTTP -----------------------------------------------------------------------------
+   /** extra headers + X-API-Key, for every http request AND the ws upgrade */
+   private authHeaders(): Record<string, string> {
+      const out: Record<string, string> = {}
+      if (this.data.headers != null) Object.assign(out, this.data.headers)
+      if (this.data.apiKey != null) out['X-API-Key'] = this.data.apiKey
+      return out
+   }
+
+   /** remembered /api-prefix verdict for this host; null until first probed */
+   private _apiPrefix: boolean | null = null
+
+   /**
+    * the ONE http path to this host: joins basePath, injects X-API-Key + extra
+    * headers, prefers `/api<route>` (required by Comfy Cloud, canonical since
+    * custom nodes hijack bare routes) with a bare-route fallback on 404/405 for
+    * old local servers (winner memoized; the other spelling is still retried
+    * when the memo misses — mixed servers exist, e.g. /internal is bare-only).
+    * Auth failures throw a typed ComfyHostAuthError instead of generic noise.
+    * `p.apiPrefix: false` opts a route out of the prefix game entirely.
+    */
+   fetch = async (route: string, init: RequestInit = {}, p: { apiPrefix?: boolean } = {}): Promise<Response> => {
+      const base = this.getServerHostHTTP()
+      const headers = new Headers(init.headers)
+      for (const [k, v] of Object.entries(this.authHeaders())) headers.set(k, v)
+      const send = (prefixed: boolean): Promise<Response> =>
+         fetch(`${base}${prefixed ? '/api' : ''}${route}`, { ...init, headers })
+      const missed = (res: Response): boolean => res.status === 404 || res.status === 405
+
+      let res: Response
+      if (p.apiPrefix === false) {
+         res = await send(false)
+      } else if (this._apiPrefix != null) {
+         res = await send(this._apiPrefix)
+         if (missed(res)) {
+            const alt = await send(!this._apiPrefix)
+            if (!missed(alt)) res = alt
+         }
+      } else {
+         res = await send(true)
+         if (missed(res)) {
+            const bare = await send(false)
+            if (!missed(bare)) {
+               this._apiPrefix = false
+               res = bare
+            }
+         } else {
+            this._apiPrefix = true
+         }
+      }
+      this.throwOnAuthError(res, route)
+      return res
+   }
+
+   /**
+    * binary download path: Comfy Cloud answers `/api/view` with a 302 to a
+    * temporary signed URL. fetch only auto-strips Authorization/cookies on
+    * cross-origin redirects — a custom X-API-Key WOULD be forwarded to the
+    * storage host — so we follow the Location manually with a CLEAN fetch.
+    */
+   fetchFile = async (route: string): Promise<Response> => {
+      const res = await this.fetch(route, { redirect: 'manual' })
+      if (res.status >= 300 && res.status < 400) {
+         const location = res.headers.get('location')
+         if (location == null)
+            throw new Error(`GET ${route} on host '${this.data.id}' redirected (${res.status}) without a Location`)
+         void res.body?.cancel()
+         return fetch(new URL(location, this.getServerHostHTTP()))
+      }
+      return res
+   }
+
+   private throwOnAuthError(res: Response, route: string): void {
+      if (res.status === 401)
+         throw new ComfyHostAuthError(
+            401,
+            this.data.id,
+            this.data.apiKey != null
+               ? `host '${this.data.id}': 401 on ${route} — API key invalid or expired`
+               : `host '${this.data.id}': 401 on ${route} — host requires authentication, no apiKey configured`,
+         )
+      if (res.status === 402)
+         throw new ComfyHostAuthError(
+            402,
+            this.data.id,
+            `host '${this.data.id}': 402 on ${route} — insufficient credits`,
+         )
+      if (res.status === 429)
+         throw new ComfyHostAuthError(
+            429,
+            this.data.id,
+            `host '${this.data.id}': 429 on ${route} — subscription inactive or rate limited`,
+         )
    }
 
    // LOGS -----------------------------------------------------------------------------
@@ -376,6 +496,8 @@ export class ComfyHost<ID extends string = string> {
          },
          onMessage: (e: MessageEvent): void => this.onMessage(e),
          url: () => this.getWSUrl(),
+         // auth rides the upgrade HEADERS, never the query string
+         headers: () => this.authHeaders(),
          onClose: (): void => {
             logInfo(`[👢] WEBSOCKET: closed connection to ComfyUI host ${this.data.id}`)
          },
@@ -425,18 +547,14 @@ export class ComfyHost<ID extends string = string> {
       return this._schemaFromCache
    }
 
-   /** POST a JSON route, preferring the /api prefix, falling back to the bare route */
+   /** POST a JSON route through host.fetch (/api preferred, bare fallback) */
    private postJSON_ = async (route: string, body: unknown): Promise<void> => {
-      const base = this.getServerHostHTTP()
-      for (const url of [`${base}/api${route}`, `${base}${route}`]) {
-         const res = await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body),
-         })
-         if (res.ok) return
-      }
-      throw new Error(`POST ${route} failed on ${base} (tried /api${route} and ${route})`)
+      const res = await this.fetch(route, {
+         method: 'POST',
+         headers: { 'Content-Type': 'application/json' },
+         body: JSON.stringify(body),
+      })
+      if (!res.ok) throw new Error(`POST ${route} failed on ${this.getServerHostHTTP()}: ${res.status}`)
    }
 
    /** drop every PENDING prompt from the server queue (the running one keeps going) */
@@ -454,7 +572,7 @@ export class ComfyHost<ID extends string = string> {
 
    /** the server's recent console buffer (entries are write CHUNKS, not lines) */
    fetchRawLogs = async (): Promise<{ entries: LogEntry[] }> => {
-      const res = await fetch(`${this.getServerHostHTTP()}/internal/logs/raw`)
+      const res = await this.fetch('/internal/logs/raw', {}, { apiPrefix: false })
       if (!res.ok) throw new Error(`GET /internal/logs/raw failed: ${res.status}`)
       const json: unknown = await res.json()
       // wire tolerance (agent/coding.md cast #4): soft-validate, log, still cast
@@ -469,24 +587,27 @@ export class ComfyHost<ID extends string = string> {
    /** (un)subscribe THIS session to ws 'logs' messages — per-sid server state,
     * must be re-sent after every reconnect (see onSession) */
    subscribeLogs = async (p: { enabled: boolean; clientId: string }): Promise<void> => {
-      const res = await fetch(`${this.getServerHostHTTP()}/internal/logs/subscribe`, {
-         method: 'PATCH',
-         headers: { 'Content-Type': 'application/json' },
-         body: JSON.stringify({ enabled: p.enabled, clientId: p.clientId }),
-      })
+      const res = await this.fetch(
+         '/internal/logs/subscribe',
+         {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ enabled: p.enabled, clientId: p.clientId }),
+         },
+         { apiPrefix: false },
+      )
       if (!res.ok) throw new Error(`PATCH /internal/logs/subscribe failed: ${res.status}`)
    }
 
-   /** GET a JSON route, preferring the /api prefix, falling back to the bare route */
+   /** GET a JSON route through host.fetch (/api preferred, bare fallback) */
    private fetchJSON_ = async <T>(route: string): Promise<T> => {
       const base = this.getServerHostHTTP()
-      for (const url of [`${base}/api${route}`, `${base}${route}`]) {
-         const res = await fetch(url, { method: 'GET' })
-         if (!res.ok) continue
-         if (!(res.headers.get('content-type') ?? '').includes('json')) continue
-         return (await res.json()) as T
-      }
-      throw new Error(`GET ${route} failed on ${base} (tried /api${route} and ${route})`)
+      const res = await this.fetch(route)
+      if (!res.ok) throw new Error(`GET ${route} failed on ${base}: ${res.status}`)
+      const contentType = res.headers.get('content-type') ?? ''
+      if (!contentType.includes('json'))
+         throw new Error(`GET ${route} on ${base} answered '${contentType || 'no content-type'}' instead of json`)
+      return (await res.json()) as T
    }
 
    /** retrieve the comfy spec from the schema*/

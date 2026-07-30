@@ -33,15 +33,15 @@ export function loraPreviewKey(name: string): string {
  * (server-relative). Returns null when the extension is absent (404/network).
  */
 export async function fetchLoraPreviewMap(host: ComfyHost): Promise<Map<string, string> | null> {
-   const base = host.getServerHostHTTP()
    const map = new Map<string, string>()
    const pageSize = 500
    for (let page = 1; page <= 20; page++) {
       let res: Response
       try {
-         res = await fetch(`${base}/api/lm/loras/list?page=${page}&page_size=${pageSize}`)
+         // the extension registers under /api — already prefixed, skip the probe
+         res = await host.fetch(`/api/lm/loras/list?page=${page}&page_size=${pageSize}`, {}, { apiPrefix: false })
       } catch {
-         return null // host unreachable: previews off, not an error
+         return null // host unreachable (or auth-refused): previews off, not an error
       }
       if (!res.ok) return page === 1 ? null : map // 404 on page 1 = extension absent
       const json: unknown = await res.json()
@@ -83,7 +83,8 @@ export async function fetchLoraPreviewBytes(host: ComfyHost, previewUrl: string)
    const cachePath = comfyts.resolveFromCache(`lora-previews/${createHash('sha1').update(previewUrl).digest('hex')}`)
    if (existsSync(cachePath)) return new Uint8Array(readFileSync(cachePath))
    try {
-      const res = await fetch(`${host.getServerHostHTTP()}${previewUrl}`)
+      // preview_url is already a full server-relative path — no /api probing
+      const res = await host.fetch(previewUrl, {}, { apiPrefix: false })
       if (!res.ok) return null
       const ct = res.headers.get('content-type') ?? ''
       if (ct !== '' && !ct.startsWith('image/')) return null // HTML fallback etc.

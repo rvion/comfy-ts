@@ -3,6 +3,7 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'pathe'
 import { ComfySchema } from 'src/sdk-generator/ComfySchema.ts'
 import type { ComfySchemaJSON } from 'src/sdk-generator/ComfyUIObjectInfoTypes.ts'
+import { ComfyTS } from 'src/state.ts'
 import { readableStringify } from 'src/utils/stringifyReadable.ts'
 
 export async function runGen(args: string[]): Promise<number> {
@@ -17,16 +18,18 @@ export async function runGen(args: string[]): Promise<number> {
       return 1
    }
 
-   // prefer /api/* (canonical prefix; custom nodes like lora-manager hijack the bare routes)
+   // the lib's own authed host.fetch does the /api-first probing + X-API-Key
+   const comfy = ComfyTS.create()
+   const apiKey = getFlag('api-key') ?? process.env.COMFY_CLOUD_API_KEY
+   const host = comfy.host({ id, url: hostUrl, apiKey: apiKey ?? undefined })
+
    const fetchJSON = async <T>(route: string): Promise<T> => {
-      for (const url of [`${hostUrl}/api${route}`, `${hostUrl}${route}`]) {
-         console.log(`[comfy-ts gen] fetching ${url} …`)
-         const res = await fetch(url)
-         if (!res.ok) continue
-         if (!(res.headers.get('content-type') ?? '').includes('json')) continue
-         return (await res.json()) as T
-      }
-      throw new Error(`GET ${route} failed on ${hostUrl} (tried /api${route} and ${route})`)
+      console.log(`[comfy-ts gen] fetching ${hostUrl} ${route} …`)
+      const res = await host.fetch(route)
+      if (!res.ok) throw new Error(`GET ${route} failed on ${hostUrl}: ${res.status}`)
+      if (!(res.headers.get('content-type') ?? '').includes('json'))
+         throw new Error(`GET ${route} on ${hostUrl} did not answer json`)
+      return (await res.json()) as T
    }
 
    const spec = await fetchJSON<ComfySchemaJSON>('/object_info')

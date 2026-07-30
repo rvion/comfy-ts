@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'pathe'
 import pkgJson from '../package.json' with { type: 'json' }
 import { ComfyHost, type ComfyHostData } from 'src/host/ComfyHost.ts'
+import { parseHostBase, renderHttpBase } from 'src/host/hostUrl.ts'
 import { ComfyRegistry } from 'src/manager/ComfyRegistry.ts'
 import { type AbsolutePath, asAbsolutePath, type RelativePath } from 'src/types/index.ts'
 
@@ -42,9 +43,19 @@ export class ComfyTS {
    host<const ID extends string>(data: ComfyHostData & { id: ID }): ComfyHost<ID> {
       const existing = this.hosts.get(data.id)
       if (existing != null) {
-         if (existing.data.host !== data.host || existing.data.port !== data.port || existing.data.https !== data.https)
+         // identity = the parsed base quad + apiKey PRESENCE (equivalent url and
+         // host/port spellings unify; the key VALUE never appears in the error)
+         const incoming = parseHostBase(data)
+         const cur = existing.base
+         const sameBase =
+            cur.scheme === incoming.scheme &&
+            cur.host === incoming.host &&
+            cur.port === incoming.port &&
+            cur.basePath === incoming.basePath
+         const sameAuth = (existing.data.apiKey == null) === (data.apiKey == null)
+         if (!sameBase || !sameAuth)
             throw new Error(
-               `host id '${data.id}' already registered at ${existing.data.host}:${existing.data.port} — refusing ${data.host}:${data.port}`,
+               `host id '${data.id}' already registered at ${renderHttpBase(cur)}${existing.data.apiKey != null ? ' (authed)' : ''} — refusing ${renderHttpBase(incoming)}${data.apiKey != null ? ' (authed)' : ''}`,
             )
          // cast: whitelist item 7 (agent/coding.md) — id equality checked just above
          return existing as ComfyHost<ID>

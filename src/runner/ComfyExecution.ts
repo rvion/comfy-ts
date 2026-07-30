@@ -201,9 +201,8 @@ export class ComfyExecution {
       const promptMeta = this.workflow.data.metadata?.[promptNodeID]
       if (promptNode == null) throw new Error(`❌ invariant violation: promptNode is null`)
 
-      // get image url from ComfyUI
-      const serverURL = this.host.getServerHostHTTP()
-      const imgUrl = serverURL + '/view?' + new URLSearchParams(comfyImageInfo).toString()
+      // image route on the host (cloud answers a 302 signed url — fetchFile follows it unauthed)
+      const imgRoute = '/view?' + new URLSearchParams(comfyImageInfo).toString()
 
       // target path on disk
       const sf = this.saveFormat
@@ -222,7 +221,7 @@ export class ComfyExecution {
 
       // RE-ENCODE (COMPRESSED)
       if (sf && sf.format !== 'raw') {
-         const response = await fetch(imgUrl, { headers: { 'Content-Type': 'image/png' }, method: 'GET' })
+         const response = await this.host.fetchFile(imgRoute)
          const buff = await response.arrayBuffer()
          let textChunk = {}
          try {
@@ -257,7 +256,7 @@ export class ComfyExecution {
 
       // SAVE RAW ------------------------------------------------------------------------------------------
       else {
-         const response = await fetch(imgUrl, { headers: { 'Content-Type': 'image/png' }, method: 'GET' })
+         const response = await this.host.fetchFile(imgRoute)
          const buff = await response.arrayBuffer()
          const uint8arr = new Uint8Array(buff)
          writeFileSync(absPath, uint8arr)

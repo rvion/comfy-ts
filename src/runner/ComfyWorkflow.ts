@@ -363,9 +363,9 @@ export class ComfyWorkflow<ID extends string = string> {
          },
       }
 
-      const promptEndpoint = `${this.host.getServerHostHTTP()}/prompt`
-      const res = await fetch(promptEndpoint, {
+      const res = await this.host.fetch('/prompt', {
          method: 'POST',
+         headers: { 'Content-Type': 'application/json' },
          body: JSON.stringify(out),
       })
       const promptInfoJson = await res.json()

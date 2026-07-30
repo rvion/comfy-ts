@@ -40,7 +40,10 @@ src/state.ts               ComfyTS singleton (global `comfyts`), path resolution
 src/types/index.ts         shared branded types (AbsolutePath, Maybe, Result, …)
 src/types/comfy-sdk.ts     base global Comfy.* namespace + Hosts registry + SdkForHost<ID>
 src/host/                  per-server connection layer
-   ComfyHost.ts            central class: ws lifecycle, schema fetch, sdk regen, msg routing
+   ComfyHost.ts            central class: ws lifecycle, schema fetch, sdk regen, msg routing,
+                           host.fetch/fetchFile (the ONE authed http path, see "Cloud & remote hosts")
+   hostUrl.ts              pure url layer: parseHostBase (url-first OR legacy host/port/https
+                           → {scheme,host,port,basePath}), renderHttpBase/renderWsUrl
    ComfyManager.ts         ComfyUI-Manager plugin HTTP API (install plugins/models, reboot)
    ComfyUploader.ts        image upload with hash-dedupe against host schema
    ComfyWorkflowBuilder.ts runtime builder (one factory per schema node, dynamic)
@@ -110,9 +113,10 @@ tests/                     bun tests (headless) + fixtures
    imports many workflow modules into one process. `new ComfyTS()` still throws
    on a second instance (create() is the multi-module path).
 2. `comfyts.host({ id: 'windows-1', host, port })` → `ComfyHost<'windows-1'>`.
-   Registry keyed by id: same id → the SAME instance back (host/port must match,
-   loud throw otherwise). `connect()` is idempotent (cached ready promise) —
-   one ws per host, ever.
+   Registry keyed by id: same id → the SAME instance back (the parsed base quad
+   scheme/host/port/basePath + apiKey PRESENCE must match, loud throw otherwise —
+   the key value never appears in the error). `connect()` is idempotent (cached
+   ready promise) — one ws per host, ever.
 3. `host.connect()` → ws connect → `fetchAndUpdateSchema()` → GET /object_info +
    /embeddings → arktype-validate → `ComfySchema` → `ComfyUIObjectInfoParsed` →
    `codegenSDK({hostId})` → write `.comfy-ts/hosts/<id>/sdk.d.ts`.
@@ -508,7 +512,7 @@ unknown ──LiteGraphJSON_ark──▶ LiteGraphJSON (loose wire type)
   execution-semantics permutations (e.g. bypass rewiring) mutate a small
   fixture in-test instead of multiplying files.
 
-## Cloud & remote hosts (designed 2026-07-30 — docs first, code follows)
+## Cloud & remote hosts (designed 2026-07-30, code landed same day)
 
 Ground truth: `.rv-journal/cloud-audit.md` (the 2026-07-29 inventory: 16 bare
 fetch sites, no auth path, ws without options, `/api` prefix stragglers) and
@@ -517,8 +521,9 @@ upstream page, frontmatter `url:` + `importedAt:`). Comfy Cloud facts, probed
 2026-07-30 against the live service: base `https://cloud.comfy.org`,
 ComfyUI-compatible protocol under `/api/*`, auth header `X-API-Key`, ws at
 `wss://cloud.comfy.org/ws`, `/api/user` → `{id, status}` on a valid key,
-object_info ≈ 9.3 MB / 3573 node types. This section is the decided contract
-for the code arc; none of it is built yet.
+object_info ≈ 9.3 MB / 3573 node types. This section is the decided contract;
+the connectivity code below is BUILT (headless-tested against Bun.serve stubs).
+Live cloud proving is still pending — never from tests, CI has no key.
 
 ### ComfyHostData: url-first form
 
@@ -530,12 +535,18 @@ for the code arc; none of it is built yet.
   Loud throw when both or neither are given.
 - The constructor parses ONCE into a normalized quad `{scheme: 'http'|'https',
   host, port, basePath}` (port defaults 80/443 from the scheme; basePath is
-  `''` or `/segment…` with no trailing slash). `getServerHostHTTP()` /
-  `getWSUrl()` render from the quad and OMIT the port when it is the scheme
-  default, so `https://cloud.comfy.org` round-trips clean while
-  `host: '192.168.1.5', port: 8188` renders exactly as today.
+  `''` or `/segment…` with no trailing slash). Parsing + rendering are PURE
+  (`src/host/hostUrl.ts`: `parseHostBase`, `renderHttpBase`, `renderWsUrl`) so
+  they test headless without the comfyts global. `getServerHostHTTP()` /
+  `getWSUrl()` render from the quad (`host.base`) and OMIT the port when it is
+  the scheme default, so `https://cloud.comfy.org` round-trips clean while
+  `host: '192.168.1.5', port: 8188` renders exactly as today. A url carrying
+  `?query`/`#hash`, a non-http(s) scheme, or a mixed url+host/port spelling
+  throws loud at construction.
 - `comfyts.host()` identity check extends to the whole quad + apiKey presence
-  (never the key VALUE in the error message).
+  (never the key VALUE in the error message). Equivalent spellings unify: a
+  legacy host/port triple and a `url:` parsing to the same quad return the
+  same registered instance.
 
 ### apiKey — value never in the repo
 
@@ -554,20 +565,27 @@ for the code arc; none of it is built yet.
 
 ### host.fetch — the ONE http path (kills the 16-site debt)
 
-- `host.fetch(route, init?)` on ComfyHost: joins basePath, injects `X-API-Key`
-  when set, merges optional `data.headers` (Modal-style extra headers), throws
-  the typed auth errors above. EVERY host-bound fetch site routes through it —
+- `host.fetch(route, init?, p?)` on ComfyHost: joins basePath, injects
+  `X-API-Key` when set, merges optional `data.headers` (Modal-style extra
+  headers), throws the typed auth errors above (`ComfyHostAuthError`, code
+  401/402/429). EVERY host-bound fetch site routes through it —
   the audit's list of 16: ComfyHost `postJSON_/fetchJSON_/fetchRawLogs/
   subscribeLogs`, ComfyManager ×4, ComfyUploader, loraManagerApi,
-  ComfyExecution image downloads ×2, `ComfyWorkflow.start`, `cli/gen.ts`,
-  `tui HostSt.probe`. After the sweep, a direct `fetch(` against a host URL
-  outside ComfyHost is a defect (grep-enforceable).
+  ComfyExecution image downloads ×2, `ComfyWorkflow.start`, `cli/gen.ts`
+  (which now registers a real `comfyts.host` from its `--host` url and takes
+  `--api-key` / `COMFY_CLOUD_API_KEY`), `tui HostSt.probe`. After the sweep, a
+  direct `fetch(` against a host URL outside ComfyHost is a defect
+  (grep-enforceable).
 - `/api` prefix preference moves INTO the helper: try `/api<route>` first,
   fall back to the bare route on 404/405, remember the winner per host (one
-  probe, not per call). That is today's `fetchJSON_`/`postJSON_` pattern
-  centralized — the two stragglers the audit found (`POST /prompt` in
-  ComfyWorkflow.start, `POST /upload/image` in ComfyUploader) get it for free.
-  Required by Comfy Cloud, harmless locally.
+  probe, not per call; when the remembered spelling later 404s the OTHER one
+  is still tried, memo unchanged — mixed servers exist). That is today's
+  `fetchJSON_`/`postJSON_` pattern centralized — the two stragglers the audit
+  found (`POST /prompt` in ComfyWorkflow.start, `POST /upload/image` in
+  ComfyUploader) get it for free. Required by Comfy Cloud, harmless locally.
+  Routes served BARE only by design (`/internal/logs/*`, already-prefixed
+  extension routes, server-relative preview paths) pass
+  `p: { apiPrefix: false }` and skip the probe entirely.
 - `/api/view` downloads: the cloud answers 302 to a temporary signed URL.
   fetch only auto-strips `Authorization`/cookies on cross-origin redirects —
   a CUSTOM `X-API-Key` header would be forwarded to the storage host. So
@@ -585,10 +603,11 @@ for the code arc; none of it is built yet.
   HTTP/1.1): no auth → 401, bad token → 401, and ALL THREE of `?token=<key>`
   (the documented spelling), `X-API-Key: <key>`, `Authorization: Bearer <key>`
   → 101. We send the HEADER: `ResilientWebSocketClient` gains
-  `options.headers` passed to `new WebSocket(url, { headers })` (the `ws`
-  package supports it; we are not browser-bound), keeping the key out of URLs
-  and proxy logs. `getWSUrl()` appends `?clientId=<uuid>` only — never the
-  token in the query string.
+  `options.headers` (a THUNK, re-read on every reconnect) passed to
+  `new WebSocket(url, { headers })` (the `ws` package supports it; we are not
+  browser-bound), keeping the key out of URLs and proxy logs. `getWSUrl()`
+  never puts the token in the query string (today it appends no params at
+  all; a future `?clientId=<uuid>` is the only one it may ever carry).
 
 ### The committed cloud SDK catalog
 

@@ -104,9 +104,8 @@ export class HostSt {
       this.spinTimer = spin
       let ok = false
       try {
-         const res = await fetch(`${host.getServerHostHTTP()}/api/prompt`, {
-            signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
-         })
+         // host.fetch: /api preferred + auth header, so cloud hosts probe up too
+         const res = await host.fetch('/prompt', { signal: AbortSignal.timeout(PROBE_TIMEOUT_MS) })
          void res.body?.cancel()
          ok = res.ok
       } catch {

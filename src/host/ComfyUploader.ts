@@ -50,8 +50,7 @@ export class ComfyUploader {
       if (p.override ?? true) form.set('override', 'true')
       // const subfolder = p.subfolder ?? 'comfyts-upload'
       if (p.subfolder) form.set('subfolder', p.subfolder)
-      const uploadURL = this.host.getServerHostHTTP() + '/upload/image'
-      const resp = await fetch(uploadURL, { method: 'POST', body: form })
+      const resp = await this.host.fetch('/upload/image', { method: 'POST', body: form })
       const result: ComfyUploadImageResult = softValidate(ComfyUploadImageResult_ark, await resp.json())
 
       // 4. check upload is successfull

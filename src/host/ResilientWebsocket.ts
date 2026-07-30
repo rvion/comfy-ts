@@ -33,6 +33,8 @@ export class ResilientWebSocketClient {
    constructor(
       public options: {
          url: () => string /*protocols?: string | string[]*/
+         /** upgrade-request headers (auth: X-API-Key & co) — a thunk, re-read on every reconnect */
+         headers?: () => Record<string, string>
          onMessage: (event: MessageEvent) => void
          onConnectOrReconnect: () => void
          onClose: () => void
@@ -66,7 +68,7 @@ export class ResilientWebSocketClient {
          this.addInfo('Previous WebSocket discarded')
          prevWS.close()
       }
-      const ws = new WebSocket(this.url)
+      const ws = new WebSocket(this.url, { headers: this.options.headers?.() })
       ws.binaryType = 'arraybuffer'
 
       this.currentWS = ws
