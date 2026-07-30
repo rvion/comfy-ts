@@ -20,6 +20,7 @@ the whole pipeline.
 [🎛️ App mode & vars](#-app-mode--vars-knobs-on-everything) ·
 [🖥️ TUI](#-the-tui) ·
 [⌨️ CLI](#-the-cli) ·
+[🌍 Comfy Cloud & hosts](#-hosts-local-lan-comfy-cloud-any-provider) ·
 [🔌 Ecosystem](#-ecosystem-discovery-and-install) ·
 [🤖 Agents](#-for-ai-agents) ·
 [📚 Examples](#-examples) ·
@@ -304,6 +305,43 @@ bunx comfy-ts tui [dir | module]   # scan just that
 
 Any reachable host: the box under your desk or a GPU machine across the
 network, same command, same output.
+
+## 🌍 Hosts: local, LAN, Comfy Cloud, any provider
+
+Every Comfy is supported, through one identical API. Same mechanism, same
+codegen, same typed SDK, same TUI, whatever answers the protocol:
+
+```ts
+// the box you are on
+comfy.host({ id: 'local', host: '127.0.0.1', port: 8188 })
+
+// another machine on your network
+comfy.host({ id: 'gpu-tower', host: '192.168.1.5', port: 8188 })
+
+// official Comfy Cloud: same everything, plus an api key
+comfy.host({ id: 'comfy-cloud', url: 'https://cloud.comfy.org', apiKey: process.env.COMFY_CLOUD_API_KEY })
+
+// any third party provider: paste its base url; extra auth headers welcome
+comfy.host({ id: 'runpod', url: 'https://xxxx-8188.proxy.runpod.net' })
+comfy.host({ id: 'modal', url: 'https://you--comfy.modal.run', headers: { 'Modal-Key': '…', 'Modal-Secret': '…' } })
+```
+
+[Comfy Cloud](https://cloud.comfy.org) is first-class: the key rides
+`X-API-Key` on every request and the websocket, outputs download through the
+signed-url redirect, live latent previews stream into the TUI, and the whole
+cloud catalog ships as a committed, browsable SDK
+([`examples/comfy-cloud/sdk.d.ts`](examples/comfy-cloud/sdk.d.ts), run it
+with [example 05](examples/05-comfy-cloud.cflow.ts)).
+
+Reaching a Comfy running on another one of your machines:
+
+- **ssh tunnel**: `ssh -N -L 8188:127.0.0.1:8188 you@gpu-box`, then
+  `host: '127.0.0.1', port: 8188` as if it were local (`ssh -R` does the
+  reverse: expose YOUR Comfy to the remote box).
+- **tailscale**: `tailscale serve 8188` on the box gives a stable https url
+  for `url:`; plain tailnet hostnames work with `host:` too.
+- **cloudflared**: `cloudflared tunnel --url http://127.0.0.1:8188` prints a
+  temporary public https url, paste it into `url:`.
 
 ## 🔌 Ecosystem discovery and install
 

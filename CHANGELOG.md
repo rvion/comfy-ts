@@ -1,5 +1,79 @@
 # comfy-ts
 
+## 1.0.0
+
+The 1.0: every Comfy is supported (local, LAN, Comfy Cloud, any provider),
+the official template corpus imports at 99.5%, and the TUI works out of the
+box with zero arguments.
+
+### Cloud and remote hosts
+
+- New host config spelling: `comfy.host({ id, url })` takes a full base url
+  as pasted from a provider (`https://cloud.comfy.org`,
+  `https://xxx.modal.run`, base paths supported). The legacy
+  `{ host, port, https? }` spelling is unchanged; use exactly one of the two.
+- `apiKey` rides `X-API-Key` on every request AND the websocket upgrade;
+  `headers` merges extra auth pairs (Modal style). Auth failures are typed:
+  invalid key (401), insufficient credits (402), subscription inactive (429).
+- Routes prefer the `/api/*` spelling with automatic fallback for older
+  local servers; output downloads follow Comfy Cloud's signed-url redirect
+  without leaking the key cross-origin.
+- Binary websocket preview frames of type 3 and 4 (image + metadata, the
+  Comfy Cloud spelling) now feed latent previews; unknown frame types log
+  once instead of throwing.
+- `comfy-ts gen` gained `--api-key` (or `COMFY_CLOUD_API_KEY`) and `--out`.
+  The full Comfy Cloud catalog ships in the repo as a browsable generated
+  SDK (`examples/comfy-cloud/sdk.d.ts`, 3574 nodes) with a runnable
+  [example](examples/05-comfy-cloud.cflow.ts).
+
+### workflow.json import, rebuilt
+
+- One entry point: `parseWorkflowJson(unknown)` validates with tolerant
+  schemas that model what ComfyUI actually serializes today (v0.4 tuple
+  links AND v1 object links, hybrid files), then normalizes into one strict
+  canonical form. Genuinely invalid input throws a typed
+  `WorkflowNormalizeError`; conversion failures throw `WorkflowConvertError`
+  with a code naming the feature.
+- Subgraphs: `definitions.subgraphs` instances are expanded (nested
+  subgraphs, widget promotion in both serializer eras, boundary io by name).
+- Execution semantics fixed: Note/MarkdownNote/Reroute/PrimitiveNode are
+  skipped as virtual, bypass (mode 4) rewires inputs through to outputs the
+  way the frontend does (previously executed as a normal node), muted
+  parents resolve unconnected, object-form `widgets_values` resolve by name.
+- 2026 widget spellings understood: widget-ness is decided from the input
+  CONFIG (COMBO options, dynamic combos, autogrow containers, socketless
+  widgets), and positional value arrays shorter than the current schema
+  fill from schema defaults.
+- Measured on the full official template corpus (762 workflow files from
+  Comfy-Org): 100% schema-pass, 99.5% convert structurally.
+- `host.importWorkflowJson` now takes `unknown` and validates.
+
+### TUI
+
+- `bunx comfy-ts tui` with no argument never opens empty: it scans your
+  project's `*.cflow.ts` (node_modules excluded) AND the examples bundled
+  with the package, grouped apart in the tree. An explicit dir or file
+  argument scans just that.
+- A module that fails to load shows as a red ✗ row (retry with ⏎) instead
+  of crashing the TUI; a missing schema cache degrades to base types with a
+  loud message instead of throwing at import.
+
+### Packaging
+
+- The npm tarball now ships `examples/` and `guide-for-agents.md`. Add
+  `@./node_modules/comfy-ts/guide-for-agents.md` to your `CLAUDE.md` and
+  your coding agent knows the whole library.
+
+### Breaking
+
+- `convertLiteGraphToPrompt` consumes the new canonical form; import errors
+  are typed (`WorkflowNormalizeError` / `WorkflowConvertError`) instead of
+  ad-hoc throws, and the former `UnknownCustomNode` error class folded into
+  the `unknown-node` error code.
+- `host.loadSchemaFromCache()` with no cache on disk no longer throws: it
+  logs and continues on permissive base types (call `connect()` or run
+  `gen` to sharpen).
+
 ## 0.4.0
 
 Everything user-facing that landed since 0.3.0. No breaking changes.
