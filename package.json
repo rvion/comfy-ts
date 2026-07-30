@@ -21,6 +21,7 @@
    ],
    "author": "Rémi Vion <vion.remi@gmail.com>",
    "license": "MIT",
+   "funding": "https://github.com/sponsors/rvion",
    "repository": {
       "type": "git",
       "url": "https://github.com/rvion/comfy-ts.git"
@@ -81,6 +82,8 @@
       "templates:fetch": "bun scripts/fetch-templates.ts",
       "templates:check": "bun scripts/check-templates.ts",
       "hooks:install": "git config core.hooksPath .githooks",
+      "release": "bun scripts/release.ts",
+      "release:dry": "bun scripts/release.ts --dry-run",
       "prepublishOnly": "bun run ci && bun run build",
       "tui": "bun src/cli/comfy-ts-cli.ts tui"
    },

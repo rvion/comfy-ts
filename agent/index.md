@@ -13,8 +13,14 @@ The pre-1.0 never-push order was lifted by Rémi 2026-07-30 with the 1.0.0
 release GO. Publishing: MINOR and PATCH versions may ship autonomously (his
 standing GO 2026-07-30, "publish new minor / patch versions along the way"):
 reviewed work only, CHANGELOG.md entry rewritten from the journal first,
-version bump, gate green, then publish. MAJOR versions still need his
-explicit GO. The keychain token is `rv-secret get rv/npm/token`, temp npmrc.
+version bump, then `bun run release` (scripts/release.ts) does the rest:
+preflight (clean tree, version unpublished, changelog section present), npm
+publish (prepublishOnly runs the gate + build; keychain token
+`rv-secret get rv/npm/token`, temp npmrc), annotated git tag `vX.Y.Z`, push
+with tags, GitHub release with the changelog section as notes. Every
+publication gets a tag AND a GitHub release (his order 2026-07-30). MAJOR
+versions still need his explicit GO. `bun run release --dry-run` prints the
+plan and runs only the checks.
 
 ## Quick start
 
