@@ -1,5 +1,55 @@
 # comfy-ts
 
+## 1.2.0
+
+The navigation release: the TUI workflow list becomes a real tree with
+filtering and colors, any workflow can run on any host, and copying always
+tells you what happened.
+
+### TUI
+
+- The workflow list is a real tree: directories fold and unfold, single-child
+  chains merge into `a/b` rows, and `/` filters as you type (esc clears,
+  ⏎ loads). Workflows are colored by model family over a stable palette; a
+  workflow can pin its own color via `color` in its spec. Fold state
+  persists across restarts.
+- `h` opens a host picker to override the RUN host of the loaded workflow —
+  any registered host, or back to the workflow default. The override
+  persists, and the header shows a yellow `⇄ overrides <id>` marker while
+  active. `a` keeps the actions panel.
+- `c` / `C` copy now always ends in a confirmation popup: green with what was
+  copied (node count, size, a head of the json as proof), red with the exact
+  build or clipboard error. A `building for copy…` notice covers slow builds
+  (image-to-image workflows upload their input image at build time).
+- The host status dot stops lying: a busy ComfyUI stalls NEW connections
+  while it generates, so a probe timeout alone no longer paints the dot red —
+  recent websocket traffic counts as proof of life, and a down dot now says
+  WHY (timeout, dns, http status) in the host stats.
+- No-arg `comfy-ts tui` reopens the last loaded workflow.
+- The image picker lists dot-named directories (`.comfy-ts/outputs`, …);
+  dot files stay hidden.
+- Startup no longer shows a literal `^[[?0u` prefix on the first frame.
+
+### Library
+
+- `DefinedWorkflow.build()` / `.run()` accept `{ host }` to execute on a
+  different registered host than the one the workflow module declared.
+- `v.size(default, { image })` links a size var to an image var: the TUI size
+  overlay offers a pickable `WxH  size of image '<name>'` row reading the
+  image's actual dimensions.
+- Auto-layout spreads nodes wider (horizontal gap 20 → 100, vertical
+  20 → 40), so workflows exported with `toWorkflowJson()` or copied from the
+  TUI paste readable in the ComfyUI editor. `node_hsep` / `node_vsep`
+  overrides unchanged.
+- `npm fund comfy-ts` now points at the project's sponsor page.
+
+### Examples
+
+- Hand-written examples move to `examples/rvion/` (the cloud zoo stays in
+  `examples/comfy-cloud/`); new `06-qwen-image-edit` mirrors the official
+  qwen image edit 2511 template, with a toggle for the 4-step lightning
+  lora.
+
 ## 1.1.0
 
 The model zoo release: 46 ready-to-run cloud workflows, a real image picker
