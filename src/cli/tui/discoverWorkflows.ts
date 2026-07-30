@@ -2,10 +2,19 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'pathe'
 
-/** recursive scan for the workflow-module naming convention */
+/**
+ * recursive scan for the workflow-module naming convention. Entries BELOW a
+ * node_modules segment are skipped: packaged examples arrive via
+ * bundledExamplesDir (symlinked layouts like pnpm would otherwise list them
+ * twice, un-deduped, as the user's own files), and third-party packages
+ * shipping *.cflow.ts are not this project's workflows. A scan root that is
+ * ITSELF inside node_modules still works (the filter is relative to the root).
+ */
 export function scanCflowFiles(dir: string): string[] {
    const hits = readdirSync(dir, { recursive: true })
-      .map((f) => join(dir, String(f)))
+      .map((f) => String(f))
+      .filter((f) => !f.split('/').includes('node_modules'))
+      .map((f) => join(dir, f))
       .filter((f) => f.endsWith('.cflow.ts') || f.endsWith('.cflow.tsx'))
    return hits.sort()
 }
@@ -25,7 +34,13 @@ export function bundledExamplesDir(moduleUrl: string = import.meta.url): string 
    while (dir !== prev) {
       const pkgPath = join(dir, 'package.json')
       if (existsSync(pkgPath)) {
-         const pkg: { name?: string } = JSON.parse(readFileSync(pkgPath, 'utf8'))
+         let pkg: { name?: string } = {}
+         try {
+            pkg = JSON.parse(readFileSync(pkgPath, 'utf8'))
+         } catch {
+            // a malformed package.json on the walk (someone's broken fixture
+            // dir) must not take the whole TUI down; treat as unnamed
+         }
          if (pkg.name === 'comfy-ts') {
             const examples = join(dir, 'examples')
             return existsSync(examples) ? examples : null

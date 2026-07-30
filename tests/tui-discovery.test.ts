@@ -35,6 +35,48 @@ describe('mergeWorkflowSources', () => {
    })
 })
 
+describe('scanCflowFiles', () => {
+   it('skips everything below node_modules (pnpm symlink layouts listed packaged examples twice)', () => {
+      const root = mkdtempSync(join(tmpdir(), 'comfy-ts-scan-'))
+      try {
+         mkdirSync(join(root, 'sub'), { recursive: true })
+         writeFileSync(join(root, 'mine.cflow.ts'), '')
+         writeFileSync(join(root, 'sub', 'deep.cflow.ts'), '')
+         mkdirSync(join(root, 'node_modules', 'comfy-ts', 'examples'), { recursive: true })
+         writeFileSync(join(root, 'node_modules', 'comfy-ts', 'examples', '01.cflow.ts'), '')
+         const files = scanCflowFiles(root)
+         expect(files).toEqual([join(root, 'mine.cflow.ts'), join(root, 'sub', 'deep.cflow.ts')])
+      } finally {
+         rmSync(root, { recursive: true, force: true })
+      }
+   })
+
+   it('a scan root ITSELF inside node_modules still scans (explicit arg into the package)', () => {
+      const root = mkdtempSync(join(tmpdir(), 'comfy-ts-scan-'))
+      try {
+         const inside = join(root, 'node_modules', 'comfy-ts', 'examples')
+         mkdirSync(inside, { recursive: true })
+         writeFileSync(join(inside, '01.cflow.ts'), '')
+         expect(scanCflowFiles(inside)).toEqual([join(inside, '01.cflow.ts')])
+      } finally {
+         rmSync(root, { recursive: true, force: true })
+      }
+   })
+
+   it('survives a malformed package.json on the bundledExamplesDir walk-up', () => {
+      const root = mkdtempSync(join(tmpdir(), 'comfy-ts-scan-'))
+      try {
+         writeFileSync(join(root, 'package.json'), '{ not json')
+         mkdirSync(join(root, 'dist'), { recursive: true })
+         // walk continues past the broken file and eventually returns null or
+         // the repo package, never throws a parse error
+         expect(() => bundledExamplesDir(pathToFileURL(join(root, 'dist', 'cli.js')).href)).not.toThrow(SyntaxError)
+      } finally {
+         rmSync(root, { recursive: true, force: true })
+      }
+   })
+})
+
 describe('bundledExamplesDir', () => {
    it('resolves this repo examples/ from the module location, never cwd', () => {
       const dir = bundledExamplesDir()
