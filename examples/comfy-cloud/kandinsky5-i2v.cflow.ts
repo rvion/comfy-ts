@@ -89,6 +89,7 @@ if (import.meta.main) {
    if (process.argv[2]) kandinsky5I2v.vars.image.set(process.argv[2])
    if (process.argv[3]) kandinsky5I2v.vars.prompt.set(process.argv[3])
    const execution = await kandinsky5I2v.run({ log: true })
-   for (const img of execution.images) console.log(`🟢 ${img.absPath}`)
+   // SaveVideo outputs land host side (no auto-download for video yet)
+   console.log(`🟢 ${execution.status}: video saved on the host under comfy-ts-zoo/kandinsky5-i2v`)
    host.disconnect()
 }

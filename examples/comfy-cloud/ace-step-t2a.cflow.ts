@@ -73,6 +73,7 @@ if (import.meta.main) {
    if (process.argv[2]) aceStepT2a.vars.prompt.set(process.argv[2])
    if (process.argv[3]) aceStepT2a.vars.seed.set(Number(process.argv[3]))
    const execution = await aceStepT2a.run({ log: true })
-   for (const img of execution.images) console.log(`🟢 ${img.absPath}`)
+   // SaveAudio outputs land host side (no auto-download for audio yet)
+   console.log(`🟢 ${execution.status}: audio saved on the host under comfy-ts-zoo/ace-step-t2a`)
    host.disconnect()
 }

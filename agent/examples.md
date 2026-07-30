@@ -103,6 +103,15 @@ if (import.meta.main) {
 }
 ```
 
+Deviations from the skeleton, both deliberate:
+
+- i2i/i2v files take `argv[2] = image path` and `argv[3] = prompt` (the image
+  IS the primary input there); each header comment documents its own order.
+- video/audio modes (SaveVideo / SaveAudioMP3 savers) have no downloadable
+  `execution.images`: their standalone block prints the honest completion
+  line instead (`🟢 <status>: video saved on the host under
+  comfy-ts-zoo/<name>`), never a silent success.
+
 - Header comment: 2-4 lines — family+mode+model, the SOURCE TEMPLATE name,
   the key requirement, the run command. Nothing else.
 - ONE workflow per file, `export const` + `export default`, id =
@@ -188,7 +197,7 @@ fully offline:
 3. The emitted prompt's `class_type` set covers the MODEL-DEFINING nodes of
    the source template's converted api.json (convert it via
    `parseWorkflowJson` + `convertLiteGraphToPrompt` against the cloud
-   object_info — `tmp/sweep-cloud.ts` shows the recipe). Allowed drops: the
+   object_info; `tests/zoo-build.test.ts` is the committed recipe). Allowed drops: the
    UI scaffolding list above + sampler-graph simplification
    (SamplerCustomAdvanced pipelines may collapse to KSampler ONLY when
    sampler/scheduler/cfg semantics survive). Loaders, encode nodes, latent
@@ -212,7 +221,8 @@ sweep `describe.skipIf`s loudly on a fresh clone/CI; `bun run gen:sdk:cloud`
 Cross of `.comfy-ts/templates/workflow-templates/index.json` (779 files,
 non-API templates only) with the committed cloud catalog: every row below has
 ALL its model files in the sdk unions AND converts clean against the cloud
-object_info (swept 2026-07-30, `tmp/sweep-cloud.ts`).
+object_info (swept 2026-07-30; the committed machine bar is
+`tests/zoo-build.test.ts`, the original sweep recipe lived in gitignored tmp/).
 
 Wave 1 — core families:
 

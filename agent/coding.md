@@ -44,7 +44,8 @@ New dep = a decision. First ask: can ~20 lines of current code do it?
   5. sentinels: `auto()` returns a marker object replaced at serialization time
      (`src/graph/autoValue.ts`).
   6. kind-discriminated `ComfyVar` narrowing (`sel as ToggleVar` after checking
-     `kind`) — value-invariance blocks a clean union (`src/cli/tui/state/`).
+     `kind`) — value-invariance blocks a clean union (`src/cli/tui/state/`,
+     `src/cli/tui/imagePicker/`).
   7. host registry reuse: `comfyts.host({id})` returns the ALREADY-registered
      instance for that id as `ComfyHost<ID>` — the runtime id equality is
      checked right before the cast (`src/state.ts`).

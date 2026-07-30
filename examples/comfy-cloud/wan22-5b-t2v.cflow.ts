@@ -63,6 +63,7 @@ if (import.meta.main) {
    if (process.argv[2]) wan225bT2v.vars.prompt.set(process.argv[2])
    if (process.argv[3]) wan225bT2v.vars.seed.set(Number(process.argv[3]))
    const execution = await wan225bT2v.run({ log: true })
-   for (const img of execution.images) console.log(`🟢 ${img.absPath}`)
+   // SaveVideo outputs land host side (no auto-download for video yet)
+   console.log(`🟢 ${execution.status}: video saved on the host under comfy-ts-zoo/wan22-5b-t2v`)
    host.disconnect()
 }

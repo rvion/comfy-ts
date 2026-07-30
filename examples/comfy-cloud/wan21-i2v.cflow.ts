@@ -77,7 +77,7 @@ if (import.meta.main) {
    if (process.argv[2]) wan21I2v.vars.image.set(process.argv[2])
    if (process.argv[3]) wan21I2v.vars.prompt.set(process.argv[3])
    const execution = await wan21I2v.run({ log: true })
-   // SaveVideo outputs land host side (no auto-download for videos yet)
-   console.log(`🟢 ${execution.status} — video saved on the host under comfy-ts-zoo/wan21-i2v`)
+   // SaveVideo outputs land host side (no auto-download for video yet)
+   console.log(`🟢 ${execution.status}: video saved on the host under comfy-ts-zoo/wan21-i2v`)
    host.disconnect()
 }

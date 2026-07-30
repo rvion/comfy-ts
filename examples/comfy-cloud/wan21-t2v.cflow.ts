@@ -58,7 +58,7 @@ if (import.meta.main) {
    if (process.argv[2]) wan21T2v.vars.prompt.set(process.argv[2])
    if (process.argv[3]) wan21T2v.vars.seed.set(Number(process.argv[3]))
    const execution = await wan21T2v.run({ log: true })
-   // SaveVideo outputs land host side (no auto-download for videos yet)
-   console.log(`🟢 ${execution.status} — video saved on the host under comfy-ts-zoo/wan21-t2v`)
+   // SaveVideo outputs land host side (no auto-download for video yet)
+   console.log(`🟢 ${execution.status}: video saved on the host under comfy-ts-zoo/wan21-t2v`)
    host.disconnect()
 }

@@ -25,6 +25,7 @@ export const wan22T2v = host.defineWorkflow({
       const clip = b.CLIPLoader({ clip_name: 'umt5_xxl_fp8_e4m3fn_scaled.safetensors', type: 'wan', device: 'default' })
       const vae = b.VAELoader({ vae_name: 'wan_2.1_vae.safetensors' })
       // wan2.2 14B is a mixture of two experts: the high-noise model denoises the
+      // template's switchable lightx2v 4-step fast lora branch ships off, dropped here
       // first half of the steps, the low-noise model finishes (shift 5 on both)
       const highModel = b.ModelSamplingSD3({
          model: b.UNETLoader({
@@ -91,6 +92,7 @@ if (import.meta.main) {
    if (process.argv[2]) wan22T2v.vars.prompt.set(process.argv[2])
    if (process.argv[3]) wan22T2v.vars.seed.set(Number(process.argv[3]))
    const execution = await wan22T2v.run({ log: true })
-   for (const img of execution.images) console.log(`🟢 ${img.absPath}`)
+   // SaveVideo outputs land host side (no auto-download for video yet)
+   console.log(`🟢 ${execution.status}: video saved on the host under comfy-ts-zoo/wan22-t2v`)
    host.disconnect()
 }

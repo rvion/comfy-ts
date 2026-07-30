@@ -86,6 +86,7 @@ if (import.meta.main) {
    if (process.argv[2]) ltxvI2v.vars.image.set(process.argv[2])
    if (process.argv[3]) ltxvI2v.vars.prompt.set(process.argv[3])
    const execution = await ltxvI2v.run({ log: true })
-   for (const img of execution.images) console.log(`🟢 ${img.absPath}`)
+   // SaveVideo outputs land host side (no auto-download for video yet)
+   console.log(`🟢 ${execution.status}: video saved on the host under comfy-ts-zoo/ltxv-i2v`)
    host.disconnect()
 }
