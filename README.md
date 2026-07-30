@@ -346,7 +346,17 @@ Reaching a Comfy running on another one of your machines:
 ## 🔌 Ecosystem discovery and install
 
 The whole ComfyUI-Manager registry, mirrored into generated types: every
-known custom node pack, plugin title and model is a typed union.
+known custom node pack, plugin title and model is a typed union. The
+generated files are committed, browsable TypeScript:
+
+- [`KnownComfyCustomNodeName`](src/manager/generated/KnownComfyCustomNodeName.ts):
+  every node name of every known pack
+- [`KnownComfyPluginTitle`](src/manager/generated/KnownComfyPluginTitle.ts) /
+  [`KnownComfyPluginURL`](src/manager/generated/KnownComfyPluginURL.ts):
+  the whole custom-node ecosystem as literal types
+- [`KnownModel_Name`](src/manager/generated/KnownModel_Name.ts) and its
+  [`Base` / `Type` / `FileName` / `SavePath`](src/manager/generated/)
+  siblings: every model the registry knows, down to where it installs
 
 ```ts
 await host.installCustomNodeByTitle('ComfyUI Impact Pack') // autocompletes across the ecosystem
