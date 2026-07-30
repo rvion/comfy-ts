@@ -126,7 +126,7 @@ wires `vars.prompt.positive` and, when the graph has a negative branch,
 | mode | vars (on top of prompt+seed)                                        |
 | ---- | ------------------------------------------------------------------- |
 | t2i  | `steps: v.int`, `cfg: v.float` (when the model uses cfg), `size: v.size` (free-sized latents only — fixed-res models hardcode) |
-| i2i  | `image: v.image(exampleImagePath('<subject>_<WxH>.jpg'))` (bundled default, see "Bundled input images"), `steps`, `denoise: v.float` when the template exposes it. Upload via async build + `MediaImage.loadInWorkflow_viaLoadImageNode(wf)` |
+| i2i  | `image: v.image(exampleImagePath('<subject>_<WxH>.jpg'))` (bundled default, see "Bundled input images"; the var is CAPTURED in a module const so the build calls `image.absPath()` — architecture.md owns the pattern, and a build LOCAL must never be named `image`, TDZ shadow). Upload via async build + `MediaImage.loadInWorkflow_viaLoadImageNode(wf)`. Plus `steps`, `denoise: v.float` when the template exposes it |
 | t2v  | `steps`, `cfg` (when used), `size` (when free), `length: v.int` (frames), `fps: v.int` (wired to CreateVideo/SaveVideo) |
 | i2v  | `image` (as i2i), `length`, `fps`, `steps`                          |
 | t2a  | `seconds: v.float`, `steps` (tags/lyrics ride in `prompt`: when the encode node splits them — ace-step — the FIRST prompt line is the tags, the remaining lines are the lyrics, split at build time) |

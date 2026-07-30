@@ -2,29 +2,18 @@
 // source template: ltxv_image_to_video.json (official workflow-templates)
 // needs COMFY_CLOUD_API_KEY (https://cloud.comfy.org, paid tiers)
 // run directly:  bun examples/comfy-cloud/ltxv-i2v.cflow.ts [path/to/image.png] ["prompt"]
-import { mkdirSync } from 'node:fs'
-import { asAbsolutePath, ComfyTS, MediaImage, v } from 'comfy-ts'
-import { dirname, resolve } from 'pathe'
-import sharp from 'sharp'
+import { asAbsolutePath, exampleImagePath, MediaImage, v } from 'comfy-ts'
 import { cloudHost, requireCloudKey } from './cloudHost.ts'
 
 const host = await cloudHost()
 
-/** empty path → a generated flat-color placeholder (keeps the example self-contained) */
-async function resolveInputImage(path: string): Promise<string> {
-   if (path.trim() !== '') return resolve(path)
-   const placeholder = ComfyTS.create().resolveFromOutput('ltxv-i2v-input.png')
-   mkdirSync(dirname(placeholder), { recursive: true })
-   await sharp({ create: { width: 768, height: 512, channels: 3, background: { r: 200, g: 90, b: 40 } } })
-      .png()
-      .toFile(placeholder)
-   return placeholder
-}
+// bundled default input (examples/images/, ships in the tarball) — the TUI picker or argv[2] swap it
+const image = v.image(exampleImagePath('walrus_1344x768.jpg'))
 
 export const ltxvI2v = host.defineWorkflow({
    id: 'ltxv-i2v',
    vars: {
-      image: v.text('', 'image path'),
+      image,
       // ONE prompt var: `- ` lines are the NEGATIVE prompt, `//` lines are comments
       prompt: v.prompt(
          'A red fox moving gracefully, its russet coat vibrant against the white landscape, leaving perfect star-shaped prints behind as steam rises from its breath in the crisp winter air. The scene is wrapped in snow-muffled silence, broken only by the gentle murmur of water still flowing beneath the ice.\n- low quality, worst quality, deformed, distorted, disfigured, motion smear, motion artifacts, fused fingers, bad anatomy, weird hand, ugly',
@@ -37,7 +26,7 @@ export const ltxvI2v = host.defineWorkflow({
    },
    // async build: the input image is uploaded (hash-named, deduped) per run
    build: async (b, vars, wf) => {
-      const img = new MediaImage({ path: asAbsolutePath(await resolveInputImage(vars.image)) })
+      const img = new MediaImage({ path: asAbsolutePath(image.absPath()) })
       const loaded = await img.loadInWorkflow_viaLoadImageNode(wf)
 
       const ckpt = b.CheckpointLoaderSimple({ ckpt_name: 'ltx-video-2b-v0.9.5.safetensors' })

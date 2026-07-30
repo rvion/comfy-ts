@@ -2,29 +2,18 @@
 // source template: Image_capybara_v0_1_image_edit.json (official workflow-templates)
 // needs COMFY_CLOUD_API_KEY (https://cloud.comfy.org, paid tiers)
 // run directly:  bun examples/comfy-cloud/capybara-i2i.cflow.ts [path/to/image.png] ["prompt"]
-import { mkdirSync } from 'node:fs'
-import { asAbsolutePath, ComfyTS, MediaImage, v } from 'comfy-ts'
-import { dirname, resolve } from 'pathe'
-import sharp from 'sharp'
+import { asAbsolutePath, exampleImagePath, MediaImage, v } from 'comfy-ts'
 import { cloudHost, requireCloudKey } from './cloudHost.ts'
 
 const host = await cloudHost()
 
-/** empty path → a generated flat-color placeholder (keeps the example self-contained) */
-async function resolveInputImage(path: string): Promise<string> {
-   if (path.trim() !== '') return resolve(path)
-   const placeholder = ComfyTS.create().resolveFromOutput('capybara-i2i-input.png')
-   mkdirSync(dirname(placeholder), { recursive: true })
-   await sharp({ create: { width: 1024, height: 1024, channels: 3, background: { r: 140, g: 180, b: 90 } } })
-      .png()
-      .toFile(placeholder)
-   return placeholder
-}
+// bundled default input (examples/images/, ships in the tarball) — the TUI picker or argv[2] swap it
+const image = v.image(exampleImagePath('bear_1024x1024.jpg'))
 
 export const capybaraI2i = host.defineWorkflow({
    id: 'capybara-i2i',
    vars: {
-      image: v.text('', 'image path'),
+      image,
       // ONE prompt var: `- ` lines are the NEGATIVE prompt, `//` lines are comments
       prompt: v.prompt(
          'Keep the characters and fluttering costumes unchanged, replace the indoor scene with an outdoor grassland setting\n- blurry, low quality, distorted, ugly, watermark, text',
@@ -35,7 +24,7 @@ export const capybaraI2i = host.defineWorkflow({
    },
    // async build: the input image is uploaded (hash-named, deduped) per run
    build: async (b, vars, wf) => {
-      const img = new MediaImage({ path: asAbsolutePath(await resolveInputImage(vars.image)) })
+      const img = new MediaImage({ path: asAbsolutePath(image.absPath()) })
       const loaded = await img.loadInWorkflow_viaLoadImageNode(wf)
 
       const model = b.ModelSamplingSD3({

@@ -1,14 +1,14 @@
-import { existsSync, readdirSync, readFileSync } from 'node:fs'
-import { fileURLToPath } from 'node:url'
-import { dirname, join } from 'pathe'
+import { readdirSync } from 'node:fs'
+import { join } from 'pathe'
 
 /**
  * recursive scan for the workflow-module naming convention. Entries BELOW a
  * node_modules segment are skipped: packaged examples arrive via
- * bundledExamplesDir (symlinked layouts like pnpm would otherwise list them
- * twice, un-deduped, as the user's own files), and third-party packages
- * shipping *.cflow.ts are not this project's workflows. A scan root that is
- * ITSELF inside node_modules still works (the filter is relative to the root).
+ * bundledExamplesDir (src/exampleAssets.ts — symlinked layouts like pnpm would
+ * otherwise list them twice, un-deduped, as the user's own files), and
+ * third-party packages shipping *.cflow.ts are not this project's workflows. A
+ * scan root that is ITSELF inside node_modules still works (the filter is
+ * relative to the root).
  */
 export function scanCflowFiles(dir: string): string[] {
    const hits = readdirSync(dir, { recursive: true })
@@ -17,40 +17,6 @@ export function scanCflowFiles(dir: string): string[] {
       .map((f) => join(dir, f))
       .filter((f) => f.endsWith('.cflow.ts') || f.endsWith('.cflow.tsx'))
    return hits.sort()
-}
-
-/**
- * the examples/ folder shipped in the npm tarball, resolved from THIS module's
- * own location (NEVER cwd): walking up to the nearest NAMED package.json finds
- * <pkg>/examples both from a consumer's node_modules/comfy-ts/dist/cli.js and
- * from this repo's src/cli/tui/. Returns null when the examples are absent
- * (a consumer may prune the folder) or when the nearest named package is not
- * comfy-ts (the lib was inlined into someone else's bundle — its examples are
- * not on disk); no package.json all the way up is a broken install and throws.
- */
-export function bundledExamplesDir(moduleUrl: string = import.meta.url): string | null {
-   let dir = dirname(fileURLToPath(moduleUrl))
-   let prev = ''
-   while (dir !== prev) {
-      const pkgPath = join(dir, 'package.json')
-      if (existsSync(pkgPath)) {
-         let pkg: { name?: string } = {}
-         try {
-            pkg = JSON.parse(readFileSync(pkgPath, 'utf8'))
-         } catch {
-            // a malformed package.json on the walk (someone's broken fixture
-            // dir) must not take the whole TUI down; treat as unnamed
-         }
-         if (pkg.name === 'comfy-ts') {
-            const examples = join(dir, 'examples')
-            return existsSync(examples) ? examples : null
-         }
-         if (pkg.name != null) return null
-      }
-      prev = dir
-      dir = dirname(dir)
-   }
-   throw new Error(`[comfy-ts tui] no package.json found walking up from ${fileURLToPath(moduleUrl)}`)
 }
 
 export type WorkflowDiscovery = {

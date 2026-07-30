@@ -46,6 +46,9 @@ export { ComfyNodeOutput } from 'src/graph/ComfyNodeOutput.ts'
 export type { ComfyNodeMetadata, ComfyNodeId } from 'src/graph/ComfyNodeID.ts'
 export { auto, auto_ } from 'src/graph/autoValue.ts'
 
+// bundled example assets (ship in the tarball)
+export { exampleImagePath } from 'src/exampleAssets.ts'
+
 // sdk generator (schema parsing + per-host codegen)
 export { ComfySchema } from 'src/sdk-generator/ComfySchema.ts'
 export { codegenSDK, hostIdToNamespace, type CodegenOptions } from 'src/sdk-generator/comfyui-sdk-codegen.ts'

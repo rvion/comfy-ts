@@ -1,30 +1,19 @@
 // upload a local image (hash-named, deduped) and run img2img on it
 // run directly:  bun examples/02-img2img-upload.cflow.ts [path/to/image.png]
-// in the TUI:    bun run tui — the `image` var is a path; empty = generated placeholder
-import { mkdirSync } from 'node:fs'
-import { asAbsolutePath, ComfyTS, MediaImage, v } from 'comfy-ts'
-import { dirname, resolve } from 'pathe'
-import sharp from 'sharp'
+// in the TUI:    bun run tui — activate the `image` var to open the picker (browse, favorites, preview)
+import { asAbsolutePath, ComfyTS, exampleImagePath, MediaImage, v } from 'comfy-ts'
 
 const comfy = ComfyTS.create()
 const host = comfy.host({ id: 'windows-1', host: 'desktop-im18794', port: 8085 })
 await host.loadSchemaFromCache() // offline import; run() connects lazily
 
-/** empty path → a generated flat-color placeholder (keeps the example self-contained) */
-async function resolveInputImage(path: string): Promise<string> {
-   if (path.trim() !== '') return resolve(path)
-   const placeholder = comfy.resolveFromOutput('example-input.png')
-   mkdirSync(dirname(placeholder), { recursive: true })
-   await sharp({ create: { width: 512, height: 512, channels: 3, background: { r: 210, g: 140, b: 80 } } })
-      .png()
-      .toFile(placeholder)
-   return placeholder
-}
+// bundled default input (examples/images/, ships in the tarball) — the TUI picker or argv[2] swap it
+const image = v.image(exampleImagePath('dog_512x512.jpg'))
 
 export const img2img = host.defineWorkflow({
    id: 'img2img-upload',
    vars: {
-      image: v.text('', 'image path'),
+      image,
       prompt: v.text('oil painting of a sunset over the sea'),
       negative: v.text('text, watermark'),
       seed: v.seed(7),
@@ -34,7 +23,7 @@ export const img2img = host.defineWorkflow({
    },
    // async build: the input image is uploaded (hash-named, deduped) per run
    build: async (b, vars, wf) => {
-      const img = new MediaImage({ path: asAbsolutePath(await resolveInputImage(vars.image)) })
+      const img = new MediaImage({ path: asAbsolutePath(image.absPath()) })
       const loaded = await img.loadInWorkflow_viaLoadImageNode(wf)
 
       const ckpt = b.CheckpointLoaderSimple({ ckpt_name: 'SD1.5\\v1-5-pruned-emaonly.ckpt' })

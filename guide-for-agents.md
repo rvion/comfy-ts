@@ -83,7 +83,7 @@ if (import.meta.main) {
 ```
 
 Var kinds: `v.text`, `v.int`, `v.float`, `v.seed`, `v.toggle`, `v.choice`,
-`v.size`, `v.loras`, `v.prompt`. Notes:
+`v.size`, `v.loras`, `v.prompt`, `v.image`. Notes:
 
 - `v.loras(/regex/)` resolves against the host's real lora list;
   `activeLoras(vars.loras)` returns `{ lora_name, strength_model, strength_clip }[]`
@@ -91,6 +91,12 @@ Var kinds: `v.text`, `v.int`, `v.float`, `v.seed`, `v.toggle`, `v.choice`,
 - `v.prompt` is structured: `//` lines are comments (stripped), `- ` lines go
   to the negative prompt, `{ loraKeywordsFrom: lorasVar }` prefixes lora
   trigger keywords. The value is `{ positive, negative }`.
+- `v.image` holds a local image path as a plain string; an empty value throws
+  at build time instead of running a silent placeholder. Capture the var in a
+  const and call `image.absPath()` in `build`. Default it to a bundled sample
+  with `exampleImagePath('bear_1024x1024.jpg')` (ships in the package). In
+  the TUI it opens an image picker (browse, favorite folders, recents,
+  preview).
 - `vars` may be a lambda `(v) => ({ ... })` so vars can reference each other.
 - `build` may be async, for uploads: the third param `wf` feeds `MediaImage`
   helpers (`new MediaImage({ path }).loadInWorkflow_viaLoadImageNode(wf)`).

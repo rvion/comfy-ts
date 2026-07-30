@@ -39,6 +39,11 @@ src/index.ts               public entry: re-exports everything below
 src/state.ts               ComfyTS singleton (global `comfyts`), path resolution, lazy registry
 src/types/index.ts         shared branded types (AbsolutePath, Maybe, Result, …)
 src/types/comfy-sdk.ts     base global Comfy.* namespace + Hosts registry + SdkForHost<ID>
+src/exampleAssets.ts       bundled examples/ resolution, LIB surface: the
+                           bundledExamplesDir walk (import.meta-based, never
+                           cwd) + exampleImagePath('bear_1024x1024.jpg') →
+                           absolute examples/images/ path, loud throw naming
+                           the path when missing/pruned (agent/examples.md)
 src/host/                  per-server connection layer
    ComfyHost.ts            central class: ws lifecycle, schema fetch, sdk regen, msg routing,
                            host.fetch/fetchFile (the ONE authed http path, see "Cloud & remote hosts")
@@ -90,8 +95,8 @@ src/cli/tui/               ink+mobx TUI, per build/app-state-tree doctrine:
       pickerPrefs.ts       favorites + recents + lastFolder persistence
                            (.comfy-ts/image-picker.json, loraKeywords pattern)
    keys.ts                 modified-⏎ translation for xterm modifyOtherKeys
-   discoverWorkflows.ts    module discovery: cflow scan, PACKAGED examples dir
-                           (resolved from import.meta, never cwd), pure merge
+   discoverWorkflows.ts    module discovery: cflow scan + pure merge (the
+                           packaged-dir walk lives in src/exampleAssets.ts)
    run-tui.tsx             entry: discovery, resilient first load, keyboard
                            protocols, mount, dispose
 src/litegraph/             ComfyUI saved-workflow JSON format, 3 layers (see
@@ -185,7 +190,7 @@ tests/                     bun tests (headless) + fixtures
    is empty — pick a file"), so any build consuming varValues fails LOUD,
    never a silent placeholder (example 02's generated-placeholder stopgap
    dies with this; examples default to a bundled `examples/images/` file
-   instead, see agent/examples.md). The error NAMES the var: DefinedWorkflow
+   instead via `exampleImagePath()`, see agent/examples.md). The error NAMES the var: DefinedWorkflow
    stamps each var's spec key onto `var.name` at define time (same loop as
    bindHost).
    Vars expose `outValue(): Out` (what the graph consumes) next to
@@ -290,7 +295,8 @@ tests/                     bun tests (headless) + fixtures
    `(t)ree` — `t` focuses it (mode 'tree'); the old `w` modal switcher is gone
    (one code path). DISCOVERY (`src/cli/tui/discoverWorkflows.ts`): with NO
    argument the cwd scan is MERGED with the examples PACKAGED with comfy-ts
-   (`bundledExamplesDir` walks up from `import.meta.url` to the nearest NAMED
+   (`bundledExamplesDir`, home `src/exampleAssets.ts` — LIB surface, shared
+   with `exampleImagePath` — walks up from `import.meta.url` to the nearest NAMED
    package.json — works from a consumer's `node_modules/comfy-ts/dist/cli.js`
    AND from this repo's `src/cli/tui/`; missing examples dir or a foreign
    package name = silently absent, no package.json at all = loud throw). The

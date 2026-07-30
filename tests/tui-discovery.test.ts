@@ -3,7 +3,8 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { pathToFileURL } from 'node:url'
 import { join } from 'pathe'
-import { bundledExamplesDir, mergeWorkflowSources, scanCflowFiles } from 'src/cli/tui/discoverWorkflows.ts'
+import { mergeWorkflowSources, scanCflowFiles } from 'src/cli/tui/discoverWorkflows.ts'
+import { bundledExamplesDir } from 'src/exampleAssets.ts'
 
 describe('mergeWorkflowSources', () => {
    const own = ['/proj/a.cflow.ts', '/proj/sub/b.cflow.ts']

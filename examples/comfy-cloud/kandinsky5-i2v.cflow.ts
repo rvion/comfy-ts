@@ -2,29 +2,18 @@
 // source template: video_kandinsky5_i2v.json (official workflow-templates)
 // needs COMFY_CLOUD_API_KEY (https://cloud.comfy.org, paid tiers)
 // run directly:  bun examples/comfy-cloud/kandinsky5-i2v.cflow.ts [path/to/image.png] ["prompt"]
-import { mkdirSync } from 'node:fs'
-import { asAbsolutePath, ComfyTS, MediaImage, v } from 'comfy-ts'
-import { dirname, resolve } from 'pathe'
-import sharp from 'sharp'
+import { asAbsolutePath, exampleImagePath, MediaImage, v } from 'comfy-ts'
 import { cloudHost, requireCloudKey } from './cloudHost.ts'
 
 const host = await cloudHost()
 
-/** empty path → a generated flat-color placeholder (keeps the example self-contained) */
-async function resolveInputImage(path: string): Promise<string> {
-   if (path.trim() !== '') return resolve(path)
-   const placeholder = ComfyTS.create().resolveFromOutput('kandinsky5-i2v-input.png')
-   mkdirSync(dirname(placeholder), { recursive: true })
-   await sharp({ create: { width: 768, height: 512, channels: 3, background: { r: 40, g: 60, b: 140 } } })
-      .png()
-      .toFile(placeholder)
-   return placeholder
-}
+// bundled default input (examples/images/, ships in the tarball) — the TUI picker or argv[2] swap it
+const image = v.image(exampleImagePath('walrus_1344x768.jpg'))
 
 export const kandinsky5I2v = host.defineWorkflow({
    id: 'kandinsky5-i2v',
    vars: {
-      image: v.text('', 'image path'),
+      image,
       // ONE prompt var: `- ` lines are the NEGATIVE prompt, `//` lines are comments
       prompt: v.prompt(
          'cinematic dynamic scene in deep blue dream haze: the camera glides slowly forward over starlight-sparkled translucent crystal flower buds swaying with misty currents, glimmering bokeh, quiet breath-like rhythm',
@@ -37,7 +26,7 @@ export const kandinsky5I2v = host.defineWorkflow({
    },
    // async build: the input image is uploaded (hash-named, deduped) per run
    build: async (b, vars, wf) => {
-      const img = new MediaImage({ path: asAbsolutePath(await resolveInputImage(vars.image)) })
+      const img = new MediaImage({ path: asAbsolutePath(image.absPath()) })
       const loaded = await img.loadInWorkflow_viaLoadImageNode(wf)
 
       const model = b.ModelSamplingSD3({

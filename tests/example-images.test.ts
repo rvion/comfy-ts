@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'bun:test'
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { imageMeta } from 'image-meta'
-import { join } from 'pathe'
+import { isAbsolute, join } from 'pathe'
+import { exampleImagePath } from 'src/exampleAssets.ts'
 import {
    EXAMPLE_IMAGES,
    EXAMPLE_IMAGES_BUDGET_BYTES,
@@ -57,5 +58,20 @@ describe('example images manifest', () => {
          0,
       )
       expect(total).toBeLessThanOrEqual(EXAMPLE_IMAGES_BUDGET_BYTES)
+   })
+})
+
+/** the public resolution helper the examples default their v.image vars with */
+describe('exampleImagePath', () => {
+   it('resolves every manifest image to an absolute existing path', () => {
+      for (const spec of EXAMPLE_IMAGES) {
+         const p = exampleImagePath(spec.name)
+         expect(isAbsolute(p)).toBe(true)
+         expect(existsSync(p)).toBe(true)
+      }
+   })
+
+   it('throws LOUD naming the path for an unknown name', () => {
+      expect(() => exampleImagePath('nope_1x1.jpg')).toThrow('nope_1x1.jpg')
    })
 })

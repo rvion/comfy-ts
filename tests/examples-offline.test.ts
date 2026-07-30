@@ -31,9 +31,25 @@ describe('every example imports headlessly (auto-enrolled)', () => {
       // a broken walk returning [] must never silently pass — the zoo alone is 40+
       expect(files.length).toBeGreaterThan(40)
       const consumerCwd = mkdtempSync(join(tmpdir(), 'comfy-ts-consumer-'))
+      // beyond import-safety: every kind-'image' var must default to an
+      // EXISTING file (the bundled examples/images/ default resolves from the
+      // package location, never from the consumer cwd) — auto-enrolled like
+      // the import check, a typoed exampleImagePath name fails here
       const script = [
+         `const { existsSync } = await import('node:fs')`,
          `const files = ${JSON.stringify(files)}`,
-         `for (const f of files) { await import(f); console.log('IMPORT_OK ' + f) }`,
+         `for (const f of files) {`,
+         `   const mod = await import(f)`,
+         `   console.log('IMPORT_OK ' + f)`,
+         `   const wf = mod.default`,
+         `   if (wf == null || wf.vars == null) continue`,
+         `   for (const [name, varDef] of Object.entries(wf.vars)) {`,
+         `      if (varDef == null || varDef.kind !== 'image') continue`,
+         `      const p = varDef.absPath()`, // throws when unset: image vars must ship a default
+         `      if (!existsSync(p)) throw new Error('image var ' + name + ' of ' + f + ' defaults to a missing file: ' + p)`,
+         `      console.log('IMAGE_DEFAULT_OK ' + f)`,
+         `   }`,
+         `}`,
       ].join('\n')
       try {
          const env = { ...process.env }
@@ -42,6 +58,9 @@ describe('every example imports headlessly (auto-enrolled)', () => {
          expect(res.stderr).toContain('no schema cache') // degraded with a loud log, never thrown
          const missing = files.filter((f) => !res.stdout.includes(`IMPORT_OK ${f}`))
          expect(missing).toEqual([])
+         // the swept i2i/i2v families: 16 zoo files + example 02 carry an image var
+         const imageOk = res.stdout.match(/IMAGE_DEFAULT_OK /g) ?? []
+         expect(imageOk.length).toBeGreaterThanOrEqual(17)
          expect(res.status).toBe(0)
       } finally {
          rmSync(consumerCwd, { recursive: true, force: true })

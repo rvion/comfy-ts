@@ -2,29 +2,18 @@
 // source template: video_hunyuan_video_1.5_720p_i2v.json (official workflow-templates)
 // needs COMFY_CLOUD_API_KEY (https://cloud.comfy.org, paid tiers)
 // run directly:  bun examples/comfy-cloud/hunyuan-video-i2v.cflow.ts [path/to/image.png] ["prompt"]
-import { mkdirSync } from 'node:fs'
-import { asAbsolutePath, ComfyTS, MediaImage, v } from 'comfy-ts'
-import { dirname, resolve } from 'pathe'
-import sharp from 'sharp'
+import { asAbsolutePath, exampleImagePath, MediaImage, v } from 'comfy-ts'
 import { cloudHost, requireCloudKey } from './cloudHost.ts'
 
 const host = await cloudHost()
 
-/** empty path → a generated flat-color placeholder (keeps the example self-contained) */
-async function resolveInputImage(path: string): Promise<string> {
-   if (path.trim() !== '') return resolve(path)
-   const placeholder = ComfyTS.create().resolveFromOutput('hunyuan-video-i2v-input.png')
-   mkdirSync(dirname(placeholder), { recursive: true })
-   await sharp({ create: { width: 1280, height: 720, channels: 3, background: { r: 40, g: 60, b: 140 } } })
-      .png()
-      .toFile(placeholder)
-   return placeholder
-}
+// bundled default input (examples/images/, ships in the tarball) — the TUI picker or argv[2] swap it
+const image = v.image(exampleImagePath('walrus_1344x768.jpg'))
 
 export const hunyuanVideoI2v = host.defineWorkflow({
    id: 'hunyuan-video-i2v',
    vars: {
-      image: v.text('', 'image path'),
+      image,
       // ONE prompt var: `- ` lines are the NEGATIVE prompt, `//` lines are comments
       prompt: v.prompt(
          'A feathered young dinosaur with ruffled brown and white plumage moves alertly through a sun-dappled coniferous forest, sunbeams filtering through the tall canopy over mossy undergrowth and ferns, soft glowing mist, dappled light dancing across its textured feathers, lush ancient wilderness, lifelike detail',
@@ -37,7 +26,7 @@ export const hunyuanVideoI2v = host.defineWorkflow({
    },
    // async build: the input image is uploaded (hash-named, deduped) per run
    build: async (b, vars, wf) => {
-      const img = new MediaImage({ path: asAbsolutePath(await resolveInputImage(vars.image)) })
+      const img = new MediaImage({ path: asAbsolutePath(image.absPath()) })
       const loaded = await img.loadInWorkflow_viaLoadImageNode(wf)
 
       const model = b.ModelSamplingSD3({

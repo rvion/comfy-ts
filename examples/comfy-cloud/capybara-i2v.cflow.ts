@@ -2,29 +2,18 @@
 // source template: video_capybara_v0_1_image_to_video.json (official workflow-templates)
 // needs COMFY_CLOUD_API_KEY (https://cloud.comfy.org, paid tiers)
 // run directly:  bun examples/comfy-cloud/capybara-i2v.cflow.ts [path/to/image.png] ["prompt"]
-import { mkdirSync } from 'node:fs'
-import { asAbsolutePath, ComfyTS, MediaImage, v } from 'comfy-ts'
-import { dirname, resolve } from 'pathe'
-import sharp from 'sharp'
+import { asAbsolutePath, exampleImagePath, MediaImage, v } from 'comfy-ts'
 import { cloudHost, requireCloudKey } from './cloudHost.ts'
 
 const host = await cloudHost()
 
-/** empty path → a generated flat-color placeholder (keeps the example self-contained) */
-async function resolveInputImage(path: string): Promise<string> {
-   if (path.trim() !== '') return resolve(path)
-   const placeholder = ComfyTS.create().resolveFromOutput('capybara-i2v-input.png')
-   mkdirSync(dirname(placeholder), { recursive: true })
-   await sharp({ create: { width: 640, height: 640, channels: 3, background: { r: 190, g: 120, b: 60 } } })
-      .png()
-      .toFile(placeholder)
-   return placeholder
-}
+// bundled default input (examples/images/, ships in the tarball) — the TUI picker or argv[2] swap it
+const image = v.image(exampleImagePath('lioness_768x768.jpg'))
 
 export const capybaraI2v = host.defineWorkflow({
    id: 'capybara-i2v',
    vars: {
-      image: v.text('', 'image path'),
+      image,
       // ONE prompt var: `- ` lines are the NEGATIVE prompt, `//` lines are comments
       prompt: v.prompt(
          'A vibrant, sunny video scene: a young man and woman sitting on a green bench on a tennis court, taking a selfie with a white smartphone. The camera starts at a low angle and slowly tilts upward, revealing the clear blue sky. The woman raises one arm playfully, and they hold hands, radiating youthful energy. Bright, cinematic, smooth slow camera movement, warm vivid color grading.\n- blurry, low quality, distorted, ugly, watermark, text',
@@ -37,7 +26,7 @@ export const capybaraI2v = host.defineWorkflow({
    },
    // async build: the start image is uploaded (hash-named, deduped) per run
    build: async (b, vars, wf) => {
-      const img = new MediaImage({ path: asAbsolutePath(await resolveInputImage(vars.image)) })
+      const img = new MediaImage({ path: asAbsolutePath(image.absPath()) })
       const loaded = await img.loadInWorkflow_viaLoadImageNode(wf)
 
       const model = b.ModelSamplingSD3({

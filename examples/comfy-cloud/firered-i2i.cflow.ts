@@ -2,29 +2,18 @@
 // source template: image_firered_image_edit1_1.json (official workflow-templates)
 // needs COMFY_CLOUD_API_KEY (https://cloud.comfy.org, paid tiers)
 // run directly:  bun examples/comfy-cloud/firered-i2i.cflow.ts [path/to/image.png] ["edit instruction"]
-import { mkdirSync } from 'node:fs'
-import { asAbsolutePath, ComfyTS, MediaImage, v } from 'comfy-ts'
-import { dirname, resolve } from 'pathe'
-import sharp from 'sharp'
+import { asAbsolutePath, exampleImagePath, MediaImage, v } from 'comfy-ts'
 import { cloudHost, requireCloudKey } from './cloudHost.ts'
 
 const host = await cloudHost()
 
-/** empty path → a generated flat-color placeholder (keeps the example self-contained) */
-async function resolveInputImage(path: string): Promise<string> {
-   if (path.trim() !== '') return resolve(path)
-   const placeholder = ComfyTS.create().resolveFromOutput('example-input.png')
-   mkdirSync(dirname(placeholder), { recursive: true })
-   await sharp({ create: { width: 1024, height: 1024, channels: 3, background: { r: 210, g: 140, b: 80 } } })
-      .png()
-      .toFile(placeholder)
-   return placeholder
-}
+// bundled default input (examples/images/, ships in the tarball) — the TUI picker or argv[2] swap it
+const image = v.image(exampleImagePath('bear_1024x1024.jpg'))
 
 export const fireredI2i = host.defineWorkflow({
    id: 'firered-i2i',
    vars: {
-      image: v.text('', 'image path'),
+      image,
       prompt: v.prompt(
          'restyle the outfit into sheer frosted white fabric with glowing fiber-optic threads, photorealistic',
       ),
@@ -35,8 +24,8 @@ export const fireredI2i = host.defineWorkflow({
    },
    // async build: the input image is uploaded (hash-named, deduped) per run
    build: async (b, vars, wf) => {
-      const img = new MediaImage({ path: asAbsolutePath(await resolveInputImage(vars.image)) })
-      const image = b.ImageScaleToTotalPixels({
+      const img = new MediaImage({ path: asAbsolutePath(image.absPath()) })
+      const scaled = b.ImageScaleToTotalPixels({
          image: await img.loadInWorkflow_viaLoadImageNode(wf),
          upscale_method: 'lanczos',
          megapixels: 1,
@@ -44,7 +33,7 @@ export const fireredI2i = host.defineWorkflow({
       const clip = b.CLIPLoader({ clip_name: 'qwen_2.5_vl_7b_fp8_scaled.safetensors', type: 'qwen_image' })
       const vae = b.VAELoader({ vae_name: 'qwen_image_vae.safetensors' })
       // edit conditioning reads the input image itself: both branches reference it
-      const encode = (text: string) => b.TextEncodeQwenImageEditPlus({ prompt: text, clip, vae, image1: image })
+      const encode = (text: string) => b.TextEncodeQwenImageEditPlus({ prompt: text, clip, vae, image1: scaled })
       const model = b.CFGNorm({
          model: b.ModelSamplingAuraFlow({
             model: b.UNETLoader({
@@ -60,7 +49,7 @@ export const fireredI2i = host.defineWorkflow({
          model,
          positive: encode(vars.prompt.positive),
          negative: encode(vars.prompt.negative),
-         latent_image: b.VAEEncode({ pixels: image, vae }),
+         latent_image: b.VAEEncode({ pixels: scaled, vae }),
          seed: vars.seed,
          steps: vars.steps,
          cfg: vars.cfg,

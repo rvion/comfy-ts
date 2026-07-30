@@ -2,30 +2,19 @@
 // source template: txt_to_image_to_video.json (official workflow-templates), SDXL t2i half replaced by LoadImage
 // needs COMFY_CLOUD_API_KEY (https://cloud.comfy.org, paid tiers)
 // run directly:  bun examples/comfy-cloud/svd-i2v.cflow.ts [path/to/image.png] [seed]
-import { mkdirSync } from 'node:fs'
-import { asAbsolutePath, ComfyTS, MediaImage, v } from 'comfy-ts'
-import { dirname, resolve } from 'pathe'
-import sharp from 'sharp'
+import { asAbsolutePath, exampleImagePath, MediaImage, v } from 'comfy-ts'
 import { cloudHost, requireCloudKey } from './cloudHost.ts'
 
 const host = await cloudHost()
 
-/** empty path → a generated flat-color placeholder (keeps the example self-contained) */
-async function resolveInputImage(path: string): Promise<string> {
-   if (path.trim() !== '') return resolve(path)
-   const placeholder = ComfyTS.create().resolveFromOutput('svd-i2v-input.png')
-   mkdirSync(dirname(placeholder), { recursive: true })
-   await sharp({ create: { width: 1024, height: 576, channels: 3, background: { r: 30, g: 90, b: 110 } } })
-      .png()
-      .toFile(placeholder)
-   return placeholder
-}
+// bundled default input (examples/images/, ships in the tarball) — the TUI picker or argv[2] swap it
+const image = v.image(exampleImagePath('walrus_1344x768.jpg'))
 
 export const svdI2v = host.defineWorkflow({
    id: 'svd-i2v',
    // no prompt var: SVD conditions on the image alone (clip vision), there is no text branch
    vars: {
-      image: v.text('', 'image path'),
+      image,
       seed: v.seed(42),
       steps: v.int(20, { min: 1, max: 60 }),
       cfg: v.float(2.5, { min: 0, max: 30 }),
@@ -35,7 +24,7 @@ export const svdI2v = host.defineWorkflow({
    },
    // async build: the input image is uploaded (hash-named, deduped) per run
    build: async (b, vars, wf) => {
-      const img = new MediaImage({ path: asAbsolutePath(await resolveInputImage(vars.image)) })
+      const img = new MediaImage({ path: asAbsolutePath(image.absPath()) })
       const loaded = await img.loadInWorkflow_viaLoadImageNode(wf)
 
       const ckpt = b.ImageOnlyCheckpointLoader({ ckpt_name: 'svd_xt.safetensors' })
