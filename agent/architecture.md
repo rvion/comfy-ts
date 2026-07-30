@@ -86,13 +86,26 @@ src/cli/tui/               ink+mobx TUI, per build/app-state-tree doctrine:
                            probe; `h` = host PICKER — overrides the host the
                            current workflow runs/probes against (registry-wide
                            list, 'workflow default' clears; override persisted
-                           in settings by host id, re-applied on reopen)
+                           in settings by host id, re-applied on reopen).
+                           Probe verdict (pure, probeVerdict()): http ok → up;
+                           http fail BUT the ws delivered a message within 10s
+                           → up via 'ws' (ComfyUI is single-threaded: mid-
+                           generation it stalls NEW connects while established
+                           sockets stream — his repro 2026-07-30, "offline"
+                           while the browser worked); else down, with
+                           lastProbeError kept for the stats panel
    state/LogsSt.ts         server console lines: /internal/logs backfill + ws 'logs' stream, chunk→line assembly
    components/LogsPanel.tsx  last server log lines below the vars panel
    state/DraftsSt.ts       named var snapshots, autosave reaction (owned disposer)
    state/SettingsSt.ts     persisted TUI settings (.comfy-ts/settings.json):
-                           preview mode + last draft per workflow + host override
-   state/ExecSt.ts         run/progress/outputs/notice/clipboard/open
+                           preview mode + last draft per workflow + LAST OPEN
+                           workflow (no-arg tui reopens it, run-tui reads the
+                           file pre-mount) + host override + folded tree dirs
+   state/ExecSt.ts         run/progress/outputs/notice/clipboard/open; c/C
+                           copy ends in a POPUP (overlay-copy: what was
+                           copied, node count, json head — and the ERROR on
+                           failure; ⏎/esc closes) — a silent copy was his
+                           2026-07-30 complaint, the notice line was too quiet
    state/PreviewSt.ts      preview renders, panel sizing, `p` settings menu (panel/renderer/while-running)
    components/*.tsx        stateless views: TuiApp (layout+keys), VarsPanel,
                            overlays, PreviewPanel, StatusBar
@@ -101,7 +114,9 @@ src/cli/tui/               ink+mobx TUI, per build/app-state-tree doctrine:
                            panes, filter, highlight → preview
       ImagePickerOverlay.tsx  stateless view (renders in the vars area)
       fsListing.ts         PURE fs helpers: list a dir (dirs first, images
-                           filtered by extension, dotfiles skipped) — headless-tested
+                           filtered by extension; dot FILES skipped, dot DIRS
+                           listed — .comfy-ts/outputs is a first-class image
+                           source, gitignore is never consulted) — headless-tested
       pickerPrefs.ts       favorites + recents + lastFolder persistence
                            (.comfy-ts/image-picker.json, loraKeywords pattern)
    keys.ts                 modified-⏎ translation for xterm modifyOtherKeys
@@ -181,7 +196,10 @@ tests/                     bun tests (headless) + fixtures
    `host.schema.getLoras(regex?)`, NEVER a hardcoded inventory; selection
    empty by default; `activeLoras()` normalizes to
    `{lora_name, strength_model, strength_clip}[]` for a standard LoraLoader
-   chain) + `v.size` ({width,height}, SDXL-bucket presets, `WxH` custom entry)
+   chain) + `v.size` ({width,height}, SDXL-bucket presets, `WxH` custom entry;
+   `opts.image: ImageVar` links a previously created image var — the size
+   overlay then leads with a pickable `WxH  size of image '<name>'` row, dims
+   read from the file once per overlay open, one-shot copy on ⏎)
    + `v.prompt` (PromptVar, kind 'text'): its BUILD value is a
    `PromptValue { positive, negative }` — `//` lines are comments (stripped),
    `- ` lines are NEGATIVE prompt lines (comma-joined into `.negative`), and
@@ -424,7 +442,10 @@ tests/                     bun tests (headless) + fixtures
    opens at, in order: dirname(value) when the value is set and exists →
    persisted lastFolder → the var's `opts.folder` → cwd. Listing comes from
    `fsListing.ts` (pure, headless-tested): dirs first then images, both
-   alphabetical, dotfiles skipped, extensions from the var.
+   alphabetical, extensions from the var. Dot FILES are skipped (.DS_Store
+   junk); dot DIRS are listed and selectable (his ask 2026-07-30: browse
+   gitignored/dot folders like `.comfy-ts/outputs` — gitignore status never
+   mattered, the dot rule was the only thing hiding them).
    PREVIEW WHILE BROWSING: the highlighted image paints into the `(p)review`
    panel (LorasSt precedent, debounced ~120ms reaction). One code path:
    PreviewSt gains ONE `overlay` slot ({bytes, ansi, name, note}) that BOTH

@@ -34,6 +34,8 @@ beforeAll(() => {
    writeFileSync(join(imagesDir, 'a.png'), 'stub')
    writeFileSync(join(imagesDir, 'notes.txt'), 'not an image')
    writeFileSync(join(imagesDir, '.hidden.png'), 'dotfile')
+   mkdirSync(join(imagesDir, '.outputs'), { recursive: true })
+   writeFileSync(join(imagesDir, '.outputs', 'gen.png'), 'stub')
    writeFileSync(join(imagesDir, 'sub', 'c.webp'), 'stub')
    cpSync(join(import.meta.dir, '..', 'examples', 'images', 'dog_512x512.jpg'), join(imagesDir, 'dog.jpg'))
 })
@@ -44,15 +46,20 @@ afterAll(() => {
 })
 
 describe('fsListing (pure fs layer)', () => {
-   it('lists dirs first then images, alphabetical, dotfiles skipped, extension-filtered', () => {
+   it('lists dirs first then images, alphabetical, dot files skipped, extension-filtered', () => {
       const listing = listImageDir(imagesDir, EXTS)
-      expect(listing.dirs).toEqual(['sub'])
+      expect(listing.dirs).toEqual(['.outputs', 'sub'])
       expect(listing.images).toEqual(['a.png', 'b.jpg', 'dog.jpg'])
+   })
+
+   it('dot DIRS are listed and browsable (his .comfy-ts/outputs ask), dot files stay hidden', () => {
+      const listing = listImageDir(join(imagesDir, '.outputs'), EXTS)
+      expect(listing.images).toEqual(['gen.png'])
    })
 
    it('extension filter narrows the images, never the dirs', () => {
       const listing = listImageDir(imagesDir, ['png'])
-      expect(listing.dirs).toEqual(['sub'])
+      expect(listing.dirs).toEqual(['.outputs', 'sub'])
       expect(listing.images).toEqual(['a.png'])
    })
 
@@ -148,6 +155,7 @@ describe('ImagePickerSt (overlay state machine)', () => {
       expect(ip.folder).toBe(imagesDir)
       // dirs first, then images, alphabetical
       expect(ip.rows.map((r) => `${r.kind}:${r.name}`)).toEqual([
+         'dir:.outputs',
          'dir:sub',
          'image:a.png',
          'image:b.jpg',
@@ -158,7 +166,7 @@ describe('ImagePickerSt (overlay state machine)', () => {
       ip.filterInput('a')
       expect(ip.rows.map((r) => r.name)).toEqual(['a.png'])
       ip.filterBackspace()
-      expect(ip.rows.length).toBe(4)
+      expect(ip.rows.length).toBe(5)
 
       // → enters the highlighted dir, ← goes back to the parent, filter resets
       ip.filterInput('su')
@@ -170,7 +178,7 @@ describe('ImagePickerSt (overlay state machine)', () => {
       expect(ip.folder).toBe(imagesDir)
 
       // ⏎ on an image SELECTS: absolute path into the var, recents + lastFolder recorded
-      ip.move(1) // sub → a.png
+      ip.move(2) // .outputs → sub → a.png
       expect(ip.current?.name).toBe('a.png')
       ip.commit()
       expect(st.mode).toBe('nav')
@@ -202,6 +210,7 @@ describe('ImagePickerSt (overlay state machine)', () => {
       st.activate()
 
       // ⌃F on a dir row favorites THAT dir
+      ip.move(1) // rows: .outputs, sub, images… — favorite 'sub'
       expect(ip.current?.kind).toBe('dir')
       ip.toggleFavorite()
       expect(pickerPrefs().favorites).toContain(join(imagesDir, 'sub'))
@@ -278,8 +287,8 @@ describe('ImagePickerSt (overlay state machine)', () => {
       st.selIx = 0
       st.activate()
 
-      // highlight the real jpg (rows: sub, a.png, b.jpg, dog.jpg)
-      runInAction(() => (ip.ix = 3))
+      // highlight the real jpg (rows: .outputs, sub, a.png, b.jpg, dog.jpg)
+      runInAction(() => (ip.ix = 4))
       expect(ip.highlightedImage).toBe(join(imagesDir, 'dog.jpg'))
       await Bun.sleep(350) // debounce ~120ms + sharp render
       expect(st.preview.overlay?.name).toBe('dog.jpg')
@@ -287,7 +296,7 @@ describe('ImagePickerSt (overlay state machine)', () => {
       expect(st.preview.overlay?.note).toBeNull()
 
       // a stub 'png' sharp cannot decode → note placeholder, never a crash
-      runInAction(() => (ip.ix = 1))
+      runInAction(() => (ip.ix = 2))
       await Bun.sleep(350)
       expect(st.preview.overlay?.name).toBe('a.png')
       expect(st.preview.overlay?.ansi).toBeNull()
@@ -297,6 +306,34 @@ describe('ImagePickerSt (overlay state machine)', () => {
       ip.cancel()
       await Bun.sleep(250)
       expect(st.preview.overlay).toBeNull()
+      st.dispose()
+   })
+})
+
+describe('size overlay linked to an image var', () => {
+   it('leads with the image-size row, preselects the active preset below it, ⏎ copies the dims', async () => {
+      const { v } = await import('src/vars/ComfyVars.ts')
+      const { TuiSt } = await import('src/cli/tui/state/TuiSt.ts')
+      const { runInAction } = await import('mobx')
+      const image = v.image(join(imagesDir, 'dog.jpg')) // real 512x512 jpg
+      const wf = host.defineWorkflow({
+         id: 'size-image-test',
+         vars: { image, size: v.size({ width: 1024, height: 1024 }, { image }) },
+         build: () => {},
+      })
+      const st = new TuiSt(wf)
+      st.selIx = 1
+      st.activate()
+      expect(st.mode).toBe('overlay-size')
+      const pk = st.picker
+      expect(pk.options[0]).toBe("512×512  size of image 'dog.jpg'")
+      // the active preset stays preselected, shifted below the image row
+      expect(pk.options[pk.ix]).toContain('1:1 square')
+      // ⏎ on the image row copies the dims one-shot
+      runInAction(() => (pk.ix = 0))
+      pk.commit()
+      expect(st.mode).toBe('nav')
+      expect(wf.vars.size.value).toEqual({ width: 512, height: 512 })
       st.dispose()
    })
 })

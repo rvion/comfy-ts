@@ -94,6 +94,7 @@ export class WorkflowsSt {
             this.st.queue.attach(this.st.runHost)
             this.st.logs.attach(this.st.runHost)
             this.currentPath = path
+            this.st.settings.lastWorkflow = path
             this.st.selIx = 0
             this.st.mode = 'nav'
             this.st.exec.resetForWorkflow(`${basename(path)}`)

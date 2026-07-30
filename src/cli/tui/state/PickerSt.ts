@@ -16,6 +16,9 @@ export class PickerSt {
    ix: number = 0
    /** size overlay only: the filter failed to parse as WxH on commit */
    invalid: boolean = false
+   /** size overlay only: the linked image var's live dims, read ONCE per open
+    * (fs read — never inside the options computed, which runs per keystroke) */
+   imageSizeRow: string | null = null
 
    // kind-narrowing casts sanctioned (agent/coding.md), `kind` is the tag
    private get choiceVar(): ChoiceVar<string> | null {
@@ -37,6 +40,7 @@ export class PickerSt {
       const sv = this.sizeVar
       if (sv != null) {
          const labels = sv.presets.map((p) => `${p.width}×${p.height}  ${p.label}`)
+         if (this.imageSizeRow != null) labels.unshift(this.imageSizeRow)
          if (this.filter === '') return labels
          return labels.filter((l) => fuzzyMatch(this.filter, l))
       }
@@ -58,8 +62,10 @@ export class PickerSt {
       this.st.mode = 'overlay-size'
       this.filter = ''
       this.invalid = false
-      const ix = sv.presets.findIndex((p) => p.width === sv.value.width && p.height === sv.value.height)
-      this.ix = ix === -1 ? 0 : ix
+      const img = sv.imageSize()
+      this.imageSizeRow = img == null ? null : `${img.width}×${img.height}  size of image '${img.name}'`
+      const presetIx = sv.presets.findIndex((p) => p.width === sv.value.width && p.height === sv.value.height)
+      this.ix = presetIx === -1 ? 0 : presetIx + (this.imageSizeRow != null ? 1 : 0)
    }
 
    move(delta: number): void {

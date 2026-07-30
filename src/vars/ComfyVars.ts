@@ -1,9 +1,11 @@
 // Vars: the standard "tweak & re-run" contract. A workflow defined via
 // host.defineWorkflow({ vars, build }) rebuilds its graph from current var
 // values on every run — drivers (scripts, the TUI) edit vars between runs.
+import { readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
+import { imageMeta } from 'image-meta'
 import { action, makeObservable, observable } from 'mobx'
-import { isAbsolute, join, resolve } from 'pathe'
+import { basename, isAbsolute, join, resolve } from 'pathe'
 import { getLoraKeyword } from 'src/vars/loraKeywords.ts'
 
 export type VarKind = 'text' | 'int' | 'float' | 'seed' | 'toggle' | 'choice' | 'loras' | 'size' | 'image'
@@ -445,15 +447,34 @@ export const DEFAULT_SIZE_PRESETS: SizePreset[] = [
    { label: '9:16 tall', width: 768, height: 1344 },
 ]
 
-/** width/height picker: presets + free `WxH` entry */
+/** width/height picker: presets + free `WxH` entry + optionally the LIVE
+ * size of a linked image var (his ask 2026-07-30: the widget shows
+ * `WxH  size of image '<name>'` as a pickable row) */
 export class SizeVar extends ComfyVar<SizeValue> {
    readonly kind = 'size' as const
    constructor(
       defaultValue: SizeValue = { width: 1024, height: 1024 },
       public readonly presets: SizePreset[] = DEFAULT_SIZE_PRESETS,
       label?: string,
+      public readonly imageVar?: ImageVar,
    ) {
       super(defaultValue, label)
+   }
+
+   /** current dimensions of the linked image var — null when no link, unset
+    * path, or an unreadable/undecodable file (those errors belong to the
+    * image var itself, the size row simply disappears) */
+   imageSize(): { width: number; height: number; name: string } | null {
+      const iv = this.imageVar
+      if (iv == null || iv.value === '') return null
+      try {
+         const abs = iv.absPath()
+         const meta = imageMeta(new Uint8Array(readFileSync(abs)))
+         if (meta.width == null || meta.height == null) return null
+         return { width: meta.width, height: meta.height, name: basename(abs) }
+      } catch {
+         return null
+      }
    }
 
    /** accepts '1024x768' / '1024×768' / a preset label */
@@ -569,8 +590,8 @@ export const v = {
       initial: Partial<Record<T, LoraStrength>> = {},
       label?: string,
    ): LorasVar<T> => new LorasVar(options, initial, label),
-   size: (defaultValue?: SizeValue, opts: { presets?: SizePreset[]; label?: string } = {}): SizeVar =>
-      new SizeVar(defaultValue, opts.presets, opts.label),
+   size: (defaultValue?: SizeValue, opts: { presets?: SizePreset[]; label?: string; image?: ImageVar } = {}): SizeVar =>
+      new SizeVar(defaultValue, opts.presets, opts.label, opts.image),
    image: (defaultValue: string, opts: ImageVarOpts = {}): ImageVar => new ImageVar(defaultValue, opts),
 }
 

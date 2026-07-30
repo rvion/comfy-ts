@@ -1,8 +1,9 @@
-import { realpathSync, statSync } from 'node:fs'
+import { readFileSync, realpathSync, statSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
 import { render } from 'ink'
 import { dirname, resolve } from 'pathe'
 import { COMFY_TS_TUI_ENV } from 'src/cli/tui-env.ts'
+import { settingsPathFor } from 'src/state.ts'
 import { mergeWorkflowSources, scanCflowFiles } from 'src/cli/tui/discoverWorkflows.ts'
 import { bundledExamplesDir } from 'src/exampleAssets.ts'
 import { findDefinedWorkflow } from 'src/cli/tui/findDefinedWorkflow.ts'
@@ -12,6 +13,22 @@ import { TuiSt } from 'src/cli/tui/state/TuiSt.ts'
 import { extractErrorMessage } from 'src/utils/extractErrorMessage.ts'
 import { logError } from 'src/utils/log.ts'
 import type { DefinedWorkflow } from 'src/vars/DefinedWorkflow.ts'
+
+/** the module the last session was on, IF it is still in this run's tree
+ * (settings write: SettingsSt; exported for the headless test) */
+export function rememberedWorkflow(
+   workflowFiles: string[],
+   settingsPath = settingsPathFor(process.cwd()),
+): string | null {
+   try {
+      const raw: unknown = JSON.parse(readFileSync(settingsPath, 'utf8'))
+      if (raw == null || typeof raw !== 'object') return null
+      const last = (raw as Record<string, unknown>).lastWorkflow
+      return typeof last === 'string' && workflowFiles.includes(last) ? last : null
+   } catch {
+      return null // no settings yet, or unreadable json — the default pick is fine
+   }
+}
 
 export async function runTui(args: string[]): Promise<number> {
    // no arg = cwd scan MERGED with the examples packaged with comfy-ts; an
@@ -56,11 +73,14 @@ export async function runTui(args: string[]): Promise<number> {
       return 1
    }
 
-   // initial module = the file arg, else the first candidate that LOADS: a
-   // module whose import throws (missing schema cache, bad code) or that
-   // exports no DefinedWorkflow becomes a red row in the tree, never a crash
-   const candidates =
-      !isDir && workflowFiles.includes(abs) ? [abs, ...workflowFiles.filter((f) => f !== abs)] : workflowFiles
+   // initial module = the file arg, else the workflow the LAST session was on
+   // (settings read straight from disk: the comfyts global only exists once a
+   // module imports), else the first candidate that LOADS: a module whose
+   // import throws (missing schema cache, bad code) or that exports no
+   // DefinedWorkflow becomes a red row in the tree, never a crash
+   const preferred =
+      !isDir && workflowFiles.includes(abs) ? abs : target == null ? rememberedWorkflow(workflowFiles) : null
+   const candidates = preferred != null ? [preferred, ...workflowFiles.filter((f) => f !== preferred)] : workflowFiles
    const loadErrors = new Map<string, string>()
    let first: string | null = null
    let wf: DefinedWorkflow | null = null

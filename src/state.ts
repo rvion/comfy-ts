@@ -6,6 +6,12 @@ import { parseHostBase, renderHttpBase } from 'src/host/hostUrl.ts'
 import { ComfyRegistry } from 'src/manager/ComfyRegistry.ts'
 import { type AbsolutePath, asAbsolutePath, type RelativePath } from 'src/types/index.ts'
 
+/** the ONE settings-file location rule — run-tui reads it BEFORE any module
+ * import creates the comfyts global, so the path logic cannot live on the instance only */
+export function settingsPathFor(root: string): AbsolutePath {
+   return asAbsolutePath(join(root, '.comfy-ts', 'settings.json'))
+}
+
 /** singleton */
 export class ComfyTS {
    version = pkgJson.version
@@ -99,7 +105,7 @@ export class ComfyTS {
 
    /** local TUI settings (preview mode, last draft per workflow) — gitignored */
    get settingsPath(): AbsolutePath {
-      return asAbsolutePath(join(this.baseFolder, 'settings.json'))
+      return settingsPathFor(this.rootPath)
    }
 
    resolveFromHosts(relativePath: string): AbsolutePath {

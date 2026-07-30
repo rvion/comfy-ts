@@ -12,15 +12,15 @@ export function hasImageExtension(name: string, extensions: readonly string[]): 
 
 /**
  * ONE folder for the picker: dirs first then images, both alphabetical,
- * dotfiles skipped, images filtered by extension. Symlinks are followed
- * (a dangling one is skipped). Pure over fs — an unreadable dir THROWS,
- * the caller surfaces it (never a silent empty listing).
+ * images filtered by extension. Dot FILES are junk (.DS_Store) and skipped;
+ * dot DIRS are listed — .comfy-ts/outputs must be browsable. Symlinks are
+ * followed (a dangling one is skipped). Pure over fs — an unreadable dir
+ * THROWS, the caller surfaces it (never a silent empty listing).
  */
 export function listImageDir(dir: string, extensions: readonly string[]): DirListing {
    const dirs: string[] = []
    const images: string[] = []
    for (const entry of readdirSync(dir, { withFileTypes: true })) {
-      if (entry.name.startsWith('.')) continue
       let isDir = entry.isDirectory()
       let isFile = entry.isFile()
       if (entry.isSymbolicLink()) {
@@ -32,6 +32,8 @@ export function listImageDir(dir: string, extensions: readonly string[]): DirLis
             continue // dangling symlink: neither dir nor image
          }
       }
+      // after symlink resolution, so a dot-named link to a real dir stays listed
+      if (entry.name.startsWith('.') && !isDir) continue
       if (isDir) dirs.push(entry.name)
       else if (isFile && hasImageExtension(entry.name, extensions)) images.push(entry.name)
    }

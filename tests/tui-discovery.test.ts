@@ -119,3 +119,30 @@ describe('bundledExamplesDir', () => {
       }
    })
 })
+
+describe('rememberedWorkflow (no-arg tui reopens the last module)', () => {
+   it('present in the tree → picked; stale/absent/non-string/missing file → null', async () => {
+      const { rememberedWorkflow } = await import('src/cli/tui/run-tui.tsx')
+      const { settingsPathFor } = await import('src/state.ts')
+      const root = mkdtempSync(join(tmpdir(), 'comfy-ts-resume-'))
+      try {
+         const files = ['/tree/a.cflow.ts', '/tree/sub/b.cflow.ts']
+         const settings = settingsPathFor(root)
+         mkdirSync(join(root, '.comfy-ts'), { recursive: true })
+         // the one settings-path rule: SettingsSt writes where run-tui reads
+         expect(settings).toBe(join(root, '.comfy-ts', 'settings.json'))
+         writeFileSync(settings, JSON.stringify({ lastWorkflow: '/tree/sub/b.cflow.ts' }))
+         expect(rememberedWorkflow(files, settings)).toBe('/tree/sub/b.cflow.ts')
+         // moved/deleted module: stored path no longer in the tree
+         writeFileSync(settings, JSON.stringify({ lastWorkflow: '/gone/x.cflow.ts' }))
+         expect(rememberedWorkflow(files, settings)).toBeNull()
+         writeFileSync(settings, JSON.stringify({ lastWorkflow: 42 }))
+         expect(rememberedWorkflow(files, settings)).toBeNull()
+         writeFileSync(settings, 'not json at all')
+         expect(rememberedWorkflow(files, settings)).toBeNull()
+         expect(rememberedWorkflow(files, join(root, 'nope.json'))).toBeNull()
+      } finally {
+         rmSync(root, { recursive: true, force: true })
+      }
+   })
+})

@@ -148,6 +148,8 @@ export class TuiSt {
          this.tree.expandedFiles.add(opts.currentFile)
          // the first module loads in run-tui, BEFORE WorkflowsSt.load can record it
          this.workflows.recordSpecColor(opts.currentFile, wf)
+         // whatever is on screen is what a no-arg reopen returns to
+         this.settings.lastWorkflow = opts.currentFile
       }
       // full-terminal layout: track resizes (SIGWINCH surfaces as stdout resize)
       const onResize = (): void => {

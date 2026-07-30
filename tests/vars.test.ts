@@ -169,6 +169,31 @@ describe('image var', () => {
    })
 })
 
+describe('size var linked to an image var', () => {
+   const realJpg = resolve('examples/images/dog_512x512.jpg')
+
+   it('imageSize reads the linked image var dims live (512x512 bundled jpg)', () => {
+      const image = v.image(realJpg)
+      const size = v.size({ width: 1024, height: 1024 }, { image })
+      expect(size.imageVar).toBe(image)
+      expect(size.imageSize()).toEqual({ width: 512, height: 512, name: 'dog_512x512.jpg' })
+   })
+
+   it('no link, empty path, or unreadable file → null (row absent, never a throw)', () => {
+      expect(v.size().imageSize()).toBeNull()
+      expect(v.size(undefined, { image: v.image('') }).imageSize()).toBeNull()
+      expect(v.size(undefined, { image: v.image('/nope/missing.png') }).imageSize()).toBeNull()
+   })
+
+   it('follows the image var: a new pick changes the reported size', () => {
+      const image = v.image('')
+      const size = v.size(undefined, { image })
+      expect(size.imageSize()).toBeNull()
+      image.set(resolve('examples/images/pug_200x300.jpg'))
+      expect(size.imageSize()).toEqual({ width: 200, height: 300, name: 'pug_200x300.jpg' })
+   })
+})
+
 describe('seed modes', () => {
    it('parses mode + number and round-trips through display/edit buffer', () => {
       const s = v.seed(12)

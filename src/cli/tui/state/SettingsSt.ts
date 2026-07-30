@@ -41,19 +41,26 @@ export class SettingsSt {
       makeAutoObservable<SettingsSt, 'st'>(this, { st: false })
       this.st.disposers.push(
          reaction(
-            () =>
-               JSON.stringify({
-                  previewPanel: this.previewPanel,
-                  previewRenderer: this.previewRenderer,
-                  previewDuringRun: this.previewDuringRun,
-                  lastDraft: this.lastDraft,
-                  hostOverrideId: this.hostOverrideId,
-                  collapsedDirs: this.collapsedDirs,
-               }),
+            () => this.snapshotJson(),
             (json) => this.write(json),
             { delay: 300 },
          ),
       )
+      // the delayed reaction can be cancelled by dispose with a write pending —
+      // and lastWorkflow's whole point is exit state: flush on the way out
+      this.st.disposers.push(() => this.write(this.snapshotJson()))
+   }
+
+   private snapshotJson(): string {
+      return JSON.stringify({
+         previewPanel: this.previewPanel,
+         previewRenderer: this.previewRenderer,
+         previewDuringRun: this.previewDuringRun,
+         lastDraft: this.lastDraft,
+         lastWorkflow: this.lastWorkflow,
+         hostOverrideId: this.hostOverrideId,
+         collapsedDirs: this.collapsedDirs,
+      })
    }
 
    previewPanel: boolean = true
@@ -61,6 +68,8 @@ export class SettingsSt {
    previewDuringRun: PreviewDuringRun = 'latent'
    /** module basename → the draft that was active last time (reopened on load) */
    lastDraft: Record<string, string> = {}
+   /** path of the last OPEN workflow module — a no-arg `tui` reopens it (his ask 2026-07-30) */
+   lastWorkflow: string | null = null
    /** the `h` host override, by host id (re-resolved once that host registers) */
    hostOverrideId: string | null = null
    /** folded tree dirs (hand-tuned state persists, like every other surface) */
@@ -87,6 +96,7 @@ export class SettingsSt {
          this.previewDuringRun = preview.previewDuringRun
          if (o.lastDraft != null && typeof o.lastDraft === 'object')
             this.lastDraft = { ...(o.lastDraft as Record<string, string>) }
+         if (typeof o.lastWorkflow === 'string') this.lastWorkflow = o.lastWorkflow
          if (typeof o.hostOverrideId === 'string') this.hostOverrideId = o.hostOverrideId
          if (Array.isArray(o.collapsedDirs)) this.collapsedDirs = o.collapsedDirs.filter((d) => typeof d === 'string')
       } catch {
