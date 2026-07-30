@@ -27,8 +27,10 @@ locally (`bun run gen:sdk`) and included by tsconfig, so examples typecheck
 against the REAL host types on this machine. It is NOT committed and never
 will be: a host dump is that machine's entire model/lora inventory plus its
 filesystem paths (~10 MB), i.e. someone's private setup. A clean clone has no
-`sdk.d.ts` at all — the frozen invariant below is exactly what keeps that
-clone (and CI) green.
+PRIVATE host `sdk.d.ts` at all — the frozen invariant below is exactly what
+keeps that clone (and CI) green. The ONE exception is the Comfy Cloud shared
+catalog, which is account-generic by construction and lives committed under
+`examples/comfy-cloud/` (see "Cloud & remote hosts" below).
 
 ## File structure
 
@@ -505,6 +507,110 @@ unknown ──LiteGraphJSON_ark──▶ LiteGraphJSON (loose wire type)
   (`.prettierignore` already exempts `tests/fixtures/**` — fixtures are DATA);
   execution-semantics permutations (e.g. bypass rewiring) mutate a small
   fixture in-test instead of multiplying files.
+
+## Cloud & remote hosts (designed 2026-07-30 — docs first, code follows)
+
+Ground truth: `.rv-journal/cloud-audit.md` (the 2026-07-29 inventory: 16 bare
+fetch sites, no auth path, ws without options, `/api` prefix stragglers) and
+the imported provider docs in `agent/external-docs/comfy-cloud/` (one .md per
+upstream page, frontmatter `url:` + `importedAt:`). Comfy Cloud facts, probed
+2026-07-30 against the live service: base `https://cloud.comfy.org`,
+ComfyUI-compatible protocol under `/api/*`, auth header `X-API-Key`, ws at
+`wss://cloud.comfy.org/ws`, `/api/user` → `{id, status}` on a valid key,
+object_info ≈ 9.3 MB / 3573 node types. This section is the decided contract
+for the code arc; none of it is built yet.
+
+### ComfyHostData: url-first form
+
+- `ComfyHostData` gains `url?: string` — a full base URL as pasted from a
+  provider (`https://cloud.comfy.org`, `https://xxx.modal.run`,
+  `http://192.168.1.5:8188/comfy`). Exactly ONE of `url` or the legacy
+  `host` + `port` (+ `https?`) spelling is required; the legacy spelling keeps
+  working untouched (every existing example and consumer compiles as-is).
+  Loud throw when both or neither are given.
+- The constructor parses ONCE into a normalized quad `{scheme: 'http'|'https',
+  host, port, basePath}` (port defaults 80/443 from the scheme; basePath is
+  `''` or `/segment…` with no trailing slash). `getServerHostHTTP()` /
+  `getWSUrl()` render from the quad and OMIT the port when it is the scheme
+  default, so `https://cloud.comfy.org` round-trips clean while
+  `host: '192.168.1.5', port: 8188` renders exactly as today.
+- `comfyts.host()` identity check extends to the whole quad + apiKey presence
+  (never the key VALUE in the error message).
+
+### apiKey — value never in the repo
+
+- `ComfyHostData` gains `apiKey?: string`, sent as `X-API-Key` on every HTTP
+  request and on the ws upgrade. The VALUE is never persisted to any tracked
+  file: examples read `process.env.COMFY_CLOUD_API_KEY` (on this machine:
+  `rv-secret get comfy-cloud/api-key`, mirrored at
+  `.rv-private/comfy-cloud-api-key`, both gitignored) and THROW a loud typed
+  error naming the env var when it is absent. The banned-keywords guard
+  machine-blocks the key shape (`re:comfyui-[a-z0-9]{16,}` — see
+  `scripts/check-banned.ts` regex rows) in staged content, paths, and commit
+  messages.
+- Auth failures are loud and specific: 401 invalid key, 402 insufficient
+  credits, 429 subscription inactive (per the imported error table) — the
+  helper below maps them to typed errors instead of generic HTTP noise.
+
+### host.fetch — the ONE http path (kills the 16-site debt)
+
+- `host.fetch(route, init?)` on ComfyHost: joins basePath, injects `X-API-Key`
+  when set, merges optional `data.headers` (Modal-style extra headers), throws
+  the typed auth errors above. EVERY host-bound fetch site routes through it —
+  the audit's list of 16: ComfyHost `postJSON_/fetchJSON_/fetchRawLogs/
+  subscribeLogs`, ComfyManager ×4, ComfyUploader, loraManagerApi,
+  ComfyExecution image downloads ×2, `ComfyWorkflow.start`, `cli/gen.ts`,
+  `tui HostSt.probe`. After the sweep, a direct `fetch(` against a host URL
+  outside ComfyHost is a defect (grep-enforceable).
+- `/api` prefix preference moves INTO the helper: try `/api<route>` first,
+  fall back to the bare route on 404/405, remember the winner per host (one
+  probe, not per call). That is today's `fetchJSON_`/`postJSON_` pattern
+  centralized — the two stragglers the audit found (`POST /prompt` in
+  ComfyWorkflow.start, `POST /upload/image` in ComfyUploader) get it for free.
+  Required by Comfy Cloud, harmless locally.
+- `/api/view` downloads: the cloud answers 302 to a temporary signed URL.
+  fetch only auto-strips `Authorization`/cookies on cross-origin redirects —
+  a CUSTOM `X-API-Key` header would be forwarded to the storage host. So
+  binary downloads use `redirect: 'manual'` + a clean UNAUTHED fetch of the
+  `Location` target (exactly the imported docs' own pattern). One code path:
+  a `host.fetchFile(route)` variant next to `host.fetch`.
+- Local-only surfaces (`/internal/logs/*`, ComfyUI-Manager routes, the
+  lora-manager extension) 404 on cloud hosts: the TUI degrades to its quiet
+  placeholder states instead of erroring — down/absent is a STATE, not a
+  console spam.
+
+### ws auth
+
+- Verified against the live cloud by ws-upgrade handshake probe (2026-07-30,
+  HTTP/1.1): no auth → 401, bad token → 401, and ALL THREE of `?token=<key>`
+  (the documented spelling), `X-API-Key: <key>`, `Authorization: Bearer <key>`
+  → 101. We send the HEADER: `ResilientWebSocketClient` gains
+  `options.headers` passed to `new WebSocket(url, { headers })` (the `ws`
+  package supports it; we are not browser-bound), keeping the key out of URLs
+  and proxy logs. `getWSUrl()` appends `?clientId=<uuid>` only — never the
+  token in the query string.
+
+### The committed cloud SDK catalog
+
+- `.comfy-ts/hosts/` stays NEVER-COMMIT: those are private machine
+  inventories. Comfy Cloud is different in kind — every account sees the same
+  managed model catalog, so its generated sdk is a SHARED artifact. Committed
+  home: `examples/comfy-cloud/sdk.d.ts`, host id `comfy-cloud`, regenerated
+  deliberately via `bun run gen:sdk:cloud` (codegen gains an explicit outPath;
+  the cloud host id never writes into `.comfy-ts/hosts/` — two sdk.d.ts files
+  declaring the same `Comfy.Hosts` id would double-declare globals).
+- tsconfig wiring: ZERO new config. The root tsconfig `include` already
+  carries `examples`, so the committed catalog typechecks cloud examples on a
+  fresh clone; `tsconfig.lib.json` excludes examples, so the portable gate and
+  its no-generated-sdk invariant are untouched.
+- Privacy rule (binding, every regeneration): before committing a generated
+  cloud sdk, SCAN it for user-specific strings — emails, personal lora/model
+  names, account ids, absolute local paths — and require the catalog to read
+  account-generic (managed model names only). Mechanics: the banned-keywords
+  pre-commit guard runs on the staged file anyway; on top of it, eyeball the
+  diff of union types (loras, checkpoints, embeddings) for anything that names
+  a PERSON rather than a product. A cloud sdk that fails the sniff test stays
+  uncommitted until the offending strings are understood.
 
 ## Frozen invariants
 

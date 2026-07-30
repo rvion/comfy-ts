@@ -1,4 +1,5 @@
 // commit guard: rejects commits containing keywords from .rv-private/banned-keywords.txt
+// rows: plain text = case-insensitive substring; `re:<pattern>` = case-insensitive regex
 // usage: check-banned.ts --staged        (pre-commit: staged contents + staged paths)
 //        check-banned.ts --msg <file>    (commit-msg: the commit message)
 import { spawnSync } from 'node:child_process'
@@ -24,17 +25,38 @@ function main(): void {
       console.warn(`⚠ ${KEYWORDS_FILE} not found — banned-keywords check SKIPPED`)
       return
    }
-   const keywords = readFileSync(keywordsPath, 'utf8')
+   const rows = readFileSync(keywordsPath, 'utf8')
       .split('\n')
       .map((l) => l.trim())
       .filter((l) => l !== '' && !l.startsWith('#'))
-   if (keywords.length === 0) return
+   if (rows.length === 0) return
+
+   // rows starting with `re:` are case-insensitive regexes (api-key shapes, …);
+   // everything else stays a case-insensitive substring
+   const substrings: string[] = []
+   const regexes: { row: string; re: RegExp }[] = []
+   for (const row of rows) {
+      if (!row.startsWith('re:')) {
+         substrings.push(row)
+         continue
+      }
+      const source = row.slice(3)
+      try {
+         regexes.push({ row, re: new RegExp(source, 'i') })
+      } catch (err) {
+         console.error(`✖ ${KEYWORDS_FILE}: invalid regex row "${row}": ${String(err)}`)
+         process.exit(2)
+      }
+   }
 
    const hits: Hit[] = []
    const scan = (p: { where: string; text: string }): void => {
       const low = p.text.toLowerCase()
-      for (const kw of keywords) {
+      for (const kw of substrings) {
          if (low.includes(kw.toLowerCase())) hits.push({ where: p.where, keyword: kw })
+      }
+      for (const rx of regexes) {
+         if (rx.re.test(p.text)) hits.push({ where: p.where, keyword: rx.row })
       }
    }
 

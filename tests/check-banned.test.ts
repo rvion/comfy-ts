@@ -61,6 +61,42 @@ describe('check-banned', () => {
       expect(res2.status).toBe(0)
    })
 
+   test('re: rows match as case-insensitive regex (api-key shapes)', () => {
+      const dir = makeRepo({ keywords: 're:comfyui-[a-z0-9]{16,}\n' })
+      // key shape assembled at runtime so THIS repo's own guard never sees a literal
+      writeFileSync(join(dir, 'a.ts'), `const key = "${'comfyui-' + 'deadbeef'.repeat(4)}"\n`)
+      spawnSync('git', ['add', 'a.ts'], { cwd: dir })
+      const res = run({ cwd: dir, args: ['--staged'] })
+      expect(res.status).toBe(1)
+      expect(res.stderr).toContain('a.ts:1')
+   })
+
+   test('re: rows do NOT match legit prefixed names (ComfyUI-Manager)', () => {
+      const dir = makeRepo({ keywords: 're:comfyui-[a-z0-9]{16,}\n' })
+      writeFileSync(join(dir, 'a.ts'), 'import { x } from "ComfyUI-Manager"\nconst y = "comfyui-frontend-master"\n')
+      spawnSync('git', ['add', 'a.ts'], { cwd: dir })
+      const res = run({ cwd: dir, args: ['--staged'] })
+      expect(res.status).toBe(0)
+   })
+
+   test('re: rows apply to the commit message too', () => {
+      const dir = makeRepo({ keywords: 're:comfyui-[a-z0-9]{16,}\n' })
+      const msg = join(dir, 'MSG')
+      writeFileSync(msg, `oops leaked ${'COMFYUI-' + 'a1b2'.repeat(5)} in the message\n`)
+      const res = run({ cwd: dir, args: ['--msg', msg] })
+      expect(res.status).toBe(1)
+      expect(res.stderr).toContain('commit message')
+   })
+
+   test('invalid re: row fails LOUDLY instead of silently skipping', () => {
+      const dir = makeRepo({ keywords: 're:[unclosed\n' })
+      writeFileSync(join(dir, 'a.ts'), 'clean\n')
+      spawnSync('git', ['add', 'a.ts'], { cwd: dir })
+      const res = run({ cwd: dir, args: ['--staged'] })
+      expect(res.status).not.toBe(0)
+      expect(res.stderr).toContain('re:[unclosed')
+   })
+
    test('missing keywords file: loud warning, passes', () => {
       const dir = makeRepo({})
       writeFileSync(join(dir, 'a.ts'), 'whatever\n')
