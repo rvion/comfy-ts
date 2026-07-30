@@ -54,9 +54,10 @@ New dep = a decision. First ask: can ~20 lines of current code do it?
 - Known violations to burn down (documented, do NOT replicate): scattered `as any` in
   `ComfyNode._convertPromptExtToPrompt` / dynamic outputs wiring; `softValidate`/`bong`
   returning lying casts on failure (both documented at the definition);
-  `ComfyRegistry` built-in plugin seeded with `as any`; manager generated unions
-  claimed via `.as<T>()` without membership checks (live data may legitimately
-  contain values newer than the generated union).
+  manager generated unions claimed via `.as<T>()` without membership checks
+  (live data may legitimately contain values newer than the generated union).
+  (`ComfyRegistry` built-in `as any` seed burned down 2026-07-30: the pseudo-plugin
+  is seeded into byTitle/byFile BEFORE codegen so its literals are union members.)
 - params named `p`, no destructuring in params/bodies (`p.hostId`), `== null` checks,
   early returns, classes for stateful things.
 

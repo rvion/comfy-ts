@@ -1,40 +1,35 @@
-import { type ArkErrors, type } from 'arktype'
+import { readFileSync, writeFileSync } from 'node:fs'
+import { type } from 'arktype'
 import { ansi as chalk } from 'src/utils/ansi.ts'
-// https://github.com/ltdrdata/ComfyUI-Manager/blob/main/model-list.json
-import { readFileSync, writeFileSync } from 'fs'
-import { printArkResultInConsole } from 'src/utils/printArkResultInConsole.ts'
 import type { ComfyRegistry } from 'src/manager/ComfyRegistry.ts'
-import type { KnownModel_Name } from 'src/manager/generated/KnownModel_Name.ts'
 import { extraModels } from 'src/manager/json/model-list.extra.ts'
-import type { ComfyManagerFileModelInfo } from 'src/manager/types/ComfyManagerFileModelInfo.ts'
-import { ComfyManagerModelInfo_ark } from 'src/manager/types/ComfyManagerModelInfo.ts'
+import { ManagerParseError } from 'src/manager/loaders/parseReport.ts'
+import { ComfyManagerFileModelInfoRoot_ark } from 'src/manager/types/ComfyManagerFileModelInfo.ts'
+import { type ComfyManagerModelInfo, ComfyManagerModelInfo_ark } from 'src/manager/types/ComfyManagerModelInfo.ts'
 
-export const _getKnownModels = (
-   DB: ComfyRegistry /* {
-} */,
-): void => {
-   const knownModelsFile: ComfyManagerFileModelInfo = JSON.parse(
-      readFileSync('src/manager/json/model-list.json', 'utf8'),
-   )
-   const knownModelList = knownModelsFile.models.concat(extraModels.models)
+export const _getKnownModels = (DB: ComfyRegistry): void => {
+   const counter = DB.report.file('model-list.json')
 
-   let hasErrors = false
+   const raw: unknown = JSON.parse(readFileSync('src/manager/json/model-list.json', 'utf8'))
+   const root = ComfyManagerFileModelInfoRoot_ark(raw)
+   if (root instanceof type.errors) throw new ManagerParseError('model-list.json', root.summary)
+
+   const canonical: ComfyManagerModelInfo[] = []
+   for (const row of root.models) {
+      const res = ComfyManagerModelInfo_ark(row)
+      if (res instanceof type.errors) {
+         counter.skip('schema', res.summary)
+         continue
+      }
+      canonical.push(res)
+      counter.ok()
+   }
+
+   // hand-maintained extras are compile-checked canonical rows, not upstream data: no counting
+   const knownModelList = canonical.concat(extraModels.models)
 
    for (const modelInfo of knownModelList) {
-      // INITIALIZATION ------------------------------------------------------------
-      DB.knownModels.set(modelInfo.name as KnownModel_Name, modelInfo)
-
-      // JSON CHECKS -----------------------------------------------------------
-      if (!hasErrors && DB.opts.check) {
-         const res = ComfyManagerModelInfo_ark(modelInfo)
-         if (res instanceof type.errors) {
-            const errors: ArkErrors = res
-            console.error(`❌ model doesn't match schema:`, modelInfo)
-            printArkResultInConsole(errors)
-            hasErrors = true
-            // debugger
-         }
-      }
+      DB.knownModels.set(modelInfo.name, modelInfo)
    }
 
    // CODEGEN ------------------------------------------------------------
@@ -145,15 +140,9 @@ export const _getKnownModels = (
 
    // INDEXING CHECKS ------------------------------------------------------------
    if (DB.opts.check) {
-      //
       console.log(`${knownModelList.length} models found`)
       console.log(`${DB.knownModels.size} models registered map`)
       if (knownModelList.length !== DB.knownModels.size)
          console.log(`❌ some models are either duplicated or have overlapping indexing keys`)
-      //
-      if (hasErrors) console.log(`❌ some models don't match schema`)
-      else console.log(`✅ all models match schema`)
    }
-
-   // return DB.knownModels
 }

@@ -4,7 +4,7 @@ export type KnownModel_Base =
     | "SD3"                // x   8
     | "SDXL"               // x  90
     | "SD1.x"              // x  26
-    | "upscale"            // x  14
+    | "upscale"            // x  19
     | "deepbump"           // x   1
     | "face_restore"       // x   3
     | "SVD"                // x   2
@@ -23,7 +23,7 @@ export type KnownModel_Base =
     | "ViT-G"              // x   2
     | "ViT-L"              // x   2
     | "ViT-H"              // x   1
-    | "SAM"                // x   4
+    | "SAM"                // x  12
     | "SEECODER"           // x   3
     | "Ultralytics"        // x  16
     | "MotionCtrl"         // x   1
@@ -47,19 +47,27 @@ export type KnownModel_Base =
     | "Hunyuan-DiT"        // x   3
     | "Hunyuan Video"      // x   3
     | "LLaVA-Llama-3"      // x   3
+    | "OmniGen2"           // x   1
+    | "qwen-2.5"           // x   1
     | "depth-pro"          // x   1
     | "lotus"              // x   7
     | "ChatGLM3"           // x   3
     | "MoGe"               // x   2
-    | "LTX-Video"          // x   8
+    | "LTX-Video"          // x  16
     | "efficient_sam"      // x   2
     | "CustomNet"          // x   2
     | "Janus-Pro"          // x   2
     | "Wan2.1"             // x  15
     | "clip_vision_h"      // x   1
+    | "Wan2.2"             // x   9
     | "umt5_xxl"           // x   2
     | "FramePackI2V"       // x   1
-    | "LBM" // x   1
+    | "LTX-2"              // x  16
+    | "LTX-2.3"            // x   8
+    | "LBM"                // x   1
+    | "Qwen-Image"         // x  14
+    | "Qwen-2.5-VL"        // x   2
+    | "Qwen-Image-Edit" // x  12
 
 // prettier-ignore
 export const knownModel_Base: KnownModel_Base[] = [
@@ -67,7 +75,7 @@ export const knownModel_Base: KnownModel_Base[] = [
     "SD3"               ,  // x   8
     "SDXL"              ,  // x  90
     "SD1.x"             ,  // x  26
-    "upscale"           ,  // x  14
+    "upscale"           ,  // x  19
     "deepbump"          ,  // x   1
     "face_restore"      ,  // x   3
     "SVD"               ,  // x   2
@@ -86,7 +94,7 @@ export const knownModel_Base: KnownModel_Base[] = [
     "ViT-G"             ,  // x   2
     "ViT-L"             ,  // x   2
     "ViT-H"             ,  // x   1
-    "SAM"               ,  // x   4
+    "SAM"               ,  // x  12
     "SEECODER"          ,  // x   3
     "Ultralytics"       ,  // x  16
     "MotionCtrl"        ,  // x   1
@@ -110,17 +118,25 @@ export const knownModel_Base: KnownModel_Base[] = [
     "Hunyuan-DiT"       ,  // x   3
     "Hunyuan Video"     ,  // x   3
     "LLaVA-Llama-3"     ,  // x   3
+    "OmniGen2"          ,  // x   1
+    "qwen-2.5"          ,  // x   1
     "depth-pro"         ,  // x   1
     "lotus"             ,  // x   7
     "ChatGLM3"          ,  // x   3
     "MoGe"              ,  // x   2
-    "LTX-Video"         ,  // x   8
+    "LTX-Video"         ,  // x  16
     "efficient_sam"     ,  // x   2
     "CustomNet"         ,  // x   2
     "Janus-Pro"         ,  // x   2
     "Wan2.1"            ,  // x  15
     "clip_vision_h"     ,  // x   1
+    "Wan2.2"            ,  // x   9
     "umt5_xxl"          ,  // x   2
     "FramePackI2V"      ,  // x   1
+    "LTX-2"             ,  // x  16
+    "LTX-2.3"           ,  // x   8
     "LBM"               ,  // x   1
+    "Qwen-Image"        ,  // x  14
+    "Qwen-2.5-VL"       ,  // x   2
+    "Qwen-Image-Edit"   ,  // x  12
 ]

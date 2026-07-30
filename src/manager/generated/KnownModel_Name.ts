@@ -495,6 +495,16 @@ export type KnownModel_Name =
      * see https://huggingface.co/Comfy-Org/HunyuanVideo_repackaged
      */
     | "Comfy-Org/llava_llama3_vision.safetensors"
+    /** OmniGen2 diffusion model. This is required for using OmniGen2.
+     * 7.93GB - https://huggingface.co/Comfy-Org/Omnigen2_ComfyUI_repackaged/resolve/main/split_files/diffusion_models/omnigen2_fp16.safetensors
+     * see https://huggingface.co/Comfy-Org/Omnigen2_ComfyUI_repackaged
+     */
+    | "Comfy-Org/omnigen2_fp16.safetensors"
+    /** text encoder for OmniGen2
+     * 7.51GB - https://huggingface.co/Comfy-Org/Omnigen2_ComfyUI_repackaged/resolve/main/split_files/text_encoders/qwen_2.5_vl_fp16.safetensors
+     * see https://huggingface.co/Comfy-Org/Omnigen2_ComfyUI_repackaged
+     */
+    | "Comfy-Org/qwen_2.5_vl_fp16.safetensors"
     /** This clip vision model is required for FLUX.1 Redux.
      * 857MB - https://huggingface.co/Comfy-Org/sigclip_vision_384/resolve/main/sigclip_vision_patch14_384.safetensors
      * see https://huggingface.co/Comfy-Org/sigclip_vision_384/tree/main
@@ -585,6 +595,51 @@ export type KnownModel_Name =
      * see https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged
      */
     | "Comfy-Org/Wan2.1 VAE"
+    /** Wan2.2 diffusion model for i2v high noise 14B (fp16)
+     * 28.6GB - https://huggingface.co/Comfy-Org/Wan_2.2_ComfyUI_Repackaged/resolve/main/split_files/diffusion_models/wan2.2_i2v_high_noise_14B_fp16.safetensors
+     * see https://huggingface.co/Comfy-Org/Wan_2.2_ComfyUI_Repackaged
+     */
+    | "Comfy-Org/Wan2.2 i2v high noise 14B (fp16)"
+    /** Wan2.2 diffusion model for i2v high noise 14B (fp8_scaled)
+     * 14.3GB - https://huggingface.co/Comfy-Org/Wan_2.2_ComfyUI_Repackaged/resolve/main/split_files/diffusion_models/wan2.2_i2v_high_noise_14B_fp8_scaled.safetensors
+     * see https://huggingface.co/Comfy-Org/Wan_2.2_ComfyUI_Repackaged
+     */
+    | "Comfy-Org/Wan2.2 i2v high noise 14B (fp8_scaled)"
+    /** Wan2.2 diffusion model for i2v low noise 14B (fp16)
+     * 28.6GB - https://huggingface.co/Comfy-Org/Wan_2.2_ComfyUI_Repackaged/resolve/main/split_files/diffusion_models/wan2.2_i2v_low_noise_14B_fp16.safetensors
+     * see https://huggingface.co/Comfy-Org/Wan_2.2_ComfyUI_Repackaged
+     */
+    | "Comfy-Org/Wan2.2 i2v low noise 14B (fp16)"
+    /** Wan2.2 diffusion model for i2v low noise 14B (fp8_scaled)
+     * 14.3GB - https://huggingface.co/Comfy-Org/Wan_2.2_ComfyUI_Repackaged/resolve/main/split_files/diffusion_models/wan2.2_i2v_low_noise_14B_fp8_scaled.safetensors
+     * see https://huggingface.co/Comfy-Org/Wan_2.2_ComfyUI_Repackaged
+     */
+    | "Comfy-Org/Wan2.2 i2v low noise 14B (fp8_scaled)"
+    /** Wan2.2 diffusion model for t2v high noise 14B (fp16)
+     * 28.6GB - https://huggingface.co/Comfy-Org/Wan_2.2_ComfyUI_Repackaged/resolve/main/split_files/diffusion_models/wan2.2_t2v_high_noise_14B_fp16.safetensors
+     * see https://huggingface.co/Comfy-Org/Wan_2.2_ComfyUI_Repackaged
+     */
+    | "Comfy-Org/Wan2.2 t2v high noise 14B (fp16)"
+    /** Wan2.2 diffusion model for t2v high noise 14B (fp8_scaled)
+     * 14.3GB - https://huggingface.co/Comfy-Org/Wan_2.2_ComfyUI_Repackaged/resolve/main/split_files/diffusion_models/wan2.2_t2v_high_noise_14B_fp8_scaled.safetensors
+     * see https://huggingface.co/Comfy-Org/Wan_2.2_ComfyUI_Repackaged
+     */
+    | "Comfy-Org/Wan2.2 t2v high noise 14B (fp8_scaled)"
+    /** Wan2.2 diffusion model for t2v low noise 14B (fp16)
+     * 28.6GB - https://huggingface.co/Comfy-Org/Wan_2.2_ComfyUI_Repackaged/resolve/main/split_files/diffusion_models/wan2.2_t2v_low_noise_14B_fp16.safetensors
+     * see https://huggingface.co/Comfy-Org/Wan_2.2_ComfyUI_Repackaged
+     */
+    | "Comfy-Org/Wan2.2 t2v low noise 14B (fp16)"
+    /** Wan2.2 diffusion model for t2v low noise 14B (fp8_scaled)
+     * 14.3GB - https://huggingface.co/Comfy-Org/Wan_2.2_ComfyUI_Repackaged/resolve/main/split_files/diffusion_models/wan2.2_t2v_low_noise_14B_fp8_scaled.safetensors
+     * see https://huggingface.co/Comfy-Org/Wan_2.2_ComfyUI_Repackaged
+     */
+    | "Comfy-Org/Wan2.2 t2v low noise 14B (fp8_scaled)"
+    /** Wan2.2 diffusion model for ti2v 5B (fp16)
+     * 10.0GB - https://huggingface.co/Comfy-Org/Wan_2.2_ComfyUI_Repackaged/resolve/main/split_files/diffusion_models/wan2.2_ti2v_5B_fp16.safetensors
+     * see https://huggingface.co/Comfy-Org/Wan_2.2_ComfyUI_Repackaged
+     */
+    | "Comfy-Org/Wan2.2 ti2v 5B (fp16)"
     /** VAE model for Cosmos 1.0
      * 211MB - https://huggingface.co/comfyanonymous/cosmos_1.0_text_encoder_and_VAE_ComfyUI/resolve/main/vae/cosmos_cv8x8x8_1.0.safetensors
      * see https://huggingface.co/comfyanonymous/cosmos_1.0_text_encoder_and_VAE_ComfyUI/tree/main
@@ -852,6 +907,7 @@ You need to this model for <B>Tiled Resample</B>
      */
     | "FLUX.1 [Schnell] Diffusion model"
     /** FLUX.1 VAE model
+NOTE: This VAE model can also be used for image generation with OmniGen2.
      * 335MB - https://huggingface.co/black-forest-labs/FLUX.1-schnell/resolve/main/ae.safetensors
      * see https://huggingface.co/black-forest-labs/FLUX.1-schnell
      */
@@ -1456,11 +1512,161 @@ You need to this model for <B>Tiled Resample</B>
      * see https://huggingface.co/Lightricks/LongAnimateDiff
      */
     | "LongAnimatediff/lt_long_mm_32_frames.ckpt (ComfyUI-AnimateDiff-Evolved) (Updated path)"
+    /** LTX-2 19B Dev model.
+     * 43.3GB - https://huggingface.co/Lightricks/LTX-2/resolve/main/ltx-2-19b-dev.safetensors
+     * see https://huggingface.co/Lightricks/LTX-2
+     */
+    | "LTX-2 19B Dev"
+    /** LTX-2 19B Dev FP8 model.
+     * 27.1GB - https://huggingface.co/Lightricks/LTX-2/resolve/main/ltx-2-19b-dev-fp8.safetensors
+     * see https://huggingface.co/Lightricks/LTX-2
+     */
+    | "LTX-2 19B Dev FP8"
+    /** LTX-2 19B Distilled model.
+     * 43.3GB - https://huggingface.co/Lightricks/LTX-2/resolve/main/ltx-2-19b-distilled.safetensors
+     * see https://huggingface.co/Lightricks/LTX-2
+     */
+    | "LTX-2 19B Distilled"
+    /** LTX-2 19B Distilled FP8 model.
+     * 27.1GB - https://huggingface.co/Lightricks/LTX-2/resolve/main/ltx-2-19b-distilled-fp8.safetensors
+     * see https://huggingface.co/Lightricks/LTX-2
+     */
+    | "LTX-2 19B Distilled FP8"
+    /** A LoRA adapter that transforms the standard LTX-2 19B model into a distilled version when loaded.
+     * 7.67GB - https://huggingface.co/Lightricks/LTX-2/resolve/main/ltx-2-19b-distilled-lora-384.safetensors
+     * see https://huggingface.co/Lightricks/LTX-2
+     */
+    | "LTX-2 19B Distilled LoRA"
+    /** LoRA for canny control on LTX-2 19B IC model. Intended for advanced edge control and guided generation.
+     * 654MB - https://huggingface.co/Lightricks/LTX-2-19b-IC-LoRA-Canny-Control/resolve/main/ltx-2-19b-ic-lora-canny-control.safetensors
+     * see https://huggingface.co/Lightricks/LTX-2-19b-IC-LoRA-Canny-Control
+     */
+    | "LTX-2 19B IC LoRA - Canny Control"
+    /** LoRA for depth control on LTX-2 19B IC model. Adds depth-aware generation guidance.
+     * 654MB - https://huggingface.co/Lightricks/LTX-2-19b-IC-LoRA-Depth-Control/resolve/main/ltx-2-19b-ic-lora-depth-control.safetensors
+     * see https://huggingface.co/Lightricks/LTX-2-19b-IC-LoRA-Depth-Control
+     */
+    | "LTX-2 19B IC LoRA - Depth Control"
+    /** LoRA detailer for LTX-2 19B IC. Improves fine details and sharpness in generated outputs.
+     * 2.62GB - https://huggingface.co/Lightricks/LTX-2-19b-IC-LoRA-Detailer/resolve/main/ltx-2-19b-ic-lora-detailer.safetensors
+     * see https://huggingface.co/Lightricks/LTX-2-19b-IC-LoRA-Detailer
+     */
+    | "LTX-2 19B IC LoRA - Detailer"
+    /** LoRA for pose control on LTX-2 19B IC model. Enables pose-guided image/video generation.
+     * 654MB - https://huggingface.co/Lightricks/LTX-2-19b-IC-LoRA-Pose-Control/resolve/main/ltx-2-19b-ic-lora-pose-control.safetensors
+     * see https://huggingface.co/Lightricks/LTX-2-19b-IC-LoRA-Pose-Control
+     */
+    | "LTX-2 19B IC LoRA - Pose Control"
+    /** LoRA for dolly-in camera control with LTX-2 19B. Simulates camera moving closer to subject.
+     * 327MB - https://huggingface.co/Lightricks/LTX-2-19b-LoRA-Camera-Control-Dolly-In/resolve/main/ltx-2-19b-lora-camera-control-dolly-in.safetensors
+     * see https://huggingface.co/Lightricks/LTX-2-19b-LoRA-Camera-Control-Dolly-In
+     */
+    | "LTX-2 19B LoRA - Camera Control Dolly In"
+    /** LoRA for dolly-left camera control with LTX-2 19B. Simulates camera moving left.
+     * 327MB - https://huggingface.co/Lightricks/LTX-2-19b-LoRA-Camera-Control-Dolly-Left/resolve/main/ltx-2-19b-lora-camera-control-dolly-left.safetensors
+     * see https://huggingface.co/Lightricks/LTX-2-19b-LoRA-Camera-Control-Dolly-Left
+     */
+    | "LTX-2 19B LoRA - Camera Control Dolly Left"
+    /** LoRA for dolly-out camera control with LTX-2 19B. Simulates camera moving away from subject.
+     * 327MB - https://huggingface.co/Lightricks/LTX-2-19b-LoRA-Camera-Control-Dolly-Out/resolve/main/ltx-2-19b-lora-camera-control-dolly-out.safetensors
+     * see https://huggingface.co/Lightricks/LTX-2-19b-LoRA-Camera-Control-Dolly-Out
+     */
+    | "LTX-2 19B LoRA - Camera Control Dolly Out"
+    /** LoRA for dolly-right camera control with LTX-2 19B. Simulates camera moving right.
+     * 327MB - https://huggingface.co/Lightricks/LTX-2-19b-LoRA-Camera-Control-Dolly-Right/resolve/main/ltx-2-19b-lora-camera-control-dolly-right.safetensors
+     * see https://huggingface.co/Lightricks/LTX-2-19b-LoRA-Camera-Control-Dolly-Right
+     */
+    | "LTX-2 19B LoRA - Camera Control Dolly Right"
+    /** LoRA for jib-down camera control with LTX-2 19B. Simulates vertical camera movement downwards.
+     * 2.21GB - https://huggingface.co/Lightricks/LTX-2-19b-LoRA-Camera-Control-Jib-Down/resolve/main/ltx-2-19b-lora-camera-control-jib-down.safetensors
+     * see https://huggingface.co/Lightricks/LTX-2-19b-LoRA-Camera-Control-Jib-Down
+     */
+    | "LTX-2 19B LoRA - Camera Control Jib Down"
+    /** LoRA for jib-up camera control with LTX-2 19B. Simulates vertical camera movement upwards.
+     * 2.21GB - https://huggingface.co/Lightricks/LTX-2-19b-LoRA-Camera-Control-Jib-Up/resolve/main/ltx-2-19b-lora-camera-control-jib-up.safetensors
+     * see https://huggingface.co/Lightricks/LTX-2-19b-LoRA-Camera-Control-Jib-Up
+     */
+    | "LTX-2 19B LoRA - Camera Control Jib Up"
+    /** LoRA for static camera control with LTX-2 19B. Simulates stationary/static camera view.
+     * 2.21GB - https://huggingface.co/Lightricks/LTX-2-19b-LoRA-Camera-Control-Static/resolve/main/ltx-2-19b-lora-camera-control-static.safetensors
+     * see https://huggingface.co/Lightricks/LTX-2-19b-LoRA-Camera-Control-Static
+     */
+    | "LTX-2 19B LoRA - Camera Control Static"
+    /** Spatial upscaler model for LTX-2. This model enhances the spatial resolution of generated videos.
+     * 996MB - https://huggingface.co/Lightricks/LTX-2/resolve/main/ltx-2-spatial-upscaler-x2-1.0.safetensors
+     * see https://huggingface.co/Lightricks/LTX-2
+     */
+    | "LTX-2 Spatial Upscaler"
+    /** Temporal upscaler model for LTX-2. This model enhances the temporal resolution of generated videos.
+     * 262MB - https://huggingface.co/Lightricks/LTX-2/resolve/main/ltx-2-temporal-upscaler-x2-1.0.safetensors
+     * see https://huggingface.co/Lightricks/LTX-2
+     */
+    | "LTX-2 Temporal Upscaler"
+    /** LTX-2.3 22B development model.
+     * 42.98GB - https://huggingface.co/Lightricks/LTX-2.3/resolve/main/ltx-2.3-22b-dev.safetensors
+     * see https://huggingface.co/Lightricks/LTX-2.3
+     */
+    | "LTX-2.3 22B Dev"
+    /** LTX-2.3 22B Dev FP8 model.
+     * 27.14GB - https://huggingface.co/Lightricks/LTX-2.3-fp8/resolve/main/ltx-2.3-22b-dev-fp8.safetensors
+     * see https://huggingface.co/Lightricks/LTX-2.3-fp8
+     */
+    | "LTX-2.3 22B Dev FP8"
+    /** LTX-2.3 22B Dev NVFP4 model.
+     * 20.21GB - https://huggingface.co/Lightricks/LTX-2.3-nvfp4/resolve/main/ltx-2.3-22b-dev-nvfp4.safetensors
+     * see https://huggingface.co/Lightricks/LTX-2.3-nvfp4
+     */
+    | "LTX-2.3 22B Dev NVFP4"
+    /** LTX-2.3 22B distilled model v1.1.
+     * 42.98GB - https://huggingface.co/Lightricks/LTX-2.3/resolve/main/ltx-2.3-22b-distilled-1.1.safetensors
+     * see https://huggingface.co/Lightricks/LTX-2.3
+     */
+    | "LTX-2.3 22B Distilled 1.1"
+    /** LTX-2.3 22B Distilled FP8 model.
+     * 27.50GB - https://huggingface.co/Lightricks/LTX-2.3-fp8/resolve/main/ltx-2.3-22b-distilled-fp8.safetensors
+     * see https://huggingface.co/Lightricks/LTX-2.3-fp8
+     */
+    | "LTX-2.3 22B Distilled FP8"
+    /** A LoRA adapter that transforms the standard LTX-2.3 22B model into a distilled version when loaded.
+     * 7.08GB - https://huggingface.co/Lightricks/LTX-2.3/resolve/main/ltx-2.3-22b-distilled-lora-384-1.1.safetensors
+     * see https://huggingface.co/Lightricks/LTX-2.3
+     */
+    | "LTX-2.3 22B Distilled LoRA 1.1"
+    /** In-Context LoRA (IC LoRA) for motion track guided video generation.
+     * 0.30GB - https://huggingface.co/Lightricks/LTX-2.3-22b-IC-LoRA-Motion-Track-Control/resolve/main/ltx-2.3-22b-ic-lora-motion-track-control-ref0.5.safetensors
+     * see https://huggingface.co/Lightricks/LTX-2.3-22b-IC-LoRA-Motion-Track-Control
+     */
+    | "LTX-2.3 22B IC-LoRA Motion Track Control"
+    /** In-Context LoRA (IC LoRA) for unified multi-condition control (canny, depth, pose) guided video generation.
+     * 0.61GB - https://huggingface.co/Lightricks/LTX-2.3-22b-IC-LoRA-Union-Control/resolve/main/ltx-2.3-22b-ic-lora-union-control-ref0.5.safetensors
+     * see https://huggingface.co/Lightricks/LTX-2.3-22b-IC-LoRA-Union-Control
+     */
+    | "LTX-2.3 22B IC-LoRA Union Control"
+    /** Spatial upscaler model for LTX-2.3. This model enhances the spatial resolution of generated videos by 1.5x.
+     * 1.02GB - https://huggingface.co/Lightricks/LTX-2.3/resolve/main/ltx-2.3-spatial-upscaler-x1.5-1.0.safetensors
+     * see https://huggingface.co/Lightricks/LTX-2.3
+     */
+    | "LTX-2.3 Spatial Upscaler x1.5"
+    /** Spatial upscaler model for LTX-2.3. This model enhances the spatial resolution of generated videos by 2x.
+     * 0.93GB - https://huggingface.co/Lightricks/LTX-2.3/resolve/main/ltx-2.3-spatial-upscaler-x2-1.1.safetensors
+     * see https://huggingface.co/Lightricks/LTX-2.3
+     */
+    | "LTX-2.3 Spatial Upscaler x2 1.1"
+    /** Temporal upscaler model for LTX-2.3. This model enhances the temporal resolution of generated videos.
+     * 0.24GB - https://huggingface.co/Lightricks/LTX-2.3/resolve/main/ltx-2.3-temporal-upscaler-x2-1.0.safetensors
+     * see https://huggingface.co/Lightricks/LTX-2.3
+     */
+    | "LTX-2.3 Temporal Upscaler x2"
     /** Quantized distilled version of the LTX-Video 13B model, optimized for even lower VRAM usage while maintaining quality.
      * 15.7GB - https://huggingface.co/Lightricks/LTX-Video/resolve/main/ltxv-13b-0.9.7-distilled-fp8.safetensors
      * see https://huggingface.co/Lightricks/LTX-Video
      */
     | "LTX-Video 13B Distilled FP8 v0.9.7"
+    /** Quantized LTX-Video 13B distilled model v0.9.8 with improved prompt understanding and detail generation, optimized for lower VRAM usage.
+     * 15.7GB - https://huggingface.co/Lightricks/LTX-Video/resolve/main/ltxv-13b-0.9.8-distilled-fp8.safetensors
+     * see https://huggingface.co/Lightricks/LTX-Video
+     */
+    | "LTX-Video 13B Distilled FP8 v0.9.8"
     /** A LoRA adapter that transforms the standard LTX-Video 13B model into a distilled version when loaded.
      * 1.33GB - https://huggingface.co/Lightricks/LTX-Video/resolve/main/ltxv-13b-0.9.7-distilled-lora128.safetensors
      * see https://huggingface.co/Lightricks/LTX-Video
@@ -1471,6 +1677,11 @@ You need to this model for <B>Tiled Resample</B>
      * see https://huggingface.co/Lightricks/LTX-Video
      */
     | "LTX-Video 13B Distilled v0.9.7"
+    /** LTX-Video 13B distilled model v0.9.8 with improved prompt understanding and detail generation.
+     * 28.6GB - https://huggingface.co/Lightricks/LTX-Video/resolve/main/ltxv-13b-0.9.8-distilled.safetensors
+     * see https://huggingface.co/Lightricks/LTX-Video
+     */
+    | "LTX-Video 13B Distilled v0.9.8"
     /** Quantized version of the LTX-Video 13B model, optimized for lower VRAM usage while maintaining high quality.
      * 15.7GB - https://huggingface.co/Lightricks/LTX-Video/resolve/main/ltxv-13b-0.9.7-dev-fp8.safetensors
      * see https://huggingface.co/Lightricks/LTX-Video
@@ -1481,6 +1692,16 @@ You need to this model for <B>Tiled Resample</B>
      * see https://huggingface.co/Lightricks/LTX-Video
      */
     | "LTX-Video 13B v0.9.7"
+    /** Quantized LTX-Video 2B distilled model v0.9.8 with improved prompt understanding and detail generation, optimized for lower VRAM usage.
+     * 4.46GB - https://huggingface.co/Lightricks/LTX-Video/resolve/main/ltxv-2b-0.9.8-distilled-fp8.safetensors
+     * see https://huggingface.co/Lightricks/LTX-Video
+     */
+    | "LTX-Video 2B Distilled FP8 v0.9.8"
+    /** LTX-Video 2B distilled model v0.9.8 with improved prompt understanding and detail generation.
+     * 6.34GB - https://huggingface.co/Lightricks/LTX-Video/resolve/main/ltxv-2b-0.9.8-distilled.safetensors
+     * see https://huggingface.co/Lightricks/LTX-Video
+     */
+    | "LTX-Video 2B Distilled v0.9.8"
     /** LTX-Video is the first DiT-based video generation model capable of generating high-quality videos in real-time. It produces 24 FPS videos at a 768x512 resolution faster than they can be watched. Trained on a large-scale dataset of diverse videos, the model generates high-resolution videos with realistic and varied content.
      * 9.37GB - https://huggingface.co/Lightricks/LTX-Video/resolve/main/ltx-video-2b-v0.9.safetensors
      * see https://huggingface.co/Lightricks/LTX-Video
@@ -1496,6 +1717,26 @@ You need to this model for <B>Tiled Resample</B>
      * see https://huggingface.co/Lightricks/LTX-Video
      */
     | "LTX-Video 2B v0.9.5 Checkpoint"
+    /** In-Context LoRA (IC LoRA) for canny edge-controlled video-to-video generation with precise edge conditioning.
+     * 81.9MB - https://huggingface.co/Lightricks/LTX-Video-ICLoRA-canny-13b-0.9.7/resolve/main/ltxv-097-ic-lora-canny-control-comfyui.safetensors
+     * see https://huggingface.co/Lightricks/LTX-Video-ICLoRA-canny-13b-0.9.7
+     */
+    | "LTX-Video ICLoRA Canny 13B v0.9.7"
+    /** In-Context LoRA (IC LoRA) for depth-controlled video-to-video generation with precise depth conditioning.
+     * 81.9MB - https://huggingface.co/Lightricks/LTX-Video-ICLoRA-depth-13b-0.9.7/resolve/main/ltxv-097-ic-lora-depth-control-comfyui.safetensors
+     * see https://huggingface.co/Lightricks/LTX-Video-ICLoRA-depth-13b-0.9.7
+     */
+    | "LTX-Video ICLoRA Depth 13B v0.9.7"
+    /** A video detailer model on top of LTXV_13B_098_DEV trained on custom data using In-Context LoRA (IC LoRA) method.
+     * 1.31GB - https://huggingface.co/Lightricks/LTX-Video-ICLoRA-detailer-13b-0.9.8/resolve/main/ltxv-098-ic-lora-detailer-comfyui.safetensors
+     * see https://huggingface.co/Lightricks/LTX-Video-ICLoRA-detailer-13b-0.9.8
+     */
+    | "LTX-Video ICLoRA Detailer 13B v0.9.8"
+    /** In-Context LoRA (IC LoRA) for pose-controlled video-to-video generation with precise pose conditioning.
+     * 151MB - https://huggingface.co/Lightricks/LTX-Video-ICLoRA-pose-13b-0.9.7/resolve/main/ltxv-097-ic-lora-pose-control-comfyui.safetensors
+     * see https://huggingface.co/Lightricks/LTX-Video-ICLoRA-pose-13b-0.9.7
+     */
+    | "LTX-Video ICLoRA Pose 13B v0.9.7"
     /** Spatial upscaler model for LTX-Video. This model enhances the spatial resolution of generated videos.
      * 505MB - https://huggingface.co/Lightricks/LTX-Video/resolve/main/ltxv-spatial-upscaler-0.9.7.safetensors
      * see https://huggingface.co/Lightricks/LTX-Video
@@ -1611,6 +1852,146 @@ You need to this model for <B>Tiled Resample</B>
      * see https://huggingface.co/guozinan/PuLID
      */
     | "pulid_v1.1.safetensors"
+    /** Qwen 2.5 VL 7B text encoder model
+     * 7.51GB - https://huggingface.co/Comfy-Org/Qwen-Image_ComfyUI/resolve/main/split_files/text_encoders/qwen_2.5_vl_7b.safetensors
+     * see https://huggingface.co/Comfy-Org/Qwen-Image_ComfyUI
+     */
+    | "Qwen 2.5 VL 7B Text Encoder"
+    /** Qwen 2.5 VL 7B text encoder model (fp8_scaled)
+     * 3.75GB - https://huggingface.co/Comfy-Org/Qwen-Image_ComfyUI/resolve/main/split_files/text_encoders/qwen_2.5_vl_7b_fp8_scaled.safetensors
+     * see https://huggingface.co/Comfy-Org/Qwen-Image_ComfyUI
+     */
+    | "Qwen 2.5 VL 7B Text Encoder (fp8_scaled)"
+    /** Qwen-Image diffusion model (bf16)
+     * 9.78GB - https://huggingface.co/Comfy-Org/Qwen-Image_ComfyUI/resolve/main/split_files/diffusion_models/qwen_image_bf16.safetensors
+     * see https://huggingface.co/Comfy-Org/Qwen-Image_ComfyUI
+     */
+    | "Qwen-Image Diffusion Model (bf16)"
+    /** Qwen-Image diffusion model (fp8_e4m3fn)
+     * 4.89GB - https://huggingface.co/Comfy-Org/Qwen-Image_ComfyUI/resolve/main/split_files/diffusion_models/qwen_image_fp8_e4m3fn.safetensors
+     * see https://huggingface.co/Comfy-Org/Qwen-Image_ComfyUI
+     */
+    | "Qwen-Image Diffusion Model (fp8_e4m3fn)"
+    /** Qwen-Image InstantX ControlNet Inpainting model
+     * 2.54GB - https://huggingface.co/Comfy-Org/Qwen-Image-InstantX-ControlNets/resolve/main/split_files/controlnet/Qwen-Image-InstantX-ControlNet-Inpainting.safetensors
+     * see https://huggingface.co/Comfy-Org/Qwen-Image-InstantX-ControlNets
+     */
+    | "Qwen-Image InstantX ControlNet Inpainting"
+    /** Qwen-Image InstantX ControlNet Union model
+     * 2.54GB - https://huggingface.co/Comfy-Org/Qwen-Image-InstantX-ControlNets/resolve/main/split_files/controlnet/Qwen-Image-InstantX-ControlNet-Union.safetensors
+     * see https://huggingface.co/Comfy-Org/Qwen-Image-InstantX-ControlNets
+     */
+    | "Qwen-Image InstantX ControlNet Union"
+    /** VAE model for Qwen-Image
+     * 335MB - https://huggingface.co/Comfy-Org/Qwen-Image_ComfyUI/resolve/main/split_files/vae/qwen_image_vae.safetensors
+     * see https://huggingface.co/Comfy-Org/Qwen-Image_ComfyUI
+     */
+    | "Qwen-Image VAE"
+    /** Qwen-Image-Edit 2509 diffusion model (bf16)
+     * 9.78GB - https://huggingface.co/Comfy-Org/Qwen-Image-Edit_ComfyUI/resolve/main/split_files/diffusion_models/qwen_image_edit_2509_bf16.safetensors
+     * see https://huggingface.co/Comfy-Org/Qwen-Image-Edit_ComfyUI
+     */
+    | "Qwen-Image-Edit 2509 Diffusion Model (bf16)"
+    /** Qwen-Image-Edit 2509 diffusion model (fp8_e4m3fn)
+     * 4.89GB - https://huggingface.co/Comfy-Org/Qwen-Image-Edit_ComfyUI/resolve/main/split_files/diffusion_models/qwen_image_edit_2509_fp8_e4m3fn.safetensors
+     * see https://huggingface.co/Comfy-Org/Qwen-Image-Edit_ComfyUI
+     */
+    | "Qwen-Image-Edit 2509 Diffusion Model (fp8_e4m3fn)"
+    /** Qwen-Image-Edit diffusion model (bf16)
+     * 9.78GB - https://huggingface.co/Comfy-Org/Qwen-Image-Edit_ComfyUI/resolve/main/split_files/diffusion_models/qwen_image_edit_bf16.safetensors
+     * see https://huggingface.co/Comfy-Org/Qwen-Image-Edit_ComfyUI
+     */
+    | "Qwen-Image-Edit Diffusion Model (bf16)"
+    /** Qwen-Image-Edit diffusion model (fp8_e4m3fn)
+     * 4.89GB - https://huggingface.co/Comfy-Org/Qwen-Image-Edit_ComfyUI/resolve/main/split_files/diffusion_models/qwen_image_edit_fp8_e4m3fn.safetensors
+     * see https://huggingface.co/Comfy-Org/Qwen-Image-Edit_ComfyUI
+     */
+    | "Qwen-Image-Edit Diffusion Model (fp8_e4m3fn)"
+    /** Qwen-Image-Edit-2509-Lightning 4-step LoRA model V1.0 (bf16)
+     * 19.6GB - https://huggingface.co/lightx2v/Qwen-Image-Lightning/resolve/main/Qwen-Image-Edit-2509/Qwen-Image-Edit-2509-Lightning-4steps-V1.0-bf16.safetensors
+     * see https://huggingface.co/lightx2v/Qwen-Image-Lightning
+     */
+    | "Qwen-Image-Edit-2509-Lightning 4steps V1.0 (bf16)"
+    /** Qwen-Image-Edit-2509-Lightning 4-step LoRA model V1.0 (fp32)
+     * 39.1GB - https://huggingface.co/lightx2v/Qwen-Image-Lightning/resolve/main/Qwen-Image-Edit-2509/Qwen-Image-Edit-2509-Lightning-4steps-V1.0-fp32.safetensors
+     * see https://huggingface.co/lightx2v/Qwen-Image-Lightning
+     */
+    | "Qwen-Image-Edit-2509-Lightning 4steps V1.0 (fp32)"
+    /** Qwen-Image-Edit-2509-Lightning 8-step LoRA model V1.0 (bf16)
+     * 19.6GB - https://huggingface.co/lightx2v/Qwen-Image-Lightning/resolve/main/Qwen-Image-Edit-2509/Qwen-Image-Edit-2509-Lightning-8steps-V1.0-bf16.safetensors
+     * see https://huggingface.co/lightx2v/Qwen-Image-Lightning
+     */
+    | "Qwen-Image-Edit-2509-Lightning 8steps V1.0 (bf16)"
+    /** Qwen-Image-Edit-2509-Lightning 8-step LoRA model V1.0 (fp32)
+     * 39.1GB - https://huggingface.co/lightx2v/Qwen-Image-Lightning/resolve/main/Qwen-Image-Edit-2509/Qwen-Image-Edit-2509-Lightning-8steps-V1.0-fp32.safetensors
+     * see https://huggingface.co/lightx2v/Qwen-Image-Lightning
+     */
+    | "Qwen-Image-Edit-2509-Lightning 8steps V1.0 (fp32)"
+    /** Qwen-Image-Edit-Lightning 4-step LoRA model V1.0
+     * 9.78GB - https://huggingface.co/lightx2v/Qwen-Image-Lightning/resolve/main/Qwen-Image-Edit-Lightning-4steps-V1.0.safetensors
+     * see https://huggingface.co/lightx2v/Qwen-Image-Lightning
+     */
+    | "Qwen-Image-Edit-Lightning 4steps V1.0"
+    /** Qwen-Image-Edit-Lightning 4-step LoRA model V1.0 (bf16)
+     * 19.6GB - https://huggingface.co/lightx2v/Qwen-Image-Lightning/resolve/main/Qwen-Image-Edit-Lightning-4steps-V1.0-bf16.safetensors
+     * see https://huggingface.co/lightx2v/Qwen-Image-Lightning
+     */
+    | "Qwen-Image-Edit-Lightning 4steps V1.0 (bf16)"
+    /** Qwen-Image-Edit-Lightning 8-step LoRA model V1.0
+     * 9.78GB - https://huggingface.co/lightx2v/Qwen-Image-Lightning/resolve/main/Qwen-Image-Edit-Lightning-8steps-V1.0.safetensors
+     * see https://huggingface.co/lightx2v/Qwen-Image-Lightning
+     */
+    | "Qwen-Image-Edit-Lightning 8steps V1.0"
+    /** Qwen-Image-Edit-Lightning 8-step LoRA model V1.0 (bf16)
+     * 19.6GB - https://huggingface.co/lightx2v/Qwen-Image-Lightning/resolve/main/Qwen-Image-Edit-Lightning-8steps-V1.0-bf16.safetensors
+     * see https://huggingface.co/lightx2v/Qwen-Image-Lightning
+     */
+    | "Qwen-Image-Edit-Lightning 8steps V1.0 (bf16)"
+    /** Qwen-Image-Lightning 4-step LoRA model V1.0
+     * 9.78GB - https://huggingface.co/lightx2v/Qwen-Image-Lightning/resolve/main/Qwen-Image-Lightning-4steps-V1.0.safetensors
+     * see https://huggingface.co/lightx2v/Qwen-Image-Lightning
+     */
+    | "Qwen-Image-Lightning 4steps V1.0"
+    /** Qwen-Image-Lightning 4-step LoRA model V1.0 (bf16)
+     * 19.6GB - https://huggingface.co/lightx2v/Qwen-Image-Lightning/resolve/main/Qwen-Image-Lightning-4steps-V1.0-bf16.safetensors
+     * see https://huggingface.co/lightx2v/Qwen-Image-Lightning
+     */
+    | "Qwen-Image-Lightning 4steps V1.0 (bf16)"
+    /** Qwen-Image-Lightning 4-step LoRA model V2.0
+     * 9.78GB - https://huggingface.co/lightx2v/Qwen-Image-Lightning/resolve/main/Qwen-Image-Lightning-4steps-V2.0.safetensors
+     * see https://huggingface.co/lightx2v/Qwen-Image-Lightning
+     */
+    | "Qwen-Image-Lightning 4steps V2.0"
+    /** Qwen-Image-Lightning 4-step LoRA model V2.0 (bf16)
+     * 19.6GB - https://huggingface.co/lightx2v/Qwen-Image-Lightning/resolve/main/Qwen-Image-Lightning-4steps-V2.0-bf16.safetensors
+     * see https://huggingface.co/lightx2v/Qwen-Image-Lightning
+     */
+    | "Qwen-Image-Lightning 4steps V2.0 (bf16)"
+    /** Qwen-Image-Lightning 8-step LoRA model V1.0
+     * 9.78GB - https://huggingface.co/lightx2v/Qwen-Image-Lightning/resolve/main/Qwen-Image-Lightning-8steps-V1.0.safetensors
+     * see https://huggingface.co/lightx2v/Qwen-Image-Lightning
+     */
+    | "Qwen-Image-Lightning 8steps V1.0"
+    /** Qwen-Image-Lightning 8-step LoRA model V1.1
+     * 9.78GB - https://huggingface.co/lightx2v/Qwen-Image-Lightning/resolve/main/Qwen-Image-Lightning-8steps-V1.1.safetensors
+     * see https://huggingface.co/lightx2v/Qwen-Image-Lightning
+     */
+    | "Qwen-Image-Lightning 8steps V1.1"
+    /** Qwen-Image-Lightning 8-step LoRA model V1.1 (bf16)
+     * 19.6GB - https://huggingface.co/lightx2v/Qwen-Image-Lightning/resolve/main/Qwen-Image-Lightning-8steps-V1.1-bf16.safetensors
+     * see https://huggingface.co/lightx2v/Qwen-Image-Lightning
+     */
+    | "Qwen-Image-Lightning 8steps V1.1 (bf16)"
+    /** Qwen-Image-Lightning 8-step LoRA model V2.0
+     * 9.78GB - https://huggingface.co/lightx2v/Qwen-Image-Lightning/resolve/main/Qwen-Image-Lightning-8steps-V2.0.safetensors
+     * see https://huggingface.co/lightx2v/Qwen-Image-Lightning
+     */
+    | "Qwen-Image-Lightning 8steps V2.0"
+    /** Qwen-Image-Lightning 8-step LoRA model V2.0 (bf16)
+     * 19.6GB - https://huggingface.co/lightx2v/Qwen-Image-Lightning/resolve/main/Qwen-Image-Lightning-8steps-V2.0-bf16.safetensors
+     * see https://huggingface.co/lightx2v/Qwen-Image-Lightning
+     */
+    | "Qwen-Image-Lightning 8steps V2.0 (bf16)"
     /** RAM Recognize Anything Model
      * 5.63GB - https://huggingface.co/xinyu1205/recognize_anything_model/resolve/main/ram_swin_large_14m.pth
      * see https://huggingface.co/xinyu1205/recognize_anything_model
@@ -1636,6 +2017,46 @@ You need to this model for <B>Tiled Resample</B>
      * see https://github.com/TencentARC/GFPGAN
      */
     | "RestoreFormer"
+    /** Segmenty Anything SAM 2 hiera model (base+)
+     * 309.0MB - https://dl.fbaipublicfiles.com/segment_anything_2/072824/sam2_hiera_base_plus.pt
+     * see https://github.com/facebookresearch/sam2#model-description
+     */
+    | "sam2_hiera_base_plus.pt"
+    /** Segmenty Anything SAM 2 hiera model (large)
+     * 857.0MB - https://dl.fbaipublicfiles.com/segment_anything_2/072824/sam2_hiera_large.pt
+     * see https://github.com/facebookresearch/sam2#model-description
+     */
+    | "sam2_hiera_large.pt"
+    /** Segmenty Anything SAM 2 hiera model (small)
+     * 176.0MB - https://dl.fbaipublicfiles.com/segment_anything_2/072824/sam2_hiera_small.pt
+     * see https://github.com/facebookresearch/sam2#model-description
+     */
+    | "sam2_hiera_small.pt"
+    /** Segmenty Anything SAM 2 hiera model (tiny)
+     * 149.0MB - https://dl.fbaipublicfiles.com/segment_anything_2/072824/sam2_hiera_tiny.pt
+     * see https://github.com/facebookresearch/sam2#model-description
+     */
+    | "sam2_hiera_tiny.pt"
+    /** Segmenty Anything SAM 2.1 hiera model (base+)
+     * 309.0MB - https://dl.fbaipublicfiles.com/segment_anything_2/092824/sam2.1_hiera_base_plus.pt
+     * see https://github.com/facebookresearch/sam2#model-description
+     */
+    | "sam2.1_hiera_base_plus.pt"
+    /** Segmenty Anything SAM 2.1 hiera model (large)
+     * 857.0MB - https://dl.fbaipublicfiles.com/segment_anything_2/092824/sam2.1_hiera_large.pt
+     * see https://github.com/facebookresearch/sam2#model-description
+     */
+    | "sam2.1_hiera_large.pt"
+    /** Segmenty Anything SAM 2.1 hiera model (small)
+     * 176.0MB - https://dl.fbaipublicfiles.com/segment_anything_2/092824/sam2.1_hiera_small.pt
+     * see https://github.com/facebookresearch/sam2#model-description
+     */
+    | "sam2.1_hiera_small.pt"
+    /** Segmenty Anything SAM 2.1 hiera model (tiny)
+     * 149.0MB - https://dl.fbaipublicfiles.com/segment_anything_2/092824/sam2.1_hiera_tiny.pt
+     * see https://github.com/facebookresearch/sam2#model-description
+     */
+    | "sam2.1_hiera_tiny.pt"
     /** Antelopev2 scrfd_10g_bnkps.onnx model for InstantId. (InstantId needs all Antelopev2 models)
      * 16.9MB - https://huggingface.co/MonsterMMORPG/tools/resolve/main/scrfd_10g_bnkps.onnx
      * see https://github.com/cubiq/ComfyUI_InstantID#installation

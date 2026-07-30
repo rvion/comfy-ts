@@ -8,10 +8,27 @@ import { DownloadComfyManagerJSONs } from 'src/manager/loaders/step1_downloadCom
 import { _getKnownPlugins } from 'src/manager/loaders/step2_custom-node-list-loader.ts'
 import { _getCustomNodeRegistry } from 'src/manager/loaders/step3_extension-node-map-loader.ts'
 import { _getKnownModels } from 'src/manager/loaders/step4_model-list-loader.ts'
+import { _getAlterList } from 'src/manager/loaders/step5_alter-list-loader.ts'
+import { _getGithubStats } from 'src/manager/loaders/step6_github-stats-loader.ts'
+import { ManagerParseReport } from 'src/manager/loaders/parseReport.ts'
+import type { ComfyManagerAlterInfo } from 'src/manager/types/ComfyManagerAlterInfo.ts'
+import type { ComfyManagerGithubStatEntry } from 'src/manager/types/ComfyManagerGithubStats.ts'
 import type { ComfyManagerModelInfo } from 'src/manager/types/ComfyManagerModelInfo.ts'
 import type { ComfyManagerPluginInfo } from 'src/manager/types/ComfyManagerPluginInfo.ts'
 
 const log = (...args: unknown[]) => console.log(`[📘 registry]`, ...args)
+
+// core ComfyUI as a pseudo-plugin: extension-node-map keys the builtin nodes under this url
+const BUILTIN_URL: KnownComfyPluginURL = 'https://github.com/comfyanonymous/ComfyUI'
+const BUILTIN_PLUGIN: ComfyManagerPluginInfo = {
+   id: 'nodes',
+   author: 'comfyanonymous',
+   description: 'built-in',
+   title: 'built-in',
+   files: [BUILTIN_URL],
+   reference: 'https://github.com/comfyanonymous/ComfyUI',
+   install_type: '',
+}
 
 export class ComfyRegistry {
    // plugins, indexed
@@ -25,6 +42,15 @@ export class ComfyRegistry {
 
    // Models
    knownModels = new Map<KnownModel_Name, ComfyManagerModelInfo>()
+
+   // a1111 → comfy alternatives (alter-list.json)
+   alterations: ComfyManagerAlterInfo[] = []
+
+   // repo url → stars / last_update (github-stats.json)
+   githubStats = new Map<string, ComfyManagerGithubStatEntry>()
+
+   // per-file row accounting of the last load, printed on every build
+   report = new ManagerParseReport()
 
    static async DownloadAndUpdate(download: boolean): Promise<ComfyRegistry> {
       if (download) {
@@ -46,15 +72,9 @@ export class ComfyRegistry {
          genTypes?: boolean
       } = {},
    ) {
-      this.plugins_byFile.set('https://github.com/comfyanonymous/ComfyUI' as any, {
-         id: 'nodes',
-         author: 'comfyanonymous',
-         description: 'built-in',
-         title: 'built-in' as any,
-         files: [],
-         reference: 'https://github.com/comfyanonymous/ComfyUI',
-         install_type: '',
-      })
+      // seeded BEFORE codegen so 'built-in' and the core repo url are legitimate union members
+      this.plugins_byTitle.set(BUILTIN_PLUGIN.title, BUILTIN_PLUGIN)
+      this.plugins_byFile.set(BUILTIN_URL, BUILTIN_PLUGIN)
 
       log(`loading src/manager/json/${chalk.yellow('custom-node-list.json')}...`)
       _getKnownPlugins(this)
@@ -64,6 +84,14 @@ export class ComfyRegistry {
 
       log(`loading src/manager/json/${chalk.yellow('model-list.json')}...`)
       _getKnownModels(this)
+
+      log(`loading src/manager/json/${chalk.yellow('alter-list.json')}...`)
+      _getAlterList(this)
+
+      log(`loading src/manager/json/${chalk.yellow('github-stats.json')}...`)
+      _getGithubStats(this)
+
+      this.report.print()
    }
 
    getKnownCheckpoints = (): ComfyManagerModelInfo[] => {

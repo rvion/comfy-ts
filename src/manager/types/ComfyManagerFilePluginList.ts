@@ -1,5 +1,5 @@
 import { type } from 'arktype'
-import { ComfyManagerPluginInfo_ark } from 'src/manager/types/ComfyManagerPluginInfo.ts'
 
-export type ComfyManagerFilePluginList = typeof ComfyManagerFilePluginList_ark.infer
-export const ComfyManagerFilePluginList_ark = type({ custom_nodes: ComfyManagerPluginInfo_ark.array() })
+/** root shape only: rows are validated ONE BY ONE against ComfyManagerRawPluginInfo_ark */
+export type ComfyManagerFilePluginListRoot = typeof ComfyManagerFilePluginListRoot_ark.infer
+export const ComfyManagerFilePluginListRoot_ark = type({ custom_nodes: 'unknown[]' })

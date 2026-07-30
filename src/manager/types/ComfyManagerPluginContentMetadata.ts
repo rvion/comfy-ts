@@ -2,9 +2,8 @@ import { type } from 'arktype'
 
 export type ComfyManagerPluginContentMetadata = typeof ComfyManagerPluginContentMetadata_ark.infer
 export const ComfyManagerPluginContentMetadata_ark = type({
-   // optional because on damn validation on comfy manager! 😬
-   // should have been always present
-   title_aux: type.string.or(type.null), // "Jovimetrix Composition Nodes",
+   // absent on 10/5573 upstream rows (2026-07-30), null on others
+   'title_aux?': type.string.or(type.null), // "Jovimetrix Composition Nodes",
 
    // optional
    'author?': 'string', // "amorano",

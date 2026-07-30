@@ -8,7 +8,15 @@ console.clear()
 console.log(chalk.bold.greenBright('UPDADING COMFY MANAGER JSONS'))
 
 // should take care of the code generation
-await ComfyRegistry.DownloadAndUpdate(!skipDL)
+const registry = await ComfyRegistry.DownloadAndUpdate(!skipDL)
+
+console.log(chalk.bold.greenBright('REGISTRY TOTALS'))
+console.log(`   plugins (by title): ${registry.plugins_byTitle.size}`)
+console.log(`   plugin repo urls:   ${registry.plugins_byFile.size}`)
+console.log(`   custom node keys:   ${registry.plugins_byNodeKey.size}`)
+console.log(`   models:             ${registry.knownModels.size}`)
+console.log(`   alterations:        ${registry.alterations.length}`)
+console.log(`   github stats:       ${registry.githubStats.size}`)
 
 // the generator aligns its own `// x N` comments and emits trailing blank
 // lines; oxfmt disagrees on both, so WITHOUT this the ci gate goes red right

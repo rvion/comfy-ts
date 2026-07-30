@@ -3,48 +3,62 @@ import type { KnownComfyPluginTitle } from 'src/manager/generated/KnownComfyPlug
 import type { KnownComfyPluginURL } from 'src/manager/generated/KnownComfyPluginURL.ts'
 import type { ComfyManagerPluginID } from 'src/manager/types/ComfyManagerPluginEnums.ts'
 
-export type ComfyManagerPluginInfo = typeof ComfyManagerPluginInfo_ark.infer
-export const ComfyManagerPluginInfo_ark = type({
-   // required
-   author: 'string', // "Dr.Lt.Data",
-   title: type.string.as<KnownComfyPluginTitle>(), // "ComfyUI-Manager",
-   reference: 'string', // "https://github.com/ltdrdata/ComfyUI-Manager",
-   files: type.string.as<KnownComfyPluginURL>().array(), // ["https://github.com/ltdrdata/ComfyUI-Manager"],
-   install_type: 'string', // "git-clone",
-   description: 'string', // "ComfyUI-Manager itself is also a custom node."
+/**
+ * loose INPUT schema: what Comfy-Org/ComfyUI-Manager custom-node-list.json
+ * actually ships (surveyed 2026-07-30, 5882 rows)
+ */
+export type ComfyManagerRawPluginInfo = typeof ComfyManagerRawPluginInfo_ark.infer
+export const ComfyManagerRawPluginInfo_ark = type({
+   // always present upstream
+   author: 'string',
+   title: type.string.as<KnownComfyPluginTitle>(),
+   reference: 'string',
+   files: type.string.as<KnownComfyPluginURL>().array(),
+   install_type: 'string', // 'git-clone' | 'copy' | 'unzip' | stray casings
+   description: 'string',
 
-   // optional, but shouldn't, so they'll pre-emptively auto-fixed before validation
-   id: type.string.as<ComfyManagerPluginID>(), // on 2024-11-09, 579 fields are missing this
+   // absent on 4471/5882 rows (2026-07-30): recovered at normalization
+   'id?': type.string.as<ComfyManagerPluginID>(),
 
-   // optional
+   // sparse optional tail
    'preemptions?': 'string[]',
    'pip?': 'string[]',
    'nodename_pattern?': 'string',
    'apt_dependency?': 'string[]',
    'js_path?': 'string',
    'version?': 'string',
+   'tags?': 'string[]',
 
-   // optional ?
-   // (probably not really well specified, sicne some of those only appear one or two times)
-   'tags?': 'string[]', // 🔶 as of 2024-11-09, this shows only one time
+   // 2025/2026 additions, unconsumed but declared so drift stays visible
+   'reference2?': 'string',
+   'category?': 'string',
+   'name?': 'string',
+   'license?': 'string',
+   'nickname?': 'string',
+   'stars?': 'number',
+   'last_update?': 'string',
+   'badges?': 'string[]',
+   'dependencies?': 'string[]',
 })
 
-// export type ComfyManagerPluginInfo = {
-//    // required
-//    author: string // "Dr.Lt.Data",
-//    title: KnownComfyPluginTitle // "ComfyUI-Manager",
-//    reference: string // "https://github.com/ltdrdata/ComfyUI-Manager",
-//    files: KnownComfyPluginURL[] // ["https://github.com/ltdrdata/ComfyUI-Manager"],
-//    install_type: string // "git-clone",
-//    description: string // "ComfyUI-Manager itself is also a custom node."
-
-//    // optional, but shouldn't
-//    // optional
-//    id?: ComfyManagerPluginID // Added in 2024-??
-//    preemptions?: string[] // ❓
-//    pip?: string[] // [ "ultralytics" ],
-//    nodename_pattern?: string // "Inspire$",
-//    apt_dependency?: string[] // [ "rustc", "cargo" ],
-//    js_path?: string // "strimmlarn",
-//    version?: string
-// }
+/**
+ * canonical plugin row: `id` ALWAYS present (normalization recovers it).
+ * The optional tail stays optional ON PURPOSE: this object is also the
+ * Manager v2 install POST body, where absent and null differ python-side.
+ */
+export type ComfyManagerPluginInfo = {
+   id: ComfyManagerPluginID
+   author: string
+   title: KnownComfyPluginTitle
+   reference: string
+   files: KnownComfyPluginURL[]
+   install_type: string
+   description: string
+   preemptions?: string[]
+   pip?: string[]
+   nodename_pattern?: string
+   apt_dependency?: string[]
+   js_path?: string
+   version?: string
+   tags?: string[]
+}

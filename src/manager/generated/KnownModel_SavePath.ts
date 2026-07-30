@@ -1,7 +1,7 @@
 // prettier-ignore
 export type KnownModel_SavePath =
     | "vae_approx"                                       // x   8
-    | "default"                                          // x  16
+    | "default"                                          // x  20
     | "upscale_models/ldsr"                              // x   1
     | "checkpoints/upscale"                              // x   1
     | "deepbump"                                         // x   1
@@ -45,7 +45,7 @@ export type KnownModel_SavePath =
     | "clip_vision"                                      // x   7
     | "controlnet/1.5"                                   // x  17
     | "gligen/SD1.5"                                     // x   1
-    | "sams"                                             // x   4
+    | "sams"                                             // x  12
     | "seecoders"                                        // x   3
     | "ultralytics/bbox"                                 // x   6
     | "ultralytics/segm"                                 // x  10
@@ -115,7 +115,7 @@ export type KnownModel_SavePath =
     | "LLM"                                              // x   3
     | "pulid"                                            // x   2
     | "MoGe"                                             // x   2
-    | "checkpoints/LTXV"                                 // x   7
+    | "checkpoints/LTXV"                                 // x  11
     | "xlabs/controlnets"                                // x   3
     | "xlabs/loras"                                      // x   3
     | "xlabs/ipadapters"                                 // x   1
@@ -125,14 +125,27 @@ export type KnownModel_SavePath =
     | "vae/kolors"                                       // x   2
     | "diffusion_models/Wan2.1"                          // x  14
     | "vae"                                              // x   1
+    | "diffusion_models/Wan2.2"                          // x   9
     | "diffusers/lllyasviel"                             // x   1
-    | "loras"                                            // x   1
+    | "checkpoints/LTX-2"                                // x   4
+    | "loras"                                            // x   6
+    | "loras/LTX-2"                                      // x  11
+    | "checkpoints/LTX-2.3"                              // x   5
+    | "loras/ltxv/ltx2"                                  // x   3
+    | "latent_upscale_models"                            // x   3
     | "diffusion_models/LBM"                             // x   1
+    | "vae/qwen-image"                                   // x   1
+    | "text_encoders/qwen"                               // x   2
+    | "diffusion_models/qwen-image"                      // x   2
+    | "diffusion_models/qwen-image-edit"                 // x   4
+    | "loras/qwen-image-lightning"                       // x   9
+    | "loras/qwen-image-edit-lightning"                  // x   8
+    | "controlnet/qwen-image/instantx"                   // x   2
     | "custom_nodes/ComfyUI-BRIA_AI-RMBG/RMBG-1.4" // x   1
 
 export const knownModel_SavePath: KnownModel_SavePath[] = [
    'vae_approx', // x   8
-   'default', // x  16
+   'default', // x  20
    'upscale_models/ldsr', // x   1
    'checkpoints/upscale', // x   1
    'deepbump', // x   1
@@ -176,7 +189,7 @@ export const knownModel_SavePath: KnownModel_SavePath[] = [
    'clip_vision', // x   7
    'controlnet/1.5', // x  17
    'gligen/SD1.5', // x   1
-   'sams', // x   4
+   'sams', // x  12
    'seecoders', // x   3
    'ultralytics/bbox', // x   6
    'ultralytics/segm', // x  10
@@ -246,7 +259,7 @@ export const knownModel_SavePath: KnownModel_SavePath[] = [
    'LLM', // x   3
    'pulid', // x   2
    'MoGe', // x   2
-   'checkpoints/LTXV', // x   7
+   'checkpoints/LTXV', // x  11
    'xlabs/controlnets', // x   3
    'xlabs/loras', // x   3
    'xlabs/ipadapters', // x   1
@@ -256,8 +269,21 @@ export const knownModel_SavePath: KnownModel_SavePath[] = [
    'vae/kolors', // x   2
    'diffusion_models/Wan2.1', // x  14
    'vae', // x   1
+   'diffusion_models/Wan2.2', // x   9
    'diffusers/lllyasviel', // x   1
-   'loras', // x   1
+   'checkpoints/LTX-2', // x   4
+   'loras', // x   6
+   'loras/LTX-2', // x  11
+   'checkpoints/LTX-2.3', // x   5
+   'loras/ltxv/ltx2', // x   3
+   'latent_upscale_models', // x   3
    'diffusion_models/LBM', // x   1
+   'vae/qwen-image', // x   1
+   'text_encoders/qwen', // x   2
+   'diffusion_models/qwen-image', // x   2
+   'diffusion_models/qwen-image-edit', // x   4
+   'loras/qwen-image-lightning', // x   9
+   'loras/qwen-image-edit-lightning', // x   8
+   'controlnet/qwen-image/instantx', // x   2
    'custom_nodes/ComfyUI-BRIA_AI-RMBG/RMBG-1.4', // x   1
 ]

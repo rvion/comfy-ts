@@ -1,23 +1,25 @@
 // prettier-ignore
 export type KnownModel_Type =
     | "TAESD"              // x   8
-    | "upscale"            // x  13
-    | "checkpoint"         // x  42
+    | "upscale"            // x  18
+    | "checkpoint"         // x  55
     | "deepbump"           // x   1
     | "face_restore"       // x   3
     | "zero123"            // x   5
     | "embedding"          // x   4
-    | "VAE"                // x  12
-    | "diffusion_model"    // x  69
-    | "clip"               // x  26
-    | "lora"               // x  40
+    | "VAE"                // x  13
+    | "diffusion_model"    // x  85
+    | "clip"               // x  29
+    | "lora"               // x  76
     | "unclip"             // x   2
     | "T2I-Adapter"        // x  18
     | "T2I-Style"          // x   1
-    | "controlnet"         // x  72
+    | "controlnet"         // x  74
     | "clip_vision"        // x   8
     | "gligen"             // x   1
     | "sam"                // x   4
+    | "sam2.1"             // x   4
+    | "sam2"               // x   4
     | "seecoder"           // x   3
     | "Ultralytics"        // x  16
     | "animatediff"        // x  13
@@ -49,23 +51,25 @@ export type KnownModel_Type =
 
 export const knownModel_Type: KnownModel_Type[] = [
    'TAESD', // x   8
-   'upscale', // x  13
-   'checkpoint', // x  42
+   'upscale', // x  18
+   'checkpoint', // x  55
    'deepbump', // x   1
    'face_restore', // x   3
    'zero123', // x   5
    'embedding', // x   4
-   'VAE', // x  12
-   'diffusion_model', // x  69
-   'clip', // x  26
-   'lora', // x  40
+   'VAE', // x  13
+   'diffusion_model', // x  85
+   'clip', // x  29
+   'lora', // x  76
    'unclip', // x   2
    'T2I-Adapter', // x  18
    'T2I-Style', // x   1
-   'controlnet', // x  72
+   'controlnet', // x  74
    'clip_vision', // x   8
    'gligen', // x   1
    'sam', // x   4
+   'sam2.1', // x   4
+   'sam2', // x   4
    'seecoder', // x   3
    'Ultralytics', // x  16
    'animatediff', // x  13

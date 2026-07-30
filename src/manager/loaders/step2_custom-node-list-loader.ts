@@ -1,58 +1,46 @@
+import { readFileSync, writeFileSync } from 'node:fs'
 import { type } from 'arktype'
 import { ansi as chalk } from 'src/utils/ansi.ts'
-import { readFileSync, writeFileSync } from 'fs'
-import type { Maybe } from 'src/types/index.ts'
 import { githubRegexpV1 } from 'src/utils/githubRegexes.ts'
-import { printArkResultInConsole } from 'src/utils/printArkResultInConsole.ts'
-import { RecoveryVerbosity, tryRecovering } from 'src/utils/tryExtracting.ts'
 import type { ComfyRegistry } from 'src/manager/ComfyRegistry.ts'
-import type { KnownComfyPluginTitle } from 'src/manager/generated/KnownComfyPluginTitle.ts'
 import { ComfyPluginExtra } from 'src/manager/json/custom-node-list.extra.ts'
+import { ManagerParseError } from 'src/manager/loaders/parseReport.ts'
+import { ComfyManagerFilePluginListRoot_ark } from 'src/manager/types/ComfyManagerFilePluginList.ts'
 import {
-   type ComfyManagerFilePluginList,
-   ComfyManagerFilePluginList_ark,
-} from 'src/manager/types/ComfyManagerFilePluginList.ts'
-import type { ComfyManagerPluginID } from 'src/manager/types/ComfyManagerPluginEnums.ts'
-import type { ComfyManagerPluginInfo } from 'src/manager/types/ComfyManagerPluginInfo.ts'
-
-export type GetKnownPluginProps = {
-   //
-   updateCache?: boolean
-   check?: boolean
-   genTypes?: boolean
-}
+   type ComfyManagerRawPluginInfo,
+   ComfyManagerRawPluginInfo_ark,
+   type ComfyManagerPluginInfo,
+} from 'src/manager/types/ComfyManagerPluginInfo.ts'
 
 export const _getKnownPlugins = (DB: ComfyRegistry): void => {
+   const counter = DB.report.file('custom-node-list.json')
    let totalFileSeen = 0
-   let totalPluginSeen = 0
 
-   // load raw json
-   const knownPluginFile: ComfyManagerFilePluginList = JSON.parse(
-      readFileSync('src/manager/json/custom-node-list.json', 'utf8'),
-   )
+   // parse rows: loose raw schema per row, skip+report failures, normalize survivors
+   const raw: unknown = JSON.parse(readFileSync('src/manager/json/custom-node-list.json', 'utf8'))
+   const root = ComfyManagerFilePluginListRoot_ark(raw)
+   if (root instanceof type.errors) throw new ManagerParseError('custom-node-list.json', root.summary)
 
-   // merge with extra
-   const knownPluginList: ComfyManagerPluginInfo[] = knownPluginFile.custom_nodes.concat(ComfyPluginExtra)
-
-   // auto-fix the (more often than not) json file
-   // please... add validation or CI check or something!
-   for (const plugin of knownPluginList) {
-      plugin.id ??= tryRecoveringPluginId(plugin, RecoveryVerbosity.info)
-      plugin.title ??= tryRecoveringPluginTitle(plugin, RecoveryVerbosity.info)
-   }
-
-   // validate file is well-formed
-   const res = ComfyManagerFilePluginList_ark(knownPluginFile)
-   if (DB.opts.check) {
+   const canonical: ComfyManagerPluginInfo[] = []
+   for (const row of root.custom_nodes) {
+      const res = ComfyManagerRawPluginInfo_ark(row)
       if (res instanceof type.errors) {
-         printArkResultInConsole(res)
-         process.exit(1)
+         counter.skip('schema', res.summary)
+         continue
       }
+      const plugin = normalizePluginInfo(res)
+      if (plugin == null) {
+         counter.skip('id-unrecoverable', res.reference)
+         continue
+      }
+      canonical.push(plugin)
+      counter.ok()
    }
 
+   // hand-maintained extras are compile-checked canonical rows, not upstream data: no counting
+   const knownPluginList: ComfyManagerPluginInfo[] = canonical.concat(ComfyPluginExtra)
+
    for (const plugin of knownPluginList) {
-      // INITIALIZATION ------------------------------------------------------------
-      totalPluginSeen++
       if (DB.opts.check && DB.plugins_byTitle.has(plugin.title))
          console.log(`   ❌ plugin.title: "${plugin.title}" is duplicated`)
       DB.plugins_byTitle.set(plugin.title, plugin)
@@ -70,7 +58,7 @@ export const _getKnownPlugins = (DB: ComfyRegistry): void => {
       // TitleType
       const allPlugins = [...DB.plugins_byTitle.values()]
       const allPluginsSortedByTitles = allPlugins.sort((a, b) =>
-         (a.title ?? '❌missing-title').toLowerCase().localeCompare((b.title ?? '❌missing-title').toLowerCase()),
+         a.title.toLowerCase().localeCompare(b.title.toLowerCase()),
       )
       out1 += '// prettier-ignore\n'
       out1 += 'export type KnownComfyPluginTitle =\n'
@@ -90,7 +78,6 @@ export const _getKnownPlugins = (DB: ComfyRegistry): void => {
       out2 += '// prettier-ignore\n'
       out2 += 'export type KnownComfyPluginURL =\n'
       for (const fileName of sortedFileNames) out2 += `    | ${JSON.stringify(fileName)}\n`
-      // out2 += '\n'
       const out2Path = 'src/manager/generated/KnownComfyPluginURL.ts'
       writeFileSync(out2Path, out2, 'utf-8')
       console.log(`   > generated: ${chalk.blue.underline(out2Path)}`)
@@ -98,52 +85,20 @@ export const _getKnownPlugins = (DB: ComfyRegistry): void => {
 
    // INDEXING CHECKS ------------------------------------------------------------
    if (DB.opts.check) {
-      // console.log(`${knownModelList.length} models found`)
-      console.log(`   - ${totalPluginSeen} CustomNodes in file`)
+      console.log(`   - ${knownPluginList.length} CustomNodes in file`)
       console.log(`   - ${DB.plugins_byTitle.size} CustomNodes registered in map`)
       console.log(`   - ${totalFileSeen} CustomNodes-File Seen`)
       console.log(`   - ${DB.plugins_byFile.size} CustomNodes-File registered in map`)
    }
 }
 
-function tryRecoveringPluginTitle(
-   plugin: ComfyManagerPluginInfo,
-   verbose = RecoveryVerbosity.Quiet,
-): KnownComfyPluginTitle {
-   return tryRecovering<KnownComfyPluginTitle>({
-      property: 'plugin.title',
-      verbose,
-      hacks: [
-         {
-            attempt: 'id',
-            fn: (): Maybe<KnownComfyPluginTitle> => plugin.id as KnownComfyPluginTitle,
-         },
-         {
-            attempt: 'github repo name',
-            fn: (): Maybe<KnownComfyPluginTitle> => plugin.reference as KnownComfyPluginTitle,
-         },
-      ],
-   })
-}
-
-function tryRecoveringPluginId(
-   //
-   plugin: ComfyManagerPluginInfo,
-   verbose = RecoveryVerbosity.Quiet,
-): string {
-   return tryRecovering<ComfyManagerPluginID>({
-      property: 'plugin.id',
-      verbose,
-      hacks: [
-         {
-            level: RecoveryVerbosity.Verbose,
-            attempt: 'title',
-            fn: (): Maybe<ComfyManagerPluginID> => plugin.title as ComfyManagerPluginInfo['title'],
-         },
-         {
-            attempt: 'github repo name',
-            fn: (): Maybe<string> => plugin.reference.match(githubRegexpV1)?.[2],
-         },
-      ],
-   })
+/**
+ * raw → canonical: recover the missing `id` (absent on ~76% of upstream rows)
+ * from the title, else the github repo name. null = unrecoverable, caller
+ * reports and skips the row.
+ */
+function normalizePluginInfo(p: ComfyManagerRawPluginInfo): ComfyManagerPluginInfo | null {
+   const id = p.id ?? p.title ?? p.reference.match(githubRegexpV1)?.[2]
+   if (id == null) return null
+   return { ...p, id }
 }
