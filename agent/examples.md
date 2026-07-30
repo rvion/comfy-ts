@@ -246,7 +246,7 @@ Wave 2 — long tail (same bar, lower priority):
 | firered    | i2i  | `image_firered_image_edit1_1`     |
 | ideogram4  | t2i  | `image_ideogram4_t2i`             |
 | wan22-5b   | t2v  | `video_wan2_2_5B_ti2v` (ti2v: doubles as i2v with a start image) |
-| chatterbox | t2a  | `audio-chatterbox_tts_multilingual` (models present; convert UNSWEPT — sweep before building) |
+| chatterbox | t2a  | `audio-chatterbox_tts_multilingual` (swept 2026-07-30: converts clean; the template's LoadAudio voice-clone branch is dropped — its asset is absent from the cloud LoadAudio union and `audio_prompt` is optional, default voice fallback) |
 
 ## Skipped (exhaustive, with reasons)
 
