@@ -1,6 +1,7 @@
 import { Box, Text, useApp, useInput, useStdin } from 'ink'
 import { observer } from 'mobx-react-lite'
 import { basename } from 'pathe'
+import { CopyOverlay } from 'src/cli/tui/components/CopyOverlay.tsx'
 import { DraftsOverlay } from 'src/cli/tui/components/DraftsOverlay.tsx'
 import { Header } from 'src/cli/tui/components/Header.tsx'
 import { HostPanel } from 'src/cli/tui/components/HostPanel.tsx'
@@ -176,6 +177,12 @@ export const TuiApp = observer((p: { st: TuiSt }) => {
             if (key.downArrow) return h.pickerMove(1)
             return
          }
+         if (s.mode === 'overlay-copy') {
+            // any close-ish key ends it — a confirmation must never trap
+            if (key.escape || key.return || input === ' ' || input === 'c' || input === 'C' || input === 'q')
+               return s.exec.closeCopyPopup()
+            return
+         }
          if (s.mode === 'preview') {
             const pv = s.preview
             // ⏎ CONFIRMS (closes): ←→ already changed the value in place
@@ -271,6 +278,8 @@ export const TuiApp = observer((p: { st: TuiSt }) => {
                   <DraftsOverlay st={s} />
                ) : s.mode === 'overlay-hosts' ? (
                   <HostsOverlay st={s} />
+               ) : s.mode === 'overlay-copy' ? (
+                  <CopyOverlay st={s} />
                ) : (
                   <VarsPanel st={s} />
                )}

@@ -720,7 +720,14 @@ export class ComfyHost<ID extends string = string> {
    /** handy to keep around */
    status: ComfyStatusData['status'] | null = null
 
+   /** last time ANY ws message arrived — proof-of-life for the TUI probe: a
+    * busy single-threaded ComfyUI stalls NEW connects while established
+    * sockets keep streaming (a half-open socket receives nothing, so this
+    * never revives one) */
+   lastWsMessageAt: number | null = null
+
    onMessage(e: MessageEvent): void {
+      this.lastWsMessageAt = Date.now()
       if (this.data.onWsMessageAny) this.data.onWsMessageAny(e)
       if (e.data instanceof ArrayBuffer) {
          const frame = parseBinaryWsFrame(e.data)

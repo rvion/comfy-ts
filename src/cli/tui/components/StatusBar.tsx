@@ -135,6 +135,7 @@ const MODE_KEYS: Partial<Record<string, Hint[]>> = {
       ['↑↓', 'move'],
       ['esc', 'cancel'],
    ],
+   'overlay-copy': [['⏎/esc', 'close']],
    tree: [
       ['⏎', 'load'],
       ['↑↓', 'move'],

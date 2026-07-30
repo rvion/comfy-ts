@@ -7,6 +7,14 @@ import { extractErrorMessage } from 'src/utils/extractErrorMessage.ts'
 import type { SeedVar } from 'src/vars/ComfyVars.ts'
 import type { TuiSt } from 'src/cli/tui/state/TuiSt.ts'
 
+/** popup body: summary + the head of the copied json (proof of WHAT is in the clipboard) */
+export function jsonHead(text: string, maxLines: number): string[] {
+   const lines = text.split('\n')
+   const head = lines.slice(0, maxLines).map((l) => (l.length > 76 ? `${l.slice(0, 75)}…` : l))
+   if (lines.length > maxLines) head.push('…')
+   return head
+}
+
 /** run lifecycle + outputs + status line + clipboard/open actions */
 export class ExecSt {
    constructor(private st: TuiSt) {
@@ -136,6 +144,30 @@ export class ExecSt {
    }
 
    // ---- clipboard ----
+
+   /** `c`/`C` end HERE, success or failure — a copy must never be silent
+    * (his repro: 'c does nothing', the notice line was too quiet) */
+   copyPopup: { title: string; ok: boolean; lines: string[] } | null = null
+
+   /** a copy build can hang on a stalled-host upload: guard double-presses */
+   private copying = false
+
+   closeCopyPopup(): void {
+      this.copyPopup = null
+      this.st.mode = 'nav'
+   }
+
+   private showCopyPopup(title: string, ok: boolean, lines: string[]): void {
+      // the build is async: if the user moved into an editor meanwhile, never
+      // steal their keys — degrade to the notice line instead of a popup
+      const m = this.st.mode
+      if (m === 'edit' || m.startsWith('overlay-')) {
+         this.notice = `${ok ? '✓' : '✗'} ${title}`
+         return
+      }
+      this.copyPopup = { title, ok, lines }
+      this.st.mode = 'overlay-copy'
+   }
    private toClipboard(text: string): Promise<boolean> {
       const [cmd, ...args] =
          process.platform === 'darwin'
@@ -154,32 +186,83 @@ export class ExecSt {
 
    /** 'c': copy workflow.json (litegraph, drag into the ComfyUI editor) */
    async copyWorkflowJson(): Promise<void> {
+      if (this.copying) return
+      runInAction(() => {
+         this.copying = true
+         // instant feedback: the i2i upload inside build can hang for a tcp timeout
+         this.notice = 'building for copy… (i2i workflows upload their input image first)'
+      })
       try {
          const wf = await this.st.wf.build({ host: this.st.hostOverride ?? undefined })
          const json = await wf.toWorkflowJson()
-         const ok = await this.toClipboard(JSON.stringify(json, null, 2))
+         const text = JSON.stringify(json, null, 2)
+         const ok = await this.toClipboard(text)
          runInAction(() => {
-            this.notice = ok ? `workflow.json copied (${json.nodes.length} nodes)` : 'clipboard copy failed'
+            this.showCopyPopup(
+               'workflow.json → clipboard',
+               ok,
+               ok
+                  ? [
+                       `${json.nodes.length} nodes · ${text.length} chars — paste into the ComfyUI editor`,
+                       '',
+                       ...jsonHead(text, 10),
+                    ]
+                  : ['CLIPBOARD COPY FAILED — is a clipboard tool available (pbcopy/clip/xclip) ?'],
+            )
          })
       } catch (e) {
          runInAction(() => {
-            this.notice = `${extractErrorMessage(e)}`
+            this.showCopyPopup('workflow.json copy FAILED', false, [
+               extractErrorMessage(e),
+               '',
+               'nothing was copied. i2i/i2v builds upload their input image first —',
+               'an unreachable host fails the build itself, not just the run.',
+            ])
+         })
+      } finally {
+         runInAction(() => {
+            this.copying = false
          })
       }
    }
 
    /** 'C': copy api.json (the POST /prompt payload) */
    async copyApiJson(): Promise<void> {
+      if (this.copying) return
+      runInAction(() => {
+         this.copying = true
+         this.notice = 'building for copy… (i2i workflows upload their input image first)'
+      })
       try {
          const wf = await this.st.wf.build({ host: this.st.hostOverride ?? undefined })
          const json = wf.toApiJson('use_stringified_numbers_only')
-         const ok = await this.toClipboard(JSON.stringify(json, null, 2))
+         const text = JSON.stringify(json, null, 2)
+         const ok = await this.toClipboard(text)
          runInAction(() => {
-            this.notice = ok ? `api.json copied (${Object.keys(json).length} nodes)` : 'clipboard copy failed'
+            this.showCopyPopup(
+               'api.json → clipboard',
+               ok,
+               ok
+                  ? [
+                       `${Object.keys(json).length} nodes · ${text.length} chars — the POST /prompt payload`,
+                       '',
+                       ...jsonHead(text, 10),
+                    ]
+                  : ['CLIPBOARD COPY FAILED — is a clipboard tool available (pbcopy/clip/xclip) ?'],
+            )
          })
       } catch (e) {
          runInAction(() => {
-            this.notice = `${extractErrorMessage(e)}`
+            this.showCopyPopup('api.json copy FAILED', false, [
+               extractErrorMessage(e),
+               '',
+               'nothing was copied. i2i/i2v builds upload their input image first —',
+               'an unreachable host fails the build itself, not just the run.',
+            ])
+         })
+      } finally {
+         runInAction(() => {
+            this.copying = false
          })
       }
    }

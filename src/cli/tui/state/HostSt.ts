@@ -9,8 +9,28 @@ export type HostStatus = 'unknown' | 'up' | 'down'
 
 const PROBE_EVERY_MS = 5000
 const PROBE_TIMEOUT_MS = 3000
+/** ws message younger than this = the host is alive, whatever http says */
+export const WS_ALIVE_MS = 10_000
 
 const SPIN_FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏']
+
+/**
+ * PURE probe verdict (headless-tested). http ok is proof enough; on http
+ * failure a RECENTLY TALKING open ws still means up — ComfyUI is
+ * single-threaded and stalls new connects mid-generation while established
+ * sockets stream (his repro 2026-07-30: 'windows-1 offline' in the header
+ * while the browser tab generated fine). A half-open socket receives
+ * nothing, so the recency window never revives one.
+ */
+export function probeVerdict(p: { httpOk: boolean; wsOpen: boolean; lastWsMessageAt: number | null; now: number }): {
+   status: HostStatus
+   via: 'ws' | 'http' | null
+} {
+   if (p.httpOk) return { status: 'up', via: p.wsOpen ? 'ws' : 'http' }
+   if (p.wsOpen && p.lastWsMessageAt != null && p.now - p.lastWsMessageAt < WS_ALIVE_MS)
+      return { status: 'up', via: 'ws' }
+   return { status: 'down', via: null }
+}
 
 /** host panel (`h`): stats about the connected host + maintenance actions */
 export class HostSt {
@@ -34,6 +54,7 @@ export class HostSt {
                runInAction(() => {
                   this.status = 'unknown'
                   this.statusVia = null
+                  this.lastProbeError = null // the previous host's failure must not show under the new one
                })
                this.probeGen++
                if (this.loopTimer != null) clearTimeout(this.loopTimer)
@@ -48,6 +69,8 @@ export class HostSt {
    status: HostStatus = 'unknown'
    /** 'ws' when the live socket is open, 'http' when only the probe reaches the host */
    statusVia: 'ws' | 'http' | null = null
+   /** why the last http probe failed (timeout, dns, http status) — the stats panel shows it */
+   lastProbeError: string | null = null
    /** a probe is in flight (drives the spinner while down) */
    probing: boolean = false
    /** seconds until the next probe (shown while down) */
@@ -87,8 +110,9 @@ export class HostSt {
       this.loopTimer.unref?.()
    }
 
-   /** http is the ground truth: a half-open ws keeps isOpen=true forever, and
-    * trusting it would re-create the exact silent-death this dot exists to expose */
+   /** http first — a half-open ws keeps isOpen=true forever, so isOpen alone
+    * is never trusted. RECENT MESSAGES are: probeVerdict lets a talking ws
+    * beat a stalled http probe (busy single-threaded server) */
    private async probe(): Promise<void> {
       const host = this.host
       runInAction(() => {
@@ -104,13 +128,16 @@ export class HostSt {
       spin.unref?.()
       this.spinTimer = spin
       let ok = false
+      let probeError: string | null = null
       try {
          // host.fetch: /api preferred + auth header, so cloud hosts probe up too
          const res = await host.fetch('/prompt', { signal: AbortSignal.timeout(PROBE_TIMEOUT_MS) })
          void res.body?.cancel()
          ok = res.ok
-      } catch {
+         if (!ok) probeError = `http ${res.status}`
+      } catch (e) {
          ok = false
+         probeError = extractErrorMessage(e)
       } finally {
          clearInterval(spin)
          if (this.spinTimer === spin) {
@@ -121,9 +148,16 @@ export class HostSt {
          }
       }
       if (this.host !== host) return // workflow switched mid-flight: stale verdict
+      const verdict = probeVerdict({
+         httpOk: ok,
+         wsOpen: host.isConnected,
+         lastWsMessageAt: host.lastWsMessageAt,
+         now: Date.now(),
+      })
       runInAction(() => {
-         this.status = ok ? 'up' : 'down'
-         this.statusVia = ok ? (host.isConnected ? 'ws' : 'http') : null
+         this.status = verdict.status
+         this.statusVia = verdict.via
+         this.lastProbeError = probeError
       })
    }
 
@@ -152,6 +186,8 @@ export class HostSt {
                   ? `down · ${this.probing ? `${this.spinner} probing…` : `retry in ${this.retryInS}s`}`
                   : this.status + (this.statusVia != null ? ` (${this.statusVia})` : ''),
          },
+         // the WHY behind a down dot (or an up-via-ws with http stalling: busy server)
+         ...(this.lastProbeError != null ? [{ label: 'http probe', value: this.lastProbeError }] : []),
          { label: 'node types', value: String(schema.nodes.length) },
          { label: 'loras', value: String(schema.getLoras().length) },
          { label: 'embeddings', value: String(schema.data.embeddings.length) },

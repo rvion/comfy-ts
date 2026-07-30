@@ -33,6 +33,7 @@ export type TuiMode =
    | 'overlay-image'
    | 'overlay-drafts'
    | 'overlay-hosts'
+   | 'overlay-copy'
 
 /**
  * ROOT of the TUI state tree (one instance per run). Children are service

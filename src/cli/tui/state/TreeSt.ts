@@ -100,9 +100,11 @@ export class TreeSt {
       }
       if (w.currentPath != null) {
          this.expandedFiles.add(w.currentPath)
-         // the cursor must land ON the current row: unfold any ancestor dir hiding it
+         // the cursor must land ON the current row: unfold any ancestor dir
+         // hiding it (snapshot: the loop deletes while iterating)
          let changed = false
-         for (const dir of [...this.collapsedDirs]) {
+         const collapsed = [...this.collapsedDirs]
+         for (const dir of collapsed) {
             if (w.currentPath.startsWith(`${dir}/`)) {
                this.collapsedDirs.delete(dir)
                changed = true
