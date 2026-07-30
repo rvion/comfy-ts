@@ -1,4 +1,6 @@
-# comfy-ts: the ultimate ComfyUI toolkit for TypeScript: SDK + CLI + TUI + agent guide
+# comfy-ts
+
+_the ultimate ComfyUI toolkit for TypeScript: `SDK` + `CLI` + `TUI` + agent guide_
 
 [![CI](https://github.com/rvion/comfy-ts/actions/workflows/ci.yml/badge.svg)](https://github.com/rvion/comfy-ts/actions/workflows/ci.yml)
 [![npm version](https://img.shields.io/npm/v/comfy-ts.svg)](https://www.npmjs.com/package/comfy-ts)
@@ -12,33 +14,35 @@ ecosystem offers. Import and export both ComfyUI JSON formats. One library,
 the whole pipeline.
 
 **Jump to:**
-[60 second start](#60-second-start) ·
-[SDK](#the-sdk-workflows-as-code) ·
-[Vars](#vars-knobs-on-everything) ·
-[TUI](#the-tui) ·
-[CLI](#the-cli) ·
-[Ecosystem](#ecosystem-discovery-and-install) ·
-[Agents](#for-ai-agents) ·
-[Examples](#examples) ·
-[Trust](#a-lib-you-can-trust-made-to-last)
+[⚡ 60 second start](#-60-second-start) ·
+[🧩 SDK](#-the-sdk-workflows-as-code) ·
+[🧬 Codegen](#-the-codegen-nothing-else-comes-close) ·
+[🎛️ App mode & vars](#-app-mode--vars-knobs-on-everything) ·
+[🖥️ TUI](#-the-tui) ·
+[⌨️ CLI](#-the-cli) ·
+[🔌 Ecosystem](#-ecosystem-discovery-and-install) ·
+[🤖 Agents](#-for-ai-agents) ·
+[📚 Examples](#-examples) ·
+[🧱 Trust](#-a-lib-you-can-trust-made-to-last)
 
 ## What's inside
 
 | piece            | what it gives you                                                                        |
 | ---------------- | ---------------------------------------------------------------------------------------- |
-| **the SDK**      | build and run workflows in code, typed down to the model names of your exact machine      |
-| **the CLI**      | one command codegens a full typed SDK for any host, local or remote cloud                 |
-| **the TUI**      | drive every workflow from the terminal: knobs, drafts, queue, live latent previews        |
-| **agent tools**  | typed discovery and install across the whole custom node ecosystem, built for automation  |
-| **JSON, both ways** | import and export `api.json` and `workflow.json`, drag your code onto the Comfy canvas |
+| 🧩 **the SDK**      | build and run workflows in code, typed down to the model names of your exact machine      |
+| ⌨️ **the CLI**      | one command codegens a full typed SDK for any host, local or remote cloud                 |
+| 🖥️ **the TUI**      | drive every workflow from the terminal: knobs, drafts, queue, live latent previews        |
+| 🤖 **agent tools**  | typed discovery and install across the whole custom node ecosystem, built for automation  |
+| 🔁 **JSON, both ways** | import and export `api.json` and `workflow.json`, drag your code onto the Comfy canvas |
 
-## 60 second start
+## ⚡ 60 second start
 
 ```bash
 bun add comfy-ts     # or npm / pnpm / yarn
 ```
 
 ```ts
+// myFirstWorkflow.ts
 import { ComfyTS } from 'comfy-ts'
 
 const comfy = ComfyTS.create()
@@ -67,6 +71,12 @@ for (const img of execution.images) console.log(img.absPath) // downloaded outpu
 host.disconnect()
 ```
 
+```sh
+$ bun myFirstWorkflow.ts
+▶ [████████████████] 100% · SaveImage · 12s
+.comfy-ts/outputs/txt2img_00001.png
+```
+
 One tsconfig line activates the generated types:
 
 ```jsonc
@@ -77,12 +87,117 @@ No codegen yet? Everything still compiles on permissive base types, and
 sharpens the moment the generated sdk lands. Runs under Bun and node ≥ 20,
 dual ESM/CJS.
 
-## The SDK: workflows as code
+## 🧩 The SDK: workflows as code
 
-Not "a ComfyUI type package" someone published once. Wrong workflow?
-Compile error. Every node, model, sampler and lora on your machine becomes
-autocomplete: each host gets its own namespace, generated from that host's
-live `/object_info`:
+The best embedded DSL we know how to build, distilled from years of writing
+typed DSLs in TypeScript. Fast inference, clever tricks, zero ceremony.
+Wrong workflow? Compile error, before ComfyUI ever sees the graph. Writing
+workflows in code gets so comfortable you may catch yourself experimenting
+here rather than in the visual editor. The tricks this section showcases:
+
+- [Pass the node, skip the slot](#pass-the-node-skip-the-slot)
+- [Nested or flat, your call](#nested-or-flat-your-call)
+- [Lambda inputs: autocomplete only what fits](#lambda-inputs-autocomplete-only-what-fits)
+- [auto(): let the graph wire itself](#auto-let-the-graph-wire-itself)
+- [Content-addressed uploads](#content-addressed-uploads)
+- [Problems, not crashes](#problems-not-crashes)
+
+Wondering how any of this can exist? It all rests on
+[the codegen](#-the-codegen-nothing-else-comes-close) below.
+
+### Pass the node, skip the slot
+
+When a node has exactly ONE output of the expected type, pass the node
+itself:
+
+```ts
+const ckpt = b.CheckpointLoaderSimple({ ckpt_name: 'SD1.5\\v1-5-pruned-emaonly.ckpt' })
+const samples = b.KSampler({ model: ckpt /* … */ }) // instead of model: ckpt._MODEL
+b.VAEDecode({ samples, vae: ckpt })                 // same ckpt node, VAE output this time
+```
+
+`ckpt` carries one MODEL, one CLIP and one VAE output, so it slots into all
+three kinds of inputs directly, and refuses inputs it cannot feed.
+
+### Nested or flat, your call
+
+The same graph writes flat (a const per node) or nested (the code shaped
+like the graph). Mix freely; nested is often the practical form for small
+branches:
+
+```ts
+// flat
+const latent = b.EmptyLatentImage({ width: 512, height: 512, batch_size: 1 })
+const samples = b.KSampler({ latent_image: latent /* … */ })
+b.SaveImage({ images: b.VAEDecode({ samples, vae: ckpt }) })
+
+// nested
+b.SaveImage({
+   images: b.VAEDecode({
+      samples: b.KSampler({
+         latent_image: b.EmptyLatentImage({ width: 512, height: 512, batch_size: 1 }),
+         /* … */
+      }),
+      vae: ckpt,
+   }),
+})
+```
+
+### Lambda inputs: autocomplete only what fits
+
+Any input accepts a lambda. Its parameter is the builder NARROWED to the
+nodes able to produce the expected type, so autocomplete proposes only what
+can actually plug in:
+
+```ts
+b.KSampler({
+   // n lists ONLY conditioning producers: CLIPTextEncode and friends
+   positive: (n) => n.CLIPTextEncode({ clip: ckpt, text: 'a cozy house' }),
+   /* … */
+})
+```
+
+### auto(): let the graph wire itself
+
+Leave a slot blank and comfy-ts wires the most recent node producing the
+right type:
+
+```ts
+import { auto } from 'comfy-ts'
+
+const samples = b.KSampler({ latent_image: auto() /* picks the latest LATENT producer */ })
+```
+
+Handy in quick scripts; prefer explicit wiring in code meant to be read.
+
+### Content-addressed uploads
+
+Uploads are hash-named and deduped against the host before any byte moves.
+Run the same img2img a hundred times, the input image travels once:
+
+```ts
+build: async (b, vars, wf) => {
+   const img = new MediaImage({ path: asAbsolutePath(vars.image) })
+   const loaded = await img.loadInWorkflow_viaLoadImageNode(wf) // hash-named, deduped
+   b.KSampler({ latent_image: b.VAEEncode({ pixels: loaded, vae: ckpt }) /* … */ })
+}
+```
+
+### Problems, not crashes
+
+Invalid graphs accumulate precise messages in `workflow.problems` before
+ComfyUI ever sees them: missing required inputs, type mismatches, each named
+with the node and field.
+
+## 🧬 The codegen: nothing else comes close
+
+Not "a ComfyUI type package" someone published once. One command reads YOUR
+host and writes a full SDK for it:
+
+```bash
+bunx comfy-ts gen --id my-gpu --host http://127.0.0.1:8188
+# → .comfy-ts/hosts/my-gpu/{object_info.json, embeddings.json, sdk.d.ts}
+```
 
 ```ts
 declare global {
@@ -95,20 +210,34 @@ declare global {
 }
 ```
 
-- `ckpt_name` only accepts checkpoints that machine really has.
-- Custom nodes are first-class: `b['rmbg.RMBG']` autocompletes too.
-- Uploads are hash-named and deduped: the same input image travels ONCE,
-  however many times you run.
-- Invalid graphs collect precise messages in `workflow.problems` before
-  ComfyUI ever sees them.
-- `auto<T>()` wires a blank slot to the latest node producing the right type,
-  and `model: ckpt` works wherever a node has exactly one matching output.
+- **Literal types from the actual install.** `ckpt_name` only accepts
+  checkpoints that machine really has; samplers, schedulers, loras and
+  embeddings are unions of the real values.
+- **Custom nodes are first-class.** Every installed pack lands in the
+  builder: `b['rmbg.RMBG']` autocompletes like any core node.
+- **One namespace per host, many hosts per codebase.** A workflow written
+  against `my-gpu` cannot silently reference a model that only exists on
+  `my-laptop`.
+- **Never blocking.** Before the first codegen everything compiles on
+  permissive base types, and sharpens the moment the generated sdk lands.
+- **Browsable.** The generated file is real TypeScript;
+  `bunx comfy-ts outline` shows it section by section.
+- **See it for real: the Comfy Cloud catalog.**
+  [`examples/comfy-cloud/sdk.d.ts`](examples/comfy-cloud/sdk.d.ts) is a full
+  generated SDK for [Comfy Cloud](https://cloud.comfy.org) (5.9MB, 3574
+  nodes), committed so you can browse it and typecheck graphs against it
+  without any host.
+  [`examples/05-comfy-cloud.cflow.ts`](examples/05-comfy-cloud.cflow.ts)
+  runs against it live: `url` + `apiKey` host config, one env var, images
+  back in seconds.
 
-## Vars: knobs on everything
+## 🎛️ App mode & vars: knobs on everything
 
-Declare the tweakable parts once (`import { v } from 'comfy-ts'`); `build`
-re-executes with current values on every `run()`. That is what the TUI
-edits, and what makes a module re-runnable instead of a one-shot script.
+Vars turn a workflow module into a small APP: declare the tweakable parts
+once (`import { v } from 'comfy-ts'`) and `build` re-executes with current
+values on every `run()`. The TUI renders vars as its UI, scripts set them
+programmatically, drafts snapshot them. One module, many setups, re-runnable
+forever instead of a one-shot script.
 
 ```ts
 export const txt2img = host.defineWorkflow({
@@ -138,15 +267,18 @@ await txt2img.run({ log: true }) // fresh graph, fresh image
 `v.prompt('a cozy house', { loraKeywordsFrom: loras })` prefixes the active
 loras' trigger keywords. Name the file `*.cflow.ts` and the TUI finds it.
 
-## The TUI
+## 🖥️ The TUI
 
 ![the comfy-ts TUI: workflow tree, typed knobs, live latent preview](screenshots/tui-screen-1.png)
 
 ```bash
-bunx comfy-ts tui examples/
+bunx comfy-ts tui
 ```
 
-Keyboard-first, a persistent keybar showing every available key.
+No argument needed: it finds every `*.cflow.ts` under your project AND the
+examples bundled with the package, so the first launch is never empty. Pass
+a folder or a module to scan just that. Keyboard-first, a persistent keybar
+showing every available key.
 
 | panel        | what it does                                                                     |
 | ------------ | -------------------------------------------------------------------------------- |
@@ -159,20 +291,21 @@ Keyboard-first, a persistent keybar showing every available key.
 workflow.json / api.json. Press `r` mid-run and it QUEUES with the values as
 they are right now. Drafts autosave: reopening lands you where you left off.
 
-## The CLI
+## ⌨️ The CLI
 
 ```bash
 bunx comfy-ts gen --id my-gpu --host http://127.0.0.1:8188
 # → .comfy-ts/hosts/my-gpu/{object_info.json, embeddings.json, sdk.d.ts}
 
-bunx comfy-ts outline            # what's inside that 2MB sdk.d.ts?
-bunx comfy-ts tui [dir | module] # see above
+bunx comfy-ts outline              # what's inside that 2MB sdk.d.ts?
+bunx comfy-ts tui                  # your *.cflow.ts + bundled examples
+bunx comfy-ts tui [dir | module]   # scan just that
 ```
 
 Any reachable host: the box under your desk or a GPU machine across the
 network, same command, same output.
 
-## Ecosystem discovery and install
+## 🔌 Ecosystem discovery and install
 
 The whole ComfyUI-Manager registry, mirrored into generated types: every
 known custom node pack, plugin title and model is a typed union.
@@ -187,7 +320,7 @@ install it by name with the compiler checking the spelling. Install
 endpoints currently target the Manager v2 API; v3 moved them behind a queue
 API and support is being ground down (see the feature table).
 
-## For AI agents
+## 🤖 For AI agents
 
 comfy-ts is built to be driven by agents as much as by people. After
 installing, one line in your `CLAUDE.md` teaches your agent the whole
@@ -197,7 +330,7 @@ library:
 @./node_modules/comfy-ts/guide-for-agents.md
 ```
 
-## JSON, both ways
+## 🔁 JSON, both ways
 
 - `workflow.toApiJson()`: the executable prompt format.
 - `await workflow.toWorkflowJson()`: an AUTOLAYOUTED litegraph file. Drop it
@@ -208,7 +341,7 @@ library:
   compat frontier: we sweep every official Comfy-Org template against our
   schemas to grind that gap down.
 
-## Examples
+## 📚 Examples
 
 Every example is a runnable `*.cflow.ts` module: run it with bun, or point
 the TUI at `examples/`.
@@ -219,8 +352,9 @@ the TUI at `examples/`.
 | [`02-img2img-upload`](examples/02-img2img-upload.cflow.ts)                               | hash-named deduped upload, img2img, async build                             |
 | [`03-export-workflow-json`](examples/03-export-workflow-json.cflow.ts)                   | OFFLINE graph building, export api.json + readable workflow.json            |
 | [`04-krea2-turbo-t2i`](examples/04-krea2-turbo-t2i.cflow.ts)                             | a real pipeline: krea2 turbo, lora stack, RMBG cutout → transparent png     |
+| [`05-comfy-cloud`](examples/05-comfy-cloud.cflow.ts)                                     | the same code on Comfy Cloud: `url` + `apiKey` host, typechecked against the committed catalog SDK |
 
-## The `.comfy-ts/` folder
+## 🗂️ The `.comfy-ts/` folder
 
 One folder of local state per consumer repo: `hosts/` (schema dumps + the
 generated sdk per host), `outputs/`, `drafts/`, TUI settings, lora keywords.
@@ -228,7 +362,7 @@ Gitignore all of it. `hosts/` is a full dump of that machine's models and
 paths (~10MB), so committing it publishes your setup; in a PRIVATE repo,
 committing it is what buys you typed CI.
 
-## Feature status
+## ✅ Feature status
 
 | feature                                                        | status |
 | -------------------------------------------------------------- | :----: |
@@ -243,6 +377,7 @@ committing it is what buys you typed CI.
 | import api.json into a live workflow                           |   ✅   |
 | import workflow.json (litegraph → api conversion)              |   ✅   |
 | sidekick CLI (`gen`, `outline`, `tui`)                         |   ✅   |
+| cloud hosts: `url` + `X-API-Key` auth, Comfy Cloud ran live    |   ✅   |
 | ComfyUI-Manager registry mirror + Known\* ecosystem unions     |   ✅   |
 | install custom nodes / models via ComfyUI-Manager (v2 API)     |   🔶   |
 | locality-aware media retrieval fast-path (local vs remote)     |   🔶   |
@@ -250,7 +385,7 @@ committing it is what buys you typed CI.
 
 ✅ working and exercised · 🔶 partial / in progress
 
-## A lib you can trust, made to last
+## 🧱 A lib you can trust, made to last
 
 The glitter above sits on boring foundations:
 

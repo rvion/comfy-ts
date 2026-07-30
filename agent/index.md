@@ -50,6 +50,7 @@ Read the matching doc before touching a surface:
 
 | read when touching…                           | doc                     |
 | --------------------------------------------- | ----------------------- |
+| anything cloud / upstream service behavior    | `agent/external-docs/<source>/` — pasted or imported upstream .md pages, frontmatter `url:` + `importedAt:` (comfy-cloud/ seeded 2026-07-30) |
 | goals & feature matrix (what the lib promises)| `agent/features.md`     |
 | any file layout / class / data-flow question  | `agent/architecture.md` |
 | the per-host codegen or `Comfy.*` namespaces  | `agent/sdk-codegen.md`  |
