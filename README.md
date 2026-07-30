@@ -4,6 +4,11 @@ _the complete TypeScript toolkit for ComfyUI and generative AI. Fully type-safe 
 
 [![CI](https://github.com/rvion/comfy-ts/actions/workflows/ci.yml/badge.svg)](https://github.com/rvion/comfy-ts/actions/workflows/ci.yml)
 [![npm version](https://img.shields.io/npm/v/comfy-ts.svg)](https://www.npmjs.com/package/comfy-ts)
+[![npm downloads](https://img.shields.io/npm/dm/comfy-ts.svg)](https://www.npmjs.com/package/comfy-ts)
+[![GitHub release](https://img.shields.io/github/v/release/rvion/comfy-ts)](https://github.com/rvion/comfy-ts/releases)
+[![types](https://img.shields.io/npm/types/comfy-ts)](https://www.npmjs.com/package/comfy-ts)
+[![license](https://img.shields.io/npm/l/comfy-ts.svg)](https://github.com/rvion/comfy-ts/blob/main/LICENSE)
+[![sponsor](https://img.shields.io/github/sponsors/rvion?label=sponsor&logo=githubsponsors)](https://github.com/sponsors/rvion)
 
 **Everything ComfyUI, from TypeScript.** Build workflows in code with
 autocomplete on every node and model of your exact install. Run them on any
@@ -487,6 +492,13 @@ The glitter above sits on boring foundations:
 - [CushyStudio](https://github.com/rvion/CushyStudio), where this library was born.
 - [@saintno/comfyui-sdk](https://www.npmjs.com/package/@saintno/comfyui-sdk), polished API, but unsafe workflow building, no typed registry.
 - [comfyui-bun-client](https://github.com/KaruroChori/comfyui-bun-client), similar spirit, less codegen, not on npm.
+
+## Support
+
+comfy-ts is free, MIT, and maintained for the long run. If it saves you
+time or powers something you sell, consider
+[sponsoring](https://github.com/sponsors/rvion), it keeps the grind loops
+grinding.
 
 ## License
 
