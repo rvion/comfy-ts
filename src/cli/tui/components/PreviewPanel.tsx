@@ -33,26 +33,27 @@ export const PreviewPanel = observer((p: { st: TuiSt }) => {
       )
    }
 
-   const loraMode = s.mode === 'overlay-loras'
+   // an overlay owns the vars area (loras / image picker): its slot owns the panel too
+   const overlayMode = pv.overlayActive
    const running = s.exec.running
    const wantLatent = running && pv.duringRun !== 'last-output'
-   const showLatent = !loraMode && wantLatent && (pv.latentAnsi != null || pv.latentBytes != null)
-   const label = loraMode
-      ? `lora ${s.loras.previewName ?? 'lora'}`
+   const showLatent = !overlayMode && wantLatent && (pv.latentAnsi != null || pv.latentBytes != null)
+   const label = overlayMode
+      ? (pv.overlay?.name ?? (s.mode === 'overlay-loras' ? 'lora' : 'image'))
       : showLatent
         ? pv.duringRun === 'latent-small'
            ? 'latent small'
            : 'latent'
         : 'output'
-   const placeholder = loraMode
-      ? (s.loras.previewNote ?? '(pick a lora)')
+   const placeholder = overlayMode
+      ? (pv.overlay?.note ?? (s.mode === 'overlay-loras' ? '(pick a lora)' : '(pick an image)'))
       : pv.latentsMissing
         ? '(no latents from the server — launch comfy with --preview-method auto)'
         : '(no image yet)'
    const content = pv.useNative
       ? null
-      : loraMode
-        ? s.loras.previewAnsi
+      : overlayMode
+        ? (pv.overlay?.ansi ?? null)
         : showLatent
           ? (pv.latentAnsi ?? pv.outputAnsi)
           : pv.outputAnsi

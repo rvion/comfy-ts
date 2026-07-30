@@ -15,6 +15,15 @@ export function protocolCapable(): boolean {
 
 type MenuRow = { key: 'panel' | 'renderer' | 'during-run'; label: string; value: string }
 
+/** what an overlay (loras / image picker) wants the panel to show: real bytes
+ * (native renderer), an ansi render (pixel), or a placeholder note */
+export type OverlayImage = {
+   bytes: Uint8Array | null
+   ansi: string | null
+   name: string | null
+   note: string | null
+}
+
 /** small-latent corner: fraction of the panel each dimension takes */
 const CORNER_FRACTION = 0.38
 /** pixel 'latent small': the sharp-composited thumb takes this fraction of the panel */
@@ -60,6 +69,23 @@ export class PreviewSt {
    }
    get menuOpen(): boolean {
       return this.st.mode === 'preview'
+   }
+
+   // ---- overlay slot: ONE code path for every overlay that previews into the
+   // panel (loras + image picker write it; the panel and the protocol painter
+   // read it whenever an overlay mode owns the vars area) ----
+   overlay: OverlayImage | null = null
+
+   get overlayActive(): boolean {
+      return this.st.mode === 'overlay-loras' || this.st.mode === 'overlay-image'
+   }
+
+   setOverlayImage(p: OverlayImage): void {
+      this.overlay = p
+   }
+
+   clearOverlayImage(): void {
+      this.overlay = null
    }
    /** running + latents wanted + sampling well underway + none arrived = server
     * sends none. The ≥20% gate keeps healthy runs from red-flashing: the first
@@ -157,7 +183,7 @@ export class PreviewSt {
    /** what the painter should show RIGHT NOW (native renderer only; mirrors the panel's source) */
    get protocolImage(): Uint8Array | null {
       if (!this.useNative || !this.show || this.menuOpen) return null
-      if (this.st.mode === 'overlay-loras') return this.st.loras.previewBytes
+      if (this.overlayActive) return this.overlay?.bytes ?? null
       if (this.st.exec.running) {
          if (this.duringRun === 'latent') return this.latentBytes ?? this.outputBytes
          // latent-small keeps the OUTPUT big (corner carries the latent) — last-output too
@@ -169,7 +195,7 @@ export class PreviewSt {
    /** small latent painted over the panel's top-right corner (native + 'latent small' only) */
    get protocolImageCorner(): Uint8Array | null {
       if (!this.useNative || !this.show || this.menuOpen) return null
-      if (this.st.mode === 'overlay-loras') return null
+      if (this.overlayActive) return null
       if (this.st.exec.running && this.duringRun === 'latent-small') return this.latentBytes
       return null
    }

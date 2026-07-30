@@ -65,6 +65,7 @@ const KIND_KEYS: Record<string, Hint[]> = {
    choice: [['⏎/→', 'pick']],
    size: [['⏎/→', 'pick']],
    loras: [['⏎/→', 'select']],
+   image: [['⏎/→', 'browse']],
 }
 
 /** shown INSIDE the text editor box (TextOverlay footer), not in the keybar */
@@ -117,6 +118,16 @@ const MODE_KEYS: Partial<Record<string, Hint[]>> = {
       ['⌃A', 'all'],
       ['⌃N', 'none'],
       ['esc', 'done'],
+   ],
+   'overlay-image': [
+      ['⏎', 'pick / enter dir'],
+      ['←', 'parent'],
+      ['→', 'enter dir'],
+      ['tab', 'pane'],
+      ['↑↓', 'move'],
+      ['type', 'filter'],
+      ['⌃F', 'fav folder'],
+      ['esc', 'cancel'],
    ],
    'overlay-drafts': [['⏎', 'load / new'], ...DRAFT_OP_HINTS, ['↑↓', 'move'], ['esc', 'cancel']],
    tree: [['⏎', 'load'], ['↑↓', 'move'], ['←', 'fold'], ['→', 'unfold / vars'], ...DRAFT_OP_HINTS, ['t/esc', 'back']],

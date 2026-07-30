@@ -1,5 +1,6 @@
 import { makeAutoObservable, observable, runInAction } from 'mobx'
 import type { SeedVar, ToggleVar, AnyVar } from 'src/vars/ComfyVars.ts'
+import { ImagePickerSt } from 'src/cli/tui/imagePicker/ImagePickerSt.ts'
 import { DraftsSt } from 'src/cli/tui/state/DraftsSt.ts'
 import { EditorSt } from 'src/cli/tui/state/EditorSt.ts'
 import { ExecSt } from 'src/cli/tui/state/ExecSt.ts'
@@ -27,6 +28,7 @@ export type TuiMode =
    | 'overlay-choice'
    | 'overlay-size'
    | 'overlay-loras'
+   | 'overlay-image'
    | 'overlay-drafts'
 
 /**
@@ -41,6 +43,7 @@ export class TuiSt {
    editor: EditorSt
    picker: PickerSt
    loras: LorasSt
+   imagePicker: ImagePickerSt
    workflows: WorkflowsSt
    tree: TreeSt
    drafts: DraftsSt
@@ -75,6 +78,7 @@ export class TuiSt {
          editor: false,
          picker: false,
          loras: false,
+         imagePicker: false,
          workflows: false,
          tree: false,
          drafts: false,
@@ -89,6 +93,7 @@ export class TuiSt {
       this.editor = new EditorSt(this)
       this.picker = new PickerSt(this)
       this.loras = new LorasSt(this)
+      this.imagePicker = new ImagePickerSt(this)
       this.workflows = new WorkflowsSt(
          this,
          opts.workflowFiles ?? [],
@@ -172,6 +177,7 @@ export class TuiSt {
       else if (sel.kind === 'choice') this.picker.beginChoice()
       else if (sel.kind === 'size') this.picker.beginSize()
       else if (sel.kind === 'loras') this.loras.begin()
+      else if (sel.kind === 'image') this.imagePicker.begin()
       else this.editor.beginInline() // int / float / seed: type the number
    }
 

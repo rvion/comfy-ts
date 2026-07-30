@@ -411,8 +411,10 @@ tests/                     bun tests (headless) + fixtures
    whenever an overlay mode owns the vars area; slot cleared on overlay
    close). File bytes are read directly (no host fetch), sharp failures land
    in `note` as a placeholder line, never a crash.
-   PERSISTENCE (`pickerPrefs.ts`, loraKeywords pattern: module-level
-   observable + load-once + write-through): `.comfy-ts/image-picker.json`,
+   PERSISTENCE (`pickerPrefs.ts`, loraKeywords pattern: observable +
+   load-once + write-through — as a `PickerPrefs` store class taking an
+   explicit file path so tests round-trip it headless, with ONE lazy module
+   singleton bound to comfyts): `.comfy-ts/image-picker.json`,
    gitignored (hand-tuned data like lora-keywords.json, NOT under cache/ —
    survives a cache wipe), human-editable json:
    `{ "favorites": ["/abs/dir", …], "recents": ["/abs/img.png", …],

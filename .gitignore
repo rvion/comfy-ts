@@ -30,9 +30,10 @@ CLAUDE.local.md
 .comfy-ts/outputs/
 # TUI drafts are local state
 .comfy-ts/drafts/
-# TUI settings + lora keywords + lora-preview cache are local state
+# TUI settings + lora keywords + image-picker prefs + lora-preview cache are local state
 .comfy-ts/settings.json
 .comfy-ts/lora-keywords.json
+.comfy-ts/image-picker.json
 .comfy-ts/cache/
 # mirrored upstream data cache, refetched by `bun run templates:fetch`
 .comfy-ts/templates/

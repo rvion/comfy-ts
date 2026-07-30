@@ -1,4 +1,4 @@
-import { makeAutoObservable, reaction, runInAction } from 'mobx'
+import { makeAutoObservable, reaction } from 'mobx'
 import { fetchLoraPreviewBytes, fetchLoraPreviewMap, loraPreviewKey } from 'src/host/loraManagerApi.ts'
 import { imageBufferToAnsi } from 'src/utils/ansiImage.ts'
 import { extractErrorMessage } from 'src/utils/extractErrorMessage.ts'
@@ -43,6 +43,8 @@ export class LorasSt {
       this.st.mode = 'overlay-loras'
       this.ix = 0
       this.filter = ''
+      // fresh overlay starts on the placeholder, never a stale slot image
+      this.st.preview.clearOverlayImage()
    }
 
    move(delta: number): void {
@@ -106,26 +108,16 @@ export class LorasSt {
       return this.filteredNames[this.ix] ?? null
    }
 
-   previewAnsi: string | null = null
-   /** protocol mode: raw preview bytes for the overlay painter */
-   previewBytes: Uint8Array | null = null
-   previewName: string | null = null
-   /** placeholder line when no image can be shown (missing extension, no preview, video preview…) */
-   previewNote: string | null = null
-
    /** undefined = not fetched yet · null = extension absent */
    private previewMap: Map<string, string> | null | undefined = undefined
    private previewMapHostId: string | null = null
    private _busy: boolean = false
 
+   /** preview goes through PreviewSt's shared overlay slot (one code path with the image picker) */
    async refreshPreview(): Promise<void> {
       if (this.st.mode !== 'overlay-loras') {
-         runInAction(() => {
-            this.previewAnsi = null
-            this.previewBytes = null
-            this.previewName = null
-            this.previewNote = null
-         })
+         // debounced close: another overlay may ALREADY own the slot — never wipe its image
+         if (!this.st.preview.overlayActive) this.st.preview.clearOverlayImage()
          return
       }
       const name = this.selectedName
@@ -141,12 +133,7 @@ export class LorasSt {
          const url = map?.get(loraPreviewKey(name))
          const note = map == null ? 'lora-manager extension not detected' : url == null ? 'no preview available' : null
          if (url == null) {
-            runInAction(() => {
-               this.previewAnsi = null
-               this.previewBytes = null
-               this.previewName = name
-               this.previewNote = note
-            })
+            this.st.preview.setOverlayImage({ bytes: null, ansi: null, name: `lora ${name}`, note })
             return
          }
          const bytes = await fetchLoraPreviewBytes(host, url)
@@ -154,27 +141,18 @@ export class LorasSt {
          if (bytes == null) throw new Error('no image preview on the server')
          if (this.st.preview.useNative) {
             // the overlay painter shows the REAL image — no ansi rendering needed
-            runInAction(() => {
-               this.previewBytes = bytes
-               this.previewAnsi = null
-               this.previewName = name
-               this.previewNote = null
-            })
+            this.st.preview.setOverlayImage({ bytes, ansi: null, name: `lora ${name}`, note: null })
             return
          }
          const ansi = await imageBufferToAnsi(bytes, { width: this.st.preview.width, height: this.st.preview.height })
-         runInAction(() => {
-            this.previewAnsi = ansi
-            this.previewName = name
-            this.previewNote = null
-         })
+         this.st.preview.setOverlayImage({ bytes: null, ansi, name: `lora ${name}`, note: null })
       } catch (e) {
          // e.g. video previews sharp can't decode — placeholder, not an incident
-         runInAction(() => {
-            this.previewAnsi = null
-            this.previewBytes = null
-            this.previewName = name
-            this.previewNote = extractErrorMessage(e)
+         this.st.preview.setOverlayImage({
+            bytes: null,
+            ansi: null,
+            name: `lora ${name}`,
+            note: extractErrorMessage(e),
          })
       } finally {
          this._busy = false

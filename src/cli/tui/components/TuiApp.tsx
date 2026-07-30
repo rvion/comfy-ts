@@ -9,6 +9,7 @@ import { ChoiceOverlay, SizeOverlay } from 'src/cli/tui/components/PickerOverlay
 import { PreviewPanel } from 'src/cli/tui/components/PreviewPanel.tsx'
 import { PromptOverlay } from 'src/cli/tui/components/PromptOverlay.tsx'
 import { KeyBar, ProgressLine } from 'src/cli/tui/components/StatusBar.tsx'
+import { ImagePickerOverlay } from 'src/cli/tui/imagePicker/ImagePickerOverlay.tsx'
 import { LogsPanel } from 'src/cli/tui/components/LogsPanel.tsx'
 import { TextOverlay } from 'src/cli/tui/components/TextOverlay.tsx'
 import { TreePanel } from 'src/cli/tui/components/TreePanel.tsx'
@@ -95,6 +96,21 @@ export const TuiApp = observer((p: { st: TuiSt }) => {
             if ((key.meta && (key.backspace || key.delete)) || (key.ctrl && input === 'w')) return lo.filterDeleteWord()
             if (key.backspace || key.delete) return lo.filterBackspace()
             if (input && !key.ctrl && !key.meta) return lo.filterInput(input)
+            return
+         }
+         if (s.mode === 'overlay-image') {
+            const ip = s.imagePicker
+            if (key.escape) return ip.cancel()
+            if (key.tab || input === '\t') return ip.cyclePane()
+            if (key.ctrl && input === 'f') return ip.toggleFavorite()
+            if (key.return) return ip.commit()
+            if (key.upArrow) return ip.move(-1)
+            if (key.downArrow) return ip.move(1)
+            if (key.leftArrow) return ip.goParent()
+            if (key.rightArrow) return ip.enter()
+            if ((key.meta && (key.backspace || key.delete)) || (key.ctrl && input === 'w')) return ip.filterDeleteWord()
+            if (key.backspace || key.delete) return ip.filterBackspace()
+            if (input && !key.ctrl && !key.meta) return ip.filterInput(input)
             return
          }
          if (s.mode === 'tree') {
@@ -218,6 +234,8 @@ export const TuiApp = observer((p: { st: TuiSt }) => {
                   <SizeOverlay st={s} />
                ) : s.mode === 'overlay-loras' ? (
                   <LorasOverlay st={s} />
+               ) : s.mode === 'overlay-image' ? (
+                  <ImagePickerOverlay st={s} />
                ) : s.mode === 'overlay-drafts' ? (
                   <DraftsOverlay st={s} />
                ) : (
