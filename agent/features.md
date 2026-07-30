@@ -58,11 +58,20 @@ local can read files straight from the Comfy output dir, remote must HTTP /view)
 - ✅ type distinction + ssh helpers (`ssh-host-manager/`: config upsert,
   remote exec — port-forward tunnels DELETED 2026-07-27: they died silently,
   connect straight to the host instead)
+- ✅ cloud hosts: `url:`-first config + `apiKey` (X-API-Key on http AND the ws
+  upgrade), one authed `host.fetch` with /api-prefix fallback, 302 signed-url
+  downloads, binary type-4 preview frames. Ran live end to end against
+  cloud.comfy.org 2026-07-30 (one 512x512 txt2img: ws progress streamed,
+  output image downloaded). Committed account-generic catalog sdk at
+  `examples/comfy-cloud/sdk.d.ts` (`bun run gen:sdk:cloud`) +
+  `examples/05-comfy-cloud.cflow.ts`
 - 🔶 locality-aware media retrieval fast-path — planned
 
 ## G7 — sidekick CLI
 
-`bunx comfy-ts gen --host http://… --id my-host` → writes `.comfy-ts/hosts/<id>/sdk.d.ts`;
+`bunx comfy-ts gen --host http://… --id my-host` → writes `.comfy-ts/hosts/<id>/sdk.d.ts`
+(`--api-key`/`COMFY_CLOUD_API_KEY` for authed hosts, `--out` relocates the sdk —
+the committed cloud catalog);
 `bunx comfy-ts outline <file>` → section outline of a generated sdk;
 `bunx comfy-ts tui [module|dir]` → interactive tweak & re-run (no arg scans cwd
 PLUS the examples packaged with comfy-ts, deduped and grouped apart, so it never

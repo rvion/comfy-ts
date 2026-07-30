@@ -25,7 +25,11 @@ for (const hostId of hostIds) {
 
    const parsed = new ComfySchema({ spec, embeddings })
    const dts = parsed.codegenDTS({ hostId })
-   const outPath = join(dir, 'sdk.d.ts')
+   // the comfy-cloud sdk home is the COMMITTED examples/comfy-cloud/sdk.d.ts —
+   // a copy under .comfy-ts/hosts/ would double-declare the globals (both
+   // paths sit in the root tsconfig include). See agent/architecture.md.
+   const outPath =
+      hostId === 'comfy-cloud' ? join(process.cwd(), 'examples', 'comfy-cloud', 'sdk.d.ts') : join(dir, 'sdk.d.ts')
    writeFileSync(outPath, dts, 'utf8')
    console.log(`[gen-sdk] 🟢 ${outPath} (${parsed.nodes.length} nodes, ${(dts.length / 1024).toFixed(0)}kB)`)
 }

@@ -26,3 +26,39 @@ describe('bundled examples in a consumer project without a schema cache', () => 
       }
    })
 })
+
+// the cloud example needs an api key: without one the import must fail with a
+// message NAMING the env var (the TUI turns an import throw into a red ✗ tree
+// row — its designed degrade, never a crash); with one it opens offline like
+// any bundled example
+describe('cloud example without COMFY_CLOUD_API_KEY', () => {
+   const example = join(import.meta.dir, '..', 'examples', '05-comfy-cloud.cflow.ts')
+   const importCmd = `await import(${JSON.stringify(example)}); console.log('IMPORT_OK')`
+
+   it('import throws a clear message naming the env var', () => {
+      const consumerCwd = mkdtempSync(join(tmpdir(), 'comfy-ts-consumer-'))
+      try {
+         const env = { ...process.env }
+         delete env.COMFY_CLOUD_API_KEY
+         const res = spawnSync('bun', ['-e', importCmd], { cwd: consumerCwd, encoding: 'utf8', env })
+         expect(res.status).not.toBe(0)
+         expect(res.stderr).toContain('COMFY_CLOUD_API_KEY')
+      } finally {
+         rmSync(consumerCwd, { recursive: true, force: true })
+      }
+   })
+
+   it('with a key set, import degrades offline like any bundled example', () => {
+      const consumerCwd = mkdtempSync(join(tmpdir(), 'comfy-ts-consumer-'))
+      try {
+         // never the guarded key shape — presence is all the module checks at import
+         const env = { ...process.env, COMFY_CLOUD_API_KEY: 'test-dummy-key' }
+         const res = spawnSync('bun', ['-e', importCmd], { cwd: consumerCwd, encoding: 'utf8', env })
+         expect(res.stderr).toContain('no schema cache')
+         expect(res.stdout).toContain('IMPORT_OK')
+         expect(res.status).toBe(0)
+      } finally {
+         rmSync(consumerCwd, { recursive: true, force: true })
+      }
+   })
+})

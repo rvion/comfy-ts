@@ -54,6 +54,10 @@ src/runner/                execution
    ComfyWorkflow.ts        live graph, prompt JSON emission, POST /prompt, progress
    ComfyExecution.ts          one execution: done promise (success AND failure), images + imageErrors
    ComfyWsApi.ts           arktype schemas of every ws message
+   wsBinaryFrame.ts        pure parser for BINARY ws frames (1 preview,
+                           3 text, 4 preview+metadata — the cloud sends 4;
+                           unknown types return 'unknown', logged once per
+                           type in onMessage, never thrown: wire tolerance)
    MediaImage.ts           MediaImage: lazy buffer/metadata/hash, sharp pipelines, upload helpers
    ComfyWorkflowLayout.ts  autolayout for exported litegraph JSON
 src/graph/                 programmatic node graph (ComfyNode, ComfyNodeOutput, auto())
@@ -615,9 +619,33 @@ Live cloud proving is still pending — never from tests, CI has no key.
   inventories. Comfy Cloud is different in kind — every account sees the same
   managed model catalog, so its generated sdk is a SHARED artifact. Committed
   home: `examples/comfy-cloud/sdk.d.ts`, host id `comfy-cloud`, regenerated
-  deliberately via `bun run gen:sdk:cloud` (codegen gains an explicit outPath;
-  the cloud host id never writes into `.comfy-ts/hosts/` — two sdk.d.ts files
-  declaring the same `Comfy.Hosts` id would double-declare globals).
+  deliberately via `bun run gen:sdk:cloud` (= `comfy-ts gen --id comfy-cloud
+  --host https://cloud.comfy.org --out examples/comfy-cloud/sdk.d.ts`, key from
+  `COMFY_CLOUD_API_KEY`).
+- The single-home invariant is about the SDK FILE: a cloud `sdk.d.ts` may
+  exist at exactly ONE tsconfig-visible path, the committed one. Both root
+  include globs (`examples`, `.comfy-ts/hosts/**/sdk.d.ts`) feed tsc, so a
+  second copy under `.comfy-ts/hosts/comfy-cloud/` would double-declare every
+  global type alias. Enforced at every sdk writer: `gen --out <path>` sends
+  the sdk to the explicit home while the json dumps still cache to
+  `.comfy-ts/hosts/<id>/` (gitignored machine cache feeding
+  `loadSchemaFromCache`, like any host); `gen:sdk`
+  (scripts/gen-sdk-from-cache.ts) routes host id `comfy-cloud` to the
+  committed home too; and `ComfyHostData.sdkAutoWrite?: boolean` (default
+  true), set `false` by the cloud example, keeps live `connect()` / TUI
+  re-codegen from writing any sdk.d.ts (schema updates stay in-memory — the
+  committed catalog changes only through a deliberate gen run).
+- Cloud example: `examples/05-comfy-cloud.cflow.ts` — `url:` + `apiKey` from
+  `process.env.COMFY_CLOUD_API_KEY`, throws at import naming the env var when
+  it is absent (the TUI surfaces that as a red ✗ tree row, its designed
+  degrade path — never a crash), typechecks against the committed catalog.
+- Cloud ws previews arrive as binary type 4 (`PREVIEW_IMAGE_WITH_METADATA`,
+  per the imported api-reference: 4B type, 4B metadata_len, metadata JSON,
+  then raw JPEG/PNG) — found live 2026-07-30, the first cloud run threw
+  `Unknown binary websocket message of type 4` once per sampling step.
+  `src/runner/wsBinaryFrame.ts` parses types 1/3/4 (mime sniffed from magic
+  bytes on type 4) and both preview kinds feed the SAME `onLatentPreview`
+  hook; unknown types are logged once per type per host, never thrown.
 - tsconfig wiring: ZERO new config. The root tsconfig `include` already
   carries `examples`, so the committed catalog typechecks cloud examples on a
   fresh clone; `tsconfig.lib.json` excludes examples, so the portable gate and

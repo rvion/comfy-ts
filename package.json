@@ -65,6 +65,7 @@
       "ci:local": "bun run ci && bun run typecheck",
       "gen:manager": "bun src/manager/script-update-manager.bun.ts",
       "gen:sdk": "bun scripts/gen-sdk-from-cache.ts",
+      "gen:sdk:cloud": "bun src/cli/comfy-ts-cli.ts gen --id comfy-cloud --host https://cloud.comfy.org --out examples/comfy-cloud/sdk.d.ts && oxfmt examples/comfy-cloud/sdk.d.ts",
       "sdk:outline": "bun scripts/sdk-outline.ts",
       "templates:fetch": "bun scripts/fetch-templates.ts",
       "templates:check": "bun scripts/check-templates.ts",

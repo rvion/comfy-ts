@@ -7,6 +7,7 @@ import type { ComfyManagerPluginInfo } from 'src/manager/types/ComfyManagerPlugi
 import type { ComfyExecution } from 'src/runner/ComfyExecution.ts'
 import type { ComfyApiJson } from 'src/sdk-generator/comfy-api-json.ts'
 import { parseWorkflowJson } from 'src/litegraph/normalizeWorkflow.ts'
+import { parseBinaryWsFrame } from 'src/runner/wsBinaryFrame.ts'
 import { convertLiteGraphToPrompt } from 'src/sdk-generator/litegraphToApiRequestPayload.ts'
 import { asComfyWorkflowID, ComfyWorkflow } from 'src/runner/ComfyWorkflow.ts'
 import {
@@ -52,6 +53,11 @@ export type ComfyHostData = {
    /** sent as X-API-Key on every request AND the ws upgrade.
     * NEVER persist the value: read it from an env var (e.g. COMFY_CLOUD_API_KEY) */
    apiKey?: string
+   /** default true. false = never write sdk.d.ts to .comfy-ts/hosts/<id>/ —
+    * schema updates stay in-memory. The comfy-cloud example sets false: its sdk
+    * home is the COMMITTED examples/comfy-cloud/sdk.d.ts (gen:sdk:cloud), and a
+    * second copy under .comfy-ts/hosts/ would double-declare the globals. */
+   sdkAutoWrite?: boolean
    /** extra headers merged into every request + the ws upgrade (Modal-style auth pairs) */
    headers?: Record<string, string>
 
@@ -428,6 +434,7 @@ export class ComfyHost<ID extends string = string> {
    }
 
    private async writeSDKToDisk(): Promise<void> {
+      if (this.data.sdkAutoWrite === false) return
       const comfySchemaTs = this.schema.codegenDTS({ hostId: this.data.id })
       // skip the 4MB write when nothing changed (fast re-connects)
       if (existsSync(this.sdkDTSPath) && readFileSync(this.sdkDTSPath, 'utf-8') === comfySchemaTs) return
@@ -707,51 +714,34 @@ export class ComfyHost<ID extends string = string> {
    /** the session assigned to us by the server */
    comfySessionId: string = 'temp' /** send by ComfyUI server */
 
+   /** binary frame types we already complained about (one log per type, no spam) */
+   private _unknownBinaryFrameTypes = new Set<number>()
+
    /** handy to keep around */
    status: ComfyStatusData['status'] | null = null
 
    onMessage(e: MessageEvent): void {
       if (this.data.onWsMessageAny) this.data.onWsMessageAny(e)
       if (e.data instanceof ArrayBuffer) {
-         // 🔴 console.log('[👢] WEBSOCKET: received ArrayBuffer', e.data)
-         const view = new DataView(e.data)
-         const eventType = view.getUint32(0)
-         const buffer = e.data.slice(4)
-         switch (eventType) {
-            case 1: {
-               const view2 = new DataView(e.data)
-               const imageType = view2.getUint32(4)
-               let imageMime: string
-               switch (imageType) {
-                  case 1:
-                     imageMime = 'image/jpeg'
-                     break
-                  case 2:
-                     imageMime = 'image/png'
-                     break
-                  default:
-                     imageMime = 'image/jpeg'
-                     break
-               }
-               const imageBytes = buffer.slice(4)
-               const imageBlob = new Blob([imageBytes], { type: imageMime })
-               const imagePreview = URL.createObjectURL(imageBlob)
-               this.latentPreview = {
-                  blob: imageBlob,
-                  url: imagePreview,
-                  receivedAt: Date.now() as number_Timestamp,
-                  promptID: this.activePromptID,
-               }
-               this.onLatentPreview?.({
-                  bytes: new Uint8Array(imageBytes),
-                  mime: imageMime,
-                  promptID: this.activePromptID,
-               })
-               break
+         const frame = parseBinaryWsFrame(e.data)
+         if (frame.kind === 'preview') {
+            // type 1 AND the cloud's type 4 (preview + metadata) feed the same hook
+            const imageBlob = new Blob([frame.bytes], { type: frame.mime })
+            this.latentPreview = {
+               blob: imageBlob,
+               url: URL.createObjectURL(imageBlob),
+               receivedAt: Date.now() as number_Timestamp,
+               promptID: this.activePromptID,
             }
-            default:
-               throw new Error(`Unknown binary websocket message of type ${eventType}`)
+            this.onLatentPreview?.({ bytes: frame.bytes, mime: frame.mime, promptID: this.activePromptID })
+         } else if (frame.kind === 'unknown' && !this._unknownBinaryFrameTypes.has(frame.eventType)) {
+            // wire tolerance: log once per type, never throw (a throw per sampling
+            // step is what the first live cloud run did on type 4)
+            this._unknownBinaryFrameTypes.add(frame.eventType)
+            console.error(`🔴 unknown binary ws frame type ${frame.eventType} from host ${this.data.id} — ignored`)
          }
+         // frame.kind === 'text' (node progress text) is dropped: the json
+         // 'progress' messages already carry everything we surface
          return
       }
 

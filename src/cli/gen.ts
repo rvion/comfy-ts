@@ -1,6 +1,6 @@
 // fetch a live host's schema and generate its typed sdk
 import { mkdirSync, writeFileSync } from 'node:fs'
-import { join } from 'pathe'
+import { dirname, join, resolve } from 'pathe'
 import { ComfySchema } from 'src/sdk-generator/ComfySchema.ts'
 import type { ComfySchemaJSON } from 'src/sdk-generator/ComfyUIObjectInfoTypes.ts'
 import { ComfyTS } from 'src/state.ts'
@@ -42,9 +42,15 @@ export async function runGen(args: string[]): Promise<number> {
 
    const parsed = new ComfySchema({ spec, embeddings })
    const dts = parsed.codegenDTS({ hostId: id })
-   const outPath = join(dir, 'sdk.d.ts')
+   // --out: explicit sdk home (the committed cloud catalog) — the json dumps
+   // above still cache under .comfy-ts/hosts/<id>/, but the sdk must exist at
+   // ONE tsconfig-visible path only, so it skips the hosts dir entirely
+   const out = getFlag('out')
+   const outPath = out != null ? resolve(process.cwd(), out) : join(dir, 'sdk.d.ts')
+   if (out != null) mkdirSync(dirname(outPath), { recursive: true })
    writeFileSync(outPath, dts, 'utf8')
    console.log(`[comfy-ts gen] 🟢 ${outPath} (${parsed.nodes.length} nodes, ${(dts.length / 1024).toFixed(0)}kB)`)
-   console.log(`[comfy-ts gen] add ".comfy-ts/hosts/**/sdk.d.ts" to your tsconfig "include" to activate the types`)
+   if (out == null)
+      console.log(`[comfy-ts gen] add ".comfy-ts/hosts/**/sdk.d.ts" to your tsconfig "include" to activate the types`)
    return 0
 }
