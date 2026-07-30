@@ -81,6 +81,14 @@ src/cli/tui/               ink+mobx TUI, per build/app-state-tree doctrine:
    state/PreviewSt.ts      preview renders, panel sizing, `p` settings menu (panel/renderer/while-running)
    components/*.tsx        stateless views: TuiApp (layout+keys), VarsPanel,
                            overlays, PreviewPanel, StatusBar
+   imagePicker/            the image-picker widget, self-contained module:
+      ImagePickerSt.ts     overlay state (st backref): browse/favorites/recents
+                           panes, filter, highlight → preview
+      ImagePickerOverlay.tsx  stateless view (renders in the vars area)
+      fsListing.ts         PURE fs helpers: list a dir (dirs first, images
+                           filtered by extension, dotfiles skipped) — headless-tested
+      pickerPrefs.ts       favorites + recents + lastFolder persistence
+                           (.comfy-ts/image-picker.json, loraKeywords pattern)
    keys.ts                 modified-⏎ translation for xterm modifyOtherKeys
    discoverWorkflows.ts    module discovery: cflow scan, PACKAGED examples dir
                            (resolved from import.meta, never cwd), pure merge
@@ -157,7 +165,23 @@ tests/                     bun tests (headless) + fixtures
    `- ` lines are NEGATIVE prompt lines (comma-joined into `.negative`), and
    with `{ loraKeywordsFrom: lorasVar }` the ACTIVE loras' hand-assigned
    keywords prefix `.positive` (`src/vars/loraKeywords.ts`, persisted
-   `.comfy-ts/lora-keywords.json`, assigned via ⌃K in the loras overlay).
+   `.comfy-ts/lora-keywords.json`, assigned via ⌃K in the loras overlay)
+   + `v.image(defaultPath, opts?)` (ImageVar, kind 'image'): the VALUE is a
+   PLAIN PATH STRING — text-encodable, drafts persist it verbatim (toJSON =
+   the string), hand-editable in the draft json. `opts: { folder?,
+   extensions?, label? }` — `folder` hints where the TUI picker starts,
+   `extensions` filters the listing (default png/jpg/jpeg/webp/gif); neither
+   affects the value. outValue() = the string (Out = T); the BUILD feeds it
+   to upload exactly like example 02: `new MediaImage({ path:
+   asAbsolutePath(resolve(vars.image)) })` +
+   `loadInWorkflow_viaLoadImageNode(wf)` — no second upload path. Relative
+   paths stay relative in the value (resolved against cwd at build time);
+   `parse()` trims and expands a leading `~/`; display() contracts $HOME to
+   `~`. EMPTY value = unset: the build throws a LOUD typed error naming the
+   var ("image var 'image' is empty — pick a file"), never a silent
+   placeholder (example 02's generated-placeholder stopgap dies with this;
+   examples default to a bundled `examples/images/` file instead, see
+   agent/examples.md).
    Vars expose `outValue(): Out` (what the graph consumes) next to
    `toJSON()` (what drafts persist): `ComfyVarBase<T, Out>` declares it
    abstract, `ComfyVar<T> = ComfyVarBase<T, T>` returns the raw value —
@@ -172,9 +196,9 @@ tests/                     bun tests (headless) + fixtures
    `DefinedWorkflow.run()` (library-level — scripts get auto-increment too).
    Drafts persist vars via `ComfyVar.toJSON()`/`loadJSON()` (seed stores
    `{mode, value}`; legacy plain numbers load as `= N`).
-7. TUI editing: inline single-line editor for numbers; text/choice/loras open a
-   modal overlay (ink has no z-order — the overlay REPLACES the vars panel while
-   open). Text overlay = real-multiline editor (⏎ saves, ⇧⏎/⌥⏎ newline;
+7. TUI editing: inline single-line editor for numbers; text/choice/loras/image
+   open a modal overlay (ink has no z-order — the overlay REPLACES the vars
+   panel while open; the image one is point 11). Text overlay = real-multiline editor (⏎ saves, ⇧⏎/⌥⏎ newline;
    line motion is ALWAYS line-wise, never buffer-wise: Home/End, ⌘←→ (kitty
    `super`) AND ⌃A/⌃E all land on the LOGICAL line's start/end, and pressing
    again when already there hops to the previous/next line's start/end.
@@ -352,6 +376,42 @@ tests/                     bun tests (headless) + fixtures
    The vars panel is a COLUMN GRID (marker+label / kind / value): long values
    wrap INSIDE the value column (text capped ~300 chars in the row, full text
    in the editor overlay).
+11. TUI image picker (`src/cli/tui/imagePicker/`, Rémi's ask 2026-07-30: a
+   DEDICATED module for the widget — state + view + pure helpers live
+   together, the one folder-module exception to the flat state/+components/
+   split). Activating a kind-'image' var opens mode `'overlay-image'`
+   (TuiSt.activate → `st.imagePicker.begin()`; the overlay REPLACES the vars
+   panel like every other overlay; Esc cancels with the value untouched).
+   THREE PANES, Tab cycles them: `browse` (default) · `favorites` · `recents`.
+   KEYS (LorasSt precedent: plain chars are ALWAYS filter-as-you-type, never
+   commands): ↑↓ move (windowed by overlayLines), `→`/⏎ on a dir enters it,
+   `←` goes to the parent dir, ⏎ on an image SELECTS it (sets the var value
+   to the ABSOLUTE path, records it in recents, remembers lastFolder, back
+   to nav), ⌫/⌃W edit the filter (cleared on every dir change), ⌃F toggles
+   the favorite: on a dir row that dir, on an image row the CURRENT folder
+   (favorites are FOLDERS only — recents cover files). `favorites` pane: ⏎
+   jumps browse into that folder; `recents` pane: ⏎ selects that image
+   directly (a vanished path shows dim + is skipped on select). begin()
+   opens at, in order: dirname(value) when the value is set and exists →
+   persisted lastFolder → the var's `opts.folder` → cwd. Listing comes from
+   `fsListing.ts` (pure, headless-tested): dirs first then images, both
+   alphabetical, dotfiles skipped, extensions from the var.
+   PREVIEW WHILE BROWSING: the highlighted image paints into the `(p)review`
+   panel (LorasSt precedent, debounced ~120ms reaction). One code path:
+   PreviewSt gains ONE `overlay` slot ({bytes, ansi, name, note}) that BOTH
+   LorasSt and ImagePickerSt write through a shared
+   `PreviewSt.setOverlayImage()` — LorasSt's private preview fields MIGRATE
+   to it in the same change (the panel + protocolImagePainter read the slot
+   whenever an overlay mode owns the vars area; slot cleared on overlay
+   close). File bytes are read directly (no host fetch), sharp failures land
+   in `note` as a placeholder line, never a crash.
+   PERSISTENCE (`pickerPrefs.ts`, loraKeywords pattern: module-level
+   observable + load-once + write-through): `.comfy-ts/image-picker.json`,
+   gitignored (hand-tuned data like lora-keywords.json, NOT under cache/ —
+   survives a cache wipe), human-editable json:
+   `{ "favorites": ["/abs/dir", …], "recents": ["/abs/img.png", …],
+   "lastFolder": "/abs/dir" }` — recents most-recent-first, deduped, capped
+   at 20; a corrupt file logs and starts fresh, never blocks the TUI.
 
 ## Workflow import pipeline (litegraph → canonical → prompt)
 

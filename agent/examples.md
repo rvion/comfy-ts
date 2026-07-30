@@ -19,6 +19,8 @@ examples/
       sdk.d.ts                   committed cloud catalog (gen:sdk:cloud)
       cloudHost.ts               shared host helper — NOT .cflow, invisible to the TUI
       <family>-<mode>.cflow.ts   the zoo, flat, family-prefixed
+   images/                       bundled input images (committed, ship in the tarball)
+      <subject>_<W>x<H>.jpg      exact size in the filename, see below
    README.md                     consumer-facing quick start
 ```
 
@@ -124,13 +126,52 @@ wires `vars.prompt.positive` and, when the graph has a negative branch,
 | mode | vars (on top of prompt+seed)                                        |
 | ---- | ------------------------------------------------------------------- |
 | t2i  | `steps: v.int`, `cfg: v.float` (when the model uses cfg), `size: v.size` (free-sized latents only — fixed-res models hardcode) |
-| i2i  | `image: v.text('', 'image path')` (empty → generated placeholder, like example 02), `steps`, `denoise: v.float` when the template exposes it. Upload via async build + `MediaImage.loadInWorkflow_viaLoadImageNode(wf)` |
+| i2i  | `image: v.image(exampleImagePath('<subject>_<WxH>.jpg'))` (bundled default, see "Bundled input images"), `steps`, `denoise: v.float` when the template exposes it. Upload via async build + `MediaImage.loadInWorkflow_viaLoadImageNode(wf)` |
 | t2v  | `steps`, `cfg` (when used), `size` (when free), `length: v.int` (frames), `fps: v.int` (wired to CreateVideo/SaveVideo) |
 | i2v  | `image` (as i2i), `length`, `fps`, `steps`                          |
 | t2a  | `seconds: v.float`, `steps` (tags/lyrics ride in `prompt`: when the encode node splits them — ace-step — the FIRST prompt line is the tags, the remaining lines are the lyrics, split at build time) |
 
 Model-specific extras (shift, guidance, …) are allowed when the template
 exposes them as top-level widgets, kept to what a user would actually tweak.
+
+## Bundled input images (`examples/images/`, decided 2026-07-30)
+
+i2i/i2v examples must run OUT OF THE BOX from node_modules — the input image
+ships in the tarball (`package.json files` already carries `examples`). Total
+budget: under ~1.5 MB for the whole folder.
+
+- Naming: `<subject>_<W>x<H>.jpg` — the subject is what the photo honestly
+  shows, the size is EXACT (Rémi's sketch: `bear_1024x1024.png` style; we ship
+  jpg, not png — a 1024² photographic png alone would blow the budget; flagged
+  deviation, the naming style is his).
+- The set (one per common size): `<subject>_512x512.jpg`,
+  `<subject>_768x768.jpg`, `<subject>_1024x1024.jpg`, one wide
+  `<subject>_1344x768.jpg`, one tall `<subject>_768x1344.jpg`, plus his
+  `<subject>_200x300.jpg` example. Known-good picsum id: 237 (the black dog)
+  → `dog_512x512.jpg`; other subjects are named after eyeballing the fetched
+  image (data labeling, not look-and-feel self-verification).
+- Source & license: picsum.photos serves Unsplash-sourced photos, free to use.
+  Every image's picsum id + author (from `https://picsum.photos/id/<id>/info`)
+  is recorded in the manifest INSIDE `scripts/fetch-example-images.ts` — the
+  script IS the manifest, one source of truth.
+- `scripts/fetch-example-images.ts` (package script `examples:images`):
+  manifest rows `{ name, id, width, height }`, fetches
+  `https://picsum.photos/id/<id>/<w>/<h>`, re-encodes via sharp to jpeg
+  (quality ~80, metadata stripped) for weight control, VERIFIES the decoded
+  dimensions match the filename (loud throw on mismatch), writes to
+  `examples/images/`. Regeneration is DELIBERATE: images are committed DATA,
+  the script only runs by hand.
+- Resolution from the package: `exampleImagePath('dog_512x512.jpg')`, a public
+  helper exported from `'comfy-ts'` (home: `src/exampleAssets.ts` — it is lib
+  surface, not TUI surface) reusing the `bundledExamplesDir` walk
+  (import.meta-based, never cwd — works from a consumer's
+  `node_modules/comfy-ts/` and from this repo). Missing file or pruned
+  examples folder = loud throw naming the path.
+- Convention: every i2i/i2v example (zoo AND example 02) defaults its
+  `v.image` var to the bundled image whose size is CLOSEST to the source
+  template's native input resolution. Example 02 migrates: `v.image` replaces
+  its `v.text` + generated-placeholder stopgap (empty now throws, see
+  architecture.md).
 
 ## Verification bar (every zoo example, before it lands)
 
