@@ -73,8 +73,10 @@ src/cli/tui/               ink+mobx TUI, per build/app-state-tree doctrine:
    components/*.tsx        stateless views: TuiApp (layout+keys), VarsPanel,
                            overlays, PreviewPanel, StatusBar
    keys.ts                 modified-⏎ translation for xterm modifyOtherKeys
-   run-tui.tsx             entry: scan, load module, keyboard protocols, mount,
-                           dispose
+   discoverWorkflows.ts    module discovery: cflow scan, PACKAGED examples dir
+                           (resolved from import.meta, never cwd), pure merge
+   run-tui.tsx             entry: discovery, resilient first load, keyboard
+                           protocols, mount, dispose
 src/litegraph/             ComfyUI saved-workflow JSON format, 3 layers (see
                            "Workflow import pipeline" below):
    LiteGraph*.ts           TOLERANT wire schemas (arktype + IsEqual TS mirror):
@@ -124,6 +126,13 @@ tests/                     bun tests (headless) + fixtures
    etc. — the wf param feeds `MediaImage.loadInWorkflow_*`). `run()` starts with
    `await host.connect()` (idempotent), so modules import OFFLINE from the
    schema cache (`loadSchemaFromCache`) and connect lazily on first run.
+   A MISSING cache never fails the import: `loadSchemaFromCache` degrades to
+   the base types with a LOUD log (a fresh consumer project has no
+   `.comfy-ts/hosts/<id>/` yet — the bundled examples must still open in the
+   TUI) and stays retryable (not memoized until the file exists); `run()`
+   fetches the real schema through `connect()` anyway. The ws connect path is
+   untouched: `shouldUseSchemaCache` only routes to the cache when the file
+   exists.
    Drivers: scripts (`import.meta.main` guard for standalone blocks) and
    `comfy-ts tui <module>`. EVERY example is such a module (`*.cflow.ts`).
    Var kinds: text/int/float/seed/toggle/choice + `v.loras(options, initial?)`
@@ -239,7 +248,30 @@ tests/                     bun tests (headless) + fixtures
 10. TUI workflow tree + drafts: `comfy-ts tui <dir>` scans `**/*.cflow.ts`
    (the workflow-module naming convention) into a persistent LEFT panel titled
    `(t)ree` — `t` focuses it (mode 'tree'); the old `w` modal switcher is gone
-   (one code path). The tree NESTS each workflow's drafts under it (←/→ fold/
+   (one code path). DISCOVERY (`src/cli/tui/discoverWorkflows.ts`): with NO
+   argument the cwd scan is MERGED with the examples PACKAGED with comfy-ts
+   (`bundledExamplesDir` walks up from `import.meta.url` to the nearest NAMED
+   package.json — works from a consumer's `node_modules/comfy-ts/dist/cli.js`
+   AND from this repo's `src/cli/tui/`; missing examples dir or a foreign
+   package name = silently absent, no package.json at all = loud throw). The
+   merge (`mergeWorkflowSources`, pure + headless-tested) dedupes by realpath
+   (run-tui realpaths both sides) and ALWAYS groups bundled files under a dim
+   non-selectable `comfy-ts examples` section row at the tree's bottom, even
+   when the cwd scan already found them (repo dev: `./examples` is under cwd).
+   An explicit dir/file argument keeps that scope only, no bundled merge.
+   RUNTIME: `.cflow.ts` modules need bun — node refuses to strip types under
+   node_modules, exactly where the packaged examples live, and `bunx comfy-ts`
+   runs the bin's `#!/usr/bin/env node` shebang under NODE. So the `tui`
+   subcommand RE-EXECS itself through bun when `process.versions.bun` is
+   absent (comfy-ts-cli.ts, stdio inherit, exit code forwarded); when bun is
+   not installed it stays on node, drops the bundled merge with a loud
+   logError (node cannot import them anyway), and user files still get node's
+   own type stripping.
+   RESILIENCE: the initial module is the first CANDIDATE that loads (file arg
+   first); a module whose import throws or that exports no DefinedWorkflow
+   becomes a RED `✗` tree row (`WorkflowsSt.loadErrors`, cleared on a later
+   successful load; ⏎ retries and surfaces the error in exec.error) instead
+   of crashing the TUI — only zero loadable modules exits, loudly, per file. The tree NESTS each workflow's drafts under it (←/→ fold/
    unfold, ⏎ loads a workflow into its `default` draft or a draft row
    directly); drafts are keyed by MODULE BASENAME
    (`.comfy-ts/drafts/<module-basename>/<draft>.json`) so the tree lists them

@@ -55,7 +55,17 @@ export class TuiSt {
    disposers: (() => void)[] = []
    onExit: () => void = () => {}
 
-   constructor(wf: DefinedWorkflow, opts: { workflowFiles?: string[]; currentFile?: string } = {}) {
+   constructor(
+      wf: DefinedWorkflow,
+      opts: {
+         workflowFiles?: string[]
+         currentFile?: string
+         /** files that came from the PACKAGED examples (grouped apart in the tree) */
+         bundledFiles?: Set<string>
+         /** modules that failed to load before mount (red rows in the tree) */
+         loadErrors?: Map<string, string>
+      } = {},
+   ) {
       this.wf = wf
       // wf: observable.ref so switching workflows re-renders without proxying
       // the foreign object; children manage their own observability
@@ -79,7 +89,13 @@ export class TuiSt {
       this.editor = new EditorSt(this)
       this.picker = new PickerSt(this)
       this.loras = new LorasSt(this)
-      this.workflows = new WorkflowsSt(this, opts.workflowFiles ?? [], opts.currentFile ?? null)
+      this.workflows = new WorkflowsSt(
+         this,
+         opts.workflowFiles ?? [],
+         opts.currentFile ?? null,
+         opts.bundledFiles,
+         opts.loadErrors,
+      )
       this.tree = new TreeSt(this)
       this.drafts = new DraftsSt(this)
       this.exec = new ExecSt(this)
@@ -122,7 +138,9 @@ export class TuiSt {
    get treeWidth(): number {
       const longest = Math.max(
          8,
-         ...this.tree.rows.map((r) => (r.kind === 'workflow' ? r.name.length : r.draft.length + 3)),
+         ...this.tree.rows.map((r) =>
+            r.kind === 'workflow' ? r.name.length : r.kind === 'draft' ? r.draft.length + 3 : r.label.length,
+         ),
       )
       return Math.min(32, longest + 7)
    }

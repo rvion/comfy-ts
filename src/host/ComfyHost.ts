@@ -396,8 +396,18 @@ export class ComfyHost<ID extends string = string> {
    private _schemaFromCache: Promise<void> | null = null
 
    /** load the schema from .comfy-ts/hosts/<id>/ without connecting (offline workflows, fast starts).
-    * idempotent like connect(): N co-imported modules parse the ~4MB cache once */
+    * idempotent like connect(): N co-imported modules parse the ~4MB cache once.
+    * A MISSING cache degrades LOUDLY to the base types instead of failing the
+    * module import (a fresh consumer project has no cache yet — the bundled
+    * examples must still open in the TUI; run() fetches the real schema through
+    * connect() anyway). Not memoized in that case, so a later gen/connect retries. */
    loadSchemaFromCache(): Promise<void> {
+      if (this._schemaFromCache == null && !existsSync(this.comfyJSONPath)) {
+         toastError(
+            `no schema cache for host '${this.data.id}' at ${this.comfyJSONPath} — continuing with base types (no node/model unions); run \`comfy-ts gen --id ${this.data.id} --host <url>\` or connect() once to create it`,
+         )
+         return Promise.resolve()
+      }
       this._schemaFromCache ??= (async (): Promise<void> => {
          const object_info_json = comfyts.readJSON_<ComfySchemaJSON>(this.comfyJSONPath)
          const embeddings_json = comfyts.readJSON_<string[]>(this.embeddingsPath, [])

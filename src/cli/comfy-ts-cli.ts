@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 // sidekick CLI: `bunx comfy-ts <command>` — codegen without writing any code
+import { spawnSync } from 'node:child_process'
+import { fileURLToPath } from 'node:url'
 import { runGen } from 'src/cli/gen.ts'
 import { runOutline } from 'src/cli/outline.ts'
 
@@ -15,7 +17,8 @@ Usage:
 
    comfy-ts tui [dir | workflow-module.ts]
          interactive tweak & re-run over **/*.cflow.ts modules (exporting
-         host.defineWorkflow(...)); no arg scans cwd, a file arg preselects it
+         host.defineWorkflow(...)); no arg scans cwd + the examples bundled
+         with comfy-ts, an explicit dir/file limits to it (file preselected)
 
    comfy-ts help
 `
@@ -25,6 +28,18 @@ async function main(): Promise<number> {
    if (cmd === 'gen') return runGen(rest)
    if (cmd === 'outline') return runOutline(rest)
    if (cmd === 'tui') {
+      // .cflow.ts workflow modules need bun: node refuses to strip types under
+      // node_modules, exactly where the packaged examples live — and the bin's
+      // node shebang means `bunx comfy-ts tui` lands here under NODE. Hop to
+      // bun when we are not already in it; without bun, runTui degrades loudly.
+      if (process.versions.bun == null) {
+         const self = fileURLToPath(import.meta.url)
+         const res = spawnSync('bun', [self, 'tui', ...rest], { stdio: 'inherit' })
+         if (res.error == null) return res.status ?? 1
+         console.error(
+            `[comfy-ts tui] bun not found (${res.error.message}) — continuing under node: the examples packaged in node_modules cannot load here, and your own .cflow.ts modules rely on node's type stripping`,
+         )
+      }
       // lazy import: keeps ink/react out of the codegen paths
       const { runTui } = await import('src/cli/tui/run-tui.tsx')
       return runTui(rest)

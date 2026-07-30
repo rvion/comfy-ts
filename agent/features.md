@@ -64,8 +64,12 @@ local can read files straight from the Comfy output dir, remote must HTTP /view)
 
 `bunx comfy-ts gen --host http://… --id my-host` → writes `.comfy-ts/hosts/<id>/sdk.d.ts`;
 `bunx comfy-ts outline <file>` → section outline of a generated sdk;
-`bunx comfy-ts tui [module|dir]` → interactive tweak & re-run (no arg scans cwd,
-a file arg scans its folder, both over `**/*.cflow.ts`): left `(t)ree` panel of
+`bunx comfy-ts tui [module|dir]` → interactive tweak & re-run (no arg scans cwd
+PLUS the examples packaged with comfy-ts, deduped and grouped apart, so it never
+opens empty; an explicit dir/file arg keeps that scope only, a file arg scans
+its folder, all over `**/*.cflow.ts`; a module that fails to import is a red
+`✗` tree row, never a crash; under node the tui re-execs through bun, needed
+to import `.cflow.ts` from node_modules): left `(t)ree` panel of
 workflows with nested named drafts (autosaved under
 `.comfy-ts/drafts/<module-basename>/`, gitignored, last draft per workflow
 remembered in `.comfy-ts/settings.json`), vars panel as a column grid with

@@ -42,6 +42,7 @@
    "files": [
       "dist",
       "src",
+      "examples",
       "README.md",
       "guide-for-agents.md",
       "LICENSE"

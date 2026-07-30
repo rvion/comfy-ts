@@ -12,14 +12,25 @@ export class WorkflowsSt {
       private st: TuiSt,
       public files: string[],
       currentPath: string | null = null,
+      bundled: Set<string> = new Set(),
+      loadErrors: Map<string, string> = new Map(),
    ) {
       this.currentPath = currentPath
+      this.bundled = bundled
+      this.loadErrors = loadErrors
       makeAutoObservable<WorkflowsSt, 'st'>(this, { st: false })
    }
 
    /** path of the currently loaded workflow module (display + selection) */
    currentPath: string | null
    loading: boolean = false
+
+   /** the subset of files that came from the PACKAGED examples (grouped apart in the tree) */
+   bundled: Set<string>
+
+   /** per-file load failures (import threw / no DefinedWorkflow export) — red rows in the tree,
+    * cleared by a later successful load; ⏎ on the row retries */
+   loadErrors: Map<string, string>
 
    /**
     * every host seen across switches. Modules are import-cached, so a
@@ -65,6 +76,7 @@ export class WorkflowsSt {
          const wf = findDefinedWorkflow(mod)
          if (wf == null) throw new Error(`${path} exports no DefinedWorkflow`)
          runInAction(() => {
+            this.loadErrors.delete(path)
             this.loadedHosts.add(this.st.wf.host)
             this.loadedHosts.add(wf.host)
             this.st.wf = wf
@@ -81,8 +93,10 @@ export class WorkflowsSt {
          })
       } catch (e) {
          runInAction(() => {
+            const msg = extractErrorMessage(e)
+            this.loadErrors.set(path, msg)
             this.st.mode = 'nav'
-            this.st.exec.error = extractErrorMessage(e)
+            this.st.exec.error = msg
          })
       } finally {
          runInAction(() => {

@@ -24,12 +24,25 @@ export const TreePanel = observer((p: { st: TuiSt }) => {
          </Box>
          {tree.rows.map((row, ix) => {
             const sel = focused && ix === tree.ix
+            if (row.kind === 'section') {
+               return (
+                  <Text key={`section·${row.label}`} color="gray" dimColor wrap="truncate">
+                     ─ {row.label}
+                  </Text>
+               )
+            }
             if (row.kind === 'workflow') {
                const arrow = row.hasDrafts ? (row.expanded ? '▾' : '▸') : ' '
+               const marker = row.error != null ? '✗' : row.current ? '●' : ' '
                return (
-                  <Text key={row.file} inverse={sel} color={row.current ? 'green' : undefined} wrap="truncate">
+                  <Text
+                     key={row.file}
+                     inverse={sel}
+                     color={row.error != null ? 'red' : row.current ? 'green' : undefined}
+                     wrap="truncate"
+                  >
                      {arrow}
-                     {row.current ? '●' : ' '} {row.name}
+                     {marker} {row.name}
                   </Text>
                )
             }

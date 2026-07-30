@@ -45,6 +45,8 @@ describe('npm tarball', () => {
       expect(paths.some((p) => p === 'src/index.ts')).toBe(true)
       expect(paths).toContain('LICENSE')
       expect(paths).toContain('README.md')
+      // the TUI's no-arg discovery lists the packaged examples: they must ship
+      expect(paths).toContain('examples/01-txt2img.cflow.ts')
    })
 
    it('contains no file carrying a private key header', () => {

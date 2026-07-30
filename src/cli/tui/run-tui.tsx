@@ -1,50 +1,78 @@
-import { readdirSync, statSync } from 'node:fs'
+import { realpathSync, statSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
 import { render } from 'ink'
-import { dirname, join, resolve } from 'pathe'
+import { dirname, resolve } from 'pathe'
 import { COMFY_TS_TUI_ENV } from 'src/cli/tui-env.ts'
+import { bundledExamplesDir, mergeWorkflowSources, scanCflowFiles } from 'src/cli/tui/discoverWorkflows.ts'
 import { findDefinedWorkflow } from 'src/cli/tui/findDefinedWorkflow.ts'
 import { installProtocolImagePainter } from 'src/cli/tui/protocolImagePainter.ts'
 import { TuiApp } from 'src/cli/tui/components/TuiApp.tsx'
 import { TuiSt } from 'src/cli/tui/state/TuiSt.ts'
-
-/** recursive scan for the workflow-module naming convention */
-function scanCflowFiles(dir: string): string[] {
-   const hits = readdirSync(dir, { recursive: true })
-      .map((f) => join(dir, String(f)))
-      .filter((f) => f.endsWith('.cflow.ts') || f.endsWith('.cflow.tsx'))
-   return hits.sort()
-}
+import { extractErrorMessage } from 'src/utils/extractErrorMessage.ts'
+import { logError } from 'src/utils/log.ts'
+import type { DefinedWorkflow } from 'src/vars/DefinedWorkflow.ts'
 
 export async function runTui(args: string[]): Promise<number> {
-   // no arg = scan cwd; a file arg ALSO scans its folder (file preselected)
-   const target = args.find((a) => !a.startsWith('--')) ?? '.'
+   // no arg = cwd scan MERGED with the examples packaged with comfy-ts; an
+   // explicit dir/file arg keeps that scope only (a file arg is preselected)
+   const target = args.find((a) => !a.startsWith('--'))
 
    // the module contract: files check `import.meta.main` (false here) so their
    // standalone run block is skipped; this env var covers in-run tweaks
    process.env[COMFY_TS_TUI_ENV] = '1'
    process.env.COMFY_TS_QUIET = '1' // info chatter off; the TUI owns the screen
 
-   const abs = resolve(target)
+   // realpath both sides: scanned paths derive from cwd, bundled ones from
+   // import.meta — a symlinked cwd must not defeat the dedupe
+   const abs = realpathSync(resolve(target ?? '.'))
    const isDir = statSync(abs).isDirectory()
    const scanned = scanCflowFiles(isDir ? abs : dirname(abs))
-   const workflowFiles = isDir || scanned.includes(abs) ? scanned : [abs, ...scanned]
-   const first = isDir ? workflowFiles[0] : abs
-   if (first == null) {
+   const scannedPlusArg = isDir || scanned.includes(abs) ? scanned : [abs, ...scanned]
+   // no bun = no bundled examples: node refuses to import TypeScript under
+   // node_modules (the cli re-execs into bun when it can, comfy-ts-cli.ts)
+   const canImportBundled = process.versions.bun != null
+   const examplesDir = canImportBundled ? bundledExamplesDir() : null
+   if (!canImportBundled && target == null)
+      logError('packaged examples skipped: importing .cflow.ts from node_modules needs bun (bunx --bun comfy-ts tui)')
+   const discovery = mergeWorkflowSources({
+      explicitTarget: target != null,
+      scanned: scannedPlusArg,
+      bundledFiles: examplesDir == null ? [] : scanCflowFiles(realpathSync(examplesDir)),
+   })
+   const workflowFiles = discovery.files
+   if (workflowFiles.length === 0) {
       console.error(`[comfy-ts tui] no **/*.cflow.ts found under ${abs}`)
       return 1
    }
 
-   const mod: Record<string, unknown> = await import(pathToFileURL(first).href)
-   const wf = findDefinedWorkflow(mod)
-   if (wf == null) {
-      console.error(
-         `[comfy-ts tui] ${first} exports no DefinedWorkflow — export the result of host.defineWorkflow(...)`,
-      )
+   // initial module = the file arg, else the first candidate that LOADS: a
+   // module whose import throws (missing schema cache, bad code) or that
+   // exports no DefinedWorkflow becomes a red row in the tree, never a crash
+   const candidates =
+      !isDir && workflowFiles.includes(abs) ? [abs, ...workflowFiles.filter((f) => f !== abs)] : workflowFiles
+   const loadErrors = new Map<string, string>()
+   let first: string | null = null
+   let wf: DefinedWorkflow | null = null
+   for (const file of candidates) {
+      try {
+         const mod: Record<string, unknown> = await import(pathToFileURL(file).href)
+         const found = findDefinedWorkflow(mod)
+         if (found == null)
+            throw new Error(`${file} exports no DefinedWorkflow — export the result of host.defineWorkflow(...)`)
+         first = file
+         wf = found
+         break
+      } catch (e) {
+         loadErrors.set(file, extractErrorMessage(e))
+      }
+   }
+   if (first == null || wf == null) {
+      console.error(`[comfy-ts tui] no loadable workflow module among ${candidates.length} file(s):`)
+      for (const [file, err] of loadErrors) console.error(`   ${file}: ${err}`)
       return 1
    }
 
-   const st = new TuiSt(wf, { workflowFiles, currentFile: first })
+   const st = new TuiSt(wf, { workflowFiles, currentFile: first, bundledFiles: discovery.bundled, loadErrors })
    // ALT SCREEN (TTY only): deterministic absolute coordinates for the protocol
    // image painter + no scrollback pollution / clipped first row.
    // modifyOtherKeys mode 1 rides along: vscode/xterm.js then ENCODES modified ⏎

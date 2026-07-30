@@ -117,10 +117,13 @@ bunx comfy-ts outline [file] [--section Name] [--lines N]  # inspect a sdk.d.ts
 bunx comfy-ts tui [dir | module.cflow.ts]  # interactive tweak & re-run
 ```
 
-The TUI scans `**/*.cflow.ts` (no arg: cwd), shows vars as editable knobs,
-runs with live progress and previews, and saves named drafts under
-`.comfy-ts/drafts/`. Point users at it; as an agent you run modules with
-`bun path/to/module.cflow.ts`.
+The TUI scans `**/*.cflow.ts` (no arg: cwd PLUS the examples bundled with
+the package, grouped apart in the tree; an explicit dir or file limits to
+that scope), shows vars as editable knobs, runs with live progress and
+previews, and saves named drafts under `.comfy-ts/drafts/`. It re-execs
+through bun when launched under node (workflow modules are TypeScript, and
+node cannot import .ts from node_modules). Point users at it; as an agent
+you run modules with `bun path/to/module.cflow.ts`.
 
 ## Import and export ComfyUI JSON
 
@@ -138,7 +141,9 @@ runs with live progress and previews, and saves named drafts under
 - **Offline cache vs live connect.** `host.loadSchemaFromCache()` reads
   `.comfy-ts/hosts/<id>/` and never touches the network, so modules import
   instantly and offline. `run()` connects lazily. If the cache is missing,
-  run the `gen` command or `connect()` first. `connect()` reuses a cache
+  the import still works: you get the permissive base types plus a loud
+  console message; run the `gen` command or `connect()` once to fix it.
+  `connect()` reuses a cache
   younger than 24h; `connect({ schema: 'refresh' })` forces a re-fetch.
 - **Per-host namespaces.** Types come from `Comfy.<HostNs>` keyed by the host
   `id` you pass to `comfy.host({ id })` (`my-gpu` becomes `Comfy.MyGpu`). A

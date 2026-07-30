@@ -3,7 +3,16 @@ import { draftKeyForFile, listDraftsForFile } from 'src/cli/tui/state/DraftsSt.t
 import type { TuiSt } from 'src/cli/tui/state/TuiSt.ts'
 
 export type TreeRow =
-   | { kind: 'workflow'; file: string; name: string; expanded: boolean; current: boolean; hasDrafts: boolean }
+   | { kind: 'section'; label: string } // dim group header (bundled examples), never selectable
+   | {
+        kind: 'workflow'
+        file: string
+        name: string
+        expanded: boolean
+        current: boolean
+        hasDrafts: boolean
+        error: string | null
+     }
    | { kind: 'draft'; file: string; draft: string; active: boolean }
 
 /** the left `(t)ree`: workflows with their drafts nested under them */
@@ -19,7 +28,13 @@ export class TreeSt {
       void this.st.drafts.version // fs-derived: recompute when drafts change
       const w = this.st.workflows
       const rows: TreeRow[] = []
+      let sectionPushed = false
       for (const file of w.files) {
+         // bundled examples come LAST in files: one section header before the first
+         if (!sectionPushed && w.bundled.has(file)) {
+            rows.push({ kind: 'section', label: 'comfy-ts examples' })
+            sectionPushed = true
+         }
          const current = file === w.currentPath
          const expanded = this.expandedFiles.has(file)
          const drafts = listDraftsForFile(file)
@@ -30,6 +45,7 @@ export class TreeSt {
             expanded,
             current,
             hasDrafts: drafts.length > 0,
+            error: w.loadErrors.get(file) ?? null,
          })
          if (!expanded) continue
          for (const draft of drafts) {
@@ -64,16 +80,23 @@ export class TreeSt {
    }
 
    move(delta: number): void {
-      const len = this.rows.length
+      const rows = this.rows
+      const len = rows.length
       if (len === 0) return
-      this.ix = (this.ix + delta + len) % len
+      let ix = this.ix
+      // hop over section headers (never selectable); bounded: wraps at most once
+      for (let step = 0; step < len; step++) {
+         ix = (ix + delta + len) % len
+         if (rows[ix]?.kind !== 'section') break
+      }
+      this.ix = ix
    }
 
    /** →: unfold the workflow under the cursor; on a draft row there is nothing
     * left to unfold, so → continues rightwards into the vars panel */
    unfold(): void {
       const row = this.selected
-      if (row == null) return
+      if (row == null || row.kind === 'section') return
       if (row.kind === 'workflow') this.expandedFiles.add(row.file)
       else this.blur()
    }
@@ -81,7 +104,7 @@ export class TreeSt {
    /** ←: fold the workflow under the cursor; on a draft row, jump to (and fold) its parent */
    fold(): void {
       const row = this.selected
-      if (row == null) return
+      if (row == null || row.kind === 'section') return
       this.expandedFiles.delete(row.file)
       if (row.kind === 'draft') {
          const ix = this.rows.findIndex((r) => r.kind === 'workflow' && r.file === row.file)
@@ -92,7 +115,7 @@ export class TreeSt {
    /** ⏎: load the workflow (into 'default'), or the exact draft under the cursor */
    async commit(): Promise<void> {
       const row = this.selected
-      if (row == null) return
+      if (row == null || row.kind === 'section') return
       if (row.kind === 'workflow') return this.st.workflows.commit(row.file)
       return this.st.workflows.commit(row.file, row.draft)
    }
@@ -100,6 +123,7 @@ export class TreeSt {
    /** n: new draft — current workflow only (a draft snapshots its LIVE var values) */
    promptNewDraft(): void {
       const row = this.selected
+      if (row?.kind === 'section') return
       if (row != null && row.file !== this.st.workflows.currentPath) {
          this.st.exec.notice = 'load that workflow first (⏎) — a new draft snapshots its live vars'
          return
