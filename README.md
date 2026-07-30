@@ -233,7 +233,7 @@ declare global {
   generated SDK for [Comfy Cloud](https://cloud.comfy.org) (5.9MB, 3574
   nodes), committed so you can browse it and typecheck graphs against it
   without any host.
-  [`examples/05-comfy-cloud.cflow.ts`](examples/05-comfy-cloud.cflow.ts)
+  [`examples/rvion/05-comfy-cloud.cflow.ts`](examples/rvion/05-comfy-cloud.cflow.ts)
   runs against it live: `url` + `apiKey` host config, one env var, images
   back in seconds.
 
@@ -403,15 +403,17 @@ library:
 Every example is a runnable `*.cflow.ts` module: run it with bun, or just
 `bunx comfy-ts tui` — the TUI finds them all.
 
-Start with the didactic five:
+Start with the didactic sequence in [`examples/rvion/`](examples/rvion/):
 
 | example                                                                                  | shows                                                                     |
 | ---------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
-| [`01-txt2img`](examples/01-txt2img.cflow.ts)                                             | typed builder, vars, execution, downloaded outputs                          |
-| [`02-img2img-upload`](examples/02-img2img-upload.cflow.ts)                               | hash-named deduped upload, img2img, async build                             |
-| [`03-export-workflow-json`](examples/03-export-workflow-json.cflow.ts)                   | OFFLINE graph building, export api.json + readable workflow.json            |
-| [`04-krea2-turbo-t2i`](examples/04-krea2-turbo-t2i.cflow.ts)                             | a real pipeline: krea2 turbo, lora stack, RMBG cutout → transparent png     |
-| [`05-comfy-cloud`](examples/05-comfy-cloud.cflow.ts)                                     | the same code on Comfy Cloud: `url` + `apiKey` host, typechecked against the committed catalog SDK |
+| [`01-txt2img`](examples/rvion/01-txt2img.cflow.ts)                                             | typed builder, vars, execution, downloaded outputs                          |
+| [`02-img2img-upload`](examples/rvion/02-img2img-upload.cflow.ts)                               | hash-named deduped upload, img2img, async build                             |
+| [`03-export-workflow-json`](examples/rvion/03-export-workflow-json.cflow.ts)                   | OFFLINE graph building, export api.json + readable workflow.json            |
+| [`04-krea2-turbo-t2i`](examples/rvion/04-krea2-turbo-t2i.cflow.ts)                             | a real pipeline: krea2 turbo, lora stack, RMBG cutout → transparent png     |
+| [`05-comfy-cloud`](examples/rvion/05-comfy-cloud.cflow.ts)                                     | the same code on Comfy Cloud: `url` + `apiKey` host, typechecked against the committed catalog SDK |
+| [`06-z-image-edit`](examples/rvion/06-z-image-edit.cflow.ts)                                   | image editing: Z-Image omni reference conditioning over the turbo weights   |
+| [`07-qwen-image-edit`](examples/rvion/07-qwen-image-edit.cflow.ts)                             | Qwen Image Edit 2511, lightning 4-step lora toggle                          |
 
 ### The model zoo: 46 cloud workflows, 32 model families
 

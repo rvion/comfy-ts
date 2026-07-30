@@ -10,11 +10,14 @@ zoo files exist and which official template each one mirrors.
 
 ```
 examples/
-   01-txt2img.cflow.ts           didactic sequence, local host (windows-1)
-   02-img2img-upload.cflow.ts
-   03-export-workflow-json.cflow.ts
-   04-krea2-turbo-t2i.cflow.ts
-   05-comfy-cloud.cflow.ts       cloud intro = the zoo's sd15/t2i row (reference impl)
+   rvion/                        rvion's own numbered sequence (moved 2026-07-30)
+      01-txt2img.cflow.ts        didactic sequence, local host (windows-1)
+      02-img2img-upload.cflow.ts
+      03-export-workflow-json.cflow.ts
+      04-krea2-turbo-t2i.cflow.ts
+      05-comfy-cloud.cflow.ts    cloud intro = the zoo's sd15/t2i row (reference impl)
+      06-z-image-edit.cflow.ts   local edit models on windows-1 (no official
+      07-qwen-image-edit.cflow.ts   template for z-image edit: omni-encode wiring)
    comfy-cloud/
       sdk.d.ts                   committed cloud catalog (gen:sdk:cloud)
       cloudHost.ts               shared host helper — NOT .cflow, invisible to the TUI
@@ -23,6 +26,9 @@ examples/
       <subject>_<W>x<H>.jpg      exact size in the filename, see below
    README.md                     consumer-facing quick start
 ```
+
+The TUI tree renders this layout as a real hierarchy (directory rows, one
+color per `<family>` prefix — mechanics owned by architecture.md).
 
 - Zoo files are FLAT under `examples/comfy-cloud/`, named `<family>-<mode>`
   (`flux1-t2i.cflow.ts`, `wan22-i2v.cflow.ts`). No per-family subfolders:

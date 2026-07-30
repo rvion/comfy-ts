@@ -35,10 +35,20 @@ export async function runTui(args: string[]): Promise<number> {
    const examplesDir = canImportBundled ? bundledExamplesDir() : null
    if (!canImportBundled && target == null)
       logError('packaged examples skipped: importing .cflow.ts from node_modules needs bun (bunx --bun comfy-ts tui)')
+   // rvion/ (the numbered didactic sequence) ahead of the zoo: with no file
+   // arg the FIRST LOADABLE bundled module is the opening workflow, and that
+   // must stay 01-txt2img, not the zoo's alphabetical head (the tree itself
+   // stays alphabetical — this only orders the load candidates)
+   const bundledFiles =
+      examplesDir == null
+         ? []
+         : scanCflowFiles(realpathSync(examplesDir)).sort(
+              (a, b) => Number(!a.includes('/rvion/')) - Number(!b.includes('/rvion/')) || a.localeCompare(b),
+           )
    const discovery = mergeWorkflowSources({
       explicitTarget: target != null,
       scanned: scannedPlusArg,
-      bundledFiles: examplesDir == null ? [] : scanCflowFiles(realpathSync(examplesDir)),
+      bundledFiles,
    })
    const workflowFiles = discovery.files
    if (workflowFiles.length === 0) {

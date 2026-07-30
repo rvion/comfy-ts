@@ -22,7 +22,7 @@ function zooFiles(): string[] {
       .filter((f) => f.endsWith('.cflow.ts'))
       .map((f) => join(zooDir, f))
       .sort()
-   files.unshift(join(repoRoot, 'examples', '05-comfy-cloud.cflow.ts'))
+   files.unshift(join(repoRoot, 'examples', 'rvion', '05-comfy-cloud.cflow.ts'))
    return files
 }
 

@@ -64,7 +64,7 @@ local can read files straight from the Comfy output dir, remote must HTTP /view)
   cloud.comfy.org 2026-07-30 (one 512x512 txt2img: ws progress streamed,
   output image downloaded). Committed account-generic catalog sdk at
   `examples/comfy-cloud/sdk.d.ts` (`bun run gen:sdk:cloud`) +
-  `examples/05-comfy-cloud.cflow.ts`
+  `examples/rvion/05-comfy-cloud.cflow.ts`
 - 🔶 locality-aware media retrieval fast-path — planned
 
 ## G7 — sidekick CLI

@@ -9,13 +9,14 @@ import {
    writeFileSync,
 } from 'node:fs'
 import { makeAutoObservable, reaction } from 'mobx'
-import { basename, dirname, join } from 'pathe'
+import { dirname, join } from 'pathe'
+import { moduleName } from 'src/cli/tui/treeRows.ts'
 import { extractErrorMessage } from 'src/utils/extractErrorMessage.ts'
 import type { TuiMode, TuiSt } from 'src/cli/tui/state/TuiSt.ts'
 
 /** module basename (`01-txt2img`) keys the draft folder — knowable for EVERY tree file without importing it */
 export function draftKeyForFile(file: string): string {
-   return basename(file).replace(/\.cflow\.tsx?$/, '')
+   return moduleName(file)
 }
 
 export function draftsDirForFile(file: string): string {

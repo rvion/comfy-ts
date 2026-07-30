@@ -47,6 +47,8 @@ export class SettingsSt {
                   previewRenderer: this.previewRenderer,
                   previewDuringRun: this.previewDuringRun,
                   lastDraft: this.lastDraft,
+                  hostOverrideId: this.hostOverrideId,
+                  collapsedDirs: this.collapsedDirs,
                }),
             (json) => this.write(json),
             { delay: 300 },
@@ -59,6 +61,10 @@ export class SettingsSt {
    previewDuringRun: PreviewDuringRun = 'latent'
    /** module basename → the draft that was active last time (reopened on load) */
    lastDraft: Record<string, string> = {}
+   /** the `h` host override, by host id (re-resolved once that host registers) */
+   hostOverrideId: string | null = null
+   /** folded tree dirs (hand-tuned state persists, like every other surface) */
+   collapsedDirs: string[] = []
 
    rememberDraft(moduleKey: string, draft: string): void {
       this.lastDraft[moduleKey] = draft
@@ -81,6 +87,8 @@ export class SettingsSt {
          this.previewDuringRun = preview.previewDuringRun
          if (o.lastDraft != null && typeof o.lastDraft === 'object')
             this.lastDraft = { ...(o.lastDraft as Record<string, string>) }
+         if (typeof o.hostOverrideId === 'string') this.hostOverrideId = o.hostOverrideId
+         if (Array.isArray(o.collapsedDirs)) this.collapsedDirs = o.collapsedDirs.filter((d) => typeof d === 'string')
       } catch {
          // corrupt settings must never block the TUI — start from defaults
       }

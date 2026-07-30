@@ -37,6 +37,9 @@ export type BoundVars<ID extends string> = Omit<typeof v, 'loras'> & {
 export type DefineWorkflowSpec<ID extends string, V extends VarsSpec> = {
    /** short id; also names the workflow instances */
    id?: string
+   /** optional TUI tree color (ink color name or hex); unset = the tree's
+    * per-family palette (first `-` word of the module basename) */
+   color?: string
    /** the tweakable knobs; drivers (scripts, TUI) edit these between runs.
     * A LAMBDA gives cross-referencing vars a scope (loras + prompt with
     * loraKeywordsFrom created inline) — resolved ONCE at define time, and it
@@ -94,10 +97,13 @@ export class DefinedWorkflow<ID extends string = string, V extends VarsSpec = Va
     * (set by run()) fires each var's afterRun() right after snapshotting the
     * values — atomically, before any await — so the graph uses this run's seed
     * while the var moves to the next (queued runs get distinct seeds; a bare
-    * build() for copy/export never advances).
+    * build() for copy/export never advances). `p.host` substitutes the host
+    * the graph is built against (TUI host override): node/model availability
+    * there surfaces as workflow.problems / server validation, by design.
     */
-   async build(p: { advance?: boolean } = {}): Promise<ComfyWorkflow<ID>> {
-      const wf = this.host.workflow({ id: this.spec.id })
+   async build(p: { advance?: boolean; host?: ComfyHost<ID> } = {}): Promise<ComfyWorkflow<ID>> {
+      const host = p.host ?? this.host
+      const wf = host.workflow({ id: this.spec.id })
       const values = varValues(this.vars)
       if (p.advance) for (const varDef of Object.values(this.vars)) varDef.afterRun()
       await this.spec.build(wf.builder, values, wf)
@@ -106,11 +112,18 @@ export class DefinedWorkflow<ID extends string = string, V extends VarsSpec = Va
    }
 
    /** build a fresh graph from the current var values, send it, wait for outputs.
-    * connects first (idempotent) — modules can import offline from the schema cache */
-   async run(settings: RunSettings = {}): Promise<ComfyExecution> {
-      await this.host.connect()
-      const wf = await this.build({ advance: true })
-      const execution = await wf.run(settings)
+    * connects first (idempotent) — modules can import offline from the schema cache.
+    * `settings.host` runs against THAT host instead of the defining one. */
+   async run(settings: RunSettings & { host?: ComfyHost<ID> } = {}): Promise<ComfyExecution> {
+      const host = settings.host ?? this.host
+      await host.connect()
+      const wf = await this.build({ advance: true, host })
+      const execution = await wf.run({
+         saveFormat: settings.saveFormat,
+         idMode: settings.idMode,
+         log: settings.log,
+         onProgress: settings.onProgress,
+      })
       this.lastExecution = execution
       return execution
    }

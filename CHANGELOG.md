@@ -68,7 +68,7 @@ box with zero arguments.
 - `comfy-ts gen` gained `--api-key` (or `COMFY_CLOUD_API_KEY`) and `--out`.
   The full Comfy Cloud catalog ships in the repo as a browsable generated
   SDK (`examples/comfy-cloud/sdk.d.ts`, 3574 nodes) with a runnable
-  [example](examples/05-comfy-cloud.cflow.ts).
+  [example](examples/rvion/05-comfy-cloud.cflow.ts).
 
 ### workflow.json import, rebuilt
 

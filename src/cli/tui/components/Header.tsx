@@ -15,9 +15,10 @@ const HeaderBox = (p: { title?: string; children: ReactNode }): ReactNode => (
    </Box>
 )
 
-/** labeled header boxes: brand · (w)orkflow · (d)raft · (h)ost — the keys open each surface */
+/** labeled header boxes: brand · (w)orkflow · (d)raft · (h)ost·(a)ctions — the keys open each surface */
 export const Header = observer((p: { st: TuiSt }) => {
    const s = p.st
+   const runHost = s.runHost
    return (
       <Box flexDirection="row">
          <HeaderBox>
@@ -35,16 +36,20 @@ export const Header = observer((p: { st: TuiSt }) => {
                {s.drafts.active ?? 'default'}
             </Text>
          </HeaderBox>
-         <HeaderBox title="(h)ost">
+         <HeaderBox title="(h)ost · (a)ctions">
             <Text>
                <Text color={s.host.status === 'up' ? 'green' : s.host.status === 'down' ? 'red' : 'gray'}>● </Text>
                <Text bold color="green">
-                  {s.wf.host.data.id}
+                  {runHost.data.id}
                </Text>
                <Text color="gray">
                   {' '}
-                  ({s.wf.host.data.host}:{s.wf.host.data.port})
+                  ({runHost.base.host}:{runHost.base.port})
                </Text>
+               {/* the override must stay loud: every run bypasses the workflow's own host */}
+               {s.hostOverride != null && s.hostOverride !== s.wf.host && (
+                  <Text color="yellow"> ⇄ overrides {s.wf.host.data.id}</Text>
+               )}
                {/* while down, show the probe loop living: spinner in flight, countdown between tries */}
                {s.host.status === 'down' && (
                   <Text color="red"> {s.host.probing ? s.host.spinner : `↻ ${s.host.retryInS}s`}</Text>

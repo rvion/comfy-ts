@@ -82,7 +82,7 @@ describe('cloud example without COMFY_CLOUD_API_KEY', () => {
    })
 
    it('with a key set, import degrades offline like any bundled example', () => {
-      const example = join(examplesDir, '05-comfy-cloud.cflow.ts')
+      const example = join(examplesDir, 'rvion', '05-comfy-cloud.cflow.ts')
       const importCmd = `await import(${JSON.stringify(example)}); console.log('IMPORT_OK')`
       const consumerCwd = mkdtempSync(join(tmpdir(), 'comfy-ts-consumer-'))
       try {

@@ -2,7 +2,8 @@ import { Box, Text } from 'ink'
 import { observer } from 'mobx-react-lite'
 import type { TuiSt } from 'src/cli/tui/state/TuiSt.ts'
 
-/** persistent left panel: workflows with their drafts nested; `t` (or ← from vars) focuses it */
+/** persistent left panel: directory hierarchy + workflows with their drafts
+ * nested; `t` (or ← from vars) focuses it, `/` filters it */
 export const TreePanel = observer((p: { st: TuiSt }) => {
    const s = p.st
    const tree = s.tree
@@ -22,12 +23,20 @@ export const TreePanel = observer((p: { st: TuiSt }) => {
                (t)ree
             </Text>
          </Box>
+         {(tree.filtering || tree.filter !== '') && (
+            <Text color="yellow" wrap="truncate">
+               /{tree.filter}
+               {tree.filtering ? '▌' : ''}
+            </Text>
+         )}
          {tree.rows.map((row, ix) => {
             const sel = focused && ix === tree.ix
-            if (row.kind === 'section') {
+            const indent = ' '.repeat(row.depth * 2)
+            if (row.kind === 'dir') {
                return (
-                  <Text key={`section·${row.label}`} color="gray" dimColor wrap="truncate">
-                     ─ {row.label}
+                  <Text key={`dir·${row.path}`} inverse={sel} color="gray" bold wrap="truncate">
+                     {indent}
+                     {row.expanded ? '▾' : '▸'} {row.label}
                   </Text>
                )
             }
@@ -38,9 +47,11 @@ export const TreePanel = observer((p: { st: TuiSt }) => {
                   <Text
                      key={row.file}
                      inverse={sel}
-                     color={row.error != null ? 'red' : row.current ? 'green' : undefined}
+                     bold={row.current}
+                     color={row.error != null ? 'red' : row.color}
                      wrap="truncate"
                   >
+                     {indent}
                      {arrow}
                      {marker} {row.name}
                   </Text>
@@ -53,8 +64,7 @@ export const TreePanel = observer((p: { st: TuiSt }) => {
                   color={row.active ? 'cyan' : 'gray'}
                   wrap="truncate"
                >
-                  {'   '}
-                  {row.active ? '●' : '·'} {row.draft}
+                  {indent} {row.active ? '●' : '·'} {row.draft}
                </Text>
             )
          })}

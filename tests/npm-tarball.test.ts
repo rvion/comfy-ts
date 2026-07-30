@@ -50,7 +50,7 @@ describe('npm tarball', () => {
       // deleted at approval. Only the one true README may ever ship.
       expect(paths.filter((p) => /^README/i.test(p))).toEqual(['README.md'])
       // the TUI's no-arg discovery lists the packaged examples: they must ship
-      expect(paths).toContain('examples/01-txt2img.cflow.ts')
+      expect(paths).toContain('examples/rvion/01-txt2img.cflow.ts')
       // bundled input images: i2i/i2v examples default to these, they must ship
       expect(paths).toContain('examples/images/dog_512x512.jpg')
    })

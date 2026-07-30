@@ -23,12 +23,13 @@ export class HostSt {
          if (this.spinTimer != null) clearInterval(this.spinTimer)
          if (this.countdownTimer != null) clearInterval(this.countdownTimer)
       })
-      // switching workflows can switch hosts: back to unknown, re-probe now.
-      // probeGen++ kills a chain that is mid-await (its loopTimer isn't set yet,
-      // clearing timers alone would leave it alive → duplicate chains forever)
+      // switching workflows (or the `h` override) can switch hosts: back to
+      // unknown, re-probe now. probeGen++ kills a chain that is mid-await (its
+      // loopTimer isn't set yet, clearing timers alone would leave it alive →
+      // duplicate chains forever)
       this.st.disposers.push(
          reaction(
-            () => this.st.wf,
+            () => this.st.runHost,
             () => {
                runInAction(() => {
                   this.status = 'unknown'
@@ -138,7 +139,7 @@ export class HostSt {
    ]
 
    get host(): ComfyHost {
-      return this.st.wf.host
+      return this.st.runHost
    }
 
    get stats(): { label: string; value: string }[] {
@@ -166,6 +167,53 @@ export class HostSt {
 
    blur(): void {
       this.st.mode = 'nav'
+   }
+
+   // ---- `h` host picker: override the host the current workflow runs against ----
+
+   pickerIx: number = 0
+
+   get pickerRows(): { host: ComfyHost | null; label: string; active: boolean }[] {
+      const wfHost = this.st.wf.host
+      const rows: { host: ComfyHost | null; label: string; active: boolean }[] = [
+         { host: null, label: `workflow default (${wfHost.data.id})`, active: this.st.hostOverride == null },
+      ]
+      // the global registry: every host any imported module registered so far
+      for (const host of comfyts.hosts.values()) {
+         rows.push({
+            host,
+            label: `${host.data.id} (${host.base.host}:${host.base.port})`,
+            active: this.st.hostOverride === host,
+         })
+      }
+      return rows
+   }
+
+   beginPicker(): void {
+      this.st.mode = 'overlay-hosts'
+      const active = this.pickerRows.findIndex((r) => r.active)
+      this.pickerIx = active === -1 ? 0 : active
+   }
+
+   cancelPicker(): void {
+      this.st.mode = 'nav'
+   }
+
+   pickerMove(delta: number): void {
+      const len = this.pickerRows.length
+      if (len === 0) return
+      this.pickerIx = (this.pickerIx + delta + len) % len
+   }
+
+   commitPicker(): void {
+      const row = this.pickerRows[this.pickerIx]
+      if (row == null) return
+      this.st.setHostOverride(row.host)
+      this.st.mode = 'nav'
+      this.st.exec.notice =
+         row.host == null
+            ? `host override cleared — runs target the workflow's own host (${this.st.wf.host.data.id})`
+            : `runs now target ${row.host.data.id} (overrides ${this.st.wf.host.data.id})`
    }
 
    move(delta: number): void {

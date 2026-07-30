@@ -33,7 +33,7 @@ export class QueueSt {
 
    async clearPending(): Promise<void> {
       try {
-         await this.st.wf.host.clearQueue()
+         await this.st.runHost.clearQueue()
          runInAction(() => {
             this.st.exec.notice = 'pending queue cleared'
          })
@@ -46,7 +46,7 @@ export class QueueSt {
 
    async interrupt(): Promise<void> {
       try {
-         await this.st.wf.host.interrupt()
+         await this.st.runHost.interrupt()
          runInAction(() => {
             this.st.exec.notice = 'interrupt requested'
          })

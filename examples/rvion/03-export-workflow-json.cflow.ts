@@ -1,6 +1,6 @@
 // build a graph OFFLINE (schema from .comfy-ts/ cache) and export both ComfyUI
 // JSON formats: api.json (prompt) + workflow.json (readable litegraph, autolayouted)
-// run directly:  bun examples/03-export-workflow-json.cflow.ts   (no server needed)
+// run directly:  bun examples/rvion/03-export-workflow-json.cflow.ts   (no server needed)
 // in the TUI:    bun run tui — r runs it live (PreviewImage), c/C copy the JSONs
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { ComfyTS, v } from 'comfy-ts'

@@ -13,11 +13,13 @@ import { QueueSt } from 'src/cli/tui/state/QueueSt.ts'
 import { SettingsSt } from 'src/cli/tui/state/SettingsSt.ts'
 import { TreeSt } from 'src/cli/tui/state/TreeSt.ts'
 import { WorkflowsSt } from 'src/cli/tui/state/WorkflowsSt.ts'
+import type { ComfyHost } from 'src/host/ComfyHost.ts'
 import type { DefinedWorkflow } from 'src/vars/DefinedWorkflow.ts'
 
-// nav = vars list · tree = left workflow panel · host = host stats/actions ·
+// nav = vars list · tree = left workflow panel · host = host stats/actions (`a`) ·
 // preview = `p` settings menu in the preview panel ·
 // edit = inline single-line (numbers + custom prompts) · overlay-* = modal popups
+// (overlay-hosts = the `h` host picker)
 export type TuiMode =
    | 'nav'
    | 'tree'
@@ -30,6 +32,7 @@ export type TuiMode =
    | 'overlay-loras'
    | 'overlay-image'
    | 'overlay-drafts'
+   | 'overlay-hosts'
 
 /**
  * ROOT of the TUI state tree (one instance per run). Children are service
@@ -39,6 +42,32 @@ export class TuiSt {
    wf: DefinedWorkflow
    mode: TuiMode = 'nav'
    selIx: number = 0
+
+   /** `h` host override: when set, EVERY workflow runs/probes against it
+    * instead of its defining host (cleared by picking 'workflow default') */
+   hostOverride: ComfyHost | null = null
+
+   /** the host runs actually target right now */
+   get runHost(): ComfyHost {
+      return this.hostOverride ?? this.wf.host
+   }
+
+   setHostOverride(host: ComfyHost | null): void {
+      this.hostOverride = host
+      // the override host must be disconnected on exit like any loaded one
+      if (host != null) this.workflows.loadedHosts.add(host)
+      this.queue.attach(this.runHost)
+      this.logs.attach(this.runHost)
+      this.settings.hostOverrideId = host?.data.id ?? null
+   }
+
+   /** re-resolve a persisted override id — hosts register as modules import */
+   applyPersistedHostOverride(): void {
+      const id = this.settings.hostOverrideId
+      if (id == null || this.hostOverride != null) return
+      const host = comfyts.hosts.get(id)
+      if (host != null) this.setHostOverride(host)
+   }
 
    editor: EditorSt
    picker: PickerSt
@@ -74,6 +103,7 @@ export class TuiSt {
       // the foreign object; children manage their own observability
       makeAutoObservable(this, {
          wf: observable.ref,
+         hostOverride: observable.ref,
          onExit: false,
          editor: false,
          picker: false,
@@ -108,11 +138,17 @@ export class TuiSt {
       this.host = new HostSt(this)
       this.queue = new QueueSt(this)
       this.logs = new LogsSt(this)
+      // a remembered `h` override re-applies as soon as its host is registered
+      this.applyPersistedHostOverride()
       // the TUI is ALWAYS in a draft from the very first frame: the one this
       // workflow was last in (settings), else 'default'; the current workflow
       // starts unfolded so its drafts are visible in the tree
       this.drafts.activateRemembered()
-      if (opts.currentFile != null) this.tree.expandedFiles.add(opts.currentFile)
+      if (opts.currentFile != null) {
+         this.tree.expandedFiles.add(opts.currentFile)
+         // the first module loads in run-tui, BEFORE WorkflowsSt.load can record it
+         this.workflows.recordSpecColor(opts.currentFile, wf)
+      }
       // full-terminal layout: track resizes (SIGWINCH surfaces as stdout resize)
       const onResize = (): void => {
          runInAction(() => {
@@ -139,15 +175,17 @@ export class TuiSt {
       return Math.max(8, this.termRows - 12)
    }
 
-   /** left tree panel width: longest row (workflow or indented draft), clamped */
+   /** left tree panel width: longest row (depth-indented), clamped */
    get treeWidth(): number {
       const longest = Math.max(
          8,
-         ...this.tree.rows.map((r) =>
-            r.kind === 'workflow' ? r.name.length : r.kind === 'draft' ? r.draft.length + 3 : r.label.length,
+         ...this.tree.rows.map(
+            (r) =>
+               r.depth * 2 +
+               (r.kind === 'workflow' ? r.name.length : r.kind === 'draft' ? r.draft.length + 3 : r.label.length + 2),
          ),
       )
-      return Math.min(32, longest + 7)
+      return Math.min(34, longest + 7)
    }
 
    // ---- vars navigation ----

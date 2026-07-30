@@ -6,12 +6,14 @@ with bun, or browse them all in the TUI (`bunx comfy-ts tui` lists them under
 
 ## Layout
 
-- `01…04-*.cflow.ts` — the didactic sequence against a LOCAL ComfyUI host
-  (edit the `comfy.host({...})` line to point at yours, then first run
+- `rvion/01…04-*.cflow.ts` — the didactic sequence against a LOCAL ComfyUI
+  host (edit the `comfy.host({...})` line to point at yours, then first run
   generates a typed SDK for it).
-- `05-comfy-cloud.cflow.ts` — the same t2i against [Comfy Cloud]
+- `rvion/05-comfy-cloud.cflow.ts` — the same t2i against [Comfy Cloud]
   (https://cloud.comfy.org): no local GPU needed, the typed catalog ships
   committed at `comfy-cloud/sdk.d.ts`.
+- `rvion/06…07-*.cflow.ts` — image-edit workflows (z-image omni encode, qwen
+  image edit 2511) against the same local host.
 - `comfy-cloud/<family>-<mode>.cflow.ts` — the model zoo: one clean example
   per model family × mode (`t2i`, `i2i`, `t2v`, `i2v`, `t2a`), each mirroring
   an official ComfyUI template (flux, qwen-image, z-image, wan, hidream,
@@ -24,7 +26,7 @@ paid tiers). Without it everything still loads and typechecks — only `run()`
 needs the key:
 
 ```sh
-COMFY_CLOUD_API_KEY=… bun examples/05-comfy-cloud.cflow.ts "a fox in the snow" 42
+COMFY_CLOUD_API_KEY=… bun examples/rvion/05-comfy-cloud.cflow.ts "a fox in the snow" 42
 ```
 
 Cloud runs bill compute to your account — start with a small t2i.

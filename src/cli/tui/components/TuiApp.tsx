@@ -4,6 +4,7 @@ import { basename } from 'pathe'
 import { DraftsOverlay } from 'src/cli/tui/components/DraftsOverlay.tsx'
 import { Header } from 'src/cli/tui/components/Header.tsx'
 import { HostPanel } from 'src/cli/tui/components/HostPanel.tsx'
+import { HostsOverlay } from 'src/cli/tui/components/HostsOverlay.tsx'
 import { LorasOverlay } from 'src/cli/tui/components/LorasOverlay.tsx'
 import { ChoiceOverlay, SizeOverlay } from 'src/cli/tui/components/PickerOverlays.tsx'
 import { PreviewPanel } from 'src/cli/tui/components/PreviewPanel.tsx'
@@ -115,7 +116,21 @@ export const TuiApp = observer((p: { st: TuiSt }) => {
          }
          if (s.mode === 'tree') {
             const tr = s.tree
-            if (key.escape || input === 't') return tr.blur()
+            // the `/` filter owns plain keys while active (letters type into it)
+            if (tr.filtering) {
+               if (key.escape) return tr.clearFilter()
+               if (key.return) return void tr.commit()
+               if (key.upArrow) return tr.move(-1)
+               if (key.downArrow) return tr.move(1)
+               if (key.leftArrow) return tr.fold()
+               if (key.rightArrow) return tr.unfold()
+               if (key.backspace || key.delete) return tr.filterBackspace()
+               if (input && !key.ctrl && !key.meta) return tr.filterInput(input)
+               return
+            }
+            if (key.escape) return tr.filter !== '' ? tr.clearFilter() : tr.blur()
+            if (input === 't') return tr.blur()
+            if (input === '/') return tr.beginFilter()
             if (key.return || input === ' ') return void tr.commit()
             if (key.upArrow) return tr.move(-1)
             if (key.downArrow) return tr.move(1)
@@ -130,7 +145,8 @@ export const TuiApp = observer((p: { st: TuiSt }) => {
             if (input === 'r') return void s.exec.run()
             if (input === 's') return s.exec.randomizeSeedAndRun()
             if (input === 'd') return s.drafts.begin()
-            if (input === 'h') return s.host.begin()
+            if (input === 'h') return s.host.beginPicker()
+            if (input === 'a') return s.host.begin()
             if (input === 'p') return s.preview.beginMenu()
             if (input === 'o') return s.exec.openLastOutput()
             if (input === 'q') {
@@ -141,7 +157,8 @@ export const TuiApp = observer((p: { st: TuiSt }) => {
          }
          if (s.mode === 'host') {
             const h = s.host
-            if (key.escape || input === 'h' || input === 'v') return h.blur()
+            if (key.escape || input === 'a' || input === 'v') return h.blur()
+            if (input === 'h') return h.beginPicker()
             if (key.return || input === ' ') return void h.commit()
             if (key.upArrow) return h.move(-1)
             if (key.downArrow) return h.move(1)
@@ -149,6 +166,14 @@ export const TuiApp = observer((p: { st: TuiSt }) => {
                s.onExit()
                return app.exit()
             }
+            return
+         }
+         if (s.mode === 'overlay-hosts') {
+            const h = s.host
+            if (key.escape || input === 'h') return h.cancelPicker()
+            if (key.return || input === ' ') return h.commitPicker()
+            if (key.upArrow) return h.pickerMove(-1)
+            if (key.downArrow) return h.pickerMove(1)
             return
          }
          if (s.mode === 'preview') {
@@ -163,7 +188,8 @@ export const TuiApp = observer((p: { st: TuiSt }) => {
             if (input === 'r') return void s.exec.run()
             if (input === 's') return s.exec.randomizeSeedAndRun()
             if (input === 'd') return s.drafts.begin()
-            if (input === 'h') return s.host.begin()
+            if (input === 'h') return s.host.beginPicker()
+            if (input === 'a') return s.host.begin()
             if (input === 'o') return s.exec.openLastOutput()
             if (input === 'q') {
                s.onExit()
@@ -198,11 +224,16 @@ export const TuiApp = observer((p: { st: TuiSt }) => {
          if (key.leftArrow) return s.tree.focus()
          if (key.rightArrow || key.return || input === ' ') return s.activate()
          if (s.navKey(input)) return
+         if (input === '/') {
+            s.tree.focus()
+            return s.tree.beginFilter()
+         }
          if (input === 'e') return s.drafts.beginRename()
          if (input === 'r') return void s.exec.run()
          if (input === 's') return s.exec.randomizeSeedAndRun()
          if (input === 't' || input === 'w') return s.tree.focus()
-         if (input === 'h') return s.host.begin()
+         if (input === 'h') return s.host.beginPicker()
+         if (input === 'a') return s.host.begin()
          if (input === 'd') return s.drafts.begin()
          if (input === 'p') return s.preview.beginMenu()
          if (input === 'o') return s.exec.openLastOutput()
@@ -238,6 +269,8 @@ export const TuiApp = observer((p: { st: TuiSt }) => {
                   <ImagePickerOverlay st={s} />
                ) : s.mode === 'overlay-drafts' ? (
                   <DraftsOverlay st={s} />
+               ) : s.mode === 'overlay-hosts' ? (
+                  <HostsOverlay st={s} />
                ) : (
                   <VarsPanel st={s} />
                )}

@@ -4,6 +4,7 @@ import { basename, resolve } from 'pathe'
 import { extractErrorMessage } from 'src/utils/extractErrorMessage.ts'
 import { findDefinedWorkflow } from 'src/cli/tui/findDefinedWorkflow.ts'
 import type { ComfyHost } from 'src/host/ComfyHost.ts'
+import type { DefinedWorkflow } from 'src/vars/DefinedWorkflow.ts'
 import type { TuiSt } from 'src/cli/tui/state/TuiSt.ts'
 
 /** workflow-module data layer: scanned files, module loading, opened-host set (TreeSt is the UI over it) */
@@ -31,6 +32,13 @@ export class WorkflowsSt {
    /** per-file load failures (import threw / no DefinedWorkflow export) — red rows in the tree,
     * cleared by a later successful load; ⏎ on the row retries */
    loadErrors: Map<string, string>
+
+   /** spec.color of every module seen loading — overrides the tree's family palette */
+   specColors: Map<string, string> = new Map()
+
+   recordSpecColor(path: string, wf: DefinedWorkflow): void {
+      if (wf.spec.color != null) this.specColors.set(path, wf.spec.color)
+   }
 
    /**
     * every host seen across switches. Modules are import-cached, so a
@@ -79,9 +87,12 @@ export class WorkflowsSt {
             this.loadErrors.delete(path)
             this.loadedHosts.add(this.st.wf.host)
             this.loadedHosts.add(wf.host)
+            this.recordSpecColor(path, wf)
             this.st.wf = wf
-            this.st.queue.attach(wf.host)
-            this.st.logs.attach(wf.host)
+            // a module import may have registered the host a persisted override names
+            this.st.applyPersistedHostOverride()
+            this.st.queue.attach(this.st.runHost)
+            this.st.logs.attach(this.st.runHost)
             this.currentPath = path
             this.st.selIx = 0
             this.st.mode = 'nav'

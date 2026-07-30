@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process'
 import { makeAutoObservable, runInAction } from 'mobx'
 import { basename } from 'pathe'
+import type { ComfyHost } from 'src/host/ComfyHost.ts'
 import type { ExecutionProgress } from 'src/runner/ComfyExecution.ts'
 import { extractErrorMessage } from 'src/utils/extractErrorMessage.ts'
 import type { SeedVar } from 'src/vars/ComfyVars.ts'
@@ -24,6 +25,11 @@ export class ExecSt {
    /** the prompt currently executing on the server (progress belongs to it) */
    private currentPromptId: string | null = null
 
+   /** every host a latent-preview handler is installed on — a queued run may
+    * target a DIFFERENT host after an `h` override switch, and clearing only
+    * the last run's host would leak the handler on the first one */
+   private latentHosts: Set<ComfyHost> = new Set()
+
    get running(): boolean {
       return this.inFlight > 0
    }
@@ -40,7 +46,7 @@ export class ExecSt {
    /** every run takes THIS path, queued ones included: same progress, outputs, previews */
    async run(): Promise<void> {
       const queued = this.running
-      const host = this.st.wf.host
+      const host = this.st.runHost
       runInAction(() => {
          this.inFlight++
          this.error = null
@@ -54,12 +60,16 @@ export class ExecSt {
             // 'latent small' / 'last output' preview settings show it while
             // running (full reset belongs to workflow switches)
             this.st.preview.clearLatent()
-            // installed while ANY run is in flight, so queued prompts keep painting latents
-            host.onLatentPreview = (p) => void this.st.preview.renderLatent(p.bytes)
          }
+         // installed while ANY run is in flight (queued prompts keep painting
+         // latents), on THIS run's host — it may differ from the previous
+         // run's after an `h` override switch
+         host.onLatentPreview = (p) => void this.st.preview.renderLatent(p.bytes)
+         this.latentHosts.add(host)
       })
       try {
          const execution = await this.st.wf.run({
+            host: this.st.hostOverride ?? undefined,
             onProgress: (p) => runInAction(() => this.onProgress(p)),
          })
          runInAction(() => {
@@ -80,7 +90,10 @@ export class ExecSt {
             this.progress = null
             this.currentPromptId = null
             this.st.preview.clearLatent()
-            if (this.inFlight === 0) host.onLatentPreview = null
+            if (this.inFlight === 0) {
+               for (const h of this.latentHosts) h.onLatentPreview = null
+               this.latentHosts.clear()
+            }
          })
       }
    }
@@ -142,7 +155,7 @@ export class ExecSt {
    /** 'c': copy workflow.json (litegraph, drag into the ComfyUI editor) */
    async copyWorkflowJson(): Promise<void> {
       try {
-         const wf = await this.st.wf.build()
+         const wf = await this.st.wf.build({ host: this.st.hostOverride ?? undefined })
          const json = await wf.toWorkflowJson()
          const ok = await this.toClipboard(JSON.stringify(json, null, 2))
          runInAction(() => {
@@ -158,7 +171,7 @@ export class ExecSt {
    /** 'C': copy api.json (the POST /prompt payload) */
    async copyApiJson(): Promise<void> {
       try {
-         const wf = await this.st.wf.build()
+         const wf = await this.st.wf.build({ host: this.st.hostOverride ?? undefined })
          const json = wf.toApiJson('use_stringified_numbers_only')
          const ok = await this.toClipboard(JSON.stringify(json, null, 2))
          runInAction(() => {

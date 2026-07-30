@@ -1,5 +1,5 @@
 // generate an image from text, fully typed against the 'windows-1' host sdk
-// run directly:  bun examples/01-txt2img.cflow.ts ["prompt"] [seed]
+// run directly:  bun examples/rvion/01-txt2img.cflow.ts ["prompt"] [seed]
 // in the TUI:    bun run tui   (scans **/*.cflow.ts, tweak vars, r to run)
 import { ComfyTS, v } from 'comfy-ts'
 

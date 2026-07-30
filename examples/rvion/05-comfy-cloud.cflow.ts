@@ -1,9 +1,9 @@
 // sd15 t2i on Comfy Cloud — the reference zoo example (agent/examples.md)
 // source template: default.json (official workflow-templates)
 // needs COMFY_CLOUD_API_KEY (https://cloud.comfy.org, paid tiers) — loads fine without, run() needs it
-// run directly:  bun examples/05-comfy-cloud.cflow.ts ["prompt"] [seed]
+// run directly:  bun examples/rvion/05-comfy-cloud.cflow.ts ["prompt"] [seed]
 import { v } from 'comfy-ts'
-import { cloudHost, requireCloudKey } from './comfy-cloud/cloudHost.ts'
+import { cloudHost, requireCloudKey } from '../comfy-cloud/cloudHost.ts'
 
 const host = await cloudHost()
 

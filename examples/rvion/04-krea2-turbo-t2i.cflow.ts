@@ -2,8 +2,8 @@
 // (rabbits-vs-sheeps "unified"). krea2 turbo UNET + standard LoraLoader chain
 // → KSampler(8 steps, cfg 1) → RMBG cutout → transparent png game sprite.
 //
-// run directly:  bun examples/04-krea2-turbo-t2i.cflow.ts ["prompt"] [seed]
-// in the TUI:    bun src/cli/comfy-ts-cli.ts tui examples/04-krea2-turbo-t2i.cflow.ts
+// run directly:  bun examples/rvion/04-krea2-turbo-t2i.cflow.ts ["prompt"] [seed]
+// in the TUI:    bun src/cli/comfy-ts-cli.ts tui examples/rvion/04-krea2-turbo-t2i.cflow.ts
 // tui browser:   bun src/cli/comfy-ts-cli.ts tui examples/   (scans **/*.cflow.ts)
 import { activeLoras, ComfyTS } from 'comfy-ts'
 

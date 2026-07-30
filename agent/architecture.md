@@ -75,13 +75,23 @@ src/cli/tui/               ink+mobx TUI, per build/app-state-tree doctrine:
    state/LorasSt.ts        loras overlay (filter, tick/untick, strengths, bulk,
                            lora-manager preview into the preview panel)
    state/WorkflowsSt.ts    module loading + host set (data layer under TreeSt)
-   state/TreeSt.ts         left tree: workflows + nested drafts, fold/unfold, focus
-   state/HostSt.ts         host panel: stats + actions (re-codegen SDK, restart) + live up/down probe
+   state/TreeSt.ts         left tree: DIRECTORY hierarchy over the scanned files
+                           (pure builder in treeRows.ts) + workflows + nested
+                           drafts, fold/unfold, `/` substring filter, one color
+                           per family (first `-` word of the basename, palette
+                           cycled in first-appearance order; a loaded module's
+                           spec.color overrides)
+   state/HostSt.ts         host surface, TWO keys: `a` = actions panel (stats,
+                           re-codegen SDK, restart, queue ops) + live up/down
+                           probe; `h` = host PICKER — overrides the host the
+                           current workflow runs/probes against (registry-wide
+                           list, 'workflow default' clears; override persisted
+                           in settings by host id, re-applied on reopen)
    state/LogsSt.ts         server console lines: /internal/logs backfill + ws 'logs' stream, chunk→line assembly
    components/LogsPanel.tsx  last server log lines below the vars panel
    state/DraftsSt.ts       named var snapshots, autosave reaction (owned disposer)
    state/SettingsSt.ts     persisted TUI settings (.comfy-ts/settings.json):
-                           preview mode + last draft per workflow
+                           preview mode + last draft per workflow + host override
    state/ExecSt.ts         run/progress/outputs/notice/clipboard/open
    state/PreviewSt.ts      preview renders, panel sizing, `p` settings menu (panel/renderer/while-running)
    components/*.tsx        stateless views: TuiApp (layout+keys), VarsPanel,
@@ -149,6 +159,13 @@ tests/                     bun tests (headless) + fixtures
    etc. — the wf param feeds `MediaImage.loadInWorkflow_*`). `run()` starts with
    `await host.connect()` (idempotent), so modules import OFFLINE from the
    schema cache (`loadSchemaFromCache`) and connect lazily on first run.
+   `build`/`run` accept `{ host }`: an explicit FOREIGN host the graph is built
+   against and sent to (the TUI `h` override rides this) — the builder face is
+   the same object_info-driven machinery, so it is cast whitelist family 1;
+   node/model availability on the substitute host surfaces as
+   `workflow.problems` / server validation, by design. The spec also carries
+   `color?` (optional ink color for the TUI tree; none of ours set it — the
+   first-word palette is the default).
    A MISSING cache never fails the import: `loadSchemaFromCache` degrades to
    the base types with a LOUD log (a fresh consumer project has no
    `.comfy-ts/hosts/<id>/` yet — the bundled examples must still open in the
@@ -750,7 +767,7 @@ Live cloud proving is still pending — never from tests, CI has no key.
   true), set `false` by the cloud example, keeps live `connect()` / TUI
   re-codegen from writing any sdk.d.ts (schema updates stay in-memory — the
   committed catalog changes only through a deliberate gen run).
-- Cloud examples: `examples/05-comfy-cloud.cflow.ts` (reference) + the zoo
+- Cloud examples: `examples/rvion/05-comfy-cloud.cflow.ts` (reference) + the zoo
   under `examples/comfy-cloud/` — all through the shared
   `examples/comfy-cloud/cloudHost.ts` helper, key from
   `process.env.COMFY_CLOUD_API_KEY`. IMPORT-SAFE on a keyless machine (no

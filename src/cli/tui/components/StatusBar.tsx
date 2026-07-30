@@ -130,11 +130,25 @@ const MODE_KEYS: Partial<Record<string, Hint[]>> = {
       ['esc', 'cancel'],
    ],
    'overlay-drafts': [['⏎', 'load / new'], ...DRAFT_OP_HINTS, ['↑↓', 'move'], ['esc', 'cancel']],
-   tree: [['⏎', 'load'], ['↑↓', 'move'], ['←', 'fold'], ['→', 'unfold / vars'], ...DRAFT_OP_HINTS, ['t/esc', 'back']],
+   'overlay-hosts': [
+      ['⏎', 'pick run host'],
+      ['↑↓', 'move'],
+      ['esc', 'cancel'],
+   ],
+   tree: [
+      ['⏎', 'load'],
+      ['↑↓', 'move'],
+      ['←', 'fold'],
+      ['→', 'unfold / vars'],
+      ['/', 'filter'],
+      ...DRAFT_OP_HINTS,
+      ['t/esc', 'back'],
+   ],
    host: [
       ['⏎', 'run action'],
       ['↑↓', 'move'],
-      ['h/esc', 'back'],
+      ['h', 'change host'],
+      ['a/esc', 'back'],
    ],
    preview: [
       ['←→', 'change'],
@@ -147,15 +161,19 @@ const MODE_KEYS: Partial<Record<string, Hint[]>> = {
 export const KeyBar = observer((p: { st: TuiSt }) => {
    const s = p.st
    const kind = s.selected?.[1].kind
-   const modeHints: Hint[] = MODE_KEYS[s.mode] ?? [
-      ['↑↓', 'select'],
-      ['←', 'tree'],
-      ...(kind ? (KIND_KEYS[kind] ?? []) : []),
-   ]
-   // keys already advertised by a panel title (t/v/p) or a header box (w/d/h)
+   const treeFiltering = s.mode === 'tree' && s.tree.filtering
+   const modeHints: Hint[] = treeFiltering
+      ? [
+           ['type', 'filter'],
+           ['⏎', 'load'],
+           ['↑↓', 'move'],
+           ['esc', 'clear'],
+        ]
+      : (MODE_KEYS[s.mode] ?? [['↑↓', 'select'], ['←', 'tree'], ...(kind ? (KIND_KEYS[kind] ?? []) : [])])
+   // keys already advertised by a panel title (t/v/p) or a header box (w/d/h/a)
    // are NOT repeated here — one letter, one place
    const globalHints: Hint[] =
-      s.mode === 'nav' || s.mode === 'tree' || s.mode === 'host' || s.mode === 'preview'
+      !treeFiltering && (s.mode === 'nav' || s.mode === 'tree' || s.mode === 'host' || s.mode === 'preview')
          ? [
               ['r', 'run'],
               ['s', 'reroll+run'],

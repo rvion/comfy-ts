@@ -1,5 +1,5 @@
 // upload a local image (hash-named, deduped) and run img2img on it
-// run directly:  bun examples/02-img2img-upload.cflow.ts [path/to/image.png]
+// run directly:  bun examples/rvion/02-img2img-upload.cflow.ts [path/to/image.png]
 // in the TUI:    bun run tui — activate the `image` var to open the picker (browse, favorites, preview)
 import { asAbsolutePath, ComfyTS, exampleImagePath, MediaImage, v } from 'comfy-ts'
 
