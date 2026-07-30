@@ -10,8 +10,11 @@ Stack: Bun, TypeScript strict (nodenext), oxlint + oxfmt, tsdown for dist, bun t
 
 Push discipline: normal house rules (commit own work, push after committing).
 The pre-1.0 never-push order was lifted by Rémi 2026-07-30 with the 1.0.0
-release GO. `npm publish` stays a deliberate act, one explicit GO per release;
-the keychain token is `rv-secret get rv/npm/token`, used via a temp npmrc.
+release GO. Publishing: MINOR and PATCH versions may ship autonomously (his
+standing GO 2026-07-30, "publish new minor / patch versions along the way"):
+reviewed work only, CHANGELOG.md entry rewritten from the journal first,
+version bump, gate green, then publish. MAJOR versions still need his
+explicit GO. The keychain token is `rv-secret get rv/npm/token`, temp npmrc.
 
 ## Quick start
 
