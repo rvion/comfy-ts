@@ -491,7 +491,7 @@ describe('image var through DefinedWorkflow', () => {
       })
       expect(wf.vars.photo.name).toBe('photo')
       expect(wf.vars.seed.name).toBe('seed')
-      expect(wf.build()).rejects.toThrow("image var 'photo' is empty")
+      await expect(wf.build()).rejects.toThrow("image var 'photo' is empty")
    })
 
    it('a set image var builds: the graph consumes the plain path string', async () => {
