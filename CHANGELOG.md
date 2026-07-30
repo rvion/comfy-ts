@@ -1,5 +1,49 @@
 # comfy-ts
 
+## 1.1.0
+
+The model zoo release: 46 ready-to-run cloud workflows, a real image picker
+in the TUI, and a registry mirror that doubled.
+
+### The example zoo
+
+- `examples/comfy-cloud/`: 45 new workflow modules transcribed from the
+  official ComfyUI templates, named `<family>-<mode>` across 32 model
+  families: t2i (sdxl, sd3.5, flux1, flux2, qwen-image, z-image, chroma,
+  hidream, omnigen2, kandinsky5, krea2, and more), i2i edits, t2v and i2v
+  video (wan 2.1/2.2, ltxv, hunyuan video 1.5, svd, kandinsky5), t2a audio
+  (ace-step, stable-audio, chatterbox). Every file typechecks against the
+  committed Comfy Cloud catalog SDK and builds a problems-free graph
+  offline; each header names its source template and run command.
+- `examples/README.md` + a shared `cloudHost.ts` helper: one host setup, one
+  pattern. Keyless machines can still open everything in the TUI; standalone
+  runs ask for `COMFY_CLOUD_API_KEY` with a clear message.
+- Video/audio examples print where the result landed host-side (their
+  outputs are not downloadable images yet).
+
+### `v.image` + the TUI image picker
+
+- New var kind `v.image(path, { folder?, extensions? })`: a plain path
+  string (hand-editable in drafts), `~` expansion, typed loud error when a
+  build needs an image and none is set.
+- The TUI opens a full image picker on image vars: browse the disk, filter
+  as you type, favorite folders, recent picks, live preview of the
+  highlighted image in the preview panel. Favorites/recents/last folder
+  persist to a human-editable `.comfy-ts/image-picker.json`.
+- `examples/images/`: six bundled sample images (picsum.photos, Unsplash
+  sourced, free to use) with exact sizes in the filename
+  (`bear_1024x1024.jpg`…); `exampleImagePath('dog_512x512.jpg')` resolves
+  them from the installed package, so every i2i example runs out of the box.
+
+### Ecosystem registry, doubled
+
+- The ComfyUI-Manager mirror moved to the canonical Comfy-Org sources and
+  regenerated: 5882 plugins (was 2569), 41204 known custom node names (was
+  19278), 540 models. Every registry row is validated individually; a parse
+  report (accepted / skipped with causes) prints at every regeneration.
+- New npm keywords + description; the README gained hosts, codegen, and
+  examples sections reflecting all of the above.
+
 ## 1.0.0
 
 The 1.0: every Comfy is supported (local, LAN, Comfy Cloud, any provider),
