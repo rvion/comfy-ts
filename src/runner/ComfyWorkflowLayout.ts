@@ -15,9 +15,9 @@ import type { ComfyWorkflow } from 'src/runner/ComfyWorkflow.ts'
 export function comfyWorkflowAutoLayout(
    this: ComfyWorkflow,
    p?: {
-      /** @default: 20 */
+      /** @default: 40 */
       node_vsep?: number
-      /** @default: 20 */
+      /** @default: 100 */
       node_hsep?: number
       /** @default false */
       forceLeft?: boolean
@@ -70,8 +70,10 @@ export function comfyWorkflowAutoLayout(
       else cols[at] = [node]
    }
 
-   const HSEP = p?.node_hsep ?? 20
-   const VSEP = p?.node_vsep ?? 20
+   // real ComfyUI nodes render wider than the 200px layout estimate, so the
+   // horizontal gap is generous to keep pasted graphs readable
+   const HSEP = p?.node_hsep ?? 100
+   const VSEP = p?.node_vsep ?? 40
    // cols.reverse()
    let colX = 0
    let maxY = 0
