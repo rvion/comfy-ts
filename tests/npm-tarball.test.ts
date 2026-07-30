@@ -45,6 +45,10 @@ describe('npm tarball', () => {
       expect(paths.some((p) => p === 'src/index.ts')).toBe(true)
       expect(paths).toContain('LICENSE')
       expect(paths).toContain('README.md')
+      // npm force-includes README* whatever the whitelist says: the 1.0 README
+      // rework parked the old one as README.v1.md and it RODE THE TARBALL until
+      // deleted at approval. Only the one true README may ever ship.
+      expect(paths.filter((p) => /^README/i.test(p))).toEqual(['README.md'])
       // the TUI's no-arg discovery lists the packaged examples: they must ship
       expect(paths).toContain('examples/01-txt2img.cflow.ts')
    })
