@@ -67,6 +67,7 @@
       "gen:sdk": "bun scripts/gen-sdk-from-cache.ts",
       "gen:sdk:cloud": "bun src/cli/comfy-ts-cli.ts gen --id comfy-cloud --host https://cloud.comfy.org --out examples/comfy-cloud/sdk.d.ts && oxfmt examples/comfy-cloud/sdk.d.ts",
       "sdk:outline": "bun scripts/sdk-outline.ts",
+      "examples:images": "bun scripts/fetch-example-images.ts",
       "templates:fetch": "bun scripts/fetch-templates.ts",
       "templates:check": "bun scripts/check-templates.ts",
       "hooks:install": "git config core.hooksPath .githooks",
