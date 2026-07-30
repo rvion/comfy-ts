@@ -1,6 +1,6 @@
 # comfy-ts
 
-_the ultimate ComfyUI toolkit for TypeScript: `SDK` + `CLI` + `TUI` + agent guide_
+_the complete TypeScript toolkit for ComfyUI and generative AI. Fully type-safe SDK with autocomplete on every node, companion CLI, TUI, agentic docs, and 50+ examples. Design, run and deploy creative pipelines for image, video, audio, 3d and text on any ComfyUI, local, cloud or hosted._
 
 [![CI](https://github.com/rvion/comfy-ts/actions/workflows/ci.yml/badge.svg)](https://github.com/rvion/comfy-ts/actions/workflows/ci.yml)
 [![npm version](https://img.shields.io/npm/v/comfy-ts.svg)](https://www.npmjs.com/package/comfy-ts)
@@ -262,6 +262,7 @@ await txt2img.run({ log: true }) // fresh graph, fresh image
 | `v.seed`                | mode + number (`+ N` `- N` `= N` `? N`), advances itself: queued runs differ      |
 | `v.prompt`              | structured text: `//` comments stripped, `- ` lines become the negative prompt     |
 | `v.loras`               | RegExp resolved against the host's REAL lora list, fully typed, multi-select       |
+| `v.image`               | local image path, TUI picker attached; `exampleImagePath('bear_1024x1024.jpg')` defaults to a bundled sample |
 | `v.text` `v.int` `v.float` `v.toggle` `v.choice` `v.size` | the everyday knobs, ranges included          |
 
 `vars` can be a lambda receiving `v` so vars reference each other:
@@ -291,6 +292,8 @@ showing every available key.
 `r` runs, `s` rerolls the seed and runs, `o` opens the output, `c`/`C` copy
 workflow.json / api.json. Press `r` mid-run and it QUEUES with the values as
 they are right now. Drafts autosave: reopening lands you where you left off.
+Image vars open a full picker: browse the disk, favorite folders, recent
+picks, live preview of the highlighted image in the preview panel.
 
 ## ⌨️ The CLI
 

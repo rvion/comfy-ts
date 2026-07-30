@@ -1,13 +1,23 @@
 {
    "name": "comfy-ts",
    "version": "1.0.0",
-   "description": "Type-safe generative AI pipeline creation and execution using ComfyUI",
+   "description": "The complete TypeScript toolkit for ComfyUI and generative AI. Fully type-safe SDK with autocomplete on every node, companion CLI, TUI, agentic docs, and 50+ examples. Design, run and deploy creative pipelines for image, video, audio, 3d and text on any ComfyUI, local, cloud or hosted.",
    "keywords": [
       "comfyui",
-      "AI",
+      "generative-ai",
       "typescript",
+      "type-safe",
+      "sdk",
       "codegen",
-      "stable-diffusion"
+      "image-generation",
+      "video-generation",
+      "audio-generation",
+      "3d",
+      "stable-diffusion",
+      "flux",
+      "workflow",
+      "cli",
+      "tui"
    ],
    "author": "Rémi Vion <vion.remi@gmail.com>",
    "license": "MIT",
