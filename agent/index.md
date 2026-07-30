@@ -8,8 +8,10 @@ outputs, and ships a sidekick CLI (codegen, sdk outline, interactive TUI).
 Extracted from CushyStudio.
 Stack: Bun, TypeScript strict (nodenext), oxlint + oxfmt, tsdown for dist, bun test.
 
-🔴 FOR NOW: NEVER `git push`. Commit locally only — every change is reviewed
-locally before anything reaches GitHub or npm.
+Push discipline: normal house rules (commit own work, push after committing).
+The pre-1.0 never-push order was lifted by Rémi 2026-07-30 with the 1.0.0
+release GO. `npm publish` stays a deliberate act, one explicit GO per release;
+the keychain token is `rv-secret get rv/npm/token`, used via a temp npmrc.
 
 ## Quick start
 
