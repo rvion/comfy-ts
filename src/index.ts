@@ -83,7 +83,10 @@ export {
    ChoiceVar,
    LorasVar,
    SizeVar,
+   ImageVar,
+   ImageVarEmptyError,
    DEFAULT_SIZE_PRESETS,
+   DEFAULT_IMAGE_EXTENSIONS,
    activeLoras,
 } from 'src/vars/ComfyVars.ts'
 export type {
@@ -98,6 +101,7 @@ export type {
    ActiveLora,
    SizeValue,
    SizePreset,
+   ImageVarOpts,
 } from 'src/vars/ComfyVars.ts'
 export { DefinedWorkflow, type DefineWorkflowSpec, type BoundVars, type LoraNameOf } from 'src/vars/DefinedWorkflow.ts'
 export { getLoraKeyword, setLoraKeyword } from 'src/vars/loraKeywords.ts'

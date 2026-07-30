@@ -173,15 +173,21 @@ tests/                     bun tests (headless) + fixtures
    `extensions` filters the listing (default png/jpg/jpeg/webp/gif); neither
    affects the value. outValue() = the string (Out = T); the BUILD feeds it
    to upload exactly like example 02: `new MediaImage({ path:
-   asAbsolutePath(resolve(vars.image)) })` +
+   asAbsolutePath(imageVar.absPath()) })` +
    `loadInWorkflow_viaLoadImageNode(wf)` — no second upload path. Relative
-   paths stay relative in the value (resolved against cwd at build time);
-   `parse()` trims and expands a leading `~/`; display() contracts $HOME to
-   `~`. EMPTY value = unset: the build throws a LOUD typed error naming the
-   var ("image var 'image' is empty — pick a file"), never a silent
-   placeholder (example 02's generated-placeholder stopgap dies with this;
-   examples default to a bundled `examples/images/` file instead, see
-   agent/examples.md).
+   paths stay relative in the VALUE; `ImageVar.absPath()` is the one
+   resolution helper (absolute kept as-is, relative resolved against
+   `opts.folder` when set, else cwd) — builds call it on the VAR OBJECT
+   (captured const or `workflow.vars.image`; the build lambda's `vars`
+   param carries outValue() strings). Every write funnels through `set()`: trim + leading
+   `~/` expanded; display() contracts $HOME to `~`. EMPTY value = unset:
+   `outValue()`/`absPath()` throw `ImageVarEmptyError` ("image var 'image'
+   is empty — pick a file"), so any build consuming varValues fails LOUD,
+   never a silent placeholder (example 02's generated-placeholder stopgap
+   dies with this; examples default to a bundled `examples/images/` file
+   instead, see agent/examples.md). The error NAMES the var: DefinedWorkflow
+   stamps each var's spec key onto `var.name` at define time (same loop as
+   bindHost).
    Vars expose `outValue(): Out` (what the graph consumes) next to
    `toJSON()` (what drafts persist): `ComfyVarBase<T, Out>` declares it
    abstract, `ComfyVar<T> = ComfyVarBase<T, T>` returns the raw value —

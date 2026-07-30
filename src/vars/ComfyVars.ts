@@ -1,10 +1,12 @@
 // Vars: the standard "tweak & re-run" contract. A workflow defined via
 // host.defineWorkflow({ vars, build }) rebuilds its graph from current var
 // values on every run — drivers (scripts, the TUI) edit vars between runs.
+import { homedir } from 'node:os'
 import { action, makeObservable, observable } from 'mobx'
+import { isAbsolute, join, resolve } from 'pathe'
 import { getLoraKeyword } from 'src/vars/loraKeywords.ts'
 
-export type VarKind = 'text' | 'int' | 'float' | 'seed' | 'toggle' | 'choice' | 'loras' | 'size'
+export type VarKind = 'text' | 'int' | 'float' | 'seed' | 'toggle' | 'choice' | 'loras' | 'size' | 'image'
 
 /**
  * full base: T is what's STORED/edited, Out what the GRAPH consumes at build
@@ -14,6 +16,8 @@ export type VarKind = 'text' | 'int' | 'float' | 'seed' | 'toggle' | 'choice' | 
  */
 export abstract class ComfyVarBase<T, Out> {
    abstract readonly kind: VarKind
+   /** the vars-spec key, stamped by DefinedWorkflow at define time — error messages name the var with it */
+   name?: string
    value: T
    constructor(
       public readonly defaultValue: T,
@@ -474,7 +478,80 @@ export class SizeVar extends ComfyVar<SizeValue> {
    }
 }
 
-/** the var constructors: v.text / v.prompt / v.int / v.float / v.seed / v.toggle / v.choice / v.loras / v.size */
+export type ImageVarOpts = {
+   /** where the TUI picker starts browsing AND what relative values resolve against (absPath) */
+   folder?: string
+   /** picker listing filter, lowercase without dots; never affects the value */
+   extensions?: readonly string[]
+   label?: string
+}
+
+export const DEFAULT_IMAGE_EXTENSIONS: readonly string[] = ['png', 'jpg', 'jpeg', 'webp', 'gif']
+
+/** empty image var consumed at build time — typed so drivers surface it apart from real crashes */
+export class ImageVarEmptyError extends Error {
+   constructor(public readonly varName: string) {
+      super(`image var '${varName}' is empty — pick a file (TUI: activate the var; script: .set('/path/to/image.png'))`)
+   }
+}
+
+/** trim + expand a leading `~/` — every ImageVar write funnels through this */
+function expandUserPath(raw: string): string {
+   const trimmed = raw.trim()
+   return trimmed.startsWith('~/') ? join(homedir(), trimmed.slice(2)) : trimmed
+}
+
+/**
+ * a local image path. The VALUE is a PLAIN PATH STRING — text-encodable,
+ * drafts persist it verbatim (toJSON = the string), hand-editable in the
+ * draft json. Empty = unset: outValue()/absPath() throw ImageVarEmptyError,
+ * so a build never runs on a silent placeholder. The TUI opens the image
+ * picker overlay for kind 'image'.
+ */
+export class ImageVar extends ComfyVar<string> {
+   readonly kind = 'image' as const
+   constructor(
+      defaultValue: string,
+      public opts: ImageVarOpts = {},
+   ) {
+      super(expandUserPath(defaultValue), opts.label)
+   }
+   /** what the picker lists (lowercase, no dots) */
+   get extensions(): readonly string[] {
+      return this.opts.extensions ?? DEFAULT_IMAGE_EXTENSIONS
+   }
+   override set(value: string): this {
+      return super.set(expandUserPath(value))
+   }
+   parse(raw: string): boolean {
+      this.set(raw)
+      return true
+   }
+   isSet(): boolean {
+      return this.value !== ''
+   }
+   private emptyError(): ImageVarEmptyError {
+      return new ImageVarEmptyError(this.name ?? this.label ?? 'image')
+   }
+   /** the ONE resolution helper: absolute kept as-is, relative resolved against opts.folder, else cwd */
+   absPath(): string {
+      if (!this.isSet()) throw this.emptyError()
+      if (isAbsolute(this.value)) return this.value
+      return resolve(this.opts.folder ?? process.cwd(), this.value)
+   }
+   /** empty = unset: the build fails LOUD here (varValues calls outValue) */
+   override outValue(): string {
+      if (!this.isSet()) throw this.emptyError()
+      return this.value
+   }
+   override display(): string {
+      if (!this.isSet()) return '(unset) pick a file'
+      const home = homedir()
+      return this.value.startsWith(`${home}/`) ? `~${this.value.slice(home.length)}` : this.value
+   }
+}
+
+/** the var constructors: v.text / v.prompt / v.int / v.float / v.seed / v.toggle / v.choice / v.loras / v.size / v.image */
 export const v = {
    text: (defaultValue: string, label?: string): TextVar => new TextVar(defaultValue, label),
    prompt: (defaultValue: string, opts: { label?: string; loraKeywordsFrom?: ActiveLoraSource } = {}): PromptVar =>
@@ -494,6 +571,7 @@ export const v = {
    ): LorasVar<T> => new LorasVar(options, initial, label),
    size: (defaultValue?: SizeValue, opts: { presets?: SizePreset[]; label?: string } = {}): SizeVar =>
       new SizeVar(defaultValue, opts.presets, opts.label),
+   image: (defaultValue: string, opts: ImageVarOpts = {}): ImageVar => new ImageVar(defaultValue, opts),
 }
 
 /**
@@ -505,6 +583,8 @@ export type AnyVar = {
    readonly kind: VarKind
    readonly value: unknown
    readonly label?: string
+   /** the vars-spec key — DefinedWorkflow writes it at define time */
+   name?: string
    parse(raw: string): boolean
    loadJSON(value: unknown): unknown
    toJSON(): unknown

@@ -70,8 +70,13 @@ export class DefinedWorkflow<ID extends string = string, V extends VarsSpec = Va
       // factory BoundVars describes; the regex-loras typing claim it adds is
       // resolved from the same object_info enum via bindHost below
       this.vars = isVarsThunk(spec.vars) ? spec.vars(v as BoundVars<ID>) : spec.vars
-      // host-dependent vars (v.loras(regex)) resolve NOW, at define time
-      for (const [, varDef] of this.entries()) varDef.bindHost?.(this.host)
+      // define-time var wiring: the spec key becomes the var's name (error
+      // messages name the var with it), host-dependent vars (v.loras(regex))
+      // resolve their options
+      for (const [key, varDef] of this.entries()) {
+         varDef.name = key
+         varDef.bindHost?.(this.host)
+      }
    }
 
    /** [name, var] pairs, for drivers that enumerate the knobs */

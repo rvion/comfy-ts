@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'bun:test'
-import { activeLoras, v, varValues } from 'src/vars/ComfyVars.ts'
+import { homedir } from 'node:os'
+import { join, resolve } from 'pathe'
+import { activeLoras, DEFAULT_IMAGE_EXTENSIONS, ImageVarEmptyError, v, varValues } from 'src/vars/ComfyVars.ts'
 
 describe('vars', () => {
    it('derives value types and snapshots values', () => {
@@ -120,6 +122,50 @@ describe('vars', () => {
       expect(size.parse('garbage')).toBe(false)
       expect(size.parse('16:9 widescreen')).toBe(true)
       expect(size.value).toEqual({ width: 1344, height: 768 })
+   })
+})
+
+describe('image var', () => {
+   it('value is a plain path string: toJSON persists it verbatim, loadJSON restores it', () => {
+      const img = v.image('/tmp/pics/cat.png')
+      expect(img.kind).toBe('image')
+      expect(img.value).toBe('/tmp/pics/cat.png')
+      expect(img.toJSON()).toBe('/tmp/pics/cat.png') // text-encodable, hand-editable in draft json
+      expect(varValues({ img }).img).toBe('/tmp/pics/cat.png')
+      const restored = v.image('')
+      restored.loadJSON(img.toJSON())
+      expect(restored.value).toBe('/tmp/pics/cat.png')
+   })
+
+   it('every write trims and expands a leading ~/, display contracts $HOME back to ~', () => {
+      const img = v.image('')
+      expect(img.parse('  ~/pics/dog.jpg  ')).toBe(true)
+      expect(img.value).toBe(join(homedir(), 'pics/dog.jpg'))
+      expect(img.display()).toBe('~/pics/dog.jpg')
+      // the constructor default goes through the same normalization
+      expect(v.image('~/pics/cat.png').value).toBe(join(homedir(), 'pics/cat.png'))
+   })
+
+   it('absPath: absolute kept as-is, relative resolves against opts.folder, else cwd', () => {
+      expect(v.image('/abs/x.png').absPath()).toBe('/abs/x.png')
+      expect(v.image('x.png', { folder: '/some/folder' }).absPath()).toBe('/some/folder/x.png')
+      expect(v.image('x.png').absPath()).toBe(resolve(process.cwd(), 'x.png'))
+   })
+
+   it('empty = unset: outValue/absPath throw the typed error naming the var', () => {
+      const img = v.image('')
+      expect(img.isSet()).toBe(false)
+      expect(img.display()).toBe('(unset) pick a file')
+      expect(() => img.outValue()).toThrow(ImageVarEmptyError)
+      expect(() => varValues({ photo: img })).toThrow(/'image'/) // unstamped fallback name
+      img.name = 'photo' // what DefinedWorkflow stamps at define time
+      expect(() => img.absPath()).toThrow(/'photo'/)
+   })
+
+   it('extensions: default picker family, overridable, never affects the value', () => {
+      expect(v.image('').extensions).toEqual(DEFAULT_IMAGE_EXTENSIONS)
+      expect(v.image('', { extensions: ['png'] }).extensions).toEqual(['png'])
+      expect(v.image('a.gif', { extensions: ['png'] }).value).toBe('a.gif')
    })
 })
 

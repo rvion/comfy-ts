@@ -481,6 +481,34 @@ describe('seed advance through DefinedWorkflow', () => {
    })
 })
 
+describe('image var through DefinedWorkflow', () => {
+   it('define time stamps spec keys onto vars; an empty image var fails the build LOUD, naming the var', async () => {
+      const { v } = await import('src/vars/ComfyVars.ts')
+      const wf = host.defineWorkflow({
+         id: 'image-var-empty',
+         vars: { photo: v.image(''), seed: v.seed(1) },
+         build: () => {},
+      })
+      expect(wf.vars.photo.name).toBe('photo')
+      expect(wf.vars.seed.name).toBe('seed')
+      expect(wf.build()).rejects.toThrow("image var 'photo' is empty")
+   })
+
+   it('a set image var builds: the graph consumes the plain path string', async () => {
+      const { v } = await import('src/vars/ComfyVars.ts')
+      let seen = ''
+      const wf = host.defineWorkflow({
+         id: 'image-var-set',
+         vars: { photo: v.image('/tmp/in/dog_512x512.jpg') },
+         build: (_b, vars) => {
+            seen = vars.photo
+         },
+      })
+      await wf.build()
+      expect(seen).toBe('/tmp/in/dog_512x512.jpg')
+   })
+})
+
 describe('prompt editor line ops', () => {
    it('line home/end, ⌥↑↓ line swap, comment toggle', async () => {
       const { v } = await import('src/vars/ComfyVars.ts')
