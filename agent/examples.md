@@ -16,8 +16,7 @@ examples/
       03-export-workflow-json.cflow.ts
       04-krea2-turbo-t2i.cflow.ts
       05-comfy-cloud.cflow.ts    cloud intro = the zoo's sd15/t2i row (reference impl)
-      06-z-image-edit.cflow.ts   local edit models on windows-1 (no official
-      07-qwen-image-edit.cflow.ts   template for z-image edit: omni-encode wiring)
+      06-qwen-image-edit.cflow.ts   local edit model on windows-1 (edit 2511)
    comfy-cloud/
       sdk.d.ts                   committed cloud catalog (gen:sdk:cloud)
       cloudHost.ts               shared host helper — NOT .cflow, invisible to the TUI

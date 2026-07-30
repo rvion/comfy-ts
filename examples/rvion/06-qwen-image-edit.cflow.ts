@@ -2,7 +2,7 @@
 // mirrors the official image_qwen_image_edit_2511 template, single reference
 // image; the lightning toggle switches the 4-step Lightning lora (cfg 1) vs
 // full sampling (cfg 4 — raise steps to ~40 yourself when you flip it off)
-// run directly:  bun examples/rvion/07-qwen-image-edit.cflow.ts [path/to/image.png] ["edit instruction"]
+// run directly:  bun examples/rvion/06-qwen-image-edit.cflow.ts [path/to/image.png] ["edit instruction"]
 import { asAbsolutePath, ComfyTS, exampleImagePath, MediaImage, v } from 'comfy-ts'
 
 const comfy = ComfyTS.create()

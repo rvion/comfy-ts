@@ -12,8 +12,8 @@ with bun, or browse them all in the TUI (`bunx comfy-ts tui` lists them under
 - `rvion/05-comfy-cloud.cflow.ts` — the same t2i against [Comfy Cloud]
   (https://cloud.comfy.org): no local GPU needed, the typed catalog ships
   committed at `comfy-cloud/sdk.d.ts`.
-- `rvion/06…07-*.cflow.ts` — image-edit workflows (z-image omni encode, qwen
-  image edit 2511) against the same local host.
+- `rvion/06-qwen-image-edit.cflow.ts` — image editing (qwen image edit 2511)
+  against the same local host.
 - `comfy-cloud/<family>-<mode>.cflow.ts` — the model zoo: one clean example
   per model family × mode (`t2i`, `i2i`, `t2v`, `i2v`, `t2a`), each mirroring
   an official ComfyUI template (flux, qwen-image, z-image, wan, hidream,

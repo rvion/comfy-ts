@@ -412,8 +412,7 @@ Start with the didactic sequence in [`examples/rvion/`](examples/rvion/):
 | [`03-export-workflow-json`](examples/rvion/03-export-workflow-json.cflow.ts)                   | OFFLINE graph building, export api.json + readable workflow.json            |
 | [`04-krea2-turbo-t2i`](examples/rvion/04-krea2-turbo-t2i.cflow.ts)                             | a real pipeline: krea2 turbo, lora stack, RMBG cutout → transparent png     |
 | [`05-comfy-cloud`](examples/rvion/05-comfy-cloud.cflow.ts)                                     | the same code on Comfy Cloud: `url` + `apiKey` host, typechecked against the committed catalog SDK |
-| [`06-z-image-edit`](examples/rvion/06-z-image-edit.cflow.ts)                                   | image editing: Z-Image omni reference conditioning over the turbo weights   |
-| [`07-qwen-image-edit`](examples/rvion/07-qwen-image-edit.cflow.ts)                             | Qwen Image Edit 2511, lightning 4-step lora toggle                          |
+| [`06-qwen-image-edit`](examples/rvion/06-qwen-image-edit.cflow.ts)                             | Qwen Image Edit 2511, lightning 4-step lora toggle                          |
 
 ### The model zoo: 46 cloud workflows, 32 model families
 
