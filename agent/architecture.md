@@ -686,10 +686,18 @@ tests/                     bun tests (headless) + fixtures
    stay first-class in the TUI: ExecSt keeps `outputImages: MediaImage[]`
    (not paths), the outputs box below the vars panel lists memory images as
    `filename (WxH, in memory)`, the preview panel renders from the buffer,
-   and `o` (OS viewer) / `i` (clipboard) MATERIALIZE the bytes to one os
-   tmpdir file per image on demand (`comfy-ts-mem-<hash8>.<ext>`, cached
-   per image, popup names the path) — deliberate user action, not a silent
-   save.
+   and `i` (clipboard) copies WITHOUT touching disk (his ask 2026-07-31:
+   "is that mandatory ?" — it was not): the image is normalized to png in
+   memory (sharp) and PIPED over stdin — darwin: osascript reads the
+   SCRIPT from stdin (`-`) carrying a `«data PNGf<hex>»` literal; win32:
+   base64 on stdin rebuilt via MemoryStream → Clipboard.SetImage; linux:
+   xclip `-t image/png` reads stdin natively
+   (`imageClipboardStdinCommand`, pure + tested). Only if the piped tool
+   FAILS does `i` fall back to materializing one os tmpdir file
+   (`comfy-ts-mem-<hash8>.<ext>`, hash-derived path, popup names it). `o`
+   (OS viewer) always materializes — a viewer opens a path by nature.
+   Either way the popup/notice says which route ran: no silent disk
+   writes.
    EPHEMERAL SUGAR: `RunSettings.ephemeral?: boolean` rewrites every
    `SaveImage` node to `SaveImageWebsocket` (drop `filename_prefix`) in the
    SENT snapshot only, via the pure `rewriteSaveNodesToWebsocket(apiJson)`

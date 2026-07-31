@@ -5,7 +5,7 @@ import { makeAutoObservable, runInAction } from 'mobx'
 import { basename, join } from 'pathe'
 import type { ComfyHost } from 'src/host/ComfyHost.ts'
 import type { ExecutionProgress } from 'src/runner/ComfyExecution.ts'
-import { imageClipboardCommand } from 'src/cli/tui/imageClipboard.ts'
+import { imageClipboardCommand, imageClipboardStdinCommand } from 'src/cli/tui/imageClipboard.ts'
 import { extractErrorMessage } from 'src/utils/extractErrorMessage.ts'
 import type { SeedVar } from 'src/vars/ComfyVars.ts'
 import type { TuiSt } from 'src/cli/tui/state/TuiSt.ts'
@@ -203,60 +203,81 @@ export class ExecSt {
       this.copyPopup = { title, ok, lines }
       this.st.mode = 'overlay-copy'
    }
-   /** 'i': the LAST generated image's pixels → clipboard (paste anywhere) */
+   /** 'i': the LAST generated image's pixels → clipboard (paste anywhere).
+    * The primary route pipes png bytes over stdin — no disk write at all
+    * (his ask 2026-07-31); only when that tool fails does it fall back to
+    * the materialized-file command, and the popup says which route ran. */
    async copyLastImage(): Promise<void> {
       const lastImg = this.outputImages[this.outputImages.length - 1]
       if (lastImg == null) {
          this.showCopyPopup('image → clipboard', false, ['no output image yet — r runs the workflow first'])
          return
       }
-      let last: string
+      // normalize to png IN MEMORY: osascript/PS tag bytes, they never transcode
+      let pngBytes: Uint8Array
       try {
-         last = this.materialize(lastImg)
+         pngBytes = lastImg.metadata.type === 'png' ? lastImg.buffer : await this.toPngBytes(lastImg.buffer)
       } catch (e) {
          this.showCopyPopup('image → clipboard', false, [
             `COPY FAILED for ${lastImg.filename}`,
-            `could not write the memory image to tmp: ${extractErrorMessage(e)}`,
+            `png transcode failed: ${extractErrorMessage(e)}`,
          ])
          return
       }
-      let file = last
-      let command = imageClipboardCommand(process.platform, file)
-      if (command == null && process.platform === 'darwin') {
-         // osascript only tags bytes — webp/etc must become real png first
-         try {
-            const { default: sharp } = await import('sharp')
-            const { tmpdir } = await import('node:os')
-            const { join } = await import('pathe')
-            file = join(tmpdir(), `comfy-ts-clip-${Date.now()}.png`)
-            await sharp(last).png().toFile(file)
-            command = imageClipboardCommand(process.platform, file)
-         } catch (e) {
-            this.showCopyPopup('image → clipboard', false, [
-               `COPY FAILED for ${basename(last)}`,
-               `png transcode failed: ${extractErrorMessage(e)}`,
-            ])
-            return
-         }
-      }
-      if (command == null) {
-         this.showCopyPopup('image → clipboard', false, [`no clipboard image tool for ${process.platform}`])
+      const piped = imageClipboardStdinCommand(process.platform, pngBytes)
+      const pipedOk = await this.runWithStdin(piped)
+      if (pipedOk) {
+         this.showCopyPopup('image → clipboard', true, [
+            `${lastImg.filename} — paste the pixels anywhere`,
+            '',
+            'nothing written to disk',
+         ])
          return
       }
-      const cmd = command
-      const ok = await new Promise<boolean>((resolve) => {
-         const proc = spawn(cmd.cmd, cmd.args, { stdio: 'ignore' })
-         proc.on('error', () => resolve(false))
-         proc.on('close', (code) => resolve(code === 0))
-      })
+      // fallback: the piped tool failed (missing/blocked) — try the file route
+      let file: string
+      try {
+         file = this.materialize(lastImg)
+      } catch (e) {
+         this.showCopyPopup('image → clipboard', false, [
+            `COPY FAILED for ${lastImg.filename}`,
+            `piped ${piped.cmd} failed, and the tmp-file fallback could not write: ${extractErrorMessage(e)}`,
+         ])
+         return
+      }
+      const command = imageClipboardCommand(process.platform, file)
+      const ok =
+         command != null &&
+         (await new Promise<boolean>((resolve) => {
+            const proc = spawn(command.cmd, command.args, { stdio: 'ignore' })
+            proc.on('error', () => resolve(false))
+            proc.on('close', (code) => resolve(code === 0))
+         }))
       runInAction(() => {
          this.showCopyPopup(
             'image → clipboard',
             ok,
             ok
-               ? [`${basename(last)} — paste the pixels anywhere`, '', last]
-               : [`COPY FAILED for ${basename(last)}`, `could not run ${cmd.cmd} — is it installed and allowed ?`],
+               ? [`${basename(file)} — paste the pixels anywhere`, '', `via fallback file ${file}`]
+               : [`COPY FAILED for ${lastImg.filename}`, `could not run ${piped.cmd} — is it installed and allowed ?`],
          )
+      })
+   }
+
+   private async toPngBytes(bytes: Uint8Array): Promise<Uint8Array> {
+      const { default: sharp } = await import('sharp')
+      return new Uint8Array(await sharp(bytes).png().toBuffer())
+   }
+
+   private runWithStdin(p: { cmd: string; args: string[]; stdin: Uint8Array }): Promise<boolean> {
+      return new Promise((resolve) => {
+         const proc = spawn(p.cmd, p.args, { stdio: ['pipe', 'ignore', 'ignore'] })
+         proc.on('error', () => resolve(false))
+         proc.on('close', (code) => resolve(code === 0))
+         // EPIPE when the tool is missing/dies early: the close handler decides
+         proc.stdin.on('error', () => {})
+         proc.stdin.write(p.stdin)
+         proc.stdin.end()
       })
    }
 

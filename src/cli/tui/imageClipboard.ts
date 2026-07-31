@@ -7,6 +7,46 @@ const extOf = (path: string): string => {
    return dot === -1 ? '' : path.slice(dot + 1).toLowerCase()
 }
 
+/** platform command that puts PNG bytes on the clipboard from STDIN — no
+ * file ever touches disk (his ask 2026-07-31). The caller pipes `stdin`
+ * into the spawned process and closes it. */
+export type ImageClipboardStdinCommand = { cmd: string; args: string[]; stdin: Uint8Array }
+
+export const imageClipboardStdinCommand = (
+   platform: NodeJS.Platform,
+   pngBytes: Uint8Array,
+): ImageClipboardStdinCommand => {
+   if (platform === 'darwin') {
+      // osascript reads the SCRIPT itself from stdin (`-`): a «data PNGf<hex>»
+      // literal carries the pixels inside the script — hex doubles the size,
+      // so multi-MB images take a beat; the caller falls back to the file
+      // command when this exits non-zero
+      const hex = Buffer.from(pngBytes).toString('hex').toUpperCase()
+      return {
+         cmd: 'osascript',
+         args: ['-'],
+         stdin: new TextEncoder().encode(`set the clipboard to «data PNGf${hex}»`),
+      }
+   }
+   if (platform === 'win32') {
+      // base64 rides stdin; PS rebuilds the image from a MemoryStream — no
+      // user-controlled string ever lands in the script (quoting stays trivial)
+      const script =
+         '$b=[Convert]::FromBase64String([Console]::In.ReadToEnd()); ' +
+         '$ms=New-Object System.IO.MemoryStream(,$b); ' +
+         'Add-Type -AssemblyName System.Windows.Forms,System.Drawing; ' +
+         '$img=[System.Drawing.Image]::FromStream($ms); ' +
+         '[System.Windows.Forms.Clipboard]::SetImage($img); $img.Dispose()'
+      return {
+         cmd: 'powershell',
+         args: ['-NoProfile', '-Sta', '-Command', script],
+         stdin: new TextEncoder().encode(Buffer.from(pngBytes).toString('base64')),
+      }
+   }
+   // xclip reads the image bytes from stdin natively
+   return { cmd: 'xclip', args: ['-selection', 'clipboard', '-t', 'image/png'], stdin: pngBytes }
+}
+
 export const imageClipboardCommand = (platform: NodeJS.Platform, path: string): ImageClipboardCommand | null => {
    const ext = extOf(path)
    if (platform === 'darwin') {

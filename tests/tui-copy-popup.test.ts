@@ -99,6 +99,40 @@ describe('imageClipboardCommand (pure): platform command for copying image PIXEL
    })
 })
 
+describe('imageClipboardStdinCommand (pure): png bytes over stdin, zero disk writes', () => {
+   const bytes = Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0xab, 0x00, 0xff])
+
+   it('darwin: the script itself rides stdin and carries a «data PNGf<hex>» literal', async () => {
+      const { imageClipboardStdinCommand } = await import('src/cli/tui/imageClipboard.ts')
+      const c = imageClipboardStdinCommand('darwin', bytes)
+      expect(c.cmd).toBe('osascript')
+      expect(c.args).toEqual(['-'])
+      const script = new TextDecoder().decode(c.stdin)
+      expect(script).toContain('«data PNGf89504E47AB00FF»')
+      // the pixels live inside the script: no path anywhere
+      expect(script).not.toContain('/')
+   })
+
+   it('win32: base64 rides stdin, the script rebuilds from a MemoryStream (no file, no quoting surface)', async () => {
+      const { imageClipboardStdinCommand } = await import('src/cli/tui/imageClipboard.ts')
+      const c = imageClipboardStdinCommand('win32', bytes)
+      expect(c.cmd).toBe('powershell')
+      const script = c.args.join(' ')
+      expect(script).toContain('FromBase64String')
+      expect(script).toContain('SetImage')
+      expect(new TextDecoder().decode(c.stdin)).toBe(Buffer.from(bytes).toString('base64'))
+   })
+
+   it('linux: xclip reads the raw png bytes from stdin', async () => {
+      const { imageClipboardStdinCommand } = await import('src/cli/tui/imageClipboard.ts')
+      const c = imageClipboardStdinCommand('linux', bytes)
+      expect(c.cmd).toBe('xclip')
+      expect(c.args).toContain('image/png')
+      expect(c.args).not.toContain('-i')
+      expect(c.stdin).toEqual(bytes)
+   })
+})
+
 describe('`i` copy last image: never silent, popup like c/C', () => {
    it('no output yet: a RED popup says so instead of doing nothing', async () => {
       const { TuiSt } = await import('src/cli/tui/state/TuiSt.ts')
