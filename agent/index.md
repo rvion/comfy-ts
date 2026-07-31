@@ -1,56 +1,28 @@
 # comfy-ts
 
-Type-safe ComfyUI companion library for TypeScript, published on npm as `comfy-ts`.
-Connects to any number of ComfyUI hosts (local or remote), generates ONE typed SDK
-per host (`Comfy.<HostNs>.*` global namespaces), lets you build workflows
-programmatically with full autocomplete, executes them over websocket, retrieves
-outputs, and ships a sidekick CLI (codegen, sdk outline, interactive TUI).
-Extracted from CushyStudio.
-Stack: Bun, TypeScript strict (nodenext), oxlint + oxfmt, tsdown for dist, bun test.
+Type-safe ComfyUI companion library for TypeScript, published on npm as `comfy-ts`. Connects to any number of ComfyUI hosts (local or remote), generates ONE typed SDK per host (`Comfy.<HostNs>.*` global namespaces), lets you build workflows programmatically with full autocomplete, executes them over websocket, retrieves outputs, and ships a sidekick CLI (codegen, sdk outline, interactive TUI). Extracted from CushyStudio. Stack: Bun, TypeScript strict (nodenext), oxlint + oxfmt, tsdown for dist, bun test.
 
-Push discipline: normal house rules (commit own work, push after committing).
-The pre-1.0 never-push order was lifted by Rémi 2026-07-30 with the 1.0.0
-release GO. Publishing: MINOR and PATCH versions may ship autonomously (his
-standing GO 2026-07-30, "publish new minor / patch versions along the way"):
-reviewed work only, CHANGELOG.md entry rewritten from the journal first,
-version bump, then `bun run release` (scripts/release.ts) does the rest:
-preflight (clean tree, version unpublished, changelog section present), npm
-publish (prepublishOnly runs the gate + build; keychain token
-`rv-secret get rv/npm/token`, temp npmrc), annotated git tag `vX.Y.Z`, push
-with tags, GitHub release with the changelog section as notes. Every
-publication gets a tag AND a GitHub release (his order 2026-07-30). MAJOR
-versions still need his explicit GO. `bun run release --dry-run` prints the
-plan and runs only the checks.
+Push discipline: normal house rules (commit own work, push after committing). The pre-1.0 never-push order was lifted by Rémi 2026-07-30 with the 1.0.0 release GO. Publishing: MINOR and PATCH versions may ship autonomously (his standing GO 2026-07-30, "publish new minor / patch versions along the way"): reviewed work only, CHANGELOG.md entry rewritten from the journal first, version bump, then `bun run release` (scripts/release.ts) does the rest: preflight (clean tree, version unpublished, changelog section present), npm publish (prepublishOnly runs the gate + build; keychain token `rv-secret get rv/npm/token`, temp npmrc), annotated git tag `vX.Y.Z`, push with tags, GitHub release with the changelog section as notes. Every publication gets a tag AND a GitHub release (his order 2026-07-30). MAJOR versions still need his explicit GO. `bun run release --dry-run` prints the plan and runs only the checks.
 
 ## Quick start
 
-- `bun run ci` — typecheck:lib + lint + format + imports + tests (the gate; what
-  GitHub runs, portable to a clone with no host sdk on disk)
-- `bun run ci:local` — the gate PLUS the full typecheck (examples included, needs
-  a generated `.comfy-ts/hosts/*/sdk.d.ts`) — use this one while developing here
+- `bun run ci` — typecheck:lib + lint + format + imports + tests (the gate; what GitHub runs, portable to a clone with no host sdk on disk)
+- `bun run ci:local` — the gate PLUS the full typecheck (examples included, needs a generated `.comfy-ts/hosts/*/sdk.d.ts`) — use this one while developing here
 - `bun run gen:sdk` — regenerate `.comfy-ts/hosts/<id>/sdk.d.ts` from cached object_info
 - `bun run sdk:outline` — inspect a generated sdk.d.ts section by section
-- `bun run templates:fetch` — mirror every official Comfy-Org template/blueprint
-  JSON into `.comfy-ts/templates/` (gitignored upstream data cache)
-- `bun run templates:check` — compat sweep of that corpus against our litegraph
-  schemas; the failure ranking is the format-grind worklist
+- `bun run templates:fetch` — mirror every official Comfy-Org template/blueprint JSON into `.comfy-ts/templates/` (gitignored upstream data cache)
+- `bun run templates:check` — compat sweep of that corpus against our litegraph schemas; the failure ranking is the format-grind worklist
 - `bun run tui` opens the TUI over `**/*.cflow.ts` under cwd (tweak & re-run)
 - `bun run serve` exposes drafts as a local HTTP API (`POST /generate/<module>/<draft>`)
 - `bun run hooks:install` activates the banned-keywords commit guard (`.githooks/`)
-- examples in `examples/` are `*.cflow.ts` workflow modules: they import offline
-  from the schema cache, connect to a live ComfyUI host on first run
+- examples in `examples/` are `*.cflow.ts` workflow modules: they import offline from the schema cache, connect to a live ComfyUI host on first run
 
 Full spec in this folder — update docs BEFORE changing code.
 
 ## Two changelogs, and they never mix
 
-- `.rv-journal/changelog.md` — PRIVATE (gitignored, stays on this machine).
-  The engineering journal: session by session, what broke, which repro drove
-  the fix, dead ends, who asked for what. Write here first, freely.
-- `CHANGELOG.md` — PUBLIC, shipped in the npm tarball and on GitHub. Only what
-  a USER of the library can observe: new API, changed behaviour, breaking
-  renames. No session numbers, no repro anecdotes, no names, no intermediate
-  states that were wrong before they were right.
+- `.rv-journal/changelog.md` — PRIVATE (gitignored, stays on this machine). The engineering journal: session by session, what broke, which repro drove the fix, dead ends, who asked for what. Write here first, freely.
+- `CHANGELOG.md` — PUBLIC, shipped in the npm tarball and on GitHub. Only what a USER of the library can observe: new API, changed behaviour, breaking renames. No session numbers, no repro anecdotes, no names, no intermediate states that were wrong before they were right.
 
 A release rewrites the public entry FROM the journal; it never copies it.
 

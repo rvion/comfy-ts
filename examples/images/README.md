@@ -1,12 +1,8 @@
 # Bundled example input images
 
-Default inputs for the i2i/i2v examples — they ship in the npm tarball so
-every example runs out of the box. The exact pixel size is in each filename.
+Default inputs for the i2i/i2v examples — they ship in the npm tarball so every example runs out of the box. The exact pixel size is in each filename.
 
-Source: [picsum.photos](https://picsum.photos), which serves Unsplash-sourced
-photos, free to use. Fetched and re-encoded (jpeg q80, metadata stripped) by
-`scripts/fetch-example-images.ts` — the manifest in that script is the source
-of truth; regeneration is deliberate (`bun run examples:images`).
+Source: [picsum.photos](https://picsum.photos), which serves Unsplash-sourced photos, free to use. Fetched and re-encoded (jpeg q80, metadata stripped) by `scripts/fetch-example-images.ts` — the manifest in that script is the source of truth; regeneration is deliberate (`bun run examples:images`).
 
 | file                  | size      | picsum id                                  | author                                                       |
 | --------------------- | --------- | ------------------------------------------ | ------------------------------------------------------------ |
