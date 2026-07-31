@@ -54,9 +54,6 @@ function packedSourceFiles(): string[] {
    return out
 }
 
-/** the upstream ComfyUI-Manager mirrors: huge, third-party, and not model inventories */
-const UPSTREAM_MIRRORS = /^src\/manager\/json\//
-
 describe('no captured lora inventory is tracked by git', () => {
    it('runs from the repo root, or it scans almost nothing and passes green', () => {
       // every path here is cwd-relative: from a subdirectory `git ls-files` returns
@@ -74,9 +71,10 @@ describe('no captured lora inventory is tracked by git', () => {
          } catch {
             continue // deleted but still indexed
          }
-         // skip by IDENTITY, never by size: a big capture is the worst case, not the exempt one
-         if (UPSTREAM_MIRRORS.test(file)) continue
-         if (stat.size > 40_000_000) continue // a file this big is not text we can scan in a test
+         // NO content exemptions: a big file is the worst case, not the exempt one.
+         // The upstream manager catalogs (~3MB each) are scanned like everything
+         // else and pass. The cap only skips what is too large to read as text.
+         if (stat.size > 40_000_000) continue
          let text: string
          try {
             text = readFileSync(file, 'utf8')
