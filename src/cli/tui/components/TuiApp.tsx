@@ -254,9 +254,11 @@ export const TuiApp = observer((p: { st: TuiSt }) => {
    )
 
    return (
-      <Box flexDirection="column" minHeight={s.termRows - 1}>
+      // FIXED height, not min: content taller than the terminal must window
+      // itself (tree) or clip, never grow the frame — his overflow repro
+      <Box flexDirection="column" height={s.termRows - 1}>
          <Header st={s} />
-         <Box flexDirection="row" flexGrow={1}>
+         <Box flexDirection="row" flexGrow={1} flexShrink={1} overflow="hidden">
             <TreePanel st={s} />
             <Box flexDirection="column" flexGrow={1}>
                {/* ink has no z-order: the overlay replaces the vars panel while open */}

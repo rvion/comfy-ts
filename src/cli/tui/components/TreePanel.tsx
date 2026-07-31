@@ -1,21 +1,32 @@
-import { Box, Text } from 'ink'
+import { Box, measureElement, Text } from 'ink'
 import { observer } from 'mobx-react-lite'
+import { useEffect, useRef } from 'react'
+import type { DOMElement } from 'ink'
 import type { TuiSt } from 'src/cli/tui/state/TuiSt.ts'
 
 /** persistent left panel: directory hierarchy + workflows with their drafts
- * nested; `t` (or ← from vars) focuses it, `/` filters it */
+ * nested; `t` (or ← from vars) focuses it, `/` filters it. The Box is
+ * measured (keybar wraps, chrome height is width-dependent — arithmetic
+ * lies) and the row list windows to the measured budget; overflow hidden
+ * is the backstop for the one pre-measure frame. */
 export const TreePanel = observer((p: { st: TuiSt }) => {
    const s = p.st
    const tree = s.tree
    const focused = s.mode === 'tree'
+   const boxRef = useRef<DOMElement>(null)
+   useEffect(() => {
+      if (boxRef.current != null) tree.setViewH(measureElement(boxRef.current).height)
+   })
    return (
       <Box
+         ref={boxRef}
          borderStyle="round"
          borderColor={focused ? 'cyan' : 'gray'}
          flexDirection="column"
          flexShrink={0}
          width={s.treeWidth}
          paddingX={1}
+         overflow="hidden"
       >
          {/* marginTop -1 lifts the label onto the border line: the panel key IS its title */}
          <Box marginTop={-1}>
@@ -29,7 +40,9 @@ export const TreePanel = observer((p: { st: TuiSt }) => {
                {tree.filtering ? '▌' : ''}
             </Text>
          )}
-         {tree.rows.map((row, ix) => {
+         {tree.window.moreAbove && <Text color="gray">…</Text>}
+         {tree.rows.slice(tree.window.start, tree.window.end).map((row, sliceIx) => {
+            const ix = tree.window.start + sliceIx
             const sel = focused && ix === tree.ix
             const indent = ' '.repeat(row.depth * 2)
             if (row.kind === 'dir') {
@@ -68,6 +81,7 @@ export const TreePanel = observer((p: { st: TuiSt }) => {
                </Text>
             )
          })}
+         {tree.window.moreBelow && <Text color="gray">…</Text>}
          {s.workflows.loading ? <Text color="yellow">loading…</Text> : null}
       </Box>
    )

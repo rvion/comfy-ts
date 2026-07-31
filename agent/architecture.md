@@ -80,7 +80,19 @@ src/cli/tui/               ink+mobx TUI, per build/app-state-tree doctrine:
                            drafts, fold/unfold, `/` substring filter, one color
                            per family (first `-` word of the basename, palette
                            cycled in first-appearance order; a loaded module's
-                           spec.color overrides)
+                           spec.color overrides). VIEWPORT (2026-07-31, his
+                           small-terminal overflow repro): the panel never
+                           renders more rows than fit — TreePanel measures its
+                           clipped Box (ink measureElement, overflow hidden as
+                           backstop) into TreeSt.setViewH; TreeSt.window
+                           derives the visible slice via the PURE
+                           listWindow.ts (budget-INCLUSIVE `…` markers, unlike
+                           OverlayList's slack-absorbed ones; selection always
+                           inside the slice; degenerate budgets ≤2 drop the
+                           markers). Pre-measure fallback: termRows-5 estimate
+                           for the first frame. The keybar WRAPS so chrome
+                           height is width-dependent: measuring is the only
+                           honest budget, never row arithmetic.
    state/HostSt.ts         host surface, TWO keys: `a` = actions panel (stats,
                            re-codegen SDK, restart, queue ops) + live up/down
                            probe; `h` = host PICKER — overrides the host the

@@ -1,5 +1,6 @@
 import { makeAutoObservable } from 'mobx'
 import { listDraftsForFile } from 'src/cli/tui/state/DraftsSt.ts'
+import { listWindow, type ListWindow } from 'src/cli/tui/listWindow.ts'
 import { assignFamilyColors, buildFileRows, familyOf } from 'src/cli/tui/treeRows.ts'
 import type { TuiSt } from 'src/cli/tui/state/TuiSt.ts'
 
@@ -117,6 +118,30 @@ export class TreeSt {
       const draftIx = rows.findIndex((r) => r.kind === 'draft' && r.active)
       const ix = draftIx === -1 ? rows.findIndex((r) => r.kind === 'workflow' && r.current) : draftIx
       this.ix = ix === -1 ? 0 : ix
+   }
+
+   // ---- viewport (his small-terminal overflow repro 2026-07-31) ----
+
+   /** measured height of the tree panel Box (TreePanel measureElement); 0 = not measured yet */
+   viewH: number = 0
+   setViewH(h: number): void {
+      this.viewH = h
+   }
+
+   /** rows available for tree content: measured panel height minus the panel's
+    * own chrome (2 border rows, the filter line when visible, the loading
+    * line). Pre-measure fallback: termRows minus the header+keybar estimate —
+    * one frame only, the measurement replaces it. */
+   get viewBudget(): number {
+      const h = this.viewH > 0 ? this.viewH : Math.max(5, this.st.termRows - 5)
+      const filterLine = this.filtering || this.filter !== '' ? 1 : 0
+      const loadingLine = this.st.workflows.loading ? 1 : 0
+      return Math.max(1, h - 2 - filterLine - loadingLine)
+   }
+
+   /** the visible slice, selection always inside, markers within the budget */
+   get window(): ListWindow {
+      return listWindow({ count: this.rows.length, selected: this.ix, budget: this.viewBudget })
    }
 
    /** esc/t inside the tree, → on a draft row, `v` anywhere: back to the vars list */
