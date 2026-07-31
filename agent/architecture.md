@@ -77,7 +77,18 @@ src/graph/                 programmatic node graph (ComfyNode, ComfyNodeOutput, 
 src/vars/                  Vars (v.*) + DefinedWorkflow: the tweak & re-run contract
 src/cli/                   sidekick CLI (gen, outline, tui)
 src/cli/tui/               ink+mobx TUI, per build/app-state-tree doctrine:
-   state/TuiSt.ts          ROOT state tree (one instance); children get `st` backref
+   state/TuiSt.ts          ROOT state tree (one instance); children get `st` backref.
+                           VARS VIEWPORT (2026-07-31, reviewer follow-up to the
+                           tree viewport): varsWindow = listWindow over the
+                           entries (VarsPanel measures its clipped Box into
+                           setVarsViewH, same measured-not-arithmetic rule as
+                           the tree); varsCompact collapses NON-selected rows
+                           to one truncated line while the list overflows, so
+                           a tall wrapping prompt above the selection can never
+                           push it off-screen (decision reads entry count +
+                           measured height only — no oscillation). Logs need
+                           nothing: LogsPanel already tails 4 lines when
+                           termRows < 30.
    state/EditorSt.ts       line/multiline editor (code-point ops)
    state/PickerSt.ts       choice + size overlays (fuzzy filter, WxH custom)
    state/LorasSt.ts        loras overlay (filter, tick/untick, strengths, bulk,

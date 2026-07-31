@@ -1,4 +1,5 @@
 import { makeAutoObservable, observable, runInAction } from 'mobx'
+import { listWindow, type ListWindow } from 'src/cli/tui/listWindow.ts'
 import type { SeedVar, ToggleVar, AnyVar } from 'src/vars/ComfyVars.ts'
 import { ImagePickerSt } from 'src/cli/tui/imagePicker/ImagePickerSt.ts'
 import { DraftsSt } from 'src/cli/tui/state/DraftsSt.ts'
@@ -204,6 +205,39 @@ export class TuiSt {
       const len = this.entries.length
       if (len === 0) return
       this.selIx = (this.selIx + delta + len) % len
+   }
+
+   // ---- vars viewport (reviewer follow-up 2026-07-31: the fixed-height
+   // frame clips instead of overflowing, so the vars list must window like
+   // the tree — measured height, never chrome arithmetic) ----
+
+   /** measured height of the vars panel Box (VarsPanel measureElement); 0 = not measured yet */
+   varsViewH: number = 0
+   setVarsViewH(h: number): void {
+      this.varsViewH = h
+   }
+
+   /** row budget: measured height minus the 2 border rows; pre-measure fallback estimate */
+   get varsBudget(): number {
+      const h = this.varsViewH > 0 ? this.varsViewH : Math.max(5, this.termRows - 5)
+      return Math.max(1, h - 2)
+   }
+
+   get varsWindow(): ListWindow {
+      return listWindow({ count: this.entries.length, selected: this.selIx, budget: this.varsBudget })
+   }
+
+   /**
+    * while the list cannot fit, NON-selected rows collapse to one truncated
+    * line (prompt values wrap tall) — rows above the selection then cost one
+    * line each, so the selection can never be pushed off-screen. Reads only
+    * entry count + measured height, never its own rendering: no oscillation.
+    */
+   get varsCompact(): boolean {
+      const w = this.varsWindow
+      if (w.moreAbove || w.moreBelow) return true
+      const h = this.varsViewH > 0 ? this.varsViewH : Math.max(5, this.termRows - 5)
+      return this.entries.length + 2 > h
    }
 
    // kind-discriminated narrowing casts below are sanctioned (agent/coding.md):

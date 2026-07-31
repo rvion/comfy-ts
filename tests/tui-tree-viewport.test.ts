@@ -194,3 +194,87 @@ describe('small-terminal frame smoke (his repro: tree overflowed the terminal)',
       expect(frame).toContain('fam12-mode')
    })
 })
+
+describe('VarsPanel viewport (reviewer follow-up: selection clipped off-screen on small terminals)', () => {
+   let stP: Promise<import('src/cli/tui/state/TuiSt.ts').TuiSt> | null = null
+   let prior: unknown
+   beforeAll(() => {
+      prior = (globalThis as { comfyts?: unknown }).comfyts
+      Reflect.deleteProperty(globalThis, 'comfyts')
+   })
+   afterAll(async () => {
+      if (stP != null) (await stP).dispose()
+      if (prior != null) (globalThis as { comfyts?: unknown }).comfyts = prior
+      else Reflect.deleteProperty(globalThis, 'comfyts')
+   })
+   const build = () => {
+      stP ??= (async () => {
+         const { ComfyTS } = await import('src/state.ts')
+         const { TuiSt } = await import('src/cli/tui/state/TuiSt.ts')
+         const { v } = await import('src/vars/ComfyVars.ts')
+         const root = mkdtempSync(join(tmpdir(), 'comfy-ts-vars-viewport-'))
+         const comfy = new ComfyTS({ rootPath: root })
+         const host = comfy.host({ id: 'vars-viewport-host', host: '127.0.0.1', port: 65495 })
+         const wf = host.defineWorkflow({
+            id: 'vars-viewport-test',
+            vars: Object.fromEntries(Array.from({ length: 14 }, (_, i) => [`n${i}`, v.int(i)])),
+            build: () => {},
+         })
+         return new TuiSt(wf)
+      })()
+      return stP.then((st) => {
+         st.setVarsViewH(0)
+         st.selIx = 0
+         return st
+      })
+   }
+
+   it('window slice + markers fit the measured height minus the border chrome', async () => {
+      const st = await build()
+      st.setVarsViewH(8) // 2 border rows + 6 content rows
+      const w = st.varsWindow
+      const lines = (w.moreAbove ? 1 : 0) + (w.end - w.start) + (w.moreBelow ? 1 : 0)
+      expect(st.entries.length).toBe(14)
+      expect(lines).toBeLessThanOrEqual(6)
+   })
+
+   it('the selection stays inside the window at both ends', async () => {
+      const st = await build()
+      st.setVarsViewH(8)
+      st.selIx = 13
+      expect(st.selIx).toBeGreaterThanOrEqual(st.varsWindow.start)
+      expect(st.selIx).toBeLessThan(st.varsWindow.end)
+      expect(st.varsWindow.moreAbove).toBe(true)
+      expect(st.varsWindow.moreBelow).toBe(false)
+   })
+
+   it('compact mode: on while the list overflows, off when everything fits', async () => {
+      const st = await build()
+      st.setVarsViewH(8)
+      expect(st.varsCompact).toBe(true)
+      st.setVarsViewH(40)
+      expect(st.varsCompact).toBe(false)
+   })
+
+   it('before any measurement the estimate fallback still yields a positive budget', async () => {
+      const st = await build()
+      expect(st.varsBudget).toBeGreaterThan(0)
+   })
+
+   it('frame smoke at 14 rows: the selected var stays visible under a tall prompt', async () => {
+      const { spawnSync } = await import('node:child_process')
+      const { join: joinPath } = await import('pathe')
+      const res = spawnSync('bun', [joinPath(import.meta.dir, 'tui-tree-smoke.driver.tsx')], {
+         encoding: 'utf8',
+         timeout: 30_000,
+         env: { ...process.env, SMOKE_ROWS: '14', SMOKE_MODE: 'vars' },
+      })
+      expect(res.stderr ?? '').not.toContain('error')
+      expect(res.stdout).toContain('SMOKE_OK')
+      expect(res.status).toBe(0)
+      const frame = (res.stdout.split('SMOKE_OK')[0] ?? '').replace(/\n+$/, '')
+      expect(frame.split('\n').length).toBeLessThanOrEqual(14)
+      // the selected var, 12 rows deep behind a tall wrapping prompt, is on screen
+      expect(frame).toContain('n12')
+   })
+})
