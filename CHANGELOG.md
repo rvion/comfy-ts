@@ -1,5 +1,11 @@
 # comfy-ts
 
+## 2.3.0
+
+- **Fixed: an unreachable host hung forever instead of erroring.** `connect()` waited on a websocket that retries every 2 seconds, and a refused TCP connection is a close rather than a dead transport, so the promise never settled: scripts hung with no message, and `comfy-ts serve` never answered `POST /generate` and then queued every later request for that workflow behind the hung one. The first connect now has a deadline, `ComfyTS.host(...).connect({ timeoutMs })`, default 30s (`0` or `Infinity` waits forever, the old behaviour). Reconnects after a successful connect are untouched and still retry forever.
+- A failed connect is retryable again. The rejected promise used to stay cached on the host, so once a connect failed, every later `connect()` replayed the same stale error and a host that came back stayed unreachable for the life of the process.
+- New export `ComfyHostUnreachableError` (match it by `e.name`). `comfy-ts serve` answers **502** with the host id and websocket url when the host never comes up, instead of a 500 or nothing at all.
+
 ## 2.2.0
 
 The repair release. `comfy-ts serve` was broken for every payload override in every version since 1.3.0; this fixes it and the three quieter faults that shipped with it.

@@ -44,7 +44,7 @@ src/host/                  per-server connection layer
    ComfyManager.ts         ComfyUI-Manager plugin HTTP API (install plugins/models, reboot)
    ComfyUploader.ts        image upload with hash-dedupe against host schema
    ComfyWorkflowBuilder.ts runtime builder (one factory per schema node, dynamic)
-   ResilientWebsocket.ts   auto-reconnect ws wrapper
+   ResilientWebsocket.ts   auto-reconnect ws wrapper. The FIRST connect has a deadline (ConnectOptions.timeoutMs, default 30s) because a refused TCP connection is a ws CLOSE, not a dead transport, so connect() used to sit in the 2s retry loop forever: scripts hung silently and serve wedged its module mutex. Reconnects after a successful connect still retry forever, and markFailed only fires when a connect is actually PENDING, so a live host's retry loop is never torn down. A failed connect resets _ready, so a host that comes back is reachable again.
    Requirements.ts         requirement types for matchRequirements
    loraManagerApi.ts       ComfyUI-Lora-Manager extension client (list + previews)
 src/runner/                execution

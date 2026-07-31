@@ -74,7 +74,23 @@ export type ConnectOptions = {
    schema?: 'auto' | 'refresh' | 'cache'
    /** max cache age for 'auto' (default 24h) */
    maxAgeMs?: number
+   /**
+    * deadline for the FIRST connect, default 30s. 0 or Infinity waits forever.
+    * A refused TCP connection is a ws CLOSE, not a dead transport, so without a
+    * deadline `connect()` sat in the 2s reconnect loop and never settled: scripts
+    * hung with no error and `comfy-ts serve` wedged the module behind its mutex.
+    * Reconnects AFTER a successful connect are untouched and still retry forever.
+    */
+   timeoutMs?: number
 }
+
+/** the host never came up within ConnectOptions.timeoutMs */
+export class ComfyHostUnreachableError extends Error {
+   /** name, not instanceof: the cli bundle and dist/index.js each define this class */
+   override readonly name = 'ComfyHostUnreachableError'
+}
+
+const DEFAULT_CONNECT_TIMEOUT_MS = 30_000
 
 // biome-ignore format: misc
 type SchemaUpdateResult = Maybe<{ type: 'success' } | { type: 'error'; error: unknown }>
@@ -407,29 +423,61 @@ export class ComfyHost<ID extends string = string> {
             this._readyResolve = res
             this._readyReject = rej
          })
+         const timeoutMs = p.timeoutMs ?? DEFAULT_CONNECT_TIMEOUT_MS
+         if (timeoutMs > 0 && Number.isFinite(timeoutMs)) {
+            this._connectTimer = setTimeout(() => {
+               this.markFailed(
+                  new ComfyHostUnreachableError(
+                     `host '${this.data.id}' did not come up within ${timeoutMs}ms at ${this.getWSUrl()} — is ComfyUI running there ?`,
+                  ),
+               )
+            }, timeoutMs)
+            this._connectTimer.unref?.()
+         }
          this.initWebsocket()
       }
       return this._ready
    }
 
+   private _connectTimer: Maybe<ReturnType<typeof setTimeout>> = null
+   private clearConnectTimer(): void {
+      if (this._connectTimer != null) clearTimeout(this._connectTimer)
+      this._connectTimer = null
+   }
+
    /** close the websocket (e.g. to let a script exit) */
    disconnect = (): void => {
+      this.clearConnectTimer()
       this.ws?.disconnectPermanently()
       this.ws = null
       this._ready = null
+      this._readyResolve = null
+      this._readyReject = null
    }
 
    private markReady(): void {
+      this.clearConnectTimer()
       this._readyResolve?.()
       this._readyResolve = null
       this._readyReject = null
    }
 
    private markFailed(error: unknown): void {
-      // reject the pending connect() so callers fail fast instead of hanging
-      this._readyReject?.(error)
+      this.clearConnectTimer()
+      const reject = this._readyReject
+      // no pending connect = this is a RECONNECT failing on an already-live host.
+      // Its retry loop is the resilience; never tear that down.
+      if (reject == null) return
       this._readyResolve = null
       this._readyReject = null
+      // a failed connect stays RETRYABLE: keeping the rejected promise on the
+      // instance made every later connect() replay the same stale error, so a host
+      // that came back was unreachable for the life of the process
+      this._ready = null
+      // nobody is waiting anymore: stop the 2s retry loop instead of leaking it
+      this.ws?.disconnectPermanently()
+      this.ws = null
+      reject(error)
    }
 
    private async writeSDKToDisk(): Promise<void> {

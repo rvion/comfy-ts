@@ -358,6 +358,10 @@ export class ServeApp {
       } catch (e) {
          // name, not instanceof: same two-copies problem as the var classes
          if (e instanceof Error && e.name === 'ImageVarEmptyError') return { status: 400, error: e.message }
+         // the ComfyUI host is upstream of this bridge: 502, not "serve crashed".
+         // The connect deadline (ConnectOptions.timeoutMs) is what makes this
+         // reachable at all — it used to hang here and block the module mutex
+         if (e instanceof Error && e.name === 'ComfyHostUnreachableError') return { status: 502, error: e.message }
          return { status: 500, error: extractErrorMessage(e) }
       }
    }

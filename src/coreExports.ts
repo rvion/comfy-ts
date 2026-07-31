@@ -11,6 +11,7 @@ export { ComfyTS } from 'src/state.ts'
 export {
    ComfyHost,
    ComfyHostAuthError,
+   ComfyHostUnreachableError,
    type ComfyHostData,
    type ComfyHostID,
    type ConnectOptions,
