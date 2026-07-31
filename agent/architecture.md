@@ -574,7 +574,10 @@ unknown ──LiteGraphJSON_ark──▶ LiteGraphJSON (loose wire type)
   `prefixValues` generalizes the run shape both ways: the positional import
   walk reads the value at `offset + prefixValues.length` (consumes the whole
   run), the litegraph EXPORT writes the prefix literals before the value so
-  round-trips through the ComfyUI editor keep positional alignment.
+  round-trips through the ComfyUI editor keep positional alignment. The
+  export derives the trailing control phantom from the classifier too
+  (`consumes - 1 - prefixValues.length`, fixed 2026-07-31) — export and
+  import share ONE run-length authority, they can never disagree.
   Seed phantom: a widget consumes 2 values when its config carries a TRUTHY
   `control_after_generate` (booleans and string modes like `'fixed'`, the
   windows-1 SeedNode spelling — the frontend creates the control widget on

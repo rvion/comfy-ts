@@ -64,9 +64,12 @@ const convertNodeToLiteGraphNode = (ctx: LiteGraphCtx, node: ComfyNode<any>): Li
       } else if (kind.kind === 'widget') {
          // frontend button-widget values ride BEFORE the real value (LOAD_3D)
          widgets_values.push(...kind.prefixValues, raw)
-         // ComfyUI stores a phantom control_after_generate value after seeds
-         const isSeed = ipt.typeName === 'INT' && (ipt.nameInComfy === 'seed' || ipt.nameInComfy === 'noise_seed')
-         if (isSeed) widgets_values.push(false)
+         // control_after_generate phantom AFTER the value: the classifier's
+         // consumes covers prefix + value + control, config-driven (the 2024
+         // INT-named-seed heuristic lives inside controlConsumes), so export
+         // and import can never disagree on the run length
+         const phantoms = kind.consumes - 1 - kind.prefixValues.length
+         for (let i = 0; i < phantoms; i++) widgets_values.push(false)
       } else {
          // unconnected link-kind input: a litegraph slot with no link —
          // NEVER a widget value (that would misalign the round-trip import)

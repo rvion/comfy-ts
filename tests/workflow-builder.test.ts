@@ -811,3 +811,36 @@ describe('autogrow containers (builder face)', () => {
       expect(Object.keys(math?.inputs ?? {})).not.toContain('values')
    })
 })
+
+describe('export/import control-widget parity (v3 config spellings)', () => {
+   // export used the INT-named-seed heuristic while import consumes off the
+   // control_after_generate CONFIG — reviewer catch 2026-07-31: a truthy
+   // control on a non-seed widget exported 1 value where import reads 2
+   it('control_after_generate config drives the export phantom, both directions', async () => {
+      const { bang } = await import('src/utils/bang.ts')
+      const hostV3 = comfy.host({ id: 'test-host-v3', host: '127.0.0.1', port: 65501 })
+      const spec = JSON.parse(readFileSync('tests/fixtures/object_info-v3-widgets.json', 'utf-8'))
+      hostV3.schema.update({ spec, embeddings: [] })
+
+      const wf = hostV3.workflow({ id: 'control-roundtrip' })
+      const bb = wf.builderBase
+      const prod = bang(bb.TestProducer, 'fixture has TestProducer')({})
+      bang(
+         bb.TestControlCombo,
+         'fixture has TestControlCombo',
+      )({
+         mode: 'b',
+         seed: 42, // control_after_generate: false — NO phantom despite the seed name
+         text: bang(prod.outputs.STRING),
+         steps: 5,
+      })
+
+      const lite = await wf.toWorkflowJson()
+      const controlNode = lite.nodes.find((n) => n.type === 'TestControlCombo')
+      // mode (truthy control) rides [value, phantom]; seed (false control) rides bare
+      expect(controlNode?.widgets_values).toEqual(['b', false, 42, 5])
+
+      const imported = hostV3.importWorkflowJson(lite, { id: 'control-roundtrip-imported' })
+      expect(imported.toApiJson('use_stringified_numbers_only')).toEqual(wf.toApiJson('use_stringified_numbers_only'))
+   })
+})
