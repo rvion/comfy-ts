@@ -1,6 +1,6 @@
 {
    "name": "comfy-ts",
-   "version": "2.0.0",
+   "version": "2.1.0",
    "description": "The complete TypeScript toolkit for ComfyUI and generative AI. Fully type-safe SDK with autocomplete on every node, companion CLI, TUI, agentic docs, and 50+ examples. Design, run and deploy creative pipelines for image, video, audio, 3d and text on any ComfyUI, local, cloud or hosted.",
    "keywords": [
       "comfyui",

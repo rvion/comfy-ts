@@ -1,5 +1,27 @@
 # comfy-ts
 
+## 2.1.0
+
+The TUI catches up with ephemeral outputs: saving is a visible choice, and
+memory-only runs are fully usable.
+
+- **Save toggle in the vars panel**: a TUI-owned `save to disk` row sits
+  under your workflow vars (⏎ toggles, persisted in
+  `.comfy-ts/settings.json`, default on). Off = outputs stay in memory.
+- **Editable save prefix**: while saving is on, a `save prefix` row follows
+  — the directory appended after `.comfy-ts/outputs/`, editable in place
+  (⏎), persisted per workflow, slashes nest subfolders, empty resets to
+  the workflow's name.
+- **Memory outputs are first-class**: the outputs box lists them as
+  `filename (WxH, in memory)`, the preview panel renders them from the
+  buffer, latents unchanged.
+- **`i` copies without touching disk**: the image is normalized to png in
+  memory and piped to the platform clipboard tool over stdin (macOS
+  osascript `«data PNGf»` script on stdin, Windows base64 → MemoryStream,
+  Linux xclip). A tmp file is written only if the piped tool fails, and
+  the popup says which route ran. `o` (open in OS viewer) still writes one
+  tmp file — a viewer opens a path.
+
 ## 2.0.0
 
 The ephemeral release: images that never persist — not on the ComfyUI
