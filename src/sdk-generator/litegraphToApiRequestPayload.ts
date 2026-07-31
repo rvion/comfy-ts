@@ -145,15 +145,19 @@ export const convertLiteGraphToPrompt = (
          )
       }
 
-      /** named wins, then positional cursor; filled=true when both miss (caller falls back to the schema default) */
-      const resolveWidgetValue = (p: { promptName: string; consumes: number }): { value: unknown; filled: boolean } => {
+      /** named wins, then positional cursor (+prefixLen skips leading button values, LOAD_3D); filled=true when both miss (caller falls back to the schema default) */
+      const resolveWidgetValue = (p: {
+         promptName: string
+         consumes: number
+         prefixLen: number
+      }): { value: unknown; filled: boolean } => {
          let value: unknown
          let has = false
          if (Object.hasOwn(named, p.promptName)) {
             value = named[p.promptName]
             has = true
-         } else if (offset < positional.length) {
-            value = positional[offset]
+         } else if (offset + p.prefixLen < positional.length) {
+            value = positional[offset + p.prefixLen]
             has = true
          }
          if (positional.length > 0) offset += p.consumes // named-shadow still advances (promotion case)
@@ -165,11 +169,12 @@ export const convertLiteGraphToPrompt = (
          typeName: string
          opts: unknown
          consumes: number
+         prefixLen: number
          strict: boolean
          enumValues?: readonly (string | boolean | number)[]
          linkedInput: CanonicalInput | undefined
       }): void => {
-         const r = resolveWidgetValue({ promptName: p.promptName, consumes: p.consumes })
+         const r = resolveWidgetValue({ promptName: p.promptName, consumes: p.consumes, prefixLen: p.prefixLen })
          const raw = r.filled
             ? defaultValueForWidget({
                  type: p.typeName,
@@ -185,7 +190,7 @@ export const convertLiteGraphToPrompt = (
 
       /** key consumed first, then the SELECTED branch inline, recursively (backend get_finalized_class_inputs) */
       const consumeDynamicCombo = (p: { path: string; options: DynamicComboOption[]; defaultKey: string }): void => {
-         const r = resolveWidgetValue({ promptName: p.path, consumes: 1 })
+         const r = resolveWidgetValue({ promptName: p.path, consumes: 1, prefixLen: 0 })
          const key = r.filled ? p.defaultKey : r.value
          if (typeof key !== 'string')
             throw new WorkflowConvertError(
@@ -224,6 +229,7 @@ export const convertLiteGraphToPrompt = (
             typeName: typeof sub.type === 'string' ? sub.type : 'COMBO',
             opts: sub.opts,
             consumes: kind.consumes,
+            prefixLen: kind.prefixValues.length,
             strict: kind.strictValues,
             enumValues: inlineEnum,
             linkedInput: inputsInNodeJSON.find((i) => i.name === subPath),
@@ -238,7 +244,7 @@ export const convertLiteGraphToPrompt = (
          // proves a widget value was written, so consume per the file's era
          if (kind.kind === 'slot' && input?.widgetName != null) {
             const legacyConsumes = howManyWidgetValuesForThisInputType(input.type, field.nameInComfy)
-            kind = { kind: 'widget', consumes: legacyConsumes === 2 ? 2 : 1, strictValues: true }
+            kind = { kind: 'widget', consumes: legacyConsumes === 2 ? 2 : 1, strictValues: true, prefixValues: [] }
          }
 
          if (kind.kind === 'widget') {
@@ -247,6 +253,7 @@ export const convertLiteGraphToPrompt = (
                typeName: field.typeName,
                opts: field.opts,
                consumes: kind.consumes,
+               prefixLen: kind.prefixValues.length,
                strict: kind.strictValues,
                linkedInput: input,
             })

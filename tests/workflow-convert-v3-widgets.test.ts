@@ -335,3 +335,48 @@ describe('config-driven consumption details', () => {
       expect(prompt['2']?.inputs['model_file']).toBe('model.glb')
    })
 })
+
+describe('LOAD_3D: empty-config frontend widget (his corpus repro, api_hunyuan3d_model2uv)', () => {
+   // the frontend LOAD_3D handler addWidget()s 3 buttons THEN the scene
+   // widget (ComfyUI_frontend src/extensions/core/load3d.ts), so the
+   // serialized run is [btn, btn, btn, value] and the real value sits LAST
+   it('Load3D consumes the 3-button prefix and reads image at the run tail', () => {
+      const prompt = convert(
+         doc(
+            {
+               id: 2,
+               type: 'Load3D',
+               mode: 0,
+               pos: [0, 0],
+               size: [300, 604],
+               inputs: [],
+               widgets_values: ['toy.glb', 'upload3dmodel', 'uploadExtraResources', 'clear', '', 1024, 1024],
+            },
+            [],
+         ),
+      )
+      expect(prompt['2']).toEqual({
+         class_type: 'Load3D',
+         inputs: { model_file: 'toy.glb', image: '', width: 1024, height: 1024 },
+      })
+   })
+
+   it('Load3D image accepts the queue-time dict shape (lax value domain)', () => {
+      const captured = { image: 'threed/a.png', mask: 'threed/b.png', normal: 'threed/c.png' }
+      const prompt = convert(
+         doc(
+            {
+               id: 2,
+               type: 'Load3D',
+               mode: 0,
+               pos: [0, 0],
+               size: [300, 604],
+               inputs: [],
+               widgets_values: ['toy.glb', 'upload3dmodel', 'uploadExtraResources', 'clear', captured, 1024, 1024],
+            },
+            [],
+         ),
+      )
+      expect(prompt['2']?.inputs['image']).toEqual(captured)
+   })
+})

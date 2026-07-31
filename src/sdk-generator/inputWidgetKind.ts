@@ -11,7 +11,20 @@ import { ComfyPrimitiveMapping } from 'src/sdk-generator/Primitives.ts'
  */
 export type InputWidgetKind =
    | { kind: 'slot' }
-   | { kind: 'widget'; consumes: 1 | 2; strictValues: boolean }
+   | {
+        kind: 'widget'
+        /** total widgets_values entries this input's run occupies: prefix buttons + value + control phantom */
+        consumes: number
+        strictValues: boolean
+        /**
+         * serialized values the frontend addWidget()s BEFORE the real value
+         * (button widgets, creation order). Import reads the value at
+         * `offset + prefixValues.length`; export writes these literals first
+         * so a round-trip through the ComfyUI editor keeps positional
+         * alignment. Empty for every config-signalled widget.
+         */
+        prefixValues: readonly unknown[]
+     }
    | { kind: 'dynamic-combo'; options: DynamicComboOption[]; defaultKey: string }
    | { kind: 'dynamic-container'; instanceNames: string[]; requiredCount: number }
 
@@ -110,6 +123,24 @@ export const containerInstanceSlotType = (opts: unknown): string | null => {
    return first.type
 }
 
+/**
+ * frontend-registered widgets whose object_info opts carry NO config signal —
+ * the one exception to config-only classification (architecture.md rule 8).
+ * Every entry must quote the frontend widget-creation source.
+ *
+ * LOAD_3D (ComfyUI_frontend src/extensions/core/load3d.ts, verified
+ * 2026-07-31): the LOAD_3D custom widget handler runs
+ *   node.addWidget('button', 'upload 3d model', 'upload3dmodel', …)
+ *   node.addWidget('button', 'upload extra resources', 'uploadExtraResources', …)
+ *   node.addWidget('button', 'clear', 'clear', …)
+ * THEN creates the scene widget, so the serialized run is
+ * [btn, btn, btn, value] with the real value LAST. Lax domain: '' in saved
+ * files, an {image, mask, normal, camera_info, …} dict at queue time.
+ */
+const EMPTY_CONFIG_FRONTEND_WIDGETS: Record<string, { prefixValues: readonly unknown[] }> = {
+   LOAD_3D: { prefixValues: ['upload3dmodel', 'uploadExtraResources', 'clear'] },
+}
+
 export const classifyWidgetInput = (p: {
    name: string
    type: string | readonly unknown[]
@@ -123,14 +154,19 @@ export const classifyWidgetInput = (p: {
    // 2. enum arrays / parsed E_ unions are combo widgets
    if (Array.isArray(p.type) || p.isEnumUnion === true) {
       const tn = typeof p.type === 'string' ? p.type : 'COMBO'
-      return { kind: 'widget', consumes: controlConsumes(o, tn, p.name), strictValues: true }
+      return { kind: 'widget', consumes: controlConsumes(o, tn, p.name), strictValues: true, prefixValues: [] }
    }
    if (typeof p.type !== 'string') return { kind: 'slot' }
    // 3. widgetType names the widget for multi-type unions (frontend: widgets.get(widgetType ?? type))
    const widgetTypeName = typeof o?.['widgetType'] === 'string' ? o['widgetType'] : p.type
    // 4. primitives
    if (ComfyPrimitiveMapping[widgetTypeName] != null)
-      return { kind: 'widget', consumes: controlConsumes(o, widgetTypeName, p.name), strictValues: true }
+      return {
+         kind: 'widget',
+         consumes: controlConsumes(o, widgetTypeName, p.name),
+         strictValues: true,
+         prefixValues: [],
+      }
    // 5. options array: dynamic {key, inputs} family, else plain combo
    const options = o?.['options']
    if (Array.isArray(options)) {
@@ -141,7 +177,7 @@ export const classifyWidgetInput = (p: {
          const defaultKey = typeof o?.['default'] === 'string' ? o['default'] : first.key
          return { kind: 'dynamic-combo', options: dynOptions, defaultKey }
       }
-      return { kind: 'widget', consumes: controlConsumes(o, p.type, p.name), strictValues: true }
+      return { kind: 'widget', consumes: controlConsumes(o, p.type, p.name), strictValues: true, prefixValues: [] }
    }
    // 6. template WITH nested input = autogrow container; WITHOUT = matchtype slot typing
    const template = o?.['template']
@@ -150,7 +186,16 @@ export const classifyWidgetInput = (p: {
       return { kind: 'slot' }
    }
    // 7. socketless: a widget that never has a socket (IMAGECOMPARE, COLOR); value domain unknown
-   if (o?.['socketless'] === true) return { kind: 'widget', consumes: 1, strictValues: false }
+   if (o?.['socketless'] === true) return { kind: 'widget', consumes: 1, strictValues: false, prefixValues: [] }
+   // 8. known empty-config frontend widgets (LOAD_3D), the one non-config exception
+   const emptyConfigEntry = EMPTY_CONFIG_FRONTEND_WIDGETS[widgetTypeName]
+   if (emptyConfigEntry != null)
+      return {
+         kind: 'widget',
+         consumes: emptyConfigEntry.prefixValues.length + 1,
+         strictValues: false,
+         prefixValues: emptyConfigEntry.prefixValues,
+      }
    return { kind: 'slot' }
 }
 
@@ -161,12 +206,6 @@ export const classifySchemaInput = (input: NodeInputExt): InputWidgetKind =>
       opts: input.opts,
       isEnumUnion: input.isEnum,
    })
-
-/** how many widgets_values entries this schema input consumes (export path + positional walks) */
-export const howManyWidgetValuesForThisSchemaType = (input: NodeInputExt): number => {
-   const kind = classifySchemaInput(input)
-   return kind.kind === 'widget' ? kind.consumes : 0
-}
 
 /**
  * what ComfyUI's frontend gives a widget created with no serialized value

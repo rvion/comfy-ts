@@ -540,7 +540,7 @@ unknown ──LiteGraphJSON_ark──▶ LiteGraphJSON (loose wire type)
   whitelist** (`src/sdk-generator/inputWidgetKind.ts`, `classifyWidgetInput`).
   2026 object_info spells widget inputs as arbitrary STRING types
   (`COMBO`, `COMFY_DYNAMICCOMBO_V3`, `IMAGECOMPARE`, …); upstream's own
-  decision is a frontend widget REGISTRY we cannot mirror, but every
+  decision is a frontend widget REGISTRY we cannot mirror, but nearly every
   registry-backed spelling carries a config signal, verified against
   ComfyUI_frontend `litegraphService.addNodeInput` + backend
   `comfy_api/latest/_io.py` (2026-07-29). Signals, in precedence order:
@@ -556,7 +556,25 @@ unknown ──LiteGraphJSON_ark──▶ LiteGraphJSON (loose wire type)
      `template` WITHOUT one (`{template_id, allowed_types}`) is
      COMFY_MATCHTYPE_V3, a SLOT — `template` alone is ambiguous on purpose.
   7. `socketless: true` → widget with no socket (IMAGECOMPARE, COLOR).
-  8. else → slot.
+  8. known empty-config frontend widgets
+     (`EMPTY_CONFIG_FRONTEND_WIDGETS` table in `inputWidgetKind.ts`) —
+     the ONE exception to config-only (added 2026-07-31): `LOAD_3D`
+     arrives with opts `{}`, no signal at all, yet the frontend registers a
+     custom widget for it. Each table entry cites the frontend source and
+     carries the widget's `prefixValues`: the button-widget values the
+     frontend addWidget()s BEFORE the real value, serialized into
+     `widgets_values` in creation order. `LOAD_3D` (ComfyUI_frontend
+     `src/extensions/core/load3d.ts`): 3 buttons `upload3dmodel`,
+     `uploadExtraResources`, `clear`, THEN the scene widget → run =
+     `[btn, btn, btn, value]`, value LAST, lax value domain (`''` in saved
+     files, an `{image, mask, normal, camera_info, …}` dict at queue time).
+     Adding an entry here requires quoting the frontend widget-creation
+     code in the table comment.
+  9. else → slot.
+  `prefixValues` generalizes the run shape both ways: the positional import
+  walk reads the value at `offset + prefixValues.length` (consumes the whole
+  run), the litegraph EXPORT writes the prefix literals before the value so
+  round-trips through the ComfyUI editor keep positional alignment.
   Seed phantom: a widget consumes 2 values when its config carries a TRUTHY
   `control_after_generate` (booleans and string modes like `'fixed'`, the
   windows-1 SeedNode spelling — the frontend creates the control widget on

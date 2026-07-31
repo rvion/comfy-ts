@@ -1,7 +1,7 @@
 import type { ComfyNode } from 'src/graph/ComfyNode.ts'
 import type { ComfyWorkflow } from 'src/runner/ComfyWorkflow.ts'
 import { bang } from 'src/utils/bang.ts'
-import { howManyWidgetValuesForThisSchemaType } from 'src/sdk-generator/inputWidgetKind.ts'
+import { classifySchemaInput } from 'src/sdk-generator/inputWidgetKind.ts'
 import type { LiteGraphJSON } from 'src/litegraph/LiteGraphJSON.ts'
 import type { LiteGraphLinkTuple } from 'src/litegraph/LiteGraphLink.ts'
 import { asLiteGraphLinkID, type LiteGraphLinkID } from 'src/litegraph/LiteGraphLinkID.ts'
@@ -42,7 +42,7 @@ const convertNodeToLiteGraphNode = (ctx: LiteGraphCtx, node: ComfyNode<any>): Li
    const widgets_values: unknown[] = []
    for (const ipt of node.$schema.inputs) {
       const raw = node.serializeValue(ipt.nameInComfy, node.json.inputs[ipt.nameInComfy])
-      const isWidget = howManyWidgetValuesForThisSchemaType(ipt) > 0
+      const kind = classifySchemaInput(ipt)
       if (_isLink(raw)) {
          const nodeUidNumber = bang(
             ctx.graph.nodes.find((n) => n.uid === raw[0])?.uidNumber,
@@ -61,8 +61,9 @@ const convertNodeToLiteGraphNode = (ctx: LiteGraphCtx, node: ComfyNode<any>): Li
                ipt.typeName,
             ),
          })
-      } else if (isWidget) {
-         widgets_values.push(raw)
+      } else if (kind.kind === 'widget') {
+         // frontend button-widget values ride BEFORE the real value (LOAD_3D)
+         widgets_values.push(...kind.prefixValues, raw)
          // ComfyUI stores a phantom control_after_generate value after seeds
          const isSeed = ipt.typeName === 'INT' && (ipt.nameInComfy === 'seed' || ipt.nameInComfy === 'noise_seed')
          if (isSeed) widgets_values.push(false)

@@ -21,7 +21,7 @@ const fixtures = readdirSync('tests/fixtures/workflows')
 
 describe('template compat ratchet (schema + normalize + structural convert)', () => {
    it('the fixture corpus is still enrolled', () => {
-      expect(fixtures.length).toBeGreaterThanOrEqual(9)
+      expect(fixtures.length).toBeGreaterThanOrEqual(10)
    })
 
    for (const name of fixtures) {
