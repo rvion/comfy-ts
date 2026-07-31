@@ -1,12 +1,18 @@
 # comfy-ts
 
-## Unreleased
+## 2.2.0
+
+The repair release. `comfy-ts serve` was broken for every payload override in every version since 1.3.0; this fixes it and the three quieter faults that shipped with it.
+
+### Serve, fixed
 
 - **Fixed: `comfy-ts serve` rejected every payload override.** `POST /generate` answered `var '<name>' has unsupported kind '<kind>'` for every var, and `GET /drafts` described every var as `"payload": "string"`. The cause was `instanceof`: the package defines the var classes once in `dist/index.js` (what your `.cflow.ts` imports) and again in the cli bundle (what `comfy-ts serve` runs), so the check was always false. Discrimination is by `kind` now, which crosses that boundary. Broken since 1.3.0, when serve landed.
 - **`v.prompt` vars report `kind: "prompt"`** (they used to report `"text"`, indistinguishable from `v.text`). `GET /drafts` now states the real prompt contract, and `VarKind` gains the `'prompt'` member. If you switch exhaustively on `VarKind`, add the case; a prompt var previously arrived labelled `'text'`.
 - **Serve seed modes work again.** `?` never rerolled and `+`/`-` never advanced, so every `POST /generate` that omitted the seed silently reused the draft's stored value. If you worked around identical outputs by always sending an explicit seed, you can stop.
 - **Serve image vars accept an http(s) url again**, and the "file not found" preflight runs again. A url used to be stored verbatim as a path, and a missing file surfaced later as a build crash instead of a 400.
 - The same `instanceof` fault silently disabled prompt colouring (`//` comments, `- ` negative lines) in the packaged TUI. Fixed with it.
+### Library
+
 - **Re-encoded saves get one honest extension**: `save: { format: 'image/webp' }` now writes `shot_20260731-154210_00001.webp`. It used to append the new extension after the server's original one (`…_00001.png.webp`), which named the bytes twice and got the first name wrong.
 - **`host.latentPreview.url` is revoked when the next frame replaces it.** Every preview frame used to leak its blob into the object-url registry for the life of the process (one frame per sampler step). If you hold on to a url across frames, read the bytes or re-create the url from `latentPreview.blob`; `onLatentPreview` hands you the raw bytes and is unaffected.
 
