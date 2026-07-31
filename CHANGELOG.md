@@ -1,5 +1,9 @@
 # comfy-ts
 
+## 2.4.1
+
+- **An unreachable host now answers immediately instead of waiting out the connect deadline.** A refused TCP connection means nothing is listening, so retrying it cannot help: the websocket client reports a close that never opened instead of spending the 2s retry loop, and `connect()` rejects at once with `ComfyHostUnreachableError`. `comfy-ts serve` returns its 502 in milliseconds, so a dead host no longer costs every queued request 30 seconds each. A server that ACCEPTS but never speaks (a busy single threaded ComfyUI) is a different case and still gets the full `timeoutMs` deadline. Reconnects after a successful connect are untouched and still retry forever.
+
 ## 2.4.0
 
 Your loras stop being opaque file names.

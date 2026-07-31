@@ -84,11 +84,22 @@ export class ResilientWebSocketClient {
          /** transport unrecoverable (no ws package AND no global WebSocket, or ctor threw):
           * reported here ONCE, the client goes permanently closed — never a retry storm */
          onTransportDead?: (error: unknown) => void
+         /**
+          * the socket closed WITHOUT ever opening: nothing is listening there.
+          * That is a definitive answer, not a blip, so it is reported instead of
+          * retried and the caller decides. The 2s retry loop exists to heal an
+          * ESTABLISHED session; spending it on a refused connect only makes every
+          * waiter sit for the full connect deadline. No callback = retry as before.
+          */
+         onFirstConnectFailed?: (error: unknown) => void
       },
    ) {
       this.url = options.url()
       void this.connect()
    }
+
+   /** an established session heals by retrying; a first connect that never opened does not */
+   private hasEverOpened: boolean = false
 
    private reconnectTimeout?: Maybe<ReturnType<typeof setTimeout>>
    private permanentlyClosed: boolean = false
@@ -156,6 +167,7 @@ export class ResilientWebSocketClient {
       ws.onopen = (): void => {
          if (ws !== this.currentWS) return
          this.addInfo('✅ WebSocket connected to ' + this.url)
+         this.hasEverOpened = true
          this.isOpen = true
          this.options.onConnectOrReconnect()
          this.flushMessageBuffer()
@@ -167,6 +179,14 @@ export class ResilientWebSocketClient {
          this.options.onClose()
          if (this.permanentlyClosed) return
          this.addError(`WebSocket closed (reason=${JSON.stringify(event.reason)}, code=${event.code})`)
+         // never opened = nothing is listening: report, do not retry (see the option)
+         if (!this.hasEverOpened && this.options.onFirstConnectFailed != null) {
+            this.permanentlyClosed = true
+            this.options.onFirstConnectFailed(
+               new Error(`connection refused (code=${event.code}${event.reason === '' ? '' : `, ${event.reason}`})`),
+            )
+            return
+         }
          this.addInfo('⏱️ reconnecting in 2 seconds...')
          this.reconnectTimeout = setTimeout(() => void this.connect(), 2000)
       }

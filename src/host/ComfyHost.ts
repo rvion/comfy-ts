@@ -554,6 +554,15 @@ export class ComfyHost<ID extends string = string> {
          // remap X-API-Key to ?token= inside the ws client
          headers: () => this.authHeaders(),
          onTransportDead: (e): void => this.markFailed(e),
+         // nothing listening: answer NOW instead of making every caller wait out
+         // the deadline. markFailed resets _ready, so the next connect() retries
+         // and a host that comes back is reachable again
+         onFirstConnectFailed: (e): void =>
+            this.markFailed(
+               new ComfyHostUnreachableError(
+                  `host '${this.data.id}' is not reachable at ${this.getWSUrl()} — ${extractErrorMessage(e)}. Is ComfyUI running there ?`,
+               ),
+            ),
          onClose: (): void => {
             logInfo(`[👢] WEBSOCKET: closed connection to ComfyUI host ${this.data.id}`)
          },
