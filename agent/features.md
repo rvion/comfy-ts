@@ -51,9 +51,12 @@ Types for every KNOWN custom node / plugin / model in the ecosystem
 
 ## G6 — local AND remote hosts
 
-`ComfyInstallType` distinguishes local / remote-over-ssh. Matters because some
-features have different implementations per locality (e.g. retrieving media:
-local can read files straight from the Comfy output dir, remote must HTTP /view).
+`ComfyInstallType` distinguishes local / remote-over-ssh. A locality-aware
+media retrieval fast-path was on the roadmap here and was DROPPED (his call
+2026-07-31): the saver × save matrix (G9, README) already gives every
+placement — same-machine users pick `SaveImage` with no `save:` and read the
+server's own `output/` file, one write, zero copies. No hidden path
+derivation to maintain.
 
 - ✅ type distinction + ssh helpers (`ssh-host-manager/`: config upsert,
   remote exec — port-forward tunnels DELETED 2026-07-27: they died silently,
@@ -65,7 +68,6 @@ local can read files straight from the Comfy output dir, remote must HTTP /view)
   output image downloaded). Committed account-generic catalog sdk at
   `examples/comfy-cloud/sdk.d.ts` (`bun run gen:sdk:cloud`) +
   `examples/rvion/05-comfy-cloud.cflow.ts`
-- 🔶 locality-aware media retrieval fast-path — planned
 
 ## G7 — sidekick CLI
 

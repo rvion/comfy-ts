@@ -318,8 +318,7 @@ Every combination is a valid choice — you pick where the image lives.
 Running comfy-ts on the same machine as ComfyUI? Then row one is the best
 of both worlds: `SaveImage` with no `save:` writes the file exactly once,
 by the server, and it is already local — read it straight from ComfyUI's
-own `output/` folder. (A locality-aware fast-path where the library skips
-the HTTP download and hands you that path itself is on the roadmap.)
+own `output/` folder.
 
 Running an imported workflow or template that uses `SaveImage`? `ephemeral:
 true` rewrites its save nodes to `SaveImageWebsocket` in the sent prompt (the
@@ -602,7 +601,6 @@ committing it is what buys you typed CI.
 | cloud hosts: `url` + `X-API-Key` auth, Comfy Cloud ran live    |   ✅   |
 | ComfyUI-Manager registry mirror + Known\* ecosystem unions     |   ✅   |
 | install custom nodes / models via ComfyUI-Manager (v2 API)     |   🔶   |
-| locality-aware media retrieval fast-path (local vs remote)     |   🔶   |
 | content-addressed local asset cache                            |   🔶   |
 
 ✅ working and exercised · 🔶 partial / in progress
