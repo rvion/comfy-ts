@@ -321,14 +321,29 @@ Hand-tune a draft in the TUI, then make it callable by anything that speaks
 HTTP — a web frontend, curl, n8n, another service:
 
 ```bash
-bunx comfy-ts serve                # every *.cflow.ts under cwd, port 8288
+bunx comfy-ts serve                     # every *.cflow.ts under cwd, port 8288
+bunx comfy-ts serve ./flows             # just that folder
+bunx comfy-ts serve txt2img.cflow.ts    # one workflow (routes shorten to /generate/<draft>)
+bunx comfy-ts serve --port 9000 --bind 0.0.0.0   # pick port / expose beyond localhost
 ```
+
+Discover what's being served — same info the startup print shows, as JSON:
+
+```bash
+curl http://127.0.0.1:8288/drafts                  # all workflows, their drafts, every var described
+curl http://127.0.0.1:8288/drafts/txt2img/moody    # one draft with its stored values
+```
+
+Generate:
 
 ```bash
 curl -X POST http://127.0.0.1:8288/generate/txt2img/default \
   -H 'content-type: application/json' \
   -d '{"prompt": "a red cube", "steps": 8}'
 # → { "ok": true, "images": [{ "url": "/outputs/…png", … }], "seeds": … }
+
+curl -X POST http://127.0.0.1:8288/generate/txt2img/moody \
+  -H 'accept: image/*' -d '{"seed": 42}' -o out.png   # raw image bytes
 ```
 
 Draft values are the defaults, the JSON body overrides per request, and every
