@@ -305,6 +305,16 @@ const bytes = execution.images[0]?.buffer
 await txt2img.run({ log: true, save: { prefix: 'my-project' } })
 ```
 
+Every combination is a valid choice — you pick where the image lives.
+`execution.images` works in all four (the bytes always stream to memory):
+
+| graph saver          | `save` option | server disk | local disk |
+| -------------------- | ------------- | ----------- | ---------- |
+| `SaveImage`          | none          | yes         | no         |
+| `SaveImage`          | `save: …`     | yes         | yes        |
+| `SaveImageWebsocket` | none          | no          | no         |
+| `SaveImageWebsocket` | `save: …`     | no          | yes        |
+
 Running an imported workflow or template that uses `SaveImage`? `ephemeral:
 true` rewrites its save nodes to `SaveImageWebsocket` in the sent prompt (the
 graph you authored stays untouched) and deletes the run's server history entry
