@@ -92,8 +92,11 @@ Var kinds: `v.text`, `v.int`, `v.float`, `v.seed`, `v.toggle`, `v.choice`, `v.si
 ```bash
 bunx comfy-ts gen --id <host-id> [--host http://127.0.0.1:8188]  # codegen
 bunx comfy-ts outline [file] [--section Name] [--lines N]  # inspect a sdk.d.ts
+bunx comfy-ts loras [--id <host-id>] [--host http://…]  # mirror lora metadata (optional ComfyUI-Lora-Manager extension)
 bunx comfy-ts tui [dir | module.cflow.ts]  # interactive tweak & re-run
 ```
+
+`comfy-ts loras` writes `.comfy-ts/hosts/<id>/loras.json`: per lora, the model's real name, its civitai trigger words, tags, base model and preview url, stored raw. It is what makes `v.prompt(text, { loraKeywordsFrom: lorasVar })` inject a lora's trigger words with nothing typed by hand, and what lets the TUI find a lora by its human name. Read it yourself (`getLoraInfo`, `getLoraTriggerWords`, `getLoraDisplayName`) when a user asks which lora to pick. Absent extension or no sync yet: every getter answers empty, nothing breaks.
 
 The TUI scans `**/*.cflow.ts` (no arg: cwd PLUS the examples bundled with the package, grouped apart in the tree; an explicit dir or file limits to that scope), shows vars as editable knobs, runs with live progress and previews, and saves named drafts under `.comfy-ts/drafts/`. It re-execs through bun when launched under node (workflow modules are TypeScript, and node cannot import .ts from node_modules). Point users at it; as an agent you run modules with `bun path/to/module.cflow.ts`.
 

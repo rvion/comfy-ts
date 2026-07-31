@@ -290,12 +290,25 @@ bunx comfy-ts gen --id my-gpu --host http://127.0.0.1:8188
 # → .comfy-ts/hosts/my-gpu/{object_info.json, embeddings.json, sdk.d.ts}
 
 bunx comfy-ts outline              # what's inside that 2MB sdk.d.ts?
+bunx comfy-ts loras                # mirror your loras' names + trigger words (below)
 bunx comfy-ts tui                  # your *.cflow.ts + bundled examples
 bunx comfy-ts tui [dir | module]   # scan just that
 bunx comfy-ts serve [dir | module] # drafts as a local HTTP API (below)
 ```
 
 Any reachable host: the box under your desk or a GPU machine across the network, same command, same output.
+
+### Loras with names, not file names
+
+ComfyUI only tells you a lora's file name. If your host runs the [ComfyUI-Lora-Manager](https://github.com/willmiao/ComfyUI-Lora-Manager) extension, one command mirrors what it knows into your project:
+
+```bash
+bunx comfy-ts loras --id my-gpu --host http://127.0.0.1:8188
+# → .comfy-ts/hosts/my-gpu/loras.json  (model names, civitai trigger words, tags, base models, previews)
+bunx comfy-ts loras                # refresh later: id and url are remembered
+```
+
+After that, in the TUI's loras overlay you can type `aurora ink` to find `styles\aurora-ink-v3.safetensors`, and a lora's civitai trigger words are prefixed onto your `v.prompt` automatically when it is active (⌃K still overrides any lora's keyword by hand). No extension, or no sync yet? Everything behaves as before — file names and hand-typed keywords.
 
 ## 🌐 Serve: drafts as an HTTP API
 

@@ -116,6 +116,7 @@ const MODE_KEYS: Partial<Record<string, Hint[]>> = {
       ['←→', 'strength ±0.05'],
       ['type', 'filter'],
       ['⌃K', 'keyword'],
+      ['⌃D', 'reset keyword'],
       ['⌃A', 'all'],
       ['⌃N', 'none'],
       ['esc', 'done'],

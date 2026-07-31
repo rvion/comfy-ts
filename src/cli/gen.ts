@@ -1,16 +1,14 @@
 // fetch a live host's schema and generate its typed sdk
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'pathe'
+import { flagReader } from 'src/cli/flags.ts'
 import { ComfySchema } from 'src/sdk-generator/ComfySchema.ts'
 import type { ComfySchemaJSON } from 'src/sdk-generator/ComfyUIObjectInfoTypes.ts'
 import { ComfyTS } from 'src/state.ts'
 import { readableStringify } from 'src/utils/stringifyReadable.ts'
 
 export async function runGen(args: string[]): Promise<number> {
-   const getFlag = (name: string): string | null => {
-      const ix = args.indexOf(`--${name}`)
-      return ix >= 0 ? (args[ix + 1] ?? null) : null
-   }
+   const getFlag = flagReader(args)
    const hostUrl = getFlag('host') ?? 'http://127.0.0.1:8188'
    const id = getFlag('id')
    if (id == null) {

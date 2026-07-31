@@ -3,6 +3,7 @@
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { runGen } from 'src/cli/gen.ts'
+import { runLoras } from 'src/cli/loras.ts'
 import { runOutline } from 'src/cli/outline.ts'
 
 const HELP = `comfy-ts — typed SDK codegen for ComfyUI
@@ -16,6 +17,14 @@ Usage:
 
    comfy-ts outline [file] [--lines N] [--section Name]
          outline a generated sdk.d.ts (defaults to the first one in .comfy-ts/hosts/)
+
+   comfy-ts loras [--id <host-id>] [--host http://…] [--api-key <key>]
+         mirror what the optional ComfyUI-Lora-Manager extension knows about
+         every lora into .comfy-ts/hosts/<id>/loras.json: real model names,
+         civitai trigger words, tags, base model, preview urls. The TUI then
+         fuzzy-matches loras by their human name and auto-injects their trigger
+         words into v.prompt (⌃K still overrides, per lora). --id defaults to
+         the only host folder on disk, --host to the url the last sync used
 
    comfy-ts tui [dir | workflow-module.ts]
          interactive tweak & re-run over **/*.cflow.ts modules (exporting
@@ -35,6 +44,7 @@ async function main(): Promise<number> {
    const [cmd, ...rest] = process.argv.slice(2)
    if (cmd === 'gen') return runGen(rest)
    if (cmd === 'outline') return runOutline(rest)
+   if (cmd === 'loras') return runLoras(rest)
    if (cmd === 'tui' || cmd === 'serve') {
       // .cflow.ts workflow modules need bun: node refuses to strip types under
       // node_modules, exactly where the packaged examples live — and the bin's
@@ -60,4 +70,9 @@ async function main(): Promise<number> {
    return cmd == null || cmd === 'help' ? 0 : 1
 }
 
-process.exitCode = await main()
+// a thrown command (a flag with no value, an unreadable path) must print ONE
+// clear line and exit non-zero, never a raw unhandled-rejection stack
+process.exitCode = await main().catch((e: unknown) => {
+   console.error(`[comfy-ts] 🔴 ${e instanceof Error ? e.message : String(e)}`)
+   return 1
+})

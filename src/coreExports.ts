@@ -103,7 +103,26 @@ export type {
    ImageVarOpts,
 } from 'src/vars/ComfyVars.ts'
 export { DefinedWorkflow, type DefineWorkflowSpec, type BoundVars, type LoraNameOf } from 'src/vars/DefinedWorkflow.ts'
-export { getLoraKeyword, setLoraKeyword } from 'src/vars/loraKeywords.ts'
+export {
+   clearLoraKeywordOverride,
+   getLoraKeyword,
+   isLoraKeywordFromMirror,
+   loraKeywordFromMirror,
+   setLoraKeyword,
+} from 'src/vars/loraKeywords.ts'
+// the lora-manager mirror read model (refreshed by `comfy-ts loras`)
+export { type LmLoraItem, type LoraSweep, loraKey } from 'src/host/loraManagerApi.ts'
+export {
+   type LoraMirror,
+   getLoraDisplayName,
+   getLoraInfo,
+   getLoraPreviewUrl,
+   getLoraTriggerWords,
+   loraMatchesFilter,
+   loraSearchNames,
+   loraSearchText,
+   reloadLoraInfoCache,
+} from 'src/host/loraInfoCache.ts'
 export { loraTag } from 'src/utils/loraTag.ts'
 
 // shared types

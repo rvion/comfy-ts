@@ -1,5 +1,6 @@
 import { observable, runInAction } from 'mobx'
 import { join } from 'pathe'
+import { getLoraTriggerWords } from 'src/host/loraInfoCache.ts'
 import { getComfyStorage } from 'src/storage/ComfyStorage.ts'
 import { logError } from 'src/utils/log.ts'
 
@@ -9,6 +10,12 @@ import { logError } from 'src/utils/log.ts'
  * `.comfy-ts/lora-keywords.json` (NOT under cache/: this is hand-entered data
  * and must survive a cache wipe). Observable map: overlay rows re-render on
  * assignment. Keys are the RAW lora names (folder/file.safetensors).
+ *
+ * This file is the OVERRIDE layer. Below it sits the lora-manager mirror's
+ * civitai trigger words (src/host/loraInfoCache.ts, refreshed by
+ * `comfy-ts loras`), so most loras carry a keyword without anyone typing one.
+ * The overlay renders a mirror-sourced keyword dim and a hand-typed one yellow,
+ * and ⌃D drops the override to fall back to the mirror again.
  */
 const keywords = observable.map<string, string>()
 let loaded = false
@@ -34,19 +41,55 @@ function loadOnce(): void {
    }
 }
 
-export function getLoraKeyword(name: string): string {
+/** the hand keyword when this lora HAS an entry (`''` included), else the mirror's trigger words */
+export function getLoraKeyword(name: string, hostId?: string): string {
    loadOnce()
-   return keywords.get(name) ?? ''
+   const hand = keywords.get(name)
+   if (hand != null) return hand
+   return getLoraTriggerWords(name, hostId).join(', ')
 }
 
-/** empty keyword deletes the entry; every set writes the file (tiny, rare) */
-export function setLoraKeyword(name: string, keyword: string): void {
+/** true when the keyword shown comes from the lora-manager mirror, not from ⌃K */
+export function isLoraKeywordFromMirror(name: string, hostId?: string): boolean {
+   loadOnce()
+   return !keywords.has(name) && getLoraTriggerWords(name, hostId).length > 0
+}
+
+/** what `clearLoraKeywordOverride` would restore this lora to, `''` when nothing */
+export function loraKeywordFromMirror(name: string, hostId?: string): string {
+   return getLoraTriggerWords(name, hostId).join(', ')
+}
+
+/**
+ * drop the hand entry entirely, so the mirror's trigger words apply again.
+ * The way BACK from an empty-string tombstone: without it, clearing a keyword on
+ * a lora that has trigger words was a one-way door only a text editor could undo.
+ */
+export function clearLoraKeywordOverride(name: string): void {
+   loadOnce()
+   if (!keywords.has(name)) return
+   runInAction(() => void keywords.delete(name))
+   writeKeywords()
+}
+
+/**
+ * empty keyword deletes the entry — EXCEPT when the mirror has trigger words for
+ * this lora: there `''` is stored as an explicit tombstone, the only way to say
+ * "inject nothing" about a lora civitai gave words to. Every set writes the file
+ * (tiny, rare).
+ */
+export function setLoraKeyword(name: string, keyword: string, hostId?: string): void {
    loadOnce()
    const trimmed = keyword.trim()
    runInAction(() => {
-      if (trimmed === '') keywords.delete(name)
+      if (trimmed === '' && getLoraTriggerWords(name, hostId).length === 0) keywords.delete(name)
       else keywords.set(name, trimmed)
    })
+   writeKeywords()
+}
+
+/** every set writes the file: it is tiny and hand-edited rarely */
+function writeKeywords(): void {
    const path = filePath()
    try {
       getComfyStorage().writeText(path, JSON.stringify(Object.fromEntries([...keywords.entries()].sort()), null, 2))

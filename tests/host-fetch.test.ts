@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'pathe'
 import type { Server } from 'bun'
 import { ComfyHostAuthError } from 'src/host/ComfyHost.ts'
-import { fetchLoraPreviewMap } from 'src/host/loraManagerApi.ts'
+import { fetchLoraList, loraPreviewMapFrom } from 'src/host/loraManagerApi.ts'
 import { ResilientWebSocketClient } from 'src/host/ResilientWebsocket.ts'
 import { ComfyTS } from 'src/state.ts'
 
@@ -203,14 +203,83 @@ describe('cloud degrade — local-only surfaces stay loud but nonfatal', () => {
       expect(res.ok).toBe(true)
    })
 
-   test('absent lora-manager extension => null map, not a throw', async () => {
+   test('absent lora-manager extension reads as ABSENT, distinct from unreachable', async () => {
       const srv = serve((req) => {
          if (new URL(req.url).pathname === '/api/prompt') return Response.json({ ok: true })
          return undefined
       })
       const comfy = freshComfy()
       const host = comfy.host({ id: 'cloudish-2', url: `http://127.0.0.1:${srv.port}`, apiKey: DUMMY_KEY })
-      expect(await fetchLoraPreviewMap(host)).toBeNull()
+      expect((await fetchLoraList(host)).status).toBe('absent')
+
+      // a host that is merely DOWN must NOT be reported as "extension not
+      // installed": the panel used to say exactly that to a user whose host had
+      // the extension and was simply restarting
+      const dead = comfy.host({ id: 'cloudish-3', url: 'http://127.0.0.1:1' })
+      const sweep = await fetchLoraList(dead)
+      expect(sweep.status).toBe('unreachable')
+   })
+
+   test('fetchLoraList pages until `total` is covered and keeps every raw field', async () => {
+      // the extension CAPS page_size at 100 whatever we ask: the loop must follow total
+      const all = Array.from({ length: 150 }, (_, i) => ({
+         file_name: `lora-${i}`,
+         folder: 'styles',
+         model_name: `Lora ${i}`,
+         sha256: `hash-${i}`, // a field nothing reads today: it must still land in the mirror
+      }))
+      const srv = serve((req) => {
+         const url = new URL(req.url)
+         if (url.pathname !== '/api/lm/loras/list') return undefined
+         const page = Number(url.searchParams.get('page') ?? '1')
+         return Response.json({ items: all.slice((page - 1) * 100, page * 100), total: all.length })
+      })
+      const comfy = freshComfy()
+      const host = comfy.host({ id: 'lm-paged', url: `http://127.0.0.1:${srv.port}` })
+      const sweep = await fetchLoraList(host)
+      expect(sweep.status).toBe('ok')
+      const items = sweep.status === 'ok' ? sweep.items : []
+      expect(items.length).toBe(150)
+      expect(items[149]?.['sha256']).toBe('hash-149')
+      expect(srv.seen.length).toBe(2) // page 1 + page 2, then total is covered
+      // the preview map is now a projection of that ONE sweep
+      expect(loraPreviewMapFrom(items).size).toBe(0) // these rows carry no preview_url
+   })
+
+   test('a collection past the page cap is LOUD and PARTIAL, never silently truncated', async () => {
+      // a server that always hands back a full page and claims there is more
+      const srv = serve((req) => {
+         if (new URL(req.url).pathname !== '/api/lm/loras/list') return undefined
+         return Response.json({
+            items: Array.from({ length: 100 }, (_, i) => ({ file_name: `l-${i}`, folder: 'f' })),
+            total: 999_999,
+         })
+      })
+      const errors: string[] = []
+      const spy = console.error
+      console.error = (...a: unknown[]): void => void errors.push(a.map(String).join(' '))
+      try {
+         const comfy = freshComfy()
+         const host = comfy.host({ id: 'lm-endless', url: `http://127.0.0.1:${srv.port}` })
+         const sweep = await fetchLoraList(host)
+         expect(sweep.status).toBe('partial') // NOT 'ok': a caller must be able to refuse it
+         expect(sweep.status === 'partial' ? sweep.items.length : 0).toBe(2000) // 20 × 100, the runaway stop
+         expect(srv.seen.length).toBe(20) // and it really stops
+      } finally {
+         console.error = spy
+      }
+      expect(errors.join('\n')).toContain('INCOMPLETE')
+   })
+
+   test('fetchLoraList stops on an empty page even when `total` lies', async () => {
+      const srv = serve((req) => {
+         if (new URL(req.url).pathname !== '/api/lm/loras/list') return undefined
+         return Response.json({ items: [], total: 9999 })
+      })
+      const comfy = freshComfy()
+      const host = comfy.host({ id: 'lm-liar', url: `http://127.0.0.1:${srv.port}` })
+      expect(await fetchLoraList(host)).toEqual({ status: 'ok', items: [] })
+      expect(srv.seen.length).toBe(1)
    })
 })
 

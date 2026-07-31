@@ -89,6 +89,7 @@ export const TuiApp = observer((p: { st: TuiSt }) => {
             if (key.ctrl && input === 'a') return lo.setAll(true)
             if (key.ctrl && input === 'n') return lo.setAll(false)
             if (key.ctrl && input === 'k') return lo.beginKeyword()
+            if (key.ctrl && input === 'd') return lo.resetKeyword()
             if (key.return || input === ' ') return lo.toggle()
             if (key.upArrow) return lo.move(-1)
             if (key.downArrow) return lo.move(1)

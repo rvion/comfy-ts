@@ -1,5 +1,8 @@
 import { type } from 'arktype'
+import { basename } from 'pathe'
 import { getComfyStorage } from 'src/storage/ComfyStorage.ts'
+import { extractErrorMessage } from 'src/utils/extractErrorMessage.ts'
+import { isRecord } from 'src/utils/isRecord.ts'
 import { sha1HexOfString } from 'src/utils/sha1.ts'
 import type { ComfyHost } from 'src/host/ComfyHost.ts'
 import { logError } from 'src/utils/log.ts'
@@ -9,52 +12,153 @@ import { logError } from 'src/utils/log.ts'
  * absent extension = normal condition: callers get null/empty and degrade.
  */
 
-const lmLoraItem = type({
-   folder: 'string',
-   file_name: 'string',
-   preview_url: 'string',
-})
+/**
+ * one lora exactly as lora-manager sent it. RAW on purpose (agent/architecture
+ * item 8): the mirror on disk keeps every field, including the ones we do not
+ * read yet, so adding `sha256` or `civitai.modelId` to a surface later is an
+ * accessor, not a re-sync. Reading goes through the checked lm* helpers below.
+ */
+export type LmLoraItem = Record<string, unknown>
+
+/** only the ENVELOPE is schema'd — items stay unknown so nothing can strip their fields */
 const lmLoraPage = type({
-   items: lmLoraItem.array(),
-   total: 'number',
+   items: 'unknown[]',
+   'total?': 'number',
 })
 
-/** normalize an object_info lora name OR an lm folder/file pair to one key */
-export function loraPreviewKey(name: string): string {
+function readString(item: LmLoraItem, key: string): string | null {
+   const v = item[key]
+   return typeof v === 'string' && v !== '' ? v : null
+}
+
+function readStringArray(item: LmLoraItem, key: string): string[] {
+   const v = item[key]
+   if (!Array.isArray(v)) return []
+   return v.filter((x): x is string => typeof x === 'string' && x !== '')
+}
+
+export function lmFileName(item: LmLoraItem): string | null {
+   return readString(item, 'file_name')
+}
+export function lmFolder(item: LmLoraItem): string {
+   return readString(item, 'folder') ?? ''
+}
+export function lmModelName(item: LmLoraItem): string | null {
+   return readString(item, 'model_name')
+}
+export function lmBaseModel(item: LmLoraItem): string | null {
+   return readString(item, 'base_model')
+}
+export function lmPreviewUrl(item: LmLoraItem): string | null {
+   return readString(item, 'preview_url')
+}
+export function lmTags(item: LmLoraItem): string[] {
+   return readStringArray(item, 'tags')
+}
+
+/** the trigger words: civitai's `trainedWords`, absent for a lora nobody published */
+export function lmTrainedWords(item: LmLoraItem): string[] {
+   const civitai = item['civitai']
+   if (!isRecord(civitai)) return []
+   return readStringArray(civitai, 'trainedWords')
+}
+
+/** lm's own absolute path for the file, as it exists on the HOST's disk */
+export function lmFilePath(item: LmLoraItem): string | null {
+   return readString(item, 'file_path')
+}
+
+/**
+ * the ONE key space where a host's object_info spelling of a lora meets
+ * lora-manager's: lowercase, forward slashes, no model extension.
+ * `styles\Aurora.safetensors` and lm's folder `styles` + file_name `aurora`
+ * both become `styles/aurora`.
+ */
+export function loraKey(name: string): string {
    return name
       .replaceAll('\\', '/')
       .replace(/\.(safetensors|st|pt|ckpt)$/i, '')
       .toLowerCase()
 }
 
+/** the file's own name, windows separators included (`styles\x.safetensors` → `x.safetensors`) */
+export function loraBasename(name: string): string {
+   return basename(name.replaceAll('\\', '/'))
+}
+
+/** the mirror key for an lm item: its folder/file_name pair, normalized */
+export function lmItemKey(item: LmLoraItem): string | null {
+   const file = lmFileName(item)
+   if (file == null) return null
+   const folder = lmFolder(item)
+   return loraKey(folder === '' ? file : `${folder}/${file}`)
+}
+
+/** runaway stop: 20 pages × the server's 100-per-page cap = 2000 loras */
+const MAX_PAGES = 20
+
 /**
- * fetch every lora known to lora-manager, mapped `loraPreviewKey` → preview_url
- * (server-relative). Returns null when the extension is absent (404/network).
+ * the outcome of a sweep, DISCRIMINATED. A bare `null` for "no loras" conflated
+ * three very different situations, and callers then told the user the wrong one:
+ * a host that is merely DOWN was reported as "extension not detected", and a
+ * sweep cut short mid-collection was indistinguishable from a complete one, so
+ * a partial mirror could overwrite a good one and report success.
  */
-export async function fetchLoraPreviewMap(host: ComfyHost): Promise<Map<string, string> | null> {
-   const map = new Map<string, string>()
-   const pageSize = 500
-   for (let page = 1; page <= 20; page++) {
+export type LoraSweep =
+   | { status: 'ok'; items: LmLoraItem[] }
+   /** the extension answered, then stopped answering: `items` is INCOMPLETE, never write it over a good mirror */
+   | { status: 'partial'; items: LmLoraItem[]; reason: string }
+   /** no ComfyUI-Lora-Manager on this host (404 on the first page) */
+   | { status: 'absent' }
+   /** the host itself could not be reached (down, refused, auth) */
+   | { status: 'unreachable'; reason: string }
+
+/**
+ * every lora lora-manager knows, RAW, in one paged sweep.
+ * page_size asks for 500; the server caps it at 100, so the loop follows `total`.
+ */
+export async function fetchLoraList(host: ComfyHost): Promise<LoraSweep> {
+   const items: LmLoraItem[] = []
+   for (let page = 1; page <= MAX_PAGES; page++) {
       let res: Response
       try {
          // the extension registers under /api — already prefixed, skip the probe
-         res = await host.fetch(`/api/lm/loras/list?page=${page}&page_size=${pageSize}`, {}, { apiPrefix: false })
-      } catch {
-         return null // host unreachable (or auth-refused): previews off, not an error
+         res = await host.fetch(`/api/lm/loras/list?page=${page}&page_size=500`, {}, { apiPrefix: false })
+      } catch (e) {
+         const reason = `host unreachable at page ${page}: ${extractErrorMessage(e)}`
+         return page === 1 ? { status: 'unreachable', reason } : partial(items, reason)
       }
-      if (!res.ok) return page === 1 ? null : map // 404 on page 1 = extension absent
+      if (!res.ok) {
+         if (page === 1) return { status: 'absent' } // 404 on page 1 = extension absent
+         return partial(items, `page ${page} answered ${res.status}`)
+      }
       const json: unknown = await res.json()
       const parsed = lmLoraPage(json)
       if (parsed instanceof type.errors) {
-         // wire tolerance (agent/coding.md): lm drifts faster than our schema — LOG then bail
-         logError(`[loraManagerApi] /api/lm/loras/list page ${page} shape mismatch: ${parsed.summary}`)
-         return map
+         // wire tolerance (agent/coding.md): lm drifts faster than our schema
+         return partial(items, `page ${page} shape mismatch: ${parsed.summary}`)
       }
-      for (const item of parsed.items) {
-         const rel = item.folder === '' ? item.file_name : `${item.folder}/${item.file_name}`
-         map.set(loraPreviewKey(rel), item.preview_url)
-      }
-      if (map.size >= parsed.total || parsed.items.length === 0) break
+      const pageItems = parsed.items.filter(isRecord)
+      items.push(...pageItems)
+      const total = parsed.total
+      if (pageItems.length === 0 || (total != null && items.length >= total)) return { status: 'ok', items }
+   }
+   return partial(items, `stopped at the ${MAX_PAGES}-page runaway limit`)
+}
+
+/** a truncated sweep is LOUD at the source, whatever the caller then decides to do */
+function partial(items: LmLoraItem[], reason: string): LoraSweep {
+   logError(`[loraManagerApi] lora sweep INCOMPLETE after ${items.length} loras — ${reason}`)
+   return { status: 'partial', items, reason }
+}
+
+/** `loraKey` → server-relative preview_url */
+export function loraPreviewMapFrom(items: LmLoraItem[]): Map<string, string> {
+   const map = new Map<string, string>()
+   for (const item of items) {
+      const key = lmItemKey(item)
+      const url = lmPreviewUrl(item)
+      if (key != null && url != null) map.set(key, url)
    }
    return map
 }

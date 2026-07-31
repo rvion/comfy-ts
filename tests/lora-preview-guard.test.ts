@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { looksLikeImage, loraPreviewKey } from 'src/host/loraManagerApi.ts'
+import { looksLikeImage, loraKey } from 'src/host/loraManagerApi.ts'
 
 describe('lora preview guard', () => {
    it('rejects the SPA index.html fallback (repro: <!doctype html> shown as a preview)', () => {
@@ -18,8 +18,8 @@ describe('lora preview guard', () => {
       expect(looksLikeImage(new Uint8Array([0x00, 0x01]))).toBe(false)
    })
 
-   it('loraPreviewKey normalizes slashes, extensions, case', () => {
-      expect(loraPreviewKey('styles\\Fancy V2.safetensors')).toBe('styles/fancy v2')
-      expect(loraPreviewKey('foo/bar.CKPT')).toBe('foo/bar')
+   it('loraKey normalizes slashes, extensions, case', () => {
+      expect(loraKey('styles\\Fancy V2.safetensors')).toBe('styles/fancy v2')
+      expect(loraKey('foo/bar.CKPT')).toBe('foo/bar')
    })
 })

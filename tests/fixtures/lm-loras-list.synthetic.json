@@ -1,0 +1,52 @@
+{
+ "items": [
+  {
+   "model_name": "Aurora Ink Wash",
+   "file_name": "aurora-ink-v3",
+   "folder": "styles",
+   "base_model": "Test Base 1",
+   "file_path": "/models/loras/styles/aurora-ink-v3.safetensors",
+   "preview_url": "/api/lm/previews?path=%2Fmodels%2Floras%2Fstyles%2Faurora-ink-v3.jpeg",
+   "tags": ["ink", "landscape", "style"],
+   "custom_extra_field": "nothing reads this — it proves the raw item is stored whole",
+   "civitai": { "name": "v3.0", "trainedWords": ["aurora ink wash style"] }
+  },
+  {
+   "model_name": "Brass Gears Mechanicals",
+   "file_name": "brass-gears",
+   "folder": "styles",
+   "base_model": "Test Base 1",
+   "file_path": "/models/loras/styles/brass-gears.safetensors",
+   "preview_url": "/api/lm/previews?path=%2Fmodels%2Floras%2Fstyles%2Fbrass-gears.jpeg",
+   "tags": ["brass", "gears", "steampunk"],
+   "civitai": { "name": "v1.0" }
+  },
+  {
+   "model_name": "[TB2 vid] Zephyr the Pilot",
+   "file_name": "zephyr-pilot",
+   "folder": "characters",
+   "base_model": "Test Base 2",
+   "file_path": "/models/loras/characters/zephyr-pilot.safetensors",
+   "preview_url": "/api/lm/previews?path=%2Fmodels%2Floras%2Fcharacters%2Fzephyr-pilot.jpeg",
+   "tags": ["character", "pilot"],
+   "civitai": { "name": "v2.0", "trainedWords": ["a portrait of zephyr the pilot", "flight jacket"] }
+  },
+  {
+   "model_name": "Rootless Helper",
+   "file_name": "rootless-helper",
+   "folder": "",
+   "base_model": "Test Base 1",
+   "file_path": "/models/loras/rootless-helper.safetensors",
+   "tags": []
+  },
+  {
+   "model_name": "row with no file_name at all",
+   "folder": "styles",
+   "preview_url": "/api/lm/previews?path=%2Fnope.jpeg"
+  }
+ ],
+ "total": 5,
+ "page": 1,
+ "page_size": 100,
+ "total_pages": 1
+}

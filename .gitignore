@@ -23,17 +23,17 @@ tmp/
 # absent for everyone else
 CLAUDE.local.md
 
-# a host dump is that machine's whole model inventory + its paths (~10MB):
-# generated locally by `bun run gen:sdk`, NEVER committed (was the bare
-# pattern 'hosts', which would also have swallowed a future src/hosts/)
-.comfy-ts/hosts/
-.comfy-ts/outputs/
-# TUI drafts are local state
-.comfy-ts/drafts/
-# TUI settings + lora keywords + image-picker prefs + lora-preview cache are local state
-.comfy-ts/settings.json
-.comfy-ts/lora-keywords.json
-.comfy-ts/image-picker.json
-.comfy-ts/cache/
-# mirrored upstream data cache, refetched by `bun run templates:fetch`
-.comfy-ts/templates/
+# EVERYTHING under .comfy-ts/ is local machine state and never this repo's
+# business: host dumps (that machine's whole model inventory and its paths,
+# ~10MB, from `bun run gen:sdk`), the lora metadata mirror, generated outputs,
+# TUI drafts and settings, hand-tuned lora keywords, image-picker prefs, the
+# preview cache, the mirrored upstream templates. Ignored WHOLESALE, not path by
+# path: a deny-list only covers what exists today, so the next feature to write
+# there would be tracked by default. Negate a single path here if one ever needs
+# to be committed.
+.comfy-ts/
+# a captured model-manager page describes ONE machine's collection (absolute
+# disk paths, content ratings, remote ids, the full inventory): never committed,
+# from anywhere in the tree. Fixtures under tests/ are SYNTHETIC and stay that
+# way — tests/no-personal-lora-data.test.ts fails the build if any slips in.
+*.captured.json

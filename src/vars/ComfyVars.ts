@@ -92,8 +92,11 @@ export class TextVar extends ComfyVar<string> {
 const commentLineRe = /^\s*\/\//
 const negativeLineRe = /^\s*- (.*)$/
 
-/** what PromptVar needs from a loras var: covariant face, so LorasVar<'a'|'b'> fits */
-export type ActiveLoraSource = { activeNames(): string[] }
+/** what PromptVar needs from a loras var: covariant face, so LorasVar<'a'|'b'> fits.
+ * `hostId` scopes the keyword lookup: the same file name on two hosts is often a
+ * different model, and injecting the other host's trigger words is a silently
+ * wrong generation. */
+export type ActiveLoraSource = { activeNames(): string[]; hostId?: string }
 
 /** what a prompt CONTRIBUTES to build: `vars.prompt.positive` / `.negative` */
 export type PromptValue = { positive: string; negative: string }
@@ -134,7 +137,7 @@ export class PromptVar extends ComfyVarBase<string, PromptValue> {
          ...new Set(
             src
                .activeNames()
-               .map(getLoraKeyword)
+               .map((name) => getLoraKeyword(name, src.hostId))
                .filter((k) => k !== ''),
          ),
       ]
@@ -329,7 +332,7 @@ export function activeLoras<T extends string>(loras: Partial<Record<T, LoraStren
 }
 
 /** what LorasVar.bindHost needs — structural, so ComfyVars never imports ComfyHost */
-export type LorasHost = { schema: { getLoras(filter?: RegExp): string[] } }
+export type LorasHost = { data?: { id?: string }; schema: { getLoras(filter?: RegExp): string[] } }
 
 /**
  * multi-select lora stack over a DYNAMIC options list — a RegExp resolves
@@ -343,6 +346,8 @@ export class LorasVar<T extends string> extends ComfyVar<Partial<Record<T, LoraS
    private prev: Partial<Record<T, LoraStrength>> = {}
    /** a RegExp source resolves lazily (bindHost) — null until then */
    private resolvedOptions: readonly T[] | null = null
+   /** which host these loras live on, so their metadata is read from ITS mirror */
+   hostId: string | undefined = undefined
 
    constructor(
       private readonly optionsSource: readonly T[] | RegExp,
@@ -365,6 +370,7 @@ export class LorasVar<T extends string> extends ComfyVar<Partial<Record<T, LoraS
     * cast: whitelist family 1 (agent/coding.md) — getLoras() returns the runtime
     * values of the SAME object_info enum the generated E_LoraName union comes from */
    bindHost(host: LorasHost): void {
+      this.hostId = host.data?.id
       if (!(this.optionsSource instanceof RegExp)) return
       this.resolvedOptions = host.schema.getLoras(this.optionsSource) as T[]
    }

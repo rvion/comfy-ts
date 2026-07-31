@@ -1,5 +1,18 @@
 # comfy-ts
 
+## 2.4.0
+
+Your loras stop being opaque file names.
+
+- **New command `comfy-ts loras`**: mirrors everything the optional [ComfyUI-Lora-Manager](https://github.com/willmiao/ComfyUI-Lora-Manager) extension knows about your loras into `.comfy-ts/hosts/<id>/loras.json` — the real model name, civitai trigger words, tags, base model, preview url, and every other field it returns, stored raw. One paged sweep, no per-file requests. `--id` defaults to the only host folder on disk, `--host` to the url the last sync used, so refreshing later is just `comfy-ts loras`. No extension on that host = a loud error and an untouched mirror.
+- **Trigger words become prompt keywords by themselves.** With `v.prompt(text, { loraKeywordsFrom: lorasVar })`, an active lora that has civitai trigger words now prefixes them onto the built prompt with nothing typed by hand. A keyword you assign yourself (⌃K in the TUI loras overlay) still wins, and setting it to empty on such a lora means "inject nothing" rather than falling back to the trigger words.
+- **The TUI loras overlay finds a lora by its human name.** The filter matches the model name, tags, base model and trigger words, not only the file name: every word you type must appear in one of them, in any order, so `aurora ink` and `styles wash` both land on `styles\aurora-ink-v3.safetensors`. Rows show the model name next to the file name, and lora previews come from the local mirror instead of a request.
+- **⌃D in the loras overlay resets a keyword** to whatever lora-manager says, undoing a hand-typed one. Rows show a mirror-sourced keyword dim and a hand-typed one in yellow, so you can always tell which is which.
+- `comfy-ts loras` **refuses to write a half-finished sweep.** If the host stops answering partway through the list, the existing mirror is left alone and the command exits non-zero, rather than silently dropping every lora past the break.
+- Lora metadata is kept **per host**. Two hosts with the same lora file name no longer share one entry, so a host can never show the other's model name or inject the other's trigger words.
+- New exports for building your own surface over the same data: `getLoraInfo`, `getLoraTriggerWords`, `getLoraDisplayName`, `getLoraPreviewUrl`, `loraSearchNames`, `loraSearchText`, `loraMatchesFilter`, `isLoraKeywordFromMirror`, `loraKeywordFromMirror`, `clearLoraKeywordOverride`, `reloadLoraInfoCache`, `loraKey`, and the `LoraMirror`, `LmLoraItem` and `LoraSweep` types. Every getter takes an optional host id.
+- With no extension installed, or before you ever run `comfy-ts loras`, every one of these surfaces behaves exactly as it did in 2.3.0.
+
 ## 2.3.0
 
 - **Fixed: an unreachable host hung forever instead of erroring.** `connect()` waited on a websocket that retries every 2 seconds, and a refused TCP connection is a close rather than a dead transport, so the promise never settled: scripts hung with no message, and `comfy-ts serve` never answered `POST /generate` and then queued every later request for that workflow behind the hung one. The first connect now has a deadline, `ComfyTS.host(...).connect({ timeoutMs })`, default 30s (`0` or `Infinity` waits forever, the old behaviour). Reconnects after a successful connect are untouched and still retry forever.

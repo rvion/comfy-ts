@@ -10,6 +10,7 @@ Push discipline: normal house rules (commit own work, push after committing). Th
 - `bun run ci:local` — the gate PLUS the full typecheck (examples included, needs a generated `.comfy-ts/hosts/*/sdk.d.ts`) — use this one while developing here
 - `bun run gen:sdk` — regenerate `.comfy-ts/hosts/<id>/sdk.d.ts` from cached object_info
 - `bun run sdk:outline` — inspect a generated sdk.d.ts section by section
+- `bun run loras -- --id <host-id> [--host http://…]` — refresh `.comfy-ts/hosts/<id>/loras.json`, the local mirror of what ComfyUI-Lora-Manager knows about each lora (model name, trigger words, tags, preview url); the TUI fuzzy-matches and injects prompt keywords from it
 - `bun run templates:fetch` — mirror every official Comfy-Org template/blueprint JSON into `.comfy-ts/templates/` (gitignored upstream data cache)
 - `bun run templates:check` — compat sweep of that corpus against our litegraph schemas; the failure ranking is the format-grind worklist
 - `bun run tui` opens the TUI over `**/*.cflow.ts` under cwd (tweak & re-run)
@@ -22,7 +23,7 @@ Full spec in this folder — update docs BEFORE changing code.
 ## Two changelogs, and they never mix
 
 - `.rv-journal/changelog.md` — PRIVATE (gitignored, stays on this machine). The engineering journal: session by session, what broke, which repro drove the fix, dead ends, who asked for what. Write here first, freely.
-- `CHANGELOG.md` — PUBLIC, shipped in the npm tarball and on GitHub. Only what a USER of the library can observe: new API, changed behaviour, breaking renames. No session numbers, no repro anecdotes, no names, no intermediate states that were wrong before they were right.
+- `CHANGELOG.md` — PUBLIC: on GitHub, and the release notes are cut from it (NOT in the npm tarball — package.json `files` does not list it). Only what a USER of the library can observe: new API, changed behaviour, breaking renames. No session numbers, no repro anecdotes, no names, no intermediate states that were wrong before they were right.
 
 A release rewrites the public entry FROM the journal; it never copies it.
 
