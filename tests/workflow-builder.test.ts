@@ -941,7 +941,7 @@ describe('autogrow containers (builder face)', () => {
 
 describe('export/import control-widget parity (v3 config spellings)', () => {
    // export used the INT-named-seed heuristic while import consumes off the
-   // control_after_generate CONFIG — reviewer catch 2026-07-31: a truthy
+   // control_after_generate CONFIG: a truthy
    // control on a non-seed widget exported 1 value where import reads 2
    it('control_after_generate config drives the export phantom, both directions', async () => {
       const { bang } = await import('src/utils/bang.ts')

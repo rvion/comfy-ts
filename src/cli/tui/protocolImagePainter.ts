@@ -16,7 +16,7 @@ const MIN_FRAME_BYTES = 64
  * re-paints SYNCHRONOUSLY within the same flush, the whole batch wrapped in
  * DEC 2026 synchronized-update markers: the terminal never presents the
  * erased-frame intermediate state. (The previous deferred setImmediate
- * repaint WAS the native-mode flicker — his repro.) A mobx reaction covers
+ * repaint WAS the native-mode flicker.) A mobx reaction covers
  * byte-only changes (fresh latent/output/lora bytes with no frame write).
  * NOT React: effects only fire for the component that re-rendered, which is
  * why a useEffect painter missed frames (his report: image waited for input).

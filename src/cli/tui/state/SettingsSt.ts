@@ -70,7 +70,7 @@ export class SettingsSt {
    previewDuringRun: PreviewDuringRun = 'latent'
    /** module basename → the draft that was active last time (reopened on load) */
    lastDraft: Record<string, string> = {}
-   /** path of the last OPEN workflow module — a no-arg `tui` reopens it (his ask 2026-07-30) */
+   /** path of the last OPEN workflow module — a no-arg `tui` reopens it */
    lastWorkflow: string | null = null
    /** the `h` host override, by host id (re-resolved once that host registers) */
    hostOverrideId: string | null = null

@@ -3,7 +3,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join, relative } from 'pathe'
 
-// His rule 2026-07-31: NO HARD WRAPS. One line per paragraph and per bullet,
+// NO HARD WRAPS. One line per paragraph and per bullet,
 // however long. Never cut a sentence with a newline for line width — editors
 // soft-wrap, renderers reflow, and grep needs the phrase whole. Code fences,
 // tables and frontmatter keep their own line structure.

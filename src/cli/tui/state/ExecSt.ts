@@ -182,7 +182,7 @@ export class ExecSt {
    // ---- clipboard ----
 
    /** `c`/`C` end HERE, success or failure — a copy must never be silent
-    * (his repro: 'c does nothing', the notice line was too quiet) */
+    * (a silent copy reads as 'c does nothing': the notice line was too quiet) */
    copyPopup: { title: string; ok: boolean; lines: string[] } | null = null
 
    /** a copy build can hang on a stalled-host upload: guard double-presses */
@@ -210,7 +210,7 @@ export class ExecSt {
    }
    /** 'i': the LAST generated image's pixels → clipboard (paste anywhere).
     * The primary route pipes png bytes over stdin — no disk write at all
-    * (his ask 2026-07-31); only when that tool fails does it fall back to
+    * ; only when that tool fails does it fall back to
     * the materialized-file command, and the popup says which route ran. */
    async copyLastImage(): Promise<void> {
       const lastImg = this.outputImages[this.outputImages.length - 1]

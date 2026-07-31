@@ -2,7 +2,7 @@
 // directly): mounts the REAL TuiApp on a pipe stdout — ink writes the final
 // frame at unmount on a non-TTY — with the image picker overlay open, so the
 // test can assert the overlay OPENS and LISTS entries. Logic only: judging
-// looks stays Rémi's.
+// looks is a human's call.
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { render } from 'ink'

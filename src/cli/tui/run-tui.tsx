@@ -116,7 +116,7 @@ export async function runTui(args: string[]): Promise<number> {
    // RAW MODE BEFORE RENDER: ink's kittyKeyboard auto-detect sends its `CSI ? u`
    // query from the Ink constructor, but raw mode only turns on later when
    // useInput mounts. In that window the terminal's `CSI ? 0 u` reply is echoed
-   // by termios (ECHOCTL) as literal `^[[?0u` into the first frame (his repro).
+   // by termios (ECHOCTL) as literal `^[[?0u` into the first frame.
    // Raw mode off = echo on, so flip it ourselves first (inside the try so the
    // finally always restores); ink owns it afterwards and restores cooked mode
    // on exit.
@@ -138,7 +138,7 @@ export async function runTui(args: string[]): Promise<number> {
       uninstallPainter()
       // reset colors + erase WHILE STILL in the alt screen: ED deletes iTerm
       // inline images too — without this the last protocol image and stray
-      // background colors survive into the shell (his repro)
+      // background colors survive into the shell
       if (altScreen) process.stdout.write('\u001b[0m\u001b[2J\u001b[H\u001b[>4;0m\u001b[?1049l')
    }
    return 0

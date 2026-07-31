@@ -8,7 +8,7 @@ const extOf = (path: string): string => {
 }
 
 /** platform command that puts PNG bytes on the clipboard from STDIN — no
- * file ever touches disk (his ask 2026-07-31). The caller pipes `stdin`
+ * file ever touches disk. The caller pipes `stdin`
  * into the spawned process and closes it. */
 export type ImageClipboardStdinCommand = { cmd: string; args: string[]; stdin: Uint8Array }
 
@@ -52,7 +52,7 @@ export const imageClipboardCommand = (platform: NodeJS.Platform, path: string): 
    if (platform === 'darwin') {
       // osascript TAGS bytes with the class, it never transcodes: PNGf on a
       // webp would paste garbage under a green popup — only png/jpeg pass;
-      // the caller transcodes anything else to png first (reviewer catch)
+      // the caller transcodes anything else to png first
       if (ext !== 'png' && ext !== 'jpg' && ext !== 'jpeg') return null
       const cls = ext === 'png' ? '«class PNGf»' : 'JPEG picture'
       return {
@@ -62,7 +62,7 @@ export const imageClipboardCommand = (platform: NodeJS.Platform, path: string): 
    }
    if (platform === 'win32') {
       // single-quoted PS string, inner quotes doubled: a double-quoted string
-      // would interpolate $ and ` from user-controlled paths (reviewer catch)
+      // would interpolate $ and ` from user-controlled paths
       const psQuoted = `'${path.replaceAll("'", "''")}'`
       return {
          cmd: 'powershell',

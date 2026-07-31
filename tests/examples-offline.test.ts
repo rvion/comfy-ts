@@ -19,7 +19,7 @@ function allCflowFiles(): string[] {
    return out.sort()
 }
 
-// his ask 2026-07-30: `comfy-ts tui` with no arg must include the PACKAGED
+// `comfy-ts tui` with no arg must include the PACKAGED
 // examples, so they must open from a fresh consumer project where
 // .comfy-ts/hosts/<id>/ does not exist AND no api key is set. Before the fix
 // the examples' top-level `await host.loadSchemaFromCache()` threw at IMPORT

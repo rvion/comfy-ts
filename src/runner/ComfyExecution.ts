@@ -261,7 +261,7 @@ export class ComfyExecution {
 
    /** re-encode when asked, then write under OUR local naming — never the raw
     * server filename: a cloud host resets its _00001_ counter per run, so the
-    * server name overwrote the same local file on every run (his repro 2026-07-31) */
+    * server name overwrote the same local file on every run */
    private encodeAndWrite = async (p: {
       bytes: Uint8Array
       sf: SaveOptions

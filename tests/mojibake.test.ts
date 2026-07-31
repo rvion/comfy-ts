@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test'
 import { repairMojibake } from 'src/utils/mojibake.ts'
 
 describe('repairMojibake', () => {
-   it('his repro: tqdm bars arrive cp1252-mangled', () => {
+   it('tqdm bars arrive cp1252-mangled', () => {
       // '█' (E2 96 88) decoded as cp1252 = 'â' + en-dash + 'ˆ'
       const mangled = '100%|â–ˆâ–ˆ| 8/8 [00:05<00:00,  1.50it/s]'
       expect(repairMojibake(mangled)).toBe('100%|██| 8/8 [00:05<00:00,  1.50it/s]')

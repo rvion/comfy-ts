@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'pathe'
 import { listWindow } from 'src/cli/tui/listWindow.ts'
 
-// his repro 2026-07-31: "on small terminal, the (t)ree section now cause
+// observed: "on small terminal, the (t)ree section now cause
 // vertical overflow ; tree should not be higher than available space. tree,
 // should be scrollable"
 
@@ -172,7 +172,7 @@ describe('TreeSt viewport: the tree never claims more rows than measured', () =>
    })
 })
 
-describe('small-terminal frame smoke (his repro: tree overflowed the terminal)', () => {
+describe('small-terminal frame smoke (tree used to overflow the terminal)', () => {
    it('the real TuiApp frame at 14 rows never exceeds 14 lines and windows the tree', async () => {
       const { spawnSync } = await import('node:child_process')
       const { join } = await import('pathe')

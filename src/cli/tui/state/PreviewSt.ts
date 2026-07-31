@@ -202,7 +202,7 @@ export class PreviewSt {
    }
 
    /** corner cell box matched to the latent's REAL aspect (a mismatched box
-    * letterboxes in iTerm — his repro: "some vertical rectangle"). Cells are
+    * letterboxes in iTerm, showing a tall rectangle). Cells are
     * ~1:2 (w:h), hence the ×2 when converting image aspect to cells. */
    get cornerBox(): { w: number; h: number } {
       let w = Math.max(8, Math.floor(this.width * CORNER_FRACTION))

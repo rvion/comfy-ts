@@ -1,4 +1,4 @@
-// his repro (first live Comfy Cloud run, 2026-07-30): the cloud streams
+// observed on a live Comfy Cloud run: the cloud streams
 // sampling previews as binary type 4 (PREVIEW_IMAGE_WITH_METADATA) and our
 // onMessage threw `Unknown binary websocket message of type 4` on every step.
 // Frame formats per agent/external-docs/comfy-cloud/api-reference.md.

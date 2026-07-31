@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import { localOutputPath } from 'src/runner/outputPath.ts'
 
-// his repro 2026-07-31: prefix `foo/krea/` produced `.comfy-ts/outputs/
+// observed: prefix `foo/krea/` produced `.comfy-ts/outputs/
 // foo/krea_00001_.png` (dir intent mangled into a filename prefix) AND
 // every run OVERWROTE it — cloud hosts reset the _00001_ counter per run,
 // so the server filename is not unique. => local names carry a timestamp
@@ -84,7 +84,7 @@ describe('localOutputPath (pure): dir intent + timestamp, never the raw server n
    })
 })
 
-describe('reviewer catches', () => {
+describe('edge cases', () => {
    it('sf.prefix override keeps the workflow stem — identity survives the dir move', () => {
       expect(
          localOutputPath({

@@ -11,8 +11,8 @@ import { getLoraKeyword } from 'src/vars/loraKeywords.ts'
  * the var's CLASS, and the only safe way to discriminate one: `instanceof` compares class
  * OBJECTS, and the published package hands the same class out twice — a consumer's
  * `.cflow.ts` imports `comfy-ts` (dist/index.js) while `comfy-ts serve`/`tui` run from the
- * cli bundle, so every `instanceof XVar` across that boundary is false (his repro
- * 2026-07-31: "var 'prompt' has unsupported kind 'text'" for EVERY kind). A string tag
+ * cli bundle, so every `instanceof XVar` across that boundary is false (observed
+ * in a consumer app: "var 'prompt' has unsupported kind 'text'", for EVERY kind). A string tag
  * crosses bundles; a class identity does not.
  */
 export type VarKind = 'text' | 'prompt' | 'int' | 'float' | 'seed' | 'toggle' | 'choice' | 'loras' | 'size' | 'image'
@@ -467,7 +467,7 @@ export const DEFAULT_SIZE_PRESETS: SizePreset[] = [
 ]
 
 /** width/height picker: presets + free `WxH` entry + optionally the LIVE
- * size of a linked image var (his ask 2026-07-30: the widget shows
+ * size of a linked image var (the widget shows
  * `WxH  size of image '<name>'` as a pickable row) */
 export class SizeVar extends ComfyVar<SizeValue> {
    readonly kind = 'size' as const

@@ -5,7 +5,7 @@
 // Discrimination is by `kind`, NEVER instanceof: a consumer's `.cflow.ts` imports
 // `comfy-ts` (dist/index.js) while `comfy-ts serve` runs from the cli bundle, and the
 // two hold different copies of every class, so instanceof was false for EVERY var and
-// every payload override answered "unsupported kind" (his repro 2026-07-31). The casts
+// every payload override answered "unsupported kind". The casts
 // below are the sanctioned kind-narrowing family (agent/coding.md cast whitelist 6).
 import type {
    AnyVar,

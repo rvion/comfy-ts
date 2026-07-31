@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import { probeVerdict, WS_ALIVE_MS } from 'src/cli/tui/state/HostSt.ts'
 
-// his repro 2026-07-30: 'windows-1 appears offline' while the browser tab kept
+// observed: a host appears offline while the browser tab kept
 // generating — ComfyUI is single-threaded, NEW connects stall mid-generation
 // while the established ws streams. The verdict is pure, so it tests headless.
 describe('probeVerdict', () => {
@@ -18,7 +18,7 @@ describe('probeVerdict', () => {
       })
    })
 
-   it('http fail + ws talked recently → up via ws (busy server, his repro)', () => {
+   it('http fail + ws talked recently → up via ws (busy server)', () => {
       expect(probeVerdict({ httpOk: false, wsOpen: true, lastWsMessageAt: now - 2000, now })).toEqual({
          status: 'up',
          via: 'ws',

@@ -803,7 +803,7 @@ export class ComfyHost<ID extends string = string> {
                activeExec.onWsImageOutput({ bytes: frame.bytes, mime: frame.mime })
                return
             }
-            // pre-registration window (reviewer catch 2026-07-31): ws messages
+            // pre-registration window: ws messages
             // can beat the POST /prompt response, and an ephemeral output frame
             // in that window would be the ONLY copy of the image — buffer it IN
             // ORDER with the json messages; ComfyExecution.onCreate replays the

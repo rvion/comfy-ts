@@ -18,7 +18,7 @@ const SPIN_FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '�
  * PURE probe verdict (headless-tested). http ok is proof enough; on http
  * failure a RECENTLY TALKING open ws still means up — ComfyUI is
  * single-threaded and stalls new connects mid-generation while established
- * sockets stream (his repro 2026-07-30: 'windows-1 offline' in the header
+ * sockets stream (observed: a host shown 'offline' in the header
  * while the browser tab generated fine). A half-open socket receives
  * nothing, so the recency window never revives one.
  */

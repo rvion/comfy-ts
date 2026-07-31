@@ -1,6 +1,6 @@
 /**
- * local output naming, relative to `.comfy-ts/outputs/` (his repro
- * 2026-07-31): the server filename is NOT unique — cloud hosts reset the
+ * local output naming, relative to `.comfy-ts/outputs/`:
+ * the server filename is NOT unique — cloud hosts reset the
  * `_00001_` counter every run, so trusting it overwrote the same file — and
  * a `foo/krea/` prefix means the DIRECTORY foo/krea/, not a `krea_` name
  * prefix. Local names are ours: dir from the prompt's own filename_prefix
@@ -60,7 +60,7 @@ export const withExtension = (path: string, ext: string): string => {
 /**
  * never-overwrite guard: bump `-2`, `-3`, … while the path exists on disk OR
  * was already CLAIMED by a still-downloading retrieval (two same-second runs
- * on a counter-resetting cloud host compute the same name — reviewer catch).
+ * on a counter-resetting cloud host compute the same name).
  * The chosen path is claimed before returning.
  */
 export const uniquifyOutputPath = (p: {

@@ -36,7 +36,7 @@ describe('jsonHead (the clipboard-proof body)', () => {
    })
 })
 
-describe('copy popup (his repro: `c` silently did nothing)', () => {
+describe('copy popup (`c` used to silently do nothing)', () => {
    it('a FAILING build ends in a loud red popup, ⏎ closes back to nav', async () => {
       const { v } = await import('src/vars/ComfyVars.ts')
       const { TuiSt } = await import('src/cli/tui/state/TuiSt.ts')
@@ -88,7 +88,7 @@ describe('imageClipboardCommand (pure): platform command for copying image PIXEL
       const script = c?.args.join(' ') ?? ''
       expect(script).toContain('SetImage')
       // single-quoted PS string, inner quotes doubled — never a double-quoted
-      // interpolating string (reviewer catch: $ and ` in user paths)
+      // interpolating string ($ and ` in user paths)
       expect(script).toContain("'C:\\out$dir\\o''ut.png'")
       expect(script).not.toContain('"C:')
    })
