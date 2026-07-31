@@ -61,6 +61,7 @@ export class SettingsSt {
          hostOverrideId: this.hostOverrideId,
          collapsedDirs: this.collapsedDirs,
          saveToDisk: this.saveToDisk,
+         savePrefix: this.savePrefix,
       })
    }
 
@@ -77,6 +78,8 @@ export class SettingsSt {
    collapsedDirs: string[] = []
    /** the vars-panel save toggle (architecture item 14): off = outputs stay in memory */
    saveToDisk: boolean = true
+   /** per-module override of the local save dir under .comfy-ts/outputs/ (item 14) */
+   savePrefix: Record<string, string> = {}
 
    rememberDraft(moduleKey: string, draft: string): void {
       this.lastDraft[moduleKey] = draft
@@ -103,6 +106,12 @@ export class SettingsSt {
          if (typeof o.hostOverrideId === 'string') this.hostOverrideId = o.hostOverrideId
          if (Array.isArray(o.collapsedDirs)) this.collapsedDirs = o.collapsedDirs.filter((d) => typeof d === 'string')
          if (typeof o.saveToDisk === 'boolean') this.saveToDisk = o.saveToDisk
+         if (o.savePrefix != null && typeof o.savePrefix === 'object')
+            this.savePrefix = Object.fromEntries(
+               Object.entries(o.savePrefix as Record<string, unknown>).filter(
+                  (kv): kv is [string, string] => typeof kv[1] === 'string',
+               ),
+            )
       } catch {
          // corrupt settings must never block the TUI — start from defaults
       }

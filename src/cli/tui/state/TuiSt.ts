@@ -2,7 +2,7 @@ import { makeAutoObservable, observable, runInAction } from 'mobx'
 import { listWindow, type ListWindow } from 'src/cli/tui/listWindow.ts'
 import type { SeedVar, ToggleVar, AnyVar } from 'src/vars/ComfyVars.ts'
 import { ImagePickerSt } from 'src/cli/tui/imagePicker/ImagePickerSt.ts'
-import { DraftsSt } from 'src/cli/tui/state/DraftsSt.ts'
+import { DraftsSt, draftKeyForFile } from 'src/cli/tui/state/DraftsSt.ts'
 import { EditorSt } from 'src/cli/tui/state/EditorSt.ts'
 import { ExecSt } from 'src/cli/tui/state/ExecSt.ts'
 import { HostSt } from 'src/cli/tui/state/HostSt.ts'
@@ -201,15 +201,39 @@ export class TuiSt {
       return this.entries[this.selIx]
    }
 
-   /** the vars list carries ONE TUI-owned row after the workflow vars: the
-    * save-to-disk toggle (architecture item 14) */
+   /** module key of the loaded workflow (drafts + savePrefix are keyed by it) */
+   get moduleKey(): string {
+      const cur = this.workflows.currentPath
+      return cur != null ? draftKeyForFile(cur) : (this.wf.spec.id ?? 'workflow')
+   }
+
+   /** the local save dir under .comfy-ts/outputs/ — per-module override, else the module key */
+   get savePrefix(): string {
+      return this.settings.savePrefix[this.moduleKey] ?? this.moduleKey
+   }
+
+   /** empty input resets to the module-key default */
+   setSavePrefix(raw: string): void {
+      const trimmed = raw.trim().replace(/^\/+|\/+$/g, '')
+      if (trimmed === '' || trimmed === this.moduleKey) delete this.settings.savePrefix[this.moduleKey]
+      else this.settings.savePrefix[this.moduleKey] = trimmed
+   }
+
+   /** the vars list carries the TUI-owned rows after the workflow vars: the
+    * save-to-disk toggle, plus the save-prefix row while saving is on
+    * (architecture item 14) */
    get varRowCount(): number {
-      return this.entries.length + 1
+      return this.entries.length + (this.settings.saveToDisk ? 2 : 1)
    }
 
    /** true while the selection sits on the save-to-disk pseudo-row */
    get onSaveRow(): boolean {
       return this.selIx === this.entries.length
+   }
+
+   /** true while the selection sits on the save-prefix pseudo-row */
+   get onPrefixRow(): boolean {
+      return this.settings.saveToDisk && this.selIx === this.entries.length + 1
    }
 
    moveSel(delta: number): void {
@@ -257,6 +281,17 @@ export class TuiSt {
    activate(): void {
       if (this.onSaveRow) {
          this.settings.saveToDisk = !this.settings.saveToDisk
+         return
+      }
+      if (this.onPrefixRow) {
+         this.editor.beginCustom({
+            title: `save prefix — dir under .comfy-ts/outputs/ (empty = ${this.moduleKey})`,
+            initial: this.savePrefix,
+            onCommit: (raw) => {
+               this.setSavePrefix(raw)
+               return true
+            },
+         })
          return
       }
       const sel = this.selected?.[1]

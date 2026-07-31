@@ -114,7 +114,7 @@ export const VarsPanel = observer((p: { st: TuiSt }) => {
                compact={s.varsCompact}
             />
          ))}
-         {/* the TUI-owned save toggle rides the vars list as its last row (item 14) */}
+         {/* the TUI-owned save rows ride the vars list as its last rows (item 14) */}
          {w.end > s.entries.length && (
             <Box flexDirection="row">
                <Box width={labelW} flexShrink={0}>
@@ -128,7 +128,25 @@ export const VarsPanel = observer((p: { st: TuiSt }) => {
                </Box>
                <Box flexGrow={1}>
                   <Text color={s.settings.saveToDisk ? 'cyan' : 'yellow'} wrap="truncate">
-                     {s.settings.saveToDisk ? 'on → .comfy-ts/outputs/' : 'off — outputs stay in memory'}
+                     {s.settings.saveToDisk ? 'on' : 'off — outputs stay in memory'}
+                  </Text>
+               </Box>
+            </Box>
+         )}
+         {s.settings.saveToDisk && w.end > s.entries.length + 1 && (
+            <Box flexDirection="row">
+               <Box width={labelW} flexShrink={0}>
+                  <Text inverse={s.onPrefixRow}>
+                     {s.onPrefixRow ? '▸ ' : '  '}
+                     save prefix
+                  </Text>
+               </Box>
+               <Box width={9} flexShrink={0}>
+                  <Text color="gray">[tui]</Text>
+               </Box>
+               <Box flexGrow={1}>
+                  <Text color="cyan" wrap="truncate">
+                     .comfy-ts/outputs/{s.savePrefix}/
                   </Text>
                </Box>
             </Box>

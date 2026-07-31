@@ -137,7 +137,8 @@ src/cli/tui/               ink+mobx TUI, per build/app-state-tree doctrine:
                            preview mode + last draft per workflow + LAST OPEN
                            workflow (no-arg tui reopens it, run-tui reads the
                            file pre-mount) + host override + folded tree dirs
-                           + saveToDisk (the vars-panel save toggle, item 14)
+                           + saveToDisk + per-module savePrefix (the
+                           vars-panel save rows, item 14)
    state/ExecSt.ts         run/progress/outputs/notice/clipboard/open; c/C
                            copy ends in a POPUP (overlay-copy: what was
                            copied, node count, json head — and the ERROR on
@@ -673,9 +674,15 @@ tests/                     bun tests (headless) + fixtures
    routes need files). The TUI's opt-in is a USER TOGGLE (his ask
    2026-07-31): `settings.saveToDisk` (persisted, default ON) rendered as a
    TUI-owned pseudo-row at the BOTTOM of the vars panel (label `save to
-   disk`, kind tag `[tui]`, ⏎/space toggles — TuiSt.varRowCount =
-   entries+1, activate() routes the extra index to the setting). Saved runs
-   group per module under `.comfy-ts/outputs/<module>/`. MEMORY-ONLY runs
+   disk`, kind tag `[tui]`, ⏎/space toggles — TuiSt.varRowCount counts the
+   pseudo-rows, activate() routes the extra indices). While saving is ON a
+   SECOND TUI row follows (his ask 2026-07-31, after 04 lost its prefix
+   var): `save prefix`, the dir appended after `.comfy-ts/outputs/` — ⏎
+   opens the EditorSt custom prompt (PromptOverlay, the draft-rename
+   mechanism), value persisted PER MODULE in `settings.savePrefix`
+   (Record keyed by TuiSt.moduleKey — the one module-key getter, DraftsSt
+   delegates to it), default = the module key, empty input resets to that
+   default. Saved runs land under `.comfy-ts/outputs/<prefix>/`. MEMORY-ONLY runs
    stay first-class in the TUI: ExecSt keeps `outputImages: MediaImage[]`
    (not paths), the outputs box below the vars panel lists memory images as
    `filename (WxH, in memory)`, the preview panel renders from the buffer,

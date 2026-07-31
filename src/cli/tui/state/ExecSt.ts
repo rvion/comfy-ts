@@ -9,7 +9,6 @@ import { imageClipboardCommand } from 'src/cli/tui/imageClipboard.ts'
 import { extractErrorMessage } from 'src/utils/extractErrorMessage.ts'
 import type { SeedVar } from 'src/vars/ComfyVars.ts'
 import type { TuiSt } from 'src/cli/tui/state/TuiSt.ts'
-import { draftKeyForFile } from 'src/cli/tui/state/DraftsSt.ts'
 import type { MediaImage } from 'src/runner/MediaImage.ts'
 
 /** popup body: summary + the head of the copied json (proof of WHAT is in the clipboard) */
@@ -46,12 +45,6 @@ export class ExecSt {
 
    get running(): boolean {
       return this.inFlight > 0
-   }
-
-   /** local save dir for this module's outputs (same key the drafts use) */
-   private get saveDirPrefix(): string {
-      const cur = this.st.workflows.currentPath
-      return cur != null ? draftKeyForFile(cur) : (this.st.wf.spec.id ?? 'workflow')
    }
 
    /** workflow switch: wipe run artifacts, keep a hello notice */
@@ -110,9 +103,9 @@ export class ExecSt {
       try {
          const execution = await this.st.wf.run({
             host: this.st.hostOverride ?? undefined,
-            // the save toggle (vars panel last row, item 14): on = files under
-            // .comfy-ts/outputs/<module>/, off = outputs stay in memory
-            save: this.st.settings.saveToDisk ? { prefix: this.saveDirPrefix } : false,
+            // the save rows (vars panel, item 14): on = files under
+            // .comfy-ts/outputs/<savePrefix>/, off = outputs stay in memory
+            save: this.st.settings.saveToDisk ? { prefix: this.st.savePrefix } : false,
             onProgress: (p) => runInAction(() => this.onProgress(p)),
          })
          runInAction(() => {

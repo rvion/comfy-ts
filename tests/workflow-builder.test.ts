@@ -815,6 +815,11 @@ describe('tui save toggle: memory-only outputs stay first-class', () => {
       runInAction(() => (st.settings.saveToDisk = true))
       await st.exec.run()
       expect(received?.save).toEqual({ prefix: 'tui-save-toggle' })
+
+      // the prefix row's override reaches run() and appends under outputs/
+      runInAction(() => st.setSavePrefix('client-x/batch-1'))
+      await st.exec.run()
+      expect(received?.save).toEqual({ prefix: 'client-x/batch-1' })
       st.dispose()
    })
 })

@@ -250,19 +250,35 @@ describe('VarsPanel viewport (reviewer follow-up: selection clipped off-screen o
       expect(st.varsWindow.moreBelow).toBe(false)
    })
 
-   it('the save row: last in the wrap cycle, ⏎ toggles the persisted setting', async () => {
+   it('the save rows: toggle + prefix wrap the cycle, ⏎ toggles, prefix persists per module', async () => {
       const st = await build()
       st.selIx = 0
+      // saving ON: prefix row is the true last, save row just above it
+      st.moveSel(-1)
+      expect(st.selIx).toBe(15)
+      expect(st.onPrefixRow).toBe(true)
       st.moveSel(-1)
       expect(st.selIx).toBe(14)
       expect(st.onSaveRow).toBe(true)
       expect(st.settings.saveToDisk).toBe(true)
+      // toggling OFF removes the prefix row from the cycle
       st.activate()
       expect(st.settings.saveToDisk).toBe(false)
+      expect(st.varRowCount).toBe(15)
+      expect(st.onPrefixRow).toBe(false)
       st.activate()
       expect(st.settings.saveToDisk).toBe(true)
-      st.moveSel(1)
+      expect(st.varRowCount).toBe(16)
+      st.moveSel(2)
       expect(st.selIx).toBe(0)
+      // prefix override persists per module; empty resets to the module key
+      expect(st.savePrefix).toBe(st.moduleKey)
+      st.setSavePrefix(' my/dir/ ')
+      expect(st.savePrefix).toBe('my/dir')
+      expect(st.settings.savePrefix[st.moduleKey]).toBe('my/dir')
+      st.setSavePrefix('')
+      expect(st.savePrefix).toBe(st.moduleKey)
+      expect(st.settings.savePrefix[st.moduleKey]).toBeUndefined()
    })
 
    it('compact mode: on while the list overflows, off when everything fits', async () => {

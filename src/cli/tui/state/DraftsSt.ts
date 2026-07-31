@@ -82,8 +82,7 @@ export class DraftsSt {
 
    /** module key of the currently loaded workflow (settings.lastDraft is keyed by it) */
    private get moduleKey(): string {
-      const cur = this.st.workflows.currentPath
-      return cur != null ? draftKeyForFile(cur) : (this.st.wf.spec.id ?? 'workflow')
+      return this.st.moduleKey
    }
 
    /** switch to a draft: load its stored values when the file exists, else it starts from current values */
