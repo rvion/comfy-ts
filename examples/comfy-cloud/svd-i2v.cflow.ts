@@ -1,6 +1,7 @@
 // svd i2v on Comfy Cloud — Stable Video Diffusion (svd_xt), 25 frames from a still image, no text prompt
 // source template: txt_to_image_to_video.json (official workflow-templates), SDXL t2i half replaced by LoadImage
 // needs COMFY_CLOUD_API_KEY (https://cloud.comfy.org, paid tiers)
+// note: video outputs PERSIST on the host (upstream ships no websocket saver for video — image examples stream ephemerally)
 // run directly:  bun examples/comfy-cloud/svd-i2v.cflow.ts [path/to/image.png] [seed]
 import { asAbsolutePath, exampleImagePath, MediaImage, v } from 'comfy-ts'
 import { cloudHost, requireCloudKey } from './cloudHost.ts'

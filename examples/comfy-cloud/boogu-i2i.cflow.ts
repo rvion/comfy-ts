@@ -56,10 +56,7 @@ export const booguI2i = host.defineWorkflow({
          noise_seed: vars.seed,
          cfg: vars.cfg,
       })
-      b.SaveImage({
-         images: b.VAEDecode({ samples: sampled.outputs.output, vae }),
-         filename_prefix: 'comfy-ts-zoo/boogu-i2i',
-      })
+      b.SaveImageWebsocket({ images: b.VAEDecode({ samples: sampled.outputs.output, vae }) })
    },
 })
 
@@ -70,7 +67,7 @@ if (import.meta.main) {
    requireCloudKey()
    if (process.argv[2]) booguI2i.vars.image.set(process.argv[2])
    if (process.argv[3]) booguI2i.vars.prompt.set(process.argv[3])
-   const execution = await booguI2i.run({ log: true })
+   const execution = await booguI2i.run({ log: true, save: { prefix: 'comfy-ts-zoo/boogu-i2i' } })
    for (const img of execution.images) console.log(`🟢 ${img.absPath}`)
    host.disconnect()
 }

@@ -102,7 +102,7 @@ if (import.meta.main) {
    requireCloudKey()
    if (process.argv[2]) <family><Mode>.vars.prompt.set(process.argv[2])
    if (process.argv[3]) <family><Mode>.vars.seed.set(Number(process.argv[3]))
-   const execution = await <family><Mode>.run({ log: true })
+   const execution = await <family><Mode>.run({ log: true, save: { prefix: 'comfy-ts-zoo/<family>-<mode>' } })
    for (const img of execution.images) console.log(`🟢 ${img.absPath}`)
    host.disconnect()
 }
@@ -121,9 +121,18 @@ Deviations from the skeleton, both deliberate:
   the key requirement, the run command. Nothing else.
 - ONE workflow per file, `export const` + `export default`, id =
   `<family>-<mode>` (matches the basename).
-- `filename_prefix` is HARDCODED `comfy-ts-zoo/<family>-<mode>` — not a var
-  (outputs group per example, var panels stay signal-only). The numbered
-  didactic examples keep their own prefixes.
+- IMAGE examples save via `b.SaveImageWebsocket({ images })` — never
+  `SaveImage` (his order 2026-07-31: examples leave NO trace on the server;
+  architecture.md item 14 owns the mechanics). The grouping string that used
+  to be the server-side `filename_prefix` moves to the LOCAL save prefix:
+  standalone blocks pass `save: { prefix: 'comfy-ts-zoo/<family>-<mode>' }`
+  (rvion examples: `comfy-ts-example/<id>`) so opt-in saves land in a local
+  subfolder under `.comfy-ts/outputs/`. Not a var — outputs group per
+  example, var panels stay signal-only.
+- VIDEO/AUDIO examples keep their server-side savers (`SaveVideo`,
+  `SaveAudioMP3`) with the hardcoded `comfy-ts-zoo/<name>` filename_prefix —
+  upstream ships no websocket variant for them; each header comment states
+  that outputs persist on the host.
 - Build code mirrors the source template's CONVERTED api.json (see
   verification bar), simplified: drop UI scaffolding (Primitive*,
   ComfySwitchNode, PreviewAny, Note, math/resolution helper nodes, empty lora

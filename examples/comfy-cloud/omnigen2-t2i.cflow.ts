@@ -41,10 +41,7 @@ export const omnigen2T2i = host.defineWorkflow({
          sigmas: b.BasicScheduler({ model, scheduler: 'simple', steps: vars.steps, denoise: 1 }),
          latent_image: b.EmptySD3LatentImage({ width: vars.size.width, height: vars.size.height, batch_size: 1 }),
       })
-      b.SaveImage({
-         images: b.VAEDecode({ samples: samples.outputs.output, vae }),
-         filename_prefix: 'comfy-ts-zoo/omnigen2-t2i',
-      })
+      b.SaveImageWebsocket({ images: b.VAEDecode({ samples: samples.outputs.output, vae }) })
    },
 })
 
@@ -56,7 +53,7 @@ if (import.meta.main) {
    if (process.argv[2]) omnigen2T2i.vars.prompt.set(process.argv[2])
    if (process.argv[3]) omnigen2T2i.vars.seed.set(Number(process.argv[3]))
 
-   const execution = await omnigen2T2i.run({ log: true })
+   const execution = await omnigen2T2i.run({ log: true, save: { prefix: 'comfy-ts-zoo/omnigen2-t2i' } })
    for (const img of execution.images) console.log(`🟢 ${img.absPath}`)
    host.disconnect()
 }

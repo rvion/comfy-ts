@@ -1,6 +1,7 @@
 // chatterbox t2a on Comfy Cloud — Chatterbox Multilingual TTS: text to speech in 23 languages, mp3 out
 // source template: audio-chatterbox_tts_multilingual.json (official workflow-templates)
 // needs COMFY_CLOUD_API_KEY (https://cloud.comfy.org, paid tiers)
+// note: audio outputs PERSIST on the host (upstream ships no websocket saver for audio — image examples stream ephemerally)
 // run directly:  bun examples/comfy-cloud/chatterbox-t2a.cflow.ts ["text"] [seed]
 import { v } from 'comfy-ts'
 import { cloudHost, requireCloudKey } from './cloudHost.ts'

@@ -51,7 +51,14 @@ async function generate(): Promise<void> {
          cfg: 7,
          denoise: 1,
       })
-      node(b.SaveImage, 'SaveImage')({ images: node(b.VAEDecode, 'VAEDecode')({ samples: sampled, vae: ckpt }) })
+      // SaveImageWebsocket: the image streams back over the ws — nothing lands
+      // on the server, and in the browser nothing could land on disk anyway
+      node(
+         b.SaveImageWebsocket,
+         'SaveImageWebsocket',
+      )({
+         images: node(b.VAEDecode, 'VAEDecode')({ samples: sampled, vae: ckpt }),
+      })
 
       const execution = await wf.run({
          onProgress: (p) => {

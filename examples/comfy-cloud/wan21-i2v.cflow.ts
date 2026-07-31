@@ -1,6 +1,7 @@
 // wan21 i2v on Comfy Cloud — Wan 2.1 14B 480p image to video: start image + CLIP vision steer the motion
 // source template: image_to_video_wan.json (official workflow-templates)
 // needs COMFY_CLOUD_API_KEY (https://cloud.comfy.org, paid tiers)
+// note: video outputs PERSIST on the host (upstream ships no websocket saver for video — image examples stream ephemerally)
 // run directly:  bun examples/comfy-cloud/wan21-i2v.cflow.ts [path/to/image.png] ["prompt"]
 import { asAbsolutePath, exampleImagePath, MediaImage, v } from 'comfy-ts'
 import { cloudHost, requireCloudKey } from './cloudHost.ts'

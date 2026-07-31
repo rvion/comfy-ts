@@ -1,6 +1,7 @@
 // hunyuan-video t2v on Comfy Cloud — HunyuanVideo 1.5 720p text to video, 5s @ 24fps
 // source template: video_hunyuan_video_1.5_720p_t2v.json (official workflow-templates)
 // needs COMFY_CLOUD_API_KEY (https://cloud.comfy.org, paid tiers)
+// note: video outputs PERSIST on the host (upstream ships no websocket saver for video — image examples stream ephemerally)
 // run directly:  bun examples/comfy-cloud/hunyuan-video-t2v.cflow.ts ["prompt"] [seed]
 import { v } from 'comfy-ts'
 import { cloudHost, requireCloudKey } from './cloudHost.ts'

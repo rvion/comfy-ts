@@ -21,7 +21,6 @@ export const qwenImageEdit = host.defineWorkflow({
       seed: v.seed(42),
       steps: v.int(4, { min: 1, max: 60 }),
       lightning: v.toggle(true, '4-step lightning lora'),
-      prefix: v.text('qwen-image-edit'),
    },
    // async build: the reference image is uploaded (hash-named, deduped) per run
    build: async (b, vars, wf) => {
@@ -72,7 +71,7 @@ export const qwenImageEdit = host.defineWorkflow({
          scheduler: 'simple',
          denoise: 1,
       })
-      b.SaveImage({ images: b.VAEDecode({ samples, vae }), filename_prefix: vars.prefix })
+      b.SaveImageWebsocket({ images: b.VAEDecode({ samples, vae }) })
    },
 })
 
@@ -83,7 +82,7 @@ if (import.meta.main) {
    if (process.argv[2]) qwenImageEdit.vars.image.set(process.argv[2])
    if (process.argv[3]) qwenImageEdit.vars.prompt.set(process.argv[3])
 
-   const execution = await qwenImageEdit.run({ log: true })
+   const execution = await qwenImageEdit.run({ log: true, save: { prefix: 'comfy-ts-example/qwen-image-edit' } })
    for (const img of execution.images) console.log(`🟢 ${img.absPath}`)
    host.disconnect()
 }

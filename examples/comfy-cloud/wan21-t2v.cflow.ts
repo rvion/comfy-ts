@@ -1,6 +1,7 @@
 // wan21 t2v on Comfy Cloud — Wan 2.1 1.3B text to video, 480p, 33 frames at 16 fps
 // source template: text_to_video_wan.json (official workflow-templates)
 // needs COMFY_CLOUD_API_KEY (https://cloud.comfy.org, paid tiers)
+// note: video outputs PERSIST on the host (upstream ships no websocket saver for video — image examples stream ephemerally)
 // run directly:  bun examples/comfy-cloud/wan21-t2v.cflow.ts ["prompt"] [seed]
 import { v } from 'comfy-ts'
 import { cloudHost, requireCloudKey } from './cloudHost.ts'

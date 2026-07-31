@@ -52,7 +52,7 @@ export const sdxlT2i = host.defineWorkflow({
          end_at_step: 10000,
          return_with_leftover_noise: 'disable',
       })
-      b.SaveImage({ images: b.VAEDecode({ samples, vae: refiner }), filename_prefix: 'comfy-ts-zoo/sdxl-t2i' })
+      b.SaveImageWebsocket({ images: b.VAEDecode({ samples, vae: refiner }) })
    },
 })
 
@@ -63,7 +63,7 @@ if (import.meta.main) {
    requireCloudKey()
    if (process.argv[2]) sdxlT2i.vars.prompt.set(process.argv[2])
    if (process.argv[3]) sdxlT2i.vars.seed.set(Number(process.argv[3]))
-   const execution = await sdxlT2i.run({ log: true })
+   const execution = await sdxlT2i.run({ log: true, save: { prefix: 'comfy-ts-zoo/sdxl-t2i' } })
    for (const img of execution.images) console.log(`🟢 ${img.absPath}`)
    host.disconnect()
 }

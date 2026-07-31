@@ -31,7 +31,7 @@ export const sd35T2i = host.defineWorkflow({
          scheduler: 'sgm_uniform',
          denoise: 1,
       })
-      b.SaveImage({ images: b.VAEDecode({ samples, vae: ckpt }), filename_prefix: 'comfy-ts-zoo/sd35-t2i' })
+      b.SaveImageWebsocket({ images: b.VAEDecode({ samples, vae: ckpt }) })
    },
 })
 
@@ -42,7 +42,7 @@ if (import.meta.main) {
    requireCloudKey()
    if (process.argv[2]) sd35T2i.vars.prompt.set(process.argv[2])
    if (process.argv[3]) sd35T2i.vars.seed.set(Number(process.argv[3]))
-   const execution = await sd35T2i.run({ log: true })
+   const execution = await sd35T2i.run({ log: true, save: { prefix: 'comfy-ts-zoo/sd35-t2i' } })
    for (const img of execution.images) console.log(`🟢 ${img.absPath}`)
    host.disconnect()
 }

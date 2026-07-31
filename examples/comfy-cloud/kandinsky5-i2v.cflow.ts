@@ -1,6 +1,7 @@
 // kandinsky5 i2v on Comfy Cloud — Kandinsky 5.0 Lite image to video, 5s @ 24fps from a start image
 // source template: video_kandinsky5_i2v.json (official workflow-templates)
 // needs COMFY_CLOUD_API_KEY (https://cloud.comfy.org, paid tiers)
+// note: video outputs PERSIST on the host (upstream ships no websocket saver for video — image examples stream ephemerally)
 // run directly:  bun examples/comfy-cloud/kandinsky5-i2v.cflow.ts [path/to/image.png] ["prompt"]
 import { asAbsolutePath, exampleImagePath, MediaImage, v } from 'comfy-ts'
 import { cloudHost, requireCloudKey } from './cloudHost.ts'

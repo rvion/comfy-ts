@@ -64,10 +64,7 @@ export const omnigen2I2i = host.defineWorkflow({
             batch_size: 1,
          }),
       })
-      b.SaveImage({
-         images: b.VAEDecode({ samples: samples.outputs.output, vae }),
-         filename_prefix: 'comfy-ts-zoo/omnigen2-i2i',
-      })
+      b.SaveImageWebsocket({ images: b.VAEDecode({ samples: samples.outputs.output, vae }) })
    },
 })
 
@@ -80,7 +77,7 @@ if (import.meta.main) {
    if (process.argv[3]) omnigen2I2i.vars.prompt.set(process.argv[3])
    if (process.argv[4]) omnigen2I2i.vars.seed.set(Number(process.argv[4]))
 
-   const execution = await omnigen2I2i.run({ log: true })
+   const execution = await omnigen2I2i.run({ log: true, save: { prefix: 'comfy-ts-zoo/omnigen2-i2i' } })
    for (const img of execution.images) console.log(`🟢 ${img.absPath}`)
    host.disconnect()
 }

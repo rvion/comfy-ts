@@ -1,6 +1,7 @@
 // ltxv t2v on Comfy Cloud — LTX-Video 2b (v0.9) text to video, 97 frames @ 24fps ≈ 4s
 // source template: ltxv_text_to_video.json (official workflow-templates)
 // needs COMFY_CLOUD_API_KEY (https://cloud.comfy.org, paid tiers)
+// note: video outputs PERSIST on the host (upstream ships no websocket saver for video — image examples stream ephemerally)
 // run directly:  bun examples/comfy-cloud/ltxv-t2v.cflow.ts ["prompt"] [seed]
 import { v } from 'comfy-ts'
 import { cloudHost, requireCloudKey } from './cloudHost.ts'

@@ -36,10 +36,7 @@ export const flux2T2i = host.defineWorkflow({
          sigmas: b.Flux2Scheduler({ steps: vars.steps, width: vars.size.width, height: vars.size.height }),
          latent_image: b.EmptyFlux2LatentImage({ width: vars.size.width, height: vars.size.height, batch_size: 1 }),
       })
-      b.SaveImage({
-         images: b.VAEDecode({ samples: samples.outputs.output, vae }),
-         filename_prefix: 'comfy-ts-zoo/flux2-t2i',
-      })
+      b.SaveImageWebsocket({ images: b.VAEDecode({ samples: samples.outputs.output, vae }) })
    },
 })
 
@@ -51,7 +48,7 @@ if (import.meta.main) {
    if (process.argv[2]) flux2T2i.vars.prompt.set(process.argv[2])
    if (process.argv[3]) flux2T2i.vars.seed.set(Number(process.argv[3]))
 
-   const execution = await flux2T2i.run({ log: true })
+   const execution = await flux2T2i.run({ log: true, save: { prefix: 'comfy-ts-zoo/flux2-t2i' } })
    for (const img of execution.images) console.log(`🟢 ${img.absPath}`)
    host.disconnect()
 }

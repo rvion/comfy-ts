@@ -38,7 +38,7 @@ export const qwenImageT2i = host.defineWorkflow({
          scheduler: 'simple',
          denoise: 1,
       })
-      b.SaveImage({ images: b.VAEDecode({ samples, vae }), filename_prefix: 'comfy-ts-zoo/qwen-image-t2i' })
+      b.SaveImageWebsocket({ images: b.VAEDecode({ samples, vae }) })
    },
 })
 
@@ -49,7 +49,7 @@ if (import.meta.main) {
    requireCloudKey()
    if (process.argv[2]) qwenImageT2i.vars.prompt.set(process.argv[2])
    if (process.argv[3]) qwenImageT2i.vars.seed.set(Number(process.argv[3]))
-   const execution = await qwenImageT2i.run({ log: true })
+   const execution = await qwenImageT2i.run({ log: true, save: { prefix: 'comfy-ts-zoo/qwen-image-t2i' } })
    for (const img of execution.images) console.log(`🟢 ${img.absPath}`)
    host.disconnect()
 }

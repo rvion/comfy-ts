@@ -32,7 +32,6 @@ export const t2i = host.defineWorkflow({
          size: v.size({ width: 1024, height: 1024 }),
          removeBg: v.toggle(true, 'remove bg'),
          loras,
-         prefix: v.text('krea2-turbo-t2i'),
       }
    },
    build: (b, vars) => {
@@ -87,9 +86,9 @@ export const t2i = host.defineWorkflow({
       const image = b.VAEDecode({ samples, vae })
 
       if (vars.removeBg) {
-         // background removal → transparent png. SaveImage alone drops RMBG's
-         // alpha, so rejoin the MASK via core JoinImageWithAlpha (which inverts
-         // the mask internally — hence the InvertMask in front).
+         // background removal → transparent png. The image savers drop RMBG's
+         // alpha unless rejoined, so rejoin the MASK via core JoinImageWithAlpha
+         // (which inverts the mask internally — hence the InvertMask in front).
          const cutout = b['rmbg.RMBG']({
             image,
             model: 'BEN2',
@@ -105,9 +104,9 @@ export const t2i = host.defineWorkflow({
             image: cutout.outputs.IMAGE,
             alpha: b.InvertMask({ mask: cutout.outputs.MASK }),
          })
-         b.SaveImage({ images: rgba, filename_prefix: vars.prefix })
+         b.SaveImageWebsocket({ images: rgba })
       } else {
-         b.SaveImage({ images: image, filename_prefix: vars.prefix })
+         b.SaveImageWebsocket({ images: image })
       }
    },
 })
@@ -119,7 +118,7 @@ if (import.meta.main) {
    if (process.argv[2]) t2i.vars.prompt.set(process.argv[2])
    if (process.argv[3]) t2i.vars.seed.set(Number(process.argv[3]))
 
-   const execution = await t2i.run({ log: true })
+   const execution = await t2i.run({ log: true, save: { prefix: 'comfy-ts-example/krea2-turbo-t2i' } })
    for (const img of execution.images) console.log(`🟢 ${img.absPath}`)
    host.disconnect()
 }

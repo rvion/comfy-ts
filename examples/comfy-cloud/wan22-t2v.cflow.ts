@@ -1,6 +1,7 @@
 // wan22 t2v on Comfy Cloud — Wan 2.2 14B text to video, two experts: high noise then low noise, 5s @ 16fps
 // source template: video_wan2_2_14B_t2v.json (official workflow-templates)
 // needs COMFY_CLOUD_API_KEY (https://cloud.comfy.org, paid tiers)
+// note: video outputs PERSIST on the host (upstream ships no websocket saver for video — image examples stream ephemerally)
 // run directly:  bun examples/comfy-cloud/wan22-t2v.cflow.ts ["prompt"] [seed]
 import { v } from 'comfy-ts'
 import { cloudHost, requireCloudKey } from './cloudHost.ts'

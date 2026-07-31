@@ -57,12 +57,11 @@ export const ideogram4T2i = host.defineWorkflow({
          }),
          latent_image: b.EmptyFlux2LatentImage({ width: vars.size.width, height: vars.size.height, batch_size: 1 }),
       })
-      b.SaveImage({
+      b.SaveImageWebsocket({
          images: b.VAEDecode({
             samples: samples.outputs.output,
             vae: b.VAELoader({ vae_name: 'flux2-vae.safetensors' }),
          }),
-         filename_prefix: 'comfy-ts-zoo/ideogram4-t2i',
       })
    },
 })
@@ -74,7 +73,7 @@ if (import.meta.main) {
    requireCloudKey()
    if (process.argv[2]) ideogram4T2i.vars.prompt.set(process.argv[2])
    if (process.argv[3]) ideogram4T2i.vars.seed.set(Number(process.argv[3]))
-   const execution = await ideogram4T2i.run({ log: true })
+   const execution = await ideogram4T2i.run({ log: true, save: { prefix: 'comfy-ts-zoo/ideogram4-t2i' } })
    for (const img of execution.images) console.log(`🟢 ${img.absPath}`)
    host.disconnect()
 }

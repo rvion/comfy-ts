@@ -16,7 +16,6 @@ export const txt2img = host.defineWorkflow({
       steps: v.int(20, { min: 1, max: 60 }),
       cfg: v.float(7, { min: 0, max: 30 }),
       size: v.size({ width: 512, height: 512 }),
-      prefix: v.text('comfy-ts-example'),
    },
    build: (b, vars) => {
       const ckpt = b.CheckpointLoaderSimple({ ckpt_name: 'SD1.5\\v1-5-pruned-emaonly.ckpt' })
@@ -32,7 +31,9 @@ export const txt2img = host.defineWorkflow({
          scheduler: 'normal',
          denoise: 1,
       })
-      b.SaveImage({ images: b.VAEDecode({ samples, vae: ckpt }), filename_prefix: vars.prefix })
+      // SaveImageWebsocket: the image streams back over the ws and never
+      // touches the server disk (README "Ephemeral outputs")
+      b.SaveImageWebsocket({ images: b.VAEDecode({ samples, vae: ckpt }) })
    },
 })
 
@@ -43,7 +44,8 @@ if (import.meta.main) {
    if (process.argv[2]) txt2img.vars.prompt.set(process.argv[2])
    if (process.argv[3]) txt2img.vars.seed.set(Number(process.argv[3]))
 
-   const execution = await txt2img.run({ log: true })
+   // local saving is opt-in: without `save` the outputs stay in memory only
+   const execution = await txt2img.run({ log: true, save: { prefix: 'comfy-ts-example/txt2img' } })
    console.log(`🟢 done — ${execution.images.length} image(s):`)
    for (const img of execution.images) console.log(`   ${img.absPath} (${img.width}x${img.height})`)
    host.disconnect()

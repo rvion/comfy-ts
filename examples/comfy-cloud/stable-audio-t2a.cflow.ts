@@ -1,6 +1,7 @@
 // stable-audio t2a on Comfy Cloud — Stable Audio Open 1.0 text to audio, up to ~47s, mp3 out
 // source template: audio_stable_audio_example.json (official workflow-templates)
 // needs COMFY_CLOUD_API_KEY (https://cloud.comfy.org, paid tiers)
+// note: audio outputs PERSIST on the host (upstream ships no websocket saver for audio — image examples stream ephemerally)
 // run directly:  bun examples/comfy-cloud/stable-audio-t2a.cflow.ts ["prompt"] [seed]
 import { v } from 'comfy-ts'
 import { cloudHost, requireCloudKey } from './cloudHost.ts'

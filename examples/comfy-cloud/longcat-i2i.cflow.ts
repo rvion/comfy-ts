@@ -57,7 +57,7 @@ export const longcatI2i = host.defineWorkflow({
          scheduler: 'simple',
          denoise: 1,
       })
-      b.SaveImage({ images: b.VAEDecode({ samples, vae }), filename_prefix: 'comfy-ts-zoo/longcat-i2i' })
+      b.SaveImageWebsocket({ images: b.VAEDecode({ samples, vae }) })
    },
 })
 
@@ -68,7 +68,7 @@ if (import.meta.main) {
    requireCloudKey()
    if (process.argv[2]) longcatI2i.vars.image.set(process.argv[2])
    if (process.argv[3]) longcatI2i.vars.prompt.set(process.argv[3])
-   const execution = await longcatI2i.run({ log: true })
+   const execution = await longcatI2i.run({ log: true, save: { prefix: 'comfy-ts-zoo/longcat-i2i' } })
    for (const img of execution.images) console.log(`🟢 ${img.absPath}`)
    host.disconnect()
 }

@@ -31,7 +31,9 @@ export const sd15T2i = host.defineWorkflow({
          scheduler: 'normal',
          denoise: 1,
       })
-      b.SaveImage({ images: b.VAEDecode({ samples, vae: ckpt }), filename_prefix: 'comfy-ts-zoo/sd15-t2i' })
+      // SaveImageWebsocket: outputs stream back over the ws, nothing lands on
+      // the cloud's storage (README "Ephemeral outputs")
+      b.SaveImageWebsocket({ images: b.VAEDecode({ samples, vae: ckpt }) })
    },
 })
 
@@ -44,7 +46,7 @@ if (import.meta.main) {
    if (process.argv[3]) sd15T2i.vars.seed.set(Number(process.argv[3]))
 
    const t0 = Date.now()
-   const execution = await sd15T2i.run({ log: true })
+   const execution = await sd15T2i.run({ log: true, save: { prefix: 'comfy-ts-zoo/sd15-t2i' } })
    console.log(`🟢 done in ${((Date.now() - t0) / 1000).toFixed(1)}s — ${execution.images.length} image(s):`)
    for (const img of execution.images) console.log(`   ${img.absPath} (${img.width}x${img.height})`)
    host.disconnect()

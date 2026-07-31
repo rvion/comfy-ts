@@ -39,9 +39,8 @@ export const krea2T2i = host.defineWorkflow({
          scheduler: 'simple',
          denoise: 1,
       })
-      b.SaveImage({
+      b.SaveImageWebsocket({
          images: b.VAEDecode({ samples, vae: b.VAELoader({ vae_name: 'qwen_image_vae.safetensors' }) }),
-         filename_prefix: 'comfy-ts-zoo/krea2-t2i',
       })
    },
 })
@@ -53,7 +52,7 @@ if (import.meta.main) {
    requireCloudKey()
    if (process.argv[2]) krea2T2i.vars.prompt.set(process.argv[2])
    if (process.argv[3]) krea2T2i.vars.seed.set(Number(process.argv[3]))
-   const execution = await krea2T2i.run({ log: true })
+   const execution = await krea2T2i.run({ log: true, save: { prefix: 'comfy-ts-zoo/krea2-t2i' } })
    for (const img of execution.images) console.log(`🟢 ${img.absPath}`)
    host.disconnect()
 }

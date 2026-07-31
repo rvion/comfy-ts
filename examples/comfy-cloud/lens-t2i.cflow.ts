@@ -39,12 +39,11 @@ export const lensT2i = host.defineWorkflow({
          noise_seed: vars.seed,
          cfg: 1,
       })
-      b.SaveImage({
+      b.SaveImageWebsocket({
          images: b.VAEDecode({
             samples: samples.outputs.output,
             vae: b.VAELoader({ vae_name: 'flux2-vae.safetensors' }),
          }),
-         filename_prefix: 'comfy-ts-zoo/lens-t2i',
       })
    },
 })
@@ -56,7 +55,7 @@ if (import.meta.main) {
    requireCloudKey()
    if (process.argv[2]) lensT2i.vars.prompt.set(process.argv[2])
    if (process.argv[3]) lensT2i.vars.seed.set(Number(process.argv[3]))
-   const execution = await lensT2i.run({ log: true })
+   const execution = await lensT2i.run({ log: true, save: { prefix: 'comfy-ts-zoo/lens-t2i' } })
    for (const img of execution.images) console.log(`🟢 ${img.absPath}`)
    host.disconnect()
 }

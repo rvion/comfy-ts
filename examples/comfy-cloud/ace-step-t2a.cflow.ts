@@ -1,6 +1,7 @@
 // ace-step t2a on Comfy Cloud — ACE-Step v1 3.5B text to song: style tags + lyrics to a full mp3 track
 // source template: audio_ace_step_1_t2a_song.json (official workflow-templates)
 // needs COMFY_CLOUD_API_KEY (https://cloud.comfy.org, paid tiers)
+// note: audio outputs PERSIST on the host (upstream ships no websocket saver for audio — image examples stream ephemerally)
 // run directly:  bun examples/comfy-cloud/ace-step-t2a.cflow.ts ["prompt"] [seed]
 import { v } from 'comfy-ts'
 import { cloudHost, requireCloudKey } from './cloudHost.ts'

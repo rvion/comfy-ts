@@ -47,10 +47,7 @@ export const newbieT2i = host.defineWorkflow({
          scheduler: 'simple',
          denoise: 1,
       })
-      b.SaveImage({
-         images: b.VAEDecode({ samples, vae: b.VAELoader({ vae_name: 'ae.safetensors' }) }),
-         filename_prefix: 'comfy-ts-zoo/newbie-t2i',
-      })
+      b.SaveImageWebsocket({ images: b.VAEDecode({ samples, vae: b.VAELoader({ vae_name: 'ae.safetensors' }) }) })
    },
 })
 
@@ -61,7 +58,7 @@ if (import.meta.main) {
    requireCloudKey()
    if (process.argv[2]) newbieT2i.vars.prompt.set(process.argv[2])
    if (process.argv[3]) newbieT2i.vars.seed.set(Number(process.argv[3]))
-   const execution = await newbieT2i.run({ log: true })
+   const execution = await newbieT2i.run({ log: true, save: { prefix: 'comfy-ts-zoo/newbie-t2i' } })
    for (const img of execution.images) console.log(`🟢 ${img.absPath}`)
    host.disconnect()
 }

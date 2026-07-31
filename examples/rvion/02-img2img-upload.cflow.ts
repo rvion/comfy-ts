@@ -19,9 +19,10 @@ export const img2img = host.defineWorkflow({
       seed: v.seed(7),
       steps: v.int(20, { min: 1, max: 60 }),
       denoise: v.float(0.65, { min: 0, max: 1 }),
-      prefix: v.text('comfy-ts-img2img'),
    },
-   // async build: the input image is uploaded (hash-named, deduped) per run
+   // async build: the input image is uploaded (hash-named, deduped) per run.
+   // NOTE: uploads PERSIST in the server's input/ folder — for inputs that
+   // must not touch the server either, see MediaImage.loadInWorkflow_viaBase64Node
    build: async (b, vars, wf) => {
       const img = new MediaImage({ path: asAbsolutePath(image.absPath()) })
       const loaded = await img.loadInWorkflow_viaLoadImageNode(wf)
@@ -39,7 +40,7 @@ export const img2img = host.defineWorkflow({
          scheduler: 'normal',
          denoise: vars.denoise, // 0.65 keeps 35% of the input image
       })
-      b.SaveImage({ images: b.VAEDecode({ samples, vae: ckpt }), filename_prefix: vars.prefix })
+      b.SaveImageWebsocket({ images: b.VAEDecode({ samples, vae: ckpt }) })
    },
 })
 
@@ -49,7 +50,7 @@ export default img2img
 if (import.meta.main) {
    if (process.argv[2]) img2img.vars.image.set(process.argv[2])
 
-   const execution = await img2img.run({ log: true })
+   const execution = await img2img.run({ log: true, save: { prefix: 'comfy-ts-example/img2img-upload' } })
    for (const out of execution.images) console.log(`🟢 ${out.absPath}`)
    host.disconnect()
 }

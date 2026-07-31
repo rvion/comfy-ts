@@ -1,6 +1,7 @@
 // ltxv i2v on Comfy Cloud — LTX-Video 2b (v0.9.5) image to video: a start image drives the first frame
 // source template: ltxv_image_to_video.json (official workflow-templates)
 // needs COMFY_CLOUD_API_KEY (https://cloud.comfy.org, paid tiers)
+// note: video outputs PERSIST on the host (upstream ships no websocket saver for video — image examples stream ephemerally)
 // run directly:  bun examples/comfy-cloud/ltxv-i2v.cflow.ts [path/to/image.png] ["prompt"]
 import { asAbsolutePath, exampleImagePath, MediaImage, v } from 'comfy-ts'
 import { cloudHost, requireCloudKey } from './cloudHost.ts'

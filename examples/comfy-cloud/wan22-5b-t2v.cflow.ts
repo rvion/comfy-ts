@@ -1,6 +1,7 @@
 // wan22-5b t2v on Comfy Cloud — Wan 2.2 5B ti2v, one compact model, 5s @ 24fps 1280x704
 // source template: video_wan2_2_5B_ti2v.json (official workflow-templates)
 // needs COMFY_CLOUD_API_KEY (https://cloud.comfy.org, paid tiers)
+// note: video outputs PERSIST on the host (upstream ships no websocket saver for video — image examples stream ephemerally)
 // run directly:  bun examples/comfy-cloud/wan22-5b-t2v.cflow.ts ["prompt"] [seed]
 import { v } from 'comfy-ts'
 import { cloudHost, requireCloudKey } from './cloudHost.ts'

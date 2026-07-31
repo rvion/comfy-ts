@@ -1,6 +1,7 @@
 // capybara i2v on Comfy Cloud — Capybara v0.1 image to video (HunyuanVideo 1.5 arch), ~3s @ 24fps
 // source template: video_capybara_v0_1_image_to_video.json (official workflow-templates)
 // needs COMFY_CLOUD_API_KEY (https://cloud.comfy.org, paid tiers)
+// note: video outputs PERSIST on the host (upstream ships no websocket saver for video — image examples stream ephemerally)
 // run directly:  bun examples/comfy-cloud/capybara-i2v.cflow.ts [path/to/image.png] ["prompt"]
 import { asAbsolutePath, exampleImagePath, MediaImage, v } from 'comfy-ts'
 import { cloudHost, requireCloudKey } from './cloudHost.ts'
