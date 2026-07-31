@@ -3,6 +3,7 @@ import { makeAutoObservable, runInAction } from 'mobx'
 import { basename } from 'pathe'
 import type { ComfyHost } from 'src/host/ComfyHost.ts'
 import type { ExecutionProgress } from 'src/runner/ComfyExecution.ts'
+import { imageClipboardCommand } from 'src/cli/tui/imageClipboard.ts'
 import { extractErrorMessage } from 'src/utils/extractErrorMessage.ts'
 import type { SeedVar } from 'src/vars/ComfyVars.ts'
 import type { TuiSt } from 'src/cli/tui/state/TuiSt.ts'
@@ -168,6 +169,37 @@ export class ExecSt {
       this.copyPopup = { title, ok, lines }
       this.st.mode = 'overlay-copy'
    }
+   /** 'i': the LAST generated image's pixels → clipboard (paste anywhere) */
+   async copyLastImage(): Promise<void> {
+      const last = this.outputs[this.outputs.length - 1]
+      if (last == null) {
+         this.showCopyPopup('image → clipboard', false, ['no output image yet — r runs the workflow first'])
+         return
+      }
+      const command = imageClipboardCommand(process.platform, last)
+      if (command == null) {
+         this.showCopyPopup('image → clipboard', false, [`no clipboard image tool for ${process.platform}`])
+         return
+      }
+      const ok = await new Promise<boolean>((resolve) => {
+         const proc = spawn(command.cmd, command.args, { stdio: 'ignore' })
+         proc.on('error', () => resolve(false))
+         proc.on('close', (code) => resolve(code === 0))
+      })
+      runInAction(() => {
+         this.showCopyPopup(
+            'image → clipboard',
+            ok,
+            ok
+               ? [`${basename(last)} — paste the pixels anywhere`, '', last]
+               : [
+                    `COPY FAILED for ${basename(last)}`,
+                    `${command.cmd} exited non-zero — is it installed and allowed ?`,
+                 ],
+         )
+      })
+   }
+
    private toClipboard(text: string): Promise<boolean> {
       const [cmd, ...args] =
          process.platform === 'darwin'

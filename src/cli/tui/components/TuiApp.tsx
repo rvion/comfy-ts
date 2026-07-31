@@ -150,6 +150,7 @@ export const TuiApp = observer((p: { st: TuiSt }) => {
             if (input === 'a') return s.host.begin()
             if (input === 'p') return s.preview.beginMenu()
             if (input === 'o') return s.exec.openLastOutput()
+            if (input === 'i') return void s.exec.copyLastImage()
             if (input === 'q') {
                s.onExit()
                return app.exit()
@@ -198,6 +199,7 @@ export const TuiApp = observer((p: { st: TuiSt }) => {
             if (input === 'h') return s.host.beginPicker()
             if (input === 'a') return s.host.begin()
             if (input === 'o') return s.exec.openLastOutput()
+            if (input === 'i') return void s.exec.copyLastImage()
             if (input === 'q') {
                s.onExit()
                return app.exit()
@@ -244,6 +246,7 @@ export const TuiApp = observer((p: { st: TuiSt }) => {
          if (input === 'd') return s.drafts.begin()
          if (input === 'p') return s.preview.beginMenu()
          if (input === 'o') return s.exec.openLastOutput()
+         if (input === 'i') return void s.exec.copyLastImage()
          if (input === 'c') return void s.exec.copyWorkflowJson()
          if (input === 'C') return void s.exec.copyApiJson()
       },

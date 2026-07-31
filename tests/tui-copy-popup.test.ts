@@ -61,3 +61,44 @@ describe('copy popup (his repro: `c` silently did nothing)', () => {
       st.dispose()
    })
 })
+
+describe('imageClipboardCommand (pure): platform command for copying image PIXELS', () => {
+   it('darwin: osascript reads the file as a clipboard image class by extension', async () => {
+      const { imageClipboardCommand } = await import('src/cli/tui/imageClipboard.ts')
+      const png = imageClipboardCommand('darwin', '/tmp/out.png')
+      expect(png?.cmd).toBe('osascript')
+      expect(png?.args.join(' ')).toContain('«class PNGf»')
+      expect(png?.args.join(' ')).toContain('/tmp/out.png')
+      const jpg = imageClipboardCommand('darwin', '/tmp/out.jpg')
+      expect(jpg?.args.join(' ')).toContain('JPEG picture')
+   })
+
+   it('linux: xclip targets the image mime by extension', async () => {
+      const { imageClipboardCommand } = await import('src/cli/tui/imageClipboard.ts')
+      const c = imageClipboardCommand('linux', '/tmp/out.png')
+      expect(c?.cmd).toBe('xclip')
+      expect(c?.args).toContain('image/png')
+      expect(c?.args).toContain('/tmp/out.png')
+   })
+
+   it('win32: powershell Clipboard.SetImage', async () => {
+      const { imageClipboardCommand } = await import('src/cli/tui/imageClipboard.ts')
+      const c = imageClipboardCommand('win32', 'C:\\out.png')
+      expect(c?.cmd).toBe('powershell')
+      expect(c?.args.join(' ')).toContain('SetImage')
+   })
+})
+
+describe('`i` copy last image: never silent, popup like c/C', () => {
+   it('no output yet: a RED popup says so instead of doing nothing', async () => {
+      const { TuiSt } = await import('src/cli/tui/state/TuiSt.ts')
+      const wf = host.defineWorkflow({ id: 'copy-image-empty-test', vars: {}, build: () => {} })
+      const st = new TuiSt(wf)
+      await st.exec.copyLastImage()
+      expect(st.mode).toBe('overlay-copy')
+      expect(st.exec.copyPopup?.ok).toBe(false)
+      expect(st.exec.copyPopup?.lines.join('\n')).toContain('no output image yet')
+      st.exec.closeCopyPopup()
+      st.dispose()
+   })
+})

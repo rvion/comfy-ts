@@ -182,6 +182,7 @@ export const KeyBar = observer((p: { st: TuiSt }) => {
               // the preview panel carries `p` in its title — unless it is hidden
               ...(s.preview.show || s.mode === 'preview' ? [] : ([['p', 'preview (off)']] as Hint[])),
               ['o', 'open image'],
+              ['i', 'copy image'],
               // c is duplicate inside the tree — don't advertise the copy pair
               // there; the preview menu doesn't forward it either
               ...(s.mode === 'tree' || s.mode === 'preview' ? [] : ([['c/C', 'copy wf/api']] as Hint[])),
