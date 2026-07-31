@@ -2,6 +2,9 @@ export function pythonModuleToPrefix(pythonModule: string): string {
    // if (pythonModule == null) console.error(`[🔴🔴🔴🔴🔴🔴] `, pythonModule)
    if (pythonModule === 'nodes') return ''
    if (pythonModule.startsWith('comfy_extras.')) return '' //''
+   // ships INSIDE the ComfyUI repo (upstream parks it under custom_nodes/):
+   // the ephemeral-outputs saver reads `b.SaveImageWebsocket` like the core node it is
+   if (pythonModule === 'custom_nodes.websocket_image_save') return ''
    if (pythonModule.startsWith('comfy_api_nodes.')) return pythonModule.replace('comfy_api_nodes.', 'api.')
    if (pythonModule.startsWith('custom_nodes.')) {
       // return `${pythonModuleToNamespace_(pythonModule.replace('custom_nodes.', ''))}.`

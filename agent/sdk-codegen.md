@@ -54,6 +54,11 @@ Regen paths:
   half of the contract: everything typechecks with NO sdk.d.ts on disk.
 - names: `E_<EnumName>` / `E_<hash>` for unions; qualified node keys like
   `impact-pack.FaceDetailer` for custom nodes, bare `KSampler` for builtins.
+  "Builtin" = python_module `nodes`, `comfy_extras.*`, AND
+  `custom_nodes.websocket_image_save` (decided 2026-07-31): that file ships
+  INSIDE the ComfyUI repo on every install — upstream just parks it under
+  custom_nodes/ — and it is the ephemeral-outputs saver (architecture.md item
+  14), so it reads `b.SaveImageWebsocket` like the core node it is.
 - autogrow containers (`template` WITH a nested `input` section, e.g.
   `TextEncodeBooguEdit.images`) never appear in `IN` under their own name —
   the declaration is never a prompt input (agent/architecture.md, converter
