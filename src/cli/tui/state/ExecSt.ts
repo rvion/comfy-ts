@@ -7,6 +7,7 @@ import type { ComfyHost } from 'src/host/ComfyHost.ts'
 import type { ExecutionProgress } from 'src/runner/ComfyExecution.ts'
 import { imageClipboardCommand, imageClipboardStdinCommand } from 'src/cli/tui/imageClipboard.ts'
 import { extractErrorMessage } from 'src/utils/extractErrorMessage.ts'
+import { importSharp } from 'src/utils/lazySharp.ts'
 import type { SeedVar } from 'src/vars/ComfyVars.ts'
 import type { TuiSt } from 'src/cli/tui/state/TuiSt.ts'
 import type { MediaImage } from 'src/runner/MediaImage.ts'
@@ -192,6 +193,10 @@ export class ExecSt {
       this.st.mode = 'nav'
    }
 
+   /** makeAutoObservable already annotates this method as an action, so the
+    * post-await callers below need no runInAction of their own (verified
+    * against mobx: a TS-private prototype method called after an `await`
+    * opens its own action context; only a CONSTRUCTOR body does not) */
    private showCopyPopup(title: string, ok: boolean, lines: string[]): void {
       // the build is async: if the user moved into an editor meanwhile, never
       // steal their keys — degrade to the notice line instead of a popup
@@ -253,19 +258,17 @@ export class ExecSt {
             proc.on('error', () => resolve(false))
             proc.on('close', (code) => resolve(code === 0))
          }))
-      runInAction(() => {
-         this.showCopyPopup(
-            'image → clipboard',
-            ok,
-            ok
-               ? [`${basename(file)} — paste the pixels anywhere`, '', `via fallback file ${file}`]
-               : [`COPY FAILED for ${lastImg.filename}`, `could not run ${piped.cmd} — is it installed and allowed ?`],
-         )
-      })
+      this.showCopyPopup(
+         'image → clipboard',
+         ok,
+         ok
+            ? [`${basename(file)} — paste the pixels anywhere`, '', `via fallback file ${file}`]
+            : [`COPY FAILED for ${lastImg.filename}`, `could not run ${piped.cmd} — is it installed and allowed ?`],
+      )
    }
 
    private async toPngBytes(bytes: Uint8Array): Promise<Uint8Array> {
-      const { default: sharp } = await import('sharp')
+      const sharp = await importSharp('the clipboard png normalize')
       return new Uint8Array(await sharp(bytes).png().toBuffer())
    }
 
@@ -310,28 +313,24 @@ export class ExecSt {
          const json = await wf.toWorkflowJson()
          const text = JSON.stringify(json, null, 2)
          const ok = await this.toClipboard(text)
-         runInAction(() => {
-            this.showCopyPopup(
-               'workflow.json → clipboard',
-               ok,
-               ok
-                  ? [
-                       `${json.nodes.length} nodes · ${text.length} chars — paste into the ComfyUI editor`,
-                       '',
-                       ...jsonHead(text, 10),
-                    ]
-                  : ['CLIPBOARD COPY FAILED — is a clipboard tool available (pbcopy/clip/xclip) ?'],
-            )
-         })
+         this.showCopyPopup(
+            'workflow.json → clipboard',
+            ok,
+            ok
+               ? [
+                    `${json.nodes.length} nodes · ${text.length} chars — paste into the ComfyUI editor`,
+                    '',
+                    ...jsonHead(text, 10),
+                 ]
+               : ['CLIPBOARD COPY FAILED — is a clipboard tool available (pbcopy/clip/xclip) ?'],
+         )
       } catch (e) {
-         runInAction(() => {
-            this.showCopyPopup('workflow.json copy FAILED', false, [
-               extractErrorMessage(e),
-               '',
-               'nothing was copied. i2i/i2v builds upload their input image first —',
-               'an unreachable host fails the build itself, not just the run.',
-            ])
-         })
+         this.showCopyPopup('workflow.json copy FAILED', false, [
+            extractErrorMessage(e),
+            '',
+            'nothing was copied. i2i/i2v builds upload their input image first —',
+            'an unreachable host fails the build itself, not just the run.',
+         ])
       } finally {
          runInAction(() => {
             this.copying = false
@@ -351,28 +350,24 @@ export class ExecSt {
          const json = wf.toApiJson('use_stringified_numbers_only')
          const text = JSON.stringify(json, null, 2)
          const ok = await this.toClipboard(text)
-         runInAction(() => {
-            this.showCopyPopup(
-               'api.json → clipboard',
-               ok,
-               ok
-                  ? [
-                       `${Object.keys(json).length} nodes · ${text.length} chars — the POST /prompt payload`,
-                       '',
-                       ...jsonHead(text, 10),
-                    ]
-                  : ['CLIPBOARD COPY FAILED — is a clipboard tool available (pbcopy/clip/xclip) ?'],
-            )
-         })
+         this.showCopyPopup(
+            'api.json → clipboard',
+            ok,
+            ok
+               ? [
+                    `${Object.keys(json).length} nodes · ${text.length} chars — the POST /prompt payload`,
+                    '',
+                    ...jsonHead(text, 10),
+                 ]
+               : ['CLIPBOARD COPY FAILED — is a clipboard tool available (pbcopy/clip/xclip) ?'],
+         )
       } catch (e) {
-         runInAction(() => {
-            this.showCopyPopup('api.json copy FAILED', false, [
-               extractErrorMessage(e),
-               '',
-               'nothing was copied. i2i/i2v builds upload their input image first —',
-               'an unreachable host fails the build itself, not just the run.',
-            ])
-         })
+         this.showCopyPopup('api.json copy FAILED', false, [
+            extractErrorMessage(e),
+            '',
+            'nothing was copied. i2i/i2v builds upload their input image first —',
+            'an unreachable host fails the build itself, not just the run.',
+         ])
       } finally {
          runInAction(() => {
             this.copying = false

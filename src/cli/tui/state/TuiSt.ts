@@ -147,11 +147,16 @@ export class TuiSt {
       // starts unfolded so its drafts are visible in the tree
       this.drafts.activateRemembered()
       if (opts.currentFile != null) {
-         this.tree.expandedFiles.add(opts.currentFile)
-         // the first module loads in run-tui, BEFORE WorkflowsSt.load can record it
-         this.workflows.recordSpecColor(opts.currentFile, wf)
-         // whatever is on screen is what a no-arg reopen returns to
-         this.settings.lastWorkflow = opts.currentFile
+         const currentFile = opts.currentFile
+         // settings.lastWorkflow is OBSERVED (SettingsSt's own persist reaction),
+         // so this constructor tail is a mobx action or it warns on every open
+         runInAction(() => {
+            this.tree.expandedFiles.add(currentFile)
+            // the first module loads in run-tui, BEFORE WorkflowsSt.load can record it
+            this.workflows.recordSpecColor(currentFile, wf)
+            // whatever is on screen is what a no-arg reopen returns to
+            this.settings.lastWorkflow = currentFile
+         })
       }
       // full-terminal layout: track resizes (SIGWINCH surfaces as stdout resize)
       const onResize = (): void => {
