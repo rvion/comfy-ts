@@ -302,7 +302,7 @@ export class TuiSt {
       const sel = this.selected?.[1]
       if (sel == null) return
       if (sel.kind === 'toggle') (sel as ToggleVar).toggle()
-      else if (sel.kind === 'text') this.editor.beginMultiline()
+      else if (sel.kind === 'text' || sel.kind === 'prompt') this.editor.beginMultiline()
       else if (sel.kind === 'choice') this.picker.beginChoice()
       else if (sel.kind === 'size') this.picker.beginSize()
       else if (sel.kind === 'loras') this.loras.begin()

@@ -51,6 +51,7 @@ export const ProgressLine = observer((p: { st: TuiSt }) => {
 
 const KIND_KEYS: Record<string, Hint[]> = {
    text: [['⏎/→', 'edit']],
+   prompt: [['⏎/→', 'edit']],
    int: [['⏎/→', 'edit']],
    float: [['⏎/→', 'edit']],
    seed: [

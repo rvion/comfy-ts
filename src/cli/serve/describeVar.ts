@@ -1,17 +1,16 @@
 // PURE var → descriptor: ONE introspection pass feeds GET /drafts (json) AND
 // the startup print (renderDescriptorLine)
-import {
-   type AnyVar,
+import type {
+   AnyVar,
    ChoiceVar,
    FloatVar,
    ImageVar,
    IntVar,
    LorasVar,
-   PromptVar,
    SeedVar,
+   SizePreset,
    SizeVar,
-   type SizePreset,
-   type VarKind,
+   VarKind,
 } from 'src/vars/ComfyVars.ts'
 
 export type VarDescriptor = {
@@ -36,31 +35,61 @@ function rangeText(opts: { min?: number; max?: number }): string {
 
 export function describeVar(varDef: AnyVar): VarDescriptor {
    const base = { kind: varDef.kind, label: varDef.label, default: varDef.defaultValue }
-   if (varDef instanceof PromptVar) return { ...base, payload: 'string ("//" lines = comments, "- " lines = negative)' }
-   if (varDef instanceof IntVar)
-      return { ...base, payload: `integer${rangeText(varDef.opts)}`, min: varDef.opts.min, max: varDef.opts.max }
-   if (varDef instanceof FloatVar)
-      return { ...base, payload: `number${rangeText(varDef.opts)}`, min: varDef.opts.min, max: varDef.opts.max }
-   if (varDef instanceof SeedVar)
-      return {
-         ...base,
-         default: { mode: varDef.mode, value: varDef.defaultValue },
-         payload: 'number (fixed) or {"mode":"=|+|-|?","value":number}',
+   // kind, never instanceof: the cli bundle and the consumer's `comfy-ts` import hold
+   // different copies of every class (VarKind owns the WHY). Casts are the sanctioned
+   // kind-narrowing family (agent/coding.md cast whitelist 6)
+   switch (varDef.kind) {
+      case 'prompt':
+         return { ...base, payload: 'string ("//" lines = comments, "- " lines = negative)' }
+      case 'text':
+         return { ...base, payload: 'string' }
+      case 'int': {
+         const v = varDef as IntVar
+         return { ...base, payload: `integer${rangeText(v.opts)}`, min: v.opts.min, max: v.opts.max }
       }
-   if (varDef.kind === 'toggle') return { ...base, payload: 'true or false' }
-   if (varDef instanceof ChoiceVar)
-      return { ...base, payload: `one of: ${varDef.choices.join(' | ')}`, choices: varDef.choices }
-   if (varDef instanceof LorasVar)
-      return {
-         ...base,
-         payload: '{"<lora name>": false | true | strength | [model, clip]}',
-         options: varDef.options,
+      case 'float': {
+         const v = varDef as FloatVar
+         return { ...base, payload: `number${rangeText(v.opts)}`, min: v.opts.min, max: v.opts.max }
       }
-   if (varDef instanceof SizeVar)
-      return { ...base, payload: '{"width":W,"height":H} or "WxH" or a preset label', presets: varDef.presets }
-   if (varDef instanceof ImageVar)
-      return { ...base, payload: 'local file path or http(s) url', extensions: varDef.extensions }
-   return { ...base, payload: 'string' } // TextVar and future plain kinds
+      case 'seed': {
+         const v = varDef as SeedVar
+         return {
+            ...base,
+            default: { mode: v.mode, value: v.defaultValue },
+            payload: 'number (fixed) or {"mode":"=|+|-|?","value":number}',
+         }
+      }
+      case 'toggle':
+         return { ...base, payload: 'true or false' }
+      case 'choice': {
+         const v = varDef as ChoiceVar<string>
+         return { ...base, payload: `one of: ${v.choices.join(' | ')}`, choices: v.choices }
+      }
+      case 'loras': {
+         const v = varDef as LorasVar<string>
+         return {
+            ...base,
+            payload: '{"<lora name>": false | true | strength | [model, clip]}',
+            options: v.options,
+         }
+      }
+      case 'size': {
+         const v = varDef as SizeVar
+         return { ...base, payload: '{"width":W,"height":H} or "WxH" or a preset label', presets: v.presets }
+      }
+      case 'image': {
+         const v = varDef as ImageVar
+         return { ...base, payload: 'local file path or http(s) url', extensions: v.extensions }
+      }
+      default: {
+         // an unknown kind CAN reach here: a globally installed cli against a project on a
+         // newer comfy-ts (wire tolerance, agent/coding.md whitelist 4). The `never` binding
+         // is the compile-time exhaustiveness check; the RUNTIME path must degrade, because
+         // printStartup calls d.kind.padEnd() before the server ever listens
+         const unknownKind: never = varDef.kind
+         return { ...base, payload: `string (unrecognised kind '${String(unknownKind)}')` }
+      }
+   }
 }
 
 /** one aligned console line per var (startup print) */

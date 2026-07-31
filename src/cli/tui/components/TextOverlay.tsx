@@ -13,9 +13,13 @@ export const TextOverlay = observer((p: { st: TuiSt }) => {
    const s = p.st
    const ed = s.editor
    const winLines = s.overlayLines
-   const promptVar = s.selected?.[1]
-   const isPrompt = promptVar instanceof PromptVar
-   const injected = isPrompt ? promptVar.injectedKeywords() : []
+   const selectedVar = s.selected?.[1]
+   // kind, never instanceof: the cli bundle and a consumer's `comfy-ts` import hold
+   // different copies of every var class (VarKind owns the WHY). Cast is the sanctioned
+   // kind-narrowing family (agent/coding.md whitelist 6)
+   const promptVar = selectedVar?.kind === 'prompt' ? (selectedVar as PromptVar) : null
+   const isPrompt = promptVar != null
+   const injected = promptVar?.injectedKeywords() ?? []
    // lines with their global code-point start offsets
    const lines: { text: string; start: number }[] = []
    let start = 0

@@ -63,8 +63,8 @@ const VarRow = observer(
                   <Text color="cyan" wrap="truncate">
                      {value.replaceAll('\n', ' ')}
                   </Text>
-               ) : p.varDef instanceof PromptVar ? (
-                  <PromptCell varDef={p.varDef} value={value} />
+               ) : p.varDef.kind === 'prompt' ? (
+                  <PromptCell varDef={p.varDef as PromptVar} value={value} />
                ) : (
                   <Text color="cyan" wrap="wrap">
                      {value}

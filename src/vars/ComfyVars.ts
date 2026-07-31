@@ -7,7 +7,15 @@ import { basename, isAbsolute, join, resolve } from 'pathe'
 import { getComfyStorage } from 'src/storage/ComfyStorage.ts'
 import { getLoraKeyword } from 'src/vars/loraKeywords.ts'
 
-export type VarKind = 'text' | 'int' | 'float' | 'seed' | 'toggle' | 'choice' | 'loras' | 'size' | 'image'
+/**
+ * the var's CLASS, and the only safe way to discriminate one: `instanceof` compares class
+ * OBJECTS, and the published package hands the same class out twice — a consumer's
+ * `.cflow.ts` imports `comfy-ts` (dist/index.js) while `comfy-ts serve`/`tui` run from the
+ * cli bundle, so every `instanceof XVar` across that boundary is false (his repro
+ * 2026-07-31: "var 'prompt' has unsupported kind 'text'" for EVERY kind). A string tag
+ * crosses bundles; a class identity does not.
+ */
+export type VarKind = 'text' | 'prompt' | 'int' | 'float' | 'seed' | 'toggle' | 'choice' | 'loras' | 'size' | 'image'
 
 /**
  * full base: T is what's STORED/edited, Out what the GRAPH consumes at build
@@ -101,7 +109,7 @@ export type PromptValue = { positive: string; negative: string }
  *     `injectedKeywords()` is public so the TUI can PREVIEW the injection.
  */
 export class PromptVar extends ComfyVarBase<string, PromptValue> {
-   readonly kind = 'text' as const
+   readonly kind = 'prompt' as const
    constructor(
       defaultValue: string,
       public promptOpts: { label?: string; loraKeywordsFrom?: ActiveLoraSource } = {},
@@ -516,6 +524,8 @@ export const DEFAULT_IMAGE_EXTENSIONS: readonly string[] = ['png', 'jpg', 'jpeg'
 
 /** empty image var consumed at build time — typed so drivers surface it apart from real crashes */
 export class ImageVarEmptyError extends Error {
+   /** name, not instanceof: the cli bundle and dist/index.js each define this class */
+   override readonly name = 'ImageVarEmptyError'
    constructor(public readonly varName: string) {
       super(`image var '${varName}' is empty — pick a file (TUI: activate the var; script: .set('/path/to/image.png'))`)
    }

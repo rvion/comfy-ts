@@ -1,13 +1,19 @@
 // PURE payload → var application: one POST body value onto one var, per kind.
 // Returns an error message (nothing applied) or null. No fs here — ImageVar
 // url download + existence checks are ServeApp's job.
-import {
-   type AnyVar,
+//
+// Discrimination is by `kind`, NEVER instanceof: a consumer's `.cflow.ts` imports
+// `comfy-ts` (dist/index.js) while `comfy-ts serve` runs from the cli bundle, and the
+// two hold different copies of every class, so instanceof was false for EVERY var and
+// every payload override answered "unsupported kind" (his repro 2026-07-31). The casts
+// below are the sanctioned kind-narrowing family (agent/coding.md cast whitelist 6).
+import type {
+   AnyVar,
    ChoiceVar,
    FloatVar,
    ImageVar,
    IntVar,
-   type LoraStrength,
+   LoraStrength,
    LorasVar,
    PromptVar,
    SeedVar,
@@ -35,85 +41,99 @@ function listSome(items: readonly string[], cap: number = 20): string {
 export function applyVarPayload(varDef: AnyVar, raw: unknown): string | null {
    const name = varDef.name ?? varDef.label ?? varDef.kind
 
-   if (varDef instanceof TextVar || varDef instanceof PromptVar) {
-      if (typeof raw !== 'string') return `var '${name}' expects a string`
-      varDef.set(raw)
-      return null
-   }
-
-   if (varDef instanceof IntVar || varDef instanceof FloatVar) {
-      if (isFiniteNumber(raw)) {
-         varDef.set(raw) // set() clamps to min/max
+   switch (varDef.kind) {
+      case 'text':
+      case 'prompt': {
+         if (typeof raw !== 'string') return `var '${name}' expects a string`
+         ;(varDef as TextVar | PromptVar).set(raw)
          return null
       }
-      if (typeof raw === 'string' && varDef.parse(raw)) return null
-      const o = varDef.opts
-      const range = o.min == null && o.max == null ? '' : ` (${o.min ?? '-∞'}..${o.max ?? '∞'})`
-      return `var '${name}' expects a number${range}`
-   }
 
-   if (varDef instanceof SeedVar) {
-      if (isFiniteNumber(raw)) {
-         // an explicit payload seed is FIXED for this request
-         varDef.setMode('=')
-         varDef.set(raw)
-         return null
-      }
-      if (raw != null && typeof raw === 'object' && !Array.isArray(raw)) {
-         const o = raw as { mode?: unknown; value?: unknown }
-         const mode = o.mode === '=' || o.mode === '+' || o.mode === '-' || o.mode === '?' ? o.mode : null
-         if (o.mode !== undefined && mode == null) return `var '${name}': mode must be one of = + - ?`
-         if (o.value !== undefined && !isFiniteNumber(o.value)) return `var '${name}': value must be a number`
-         if (mode == null && o.value === undefined) return `var '${name}': give "mode" and/or "value"`
-         if (mode != null) varDef.setMode(mode)
-         if (isFiniteNumber(o.value)) varDef.set(o.value)
-         return null
-      }
-      return `var '${name}' expects a number or {"mode":"=|+|-|?","value":number}`
-   }
-
-   if (varDef instanceof ToggleVar) {
-      if (typeof raw !== 'boolean') return `var '${name}' expects true or false`
-      varDef.set(raw)
-      return null
-   }
-
-   if (varDef instanceof ChoiceVar) {
-      if (typeof raw === 'string' && varDef.parse(raw)) return null
-      return `var '${name}' expects one of: ${listSome(varDef.choices)}`
-   }
-
-   if (varDef instanceof LorasVar) {
-      if (raw == null || typeof raw !== 'object' || Array.isArray(raw))
-         return `var '${name}' expects {"<lora name>": false | true | strength | [model, clip]}`
-      const record = raw as Record<string, unknown>
-      const known = new Set<string>(varDef.options)
-      const unknownNames = Object.keys(record).filter((k) => !known.has(k))
-      if (unknownNames.length > 0)
-         return `var '${name}': unknown lora(s) ${unknownNames.join(', ')} — available: ${listSome(varDef.options)}`
-      for (const [k, s] of Object.entries(record))
-         if (!isLoraStrength(s)) return `var '${name}': '${k}' must be false | true | number | [model, clip]`
-      varDef.set(record as Partial<Record<string, LoraStrength>>) // every entry validated just above
-      return null
-   }
-
-   if (varDef instanceof SizeVar) {
-      if (typeof raw === 'string' && varDef.parse(raw)) return null
-      if (raw != null && typeof raw === 'object' && !Array.isArray(raw)) {
-         const o = raw as { width?: unknown; height?: unknown }
-         if (isFiniteNumber(o.width) && isFiniteNumber(o.height)) {
-            varDef.set({ width: o.width, height: o.height })
+      case 'int':
+      case 'float': {
+         const v = varDef as IntVar | FloatVar
+         if (isFiniteNumber(raw)) {
+            v.set(raw) // set() clamps to min/max
             return null
          }
+         if (typeof raw === 'string' && v.parse(raw)) return null
+         const o = v.opts
+         const range = o.min == null && o.max == null ? '' : ` (${o.min ?? '-∞'}..${o.max ?? '∞'})`
+         return `var '${name}' expects a number${range}`
       }
-      return `var '${name}' expects {"width":W,"height":H}, "WxH", or a preset label`
-   }
 
-   if (varDef instanceof ImageVar) {
-      if (typeof raw !== 'string') return `var '${name}' expects a file path or http(s) url string`
-      varDef.set(raw)
-      return null
-   }
+      case 'seed': {
+         const v = varDef as SeedVar
+         if (isFiniteNumber(raw)) {
+            // an explicit payload seed is FIXED for this request
+            v.setMode('=')
+            v.set(raw)
+            return null
+         }
+         if (raw != null && typeof raw === 'object' && !Array.isArray(raw)) {
+            const o = raw as { mode?: unknown; value?: unknown }
+            const mode = o.mode === '=' || o.mode === '+' || o.mode === '-' || o.mode === '?' ? o.mode : null
+            if (o.mode !== undefined && mode == null) return `var '${name}': mode must be one of = + - ?`
+            if (o.value !== undefined && !isFiniteNumber(o.value)) return `var '${name}': value must be a number`
+            if (mode == null && o.value === undefined) return `var '${name}': give "mode" and/or "value"`
+            if (mode != null) v.setMode(mode)
+            if (isFiniteNumber(o.value)) v.set(o.value)
+            return null
+         }
+         return `var '${name}' expects a number or {"mode":"=|+|-|?","value":number}`
+      }
 
-   return `var '${name}' has unsupported kind '${varDef.kind}'`
+      case 'toggle': {
+         if (typeof raw !== 'boolean') return `var '${name}' expects true or false`
+         ;(varDef as ToggleVar).set(raw)
+         return null
+      }
+
+      case 'choice': {
+         const v = varDef as ChoiceVar<string>
+         if (typeof raw === 'string' && v.parse(raw)) return null
+         return `var '${name}' expects one of: ${listSome(v.choices)}`
+      }
+
+      case 'loras': {
+         const v = varDef as LorasVar<string>
+         if (raw == null || typeof raw !== 'object' || Array.isArray(raw))
+            return `var '${name}' expects {"<lora name>": false | true | strength | [model, clip]}`
+         const record = raw as Record<string, unknown>
+         const known = new Set<string>(v.options)
+         const unknownNames = Object.keys(record).filter((k) => !known.has(k))
+         if (unknownNames.length > 0)
+            return `var '${name}': unknown lora(s) ${unknownNames.join(', ')} — available: ${listSome(v.options)}`
+         for (const [k, st] of Object.entries(record))
+            if (!isLoraStrength(st)) return `var '${name}': '${k}' must be false | true | number | [model, clip]`
+         v.set(record as Partial<Record<string, LoraStrength>>) // every entry validated just above
+         return null
+      }
+
+      case 'size': {
+         const v = varDef as SizeVar
+         if (typeof raw === 'string' && v.parse(raw)) return null
+         if (raw != null && typeof raw === 'object' && !Array.isArray(raw)) {
+            const o = raw as { width?: unknown; height?: unknown }
+            if (isFiniteNumber(o.width) && isFiniteNumber(o.height)) {
+               v.set({ width: o.width, height: o.height })
+               return null
+            }
+         }
+         return `var '${name}' expects {"width":W,"height":H}, "WxH", or a preset label`
+      }
+
+      case 'image': {
+         if (typeof raw !== 'string') return `var '${name}' expects a file path or http(s) url string`
+         ;(varDef as ImageVar).set(raw)
+         return null
+      }
+
+      default: {
+         // same as describeVar: `never` is the compile-time check, the runtime path keeps
+         // the message a caller can act on instead of answering a bare token
+         const unknownKind: never = varDef.kind
+         return `var '${name}' has unsupported kind '${String(unknownKind)}'`
+      }
+   }
 }

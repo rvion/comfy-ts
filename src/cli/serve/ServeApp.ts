@@ -7,7 +7,7 @@ import { basename, dirname, extname, join, resolve } from 'pathe'
 import { applyVarPayload } from 'src/cli/serve/applyVarPayload.ts'
 import { describeVar, type VarDescriptor } from 'src/cli/serve/describeVar.ts'
 import { draftsDirForFile, listDraftsForFile } from 'src/cli/tui/state/DraftsSt.ts'
-import { ImageVar, ImageVarEmptyError, SeedVar } from 'src/vars/ComfyVars.ts'
+import type { ImageVar, SeedVar } from 'src/vars/ComfyVars.ts'
 import type { DefinedWorkflow } from 'src/vars/DefinedWorkflow.ts'
 import { extractErrorMessage } from 'src/utils/extractErrorMessage.ts'
 
@@ -314,7 +314,9 @@ export class ServeApp {
          if (varDef == null)
             return { status: 400, error: `unknown var '${k}' — vars: ${[...varMap.keys()].join(', ')}` }
          let value = rawValue
-         if (varDef instanceof ImageVar && typeof rawValue === 'string' && /^https?:\/\//.test(rawValue)) {
+         // kind, never instanceof: consumer and cli hold different class copies (VarKind
+         // owns the WHY); casts are the kind-narrowing family, agent/coding.md whitelist 6
+         if (varDef.kind === 'image' && typeof rawValue === 'string' && /^https?:\/\//.test(rawValue)) {
             try {
                value = await this.downloadInput(rawValue)
             } catch (e) {
@@ -327,31 +329,35 @@ export class ServeApp {
 
       // 3. image vars must point at real files BEFORE anything is queued
       for (const [k, varDef] of varMap) {
-         if (varDef instanceof ImageVar && varDef.isSet() && !existsSync(varDef.absPath()))
-            return { status: 400, error: `image var '${k}': file not found: ${varDef.absPath()}` }
+         if (varDef.kind !== 'image') continue
+         const img = varDef as ImageVar
+         if (img.isSet() && !existsSync(img.absPath()))
+            return { status: 400, error: `image var '${k}': file not found: ${img.absPath()}` }
       }
 
       // 4. seed policy (architecture item 12): payload wins; '?' rerolls;
       //    '+'/'-' continue from the last SERVED value; '=' keeps the draft value
       for (const [k, varDef] of varMap) {
-         if (!(varDef instanceof SeedVar)) continue
+         if (varDef.kind !== 'seed') continue
+         const seedVar = varDef as SeedVar
          const stateKey = `${mod.key}/${draft}/${k}`
          if (!(k in payload)) {
-            if (varDef.mode === '?') varDef.randomize()
-            else if (varDef.mode === '+' || varDef.mode === '-') {
+            if (seedVar.mode === '?') seedVar.randomize()
+            else if (seedVar.mode === '+' || seedVar.mode === '-') {
                const last = this.seedState.get(stateKey)
-               if (last != null) varDef.set(last + (varDef.mode === '+' ? 1 : -1))
+               if (last != null) seedVar.set(last + (seedVar.mode === '+' ? 1 : -1))
             }
          }
-         this.seedState.set(stateKey, varDef.value)
-         seeds[k] = varDef.value
+         this.seedState.set(stateKey, seedVar.value)
+         seeds[k] = seedVar.value
       }
 
       // 5. send (build + POST /prompt); the wait for outputs happens OUTSIDE the mutex
       try {
          return { execution: await this.starter(mod) }
       } catch (e) {
-         if (e instanceof ImageVarEmptyError) return { status: 400, error: e.message }
+         // name, not instanceof: same two-copies problem as the var classes
+         if (e instanceof Error && e.name === 'ImageVarEmptyError') return { status: 400, error: e.message }
          return { status: 500, error: extractErrorMessage(e) }
       }
    }
