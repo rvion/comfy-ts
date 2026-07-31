@@ -1,5 +1,74 @@
 # comfy-ts
 
+## 1.3.0
+
+The serve release: every draft you tune in the TUI becomes a local HTTP
+generation API, outputs stop overwriting each other, and workflow JSON
+import reaches 100% compatibility with the official template corpus.
+
+### Serve
+
+- New command: `comfy-ts serve [dir | module]` exposes every draft of your
+  `*.cflow.ts` workflows over HTTP (default `127.0.0.1:8288`).
+  `POST /generate/<module>/<draft>` — or `/generate/<draft>` when only one
+  module has it — runs the workflow: the draft's stored values are the
+  defaults, the JSON body overrides them per request, and every value is
+  validated before anything queues (a wrong value gets a 400 listing the
+  allowed ones).
+- `GET /drafts` describes every workflow, draft and var (kind, allowed
+  values, ranges, defaults) as JSON — enough for a frontend to render a
+  form. `GET /drafts/<module>/<draft>` adds that draft's stored values.
+  Draft files are re-read on every request, so TUI tweaks apply live;
+  serve never writes them.
+- Responses block until the run finishes and return output urls served
+  under `GET /outputs/…`; `Accept: image/*` returns the first image's
+  bytes directly. Seed policy per draft: an explicit payload seed is fixed
+  for that request, mode `?` rerolls every request, `+`/`-` continue from
+  the last served value.
+- Image vars accept a local path or an http(s) url (downloaded before the
+  run). CORS is open and OPTIONS preflight is answered, so browser pages
+  can call the API directly. Binding beyond loopback (`--bind`) prints a
+  loud no-auth warning.
+
+### Outputs
+
+- Downloaded outputs are named locally instead of trusting the server
+  filename: `stem_YYYYMMDD-HHmmss_counter.ext`. Hosts with ephemeral
+  output dirs (Comfy Cloud) reset their server-side counter and used to
+  overwrite the same file every run — nothing overwrites anymore, two
+  runs in the same second included.
+- A `filename_prefix` ending in `/` is a directory (it used to leak into
+  the filename); otherwise its last segment becomes the name stem.
+  `saveFormat.prefix` stays the explicit local override and keeps the
+  workflow stem.
+
+### TUI
+
+- `i` copies the last generated image's pixels to the clipboard (macOS,
+  Linux/xclip, Windows), confirmed by the same popup as `c`/`C`. Formats
+  the OS clipboard cannot tag are transcoded to png first, so a webp
+  output pastes correctly instead of silently corrupt.
+- Small terminals: the frame is fixed-height, and both the tree and the
+  vars panel window their rows with scroll markers. Non-selected var rows
+  compact to one line while the list overflows, so the selected var can
+  never leave the screen.
+
+### Import / export
+
+- Template compatibility reaches 100%: all 762 official Comfy-Org
+  templates import structurally clean. Widgets whose real value hides
+  behind frontend-injected button slots (Load3D family) are read and
+  written at the right offset in both directions.
+- `control_after_generate` phantom values are config-driven on export as
+  they already were on import, so export and import can no longer disagree
+  about a widget's run length.
+
+### Library
+
+- `SeedVar.reset()` restores the mode to `=` along with the value — a
+  caller's `?`/`+` mode no longer survives a reset.
+- Every var exposes `defaultValue` and `reset()` on the `AnyVar` face.
+
 ## 1.2.0
 
 The navigation release: the TUI workflow list becomes a real tree with
