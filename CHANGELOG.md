@@ -1,5 +1,64 @@
 # comfy-ts
 
+## 2.0.0
+
+The ephemeral release: images that never persist — not on the ComfyUI
+server, and (unless you ask) not on your disk either. The README's
+"Ephemeral outputs" section has the full story, including the saver × save
+matrix and the honest limits.
+
+**Breaking**
+
+- `RunSettings.saveFormat` is now `save`, and the `ImageSaveFormat` type is
+  now `SaveOptions` (`format` optional, `'raw'` default; `save: true` is
+  raw with default naming).
+- Local disk saving is OPT-IN. `run()` without `save` keeps outputs as
+  in-memory `MediaImage`s: `absPath` is `null` (its type widened to
+  `AbsolutePath | null`), the bytes live in `img.buffer` /
+  `img.getAsBlob()` / `img.getBase64Url()`, `filename` derives from the
+  content hash. To get 1.x behavior back, pass `save: true` (or
+  `save: { prefix: 'my-dir' }` to group outputs in a subfolder).
+- The TUI and `comfy-ts serve` still save to disk (they opt in themselves,
+  grouped per module under `.comfy-ts/outputs/`).
+
+### Ephemeral outputs
+
+- `SaveImageWebsocket` is a first-class output node: its images stream back
+  as binary websocket frames straight into `execution.images`, and the
+  server disk is never touched. The node ships with every ComfyUI install.
+  Frames that arrive before the `POST /prompt` response are buffered in
+  order and replayed, so no output can be lost to that race.
+- `run({ ephemeral: true })` rewrites every `SaveImage` node to
+  `SaveImageWebsocket` in the SENT prompt only — your graph stays exactly
+  as authored — and implies `scrubHistory`.
+- `run({ scrubHistory: true })` deletes the run's server-side history entry
+  (the full workflow JSON, prompts included) after completion; failures log
+  loudly but never fail the run. `host.deleteHistory(promptId)` and
+  `host.clearHistory()` are the standalone calls.
+- The inputs gap, stated: uploaded images persist in the server's `input/`
+  folder (ComfyUI has no delete API); ephemeral runs referencing
+  `LoadImage` warn once. `MediaImage.loadInWorkflow_viaBase64Node(wf)`
+  inlines the image into the prompt instead when the host has
+  `ETN_LoadImageBase64` (comfyui-tooling-nodes) or Easy-Use's
+  `easy loadImageBase64`. Comfy Cloud currently ships neither.
+- Video/audio savers (`SaveVideo`, `SaveAudio*`) have no websocket variant
+  upstream; those outputs persist on the host.
+
+### Codegen
+
+- `SaveImageWebsocket` gets its core, unqualified key: `b.SaveImageWebsocket`
+  (was `b['websocket_image_save.SaveImageWebsocket']`) — the node lives
+  inside the ComfyUI repo itself.
+- Cloud catalog refreshed: 48 new node types.
+
+### Examples
+
+- Every image example (the whole cloud zoo, the numbered rvion sequence,
+  the browser page) saves via `SaveImageWebsocket` and leaves nothing on
+  the server; standalone runs opt into local saving under
+  `comfy-ts-zoo/<name>` / `comfy-ts-example/<id>`. Video/audio examples
+  state that their outputs stay on the host.
+
 ## 1.4.0
 
 The browser release: `import { ComfyTS } from 'comfy-ts/web'` runs the
