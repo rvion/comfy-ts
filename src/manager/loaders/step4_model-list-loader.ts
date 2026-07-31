@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync } from 'node:fs'
+import { getComfyStorage } from 'src/storage/ComfyStorage.ts'
 import { type } from 'arktype'
 import { ansi as chalk } from 'src/utils/ansi.ts'
 import type { ComfyRegistry } from 'src/manager/ComfyRegistry.ts'
@@ -10,7 +10,7 @@ import { type ComfyManagerModelInfo, ComfyManagerModelInfo_ark } from 'src/manag
 export const _getKnownModels = (DB: ComfyRegistry): void => {
    const counter = DB.report.file('model-list.json')
 
-   const raw: unknown = JSON.parse(readFileSync('src/manager/json/model-list.json', 'utf8'))
+   const raw: unknown = JSON.parse(getComfyStorage().readText('src/manager/json/model-list.json'))
    const root = ComfyManagerFileModelInfoRoot_ark(raw)
    if (root instanceof type.errors) throw new ManagerParseError('model-list.json', root.summary)
 
@@ -54,7 +54,7 @@ export const _getKnownModels = (DB: ComfyRegistry): void => {
          out1 += `    ${JSON.stringify(cat).padEnd(20)},  // x ${count.toString().padStart(3)}\n`
       out1 += ']\n'
       const out1Path = 'src/manager/generated/KnownModel_Type.ts'
-      writeFileSync(out1Path, out1 + '\n', 'utf-8')
+      getComfyStorage().writeText(out1Path, out1 + '\n')
       console.log(`   > generated: ${chalk.blue.underline(out1Path)}`)
 
       // #region savepath
@@ -77,7 +77,7 @@ export const _getKnownModels = (DB: ComfyRegistry): void => {
          out4 += `    ${JSON.stringify(cat).padEnd(50)},  // x ${count.toString().padStart(3)}\n`
       out4 += ']\n'
       const out4Path = 'src/manager/generated/KnownModel_SavePath.ts'
-      writeFileSync(out4Path, out4 + '\n', 'utf-8')
+      getComfyStorage().writeText(out4Path, out4 + '\n')
       console.log(`   > generated: ${chalk.blue.underline(out4Path)}`)
 
       // #region base
@@ -101,7 +101,7 @@ export const _getKnownModels = (DB: ComfyRegistry): void => {
          out2 += `    ${JSON.stringify(cat).padEnd(20)},  // x ${count.toString().padStart(3)}\n`
       out2 += ']\n'
       const out2Path = 'src/manager/generated/KnownModel_Base.ts'
-      writeFileSync(out2Path, out2 + '\n', 'utf-8')
+      getComfyStorage().writeText(out2Path, out2 + '\n')
       console.log(`   > generated: ${chalk.blue.underline(out2Path)}`)
 
       // #region KnownModel_Name
@@ -118,7 +118,7 @@ export const _getKnownModels = (DB: ComfyRegistry): void => {
       }
       out3 += '\n'
       const out3Path = 'src/manager/generated/KnownModel_Name.ts'
-      writeFileSync(out3Path, out3 + '\n', 'utf-8')
+      getComfyStorage().writeText(out3Path, out3 + '\n')
       console.log(`   > generated: ${chalk.blue.underline(out3Path)}`)
 
       // #region KnownModel_FileName
@@ -134,7 +134,7 @@ export const _getKnownModels = (DB: ComfyRegistry): void => {
       }
       out99 += '\n'
       const out99Path = 'src/manager/generated/KnownModel_FileName.ts'
-      writeFileSync(out99Path, out99 + '\n', 'utf-8')
+      getComfyStorage().writeText(out99Path, out99 + '\n')
       console.log(`   > generated: ${chalk.blue.underline(out99Path)}`)
    }
 

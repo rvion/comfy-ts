@@ -354,6 +354,32 @@ bytes directly (`curl … -H 'accept: image/*' -o out.png`). Drafts are
 re-read on every request: keep the TUI open, tweak, next call uses the new
 values. Binds to localhost only unless you say otherwise (`--bind`, `--port`).
 
+## 🕸️ In the browser: `comfy-ts/web`
+
+The same library runs in a browser bundle — define workflows, connect to a
+host, run, get bytes back, no server in between:
+
+```ts
+import { ComfyTS } from 'comfy-ts/web'
+
+const comfy = ComfyTS.create() // in-memory storage, native WebSocket
+const host = comfy.host({ id: 'local', url: 'http://127.0.0.1:8188' })
+await host.connect()
+const wf = host.workflow()
+// …build with wf.builder, run, then execution.images[0].getAsBlob()
+```
+
+Nothing touches disk: schema caches and outputs live in an in-memory store
+(pass `ComfyTS.create({ storage })` for your own backend). Types work the
+same as everywhere else — include a generated `sdk.d.ts` in your tsconfig
+and every node autocompletes.
+
+The honest support matrix: **local/LAN hosts connect directly** when ComfyUI
+is started with `--enable-cors-header '*'` (browser websocket auth rides
+`?token=<api-key>` since browsers cannot set upgrade headers). **Comfy Cloud
+sends no CORS headers today**, so cloud from a browser goes through
+`comfy-ts serve` as the bridge. Runnable page: `bun examples/web/serve.ts`.
+
 ## 🌍 Hosts: local, LAN, Comfy Cloud, any provider
 
 Every Comfy is supported, through one identical API. Same mechanism, same

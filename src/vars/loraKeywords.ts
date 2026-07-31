@@ -1,6 +1,6 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { observable, runInAction } from 'mobx'
-import { dirname, join } from 'pathe'
+import { join } from 'pathe'
+import { getComfyStorage } from 'src/storage/ComfyStorage.ts'
 import { logError } from 'src/utils/log.ts'
 
 /**
@@ -21,9 +21,10 @@ function loadOnce(): void {
    if (loaded) return
    loaded = true
    const path = filePath()
-   if (!existsSync(path)) return
+   const text = getComfyStorage().readTextIfExists(path)
+   if (text == null) return
    try {
-      const raw: unknown = JSON.parse(readFileSync(path, 'utf8'))
+      const raw: unknown = JSON.parse(text)
       if (raw == null || typeof raw !== 'object') return
       runInAction(() => {
          for (const [name, kw] of Object.entries(raw)) if (typeof kw === 'string') keywords.set(name, kw)
@@ -48,8 +49,7 @@ export function setLoraKeyword(name: string, keyword: string): void {
    })
    const path = filePath()
    try {
-      mkdirSync(dirname(path), { recursive: true })
-      writeFileSync(path, JSON.stringify(Object.fromEntries([...keywords.entries()].sort()), null, 2))
+      getComfyStorage().writeText(path, JSON.stringify(Object.fromEntries([...keywords.entries()].sort()), null, 2))
    } catch (e) {
       logError(`[loraKeywords] write failed ${path}: ${String(e)}`)
    }

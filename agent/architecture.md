@@ -164,6 +164,16 @@ src/cli/serve/             `comfy-ts serve`: drafts as a local HTTP generation
                            `handle()` — headless-tested with an injected runner)
    describeVar.ts          PURE var → JSON descriptor (+ console rendering)
    applyVarPayload.ts      PURE payload value → var, per kind, error|null
+src/storage/               the ComfyStorage seam (web entry, item 13):
+   ComfyStorage.ts         the interface (sync fs subset + homedir/cwd) +
+                           setDefaultComfyStorage/resolveComfyStorage
+   memoryStorage.ts        in-memory Map backend (browser + tests)
+   nodeStorage.ts          node:fs backend — the ONLY core-path module
+                           allowed to import node:fs statically
+src/coreExports.ts         the SHARED export surface of both entries — must
+                           stay web-safe; node-only exports live in index.ts
+src/web.ts                 browser entry (`comfy-ts/web`): installs memory
+                           storage, re-exports coreExports (never index)
 src/litegraph/             ComfyUI saved-workflow JSON format, 3 layers (see
                            "Workflow import pipeline" below):
    LiteGraph*.ts           TOLERANT wire schemas (arktype + IsEqual TS mirror):
@@ -552,10 +562,69 @@ tests/                     bun tests (headless) + fixtures
    seeds: { <var>: number }, images: [{ filename, url (/outputs/…),
    absPath }] }`; execution Failure → 500 with
    the error payload; `Accept: image/*` returns the FIRST image's bytes
-   directly (so `<img src>` / curl -o work). Progress streaming is NOT v1.
+   directly (curl -o; generate stays POST-only, so not `<img src>`).
+   Progress streaming is NOT v1.
    EXPOSURE: binds 127.0.0.1:8288 by default; `--bind`/`--port` override,
    non-loopback bind prints a loud warning (a generation API is remote code
    paths on the GPU box). No auth in v1.
+
+13. web entry (`comfy-ts/web`, Rémi's full GO 2026-07-31, plan
+   tmp/20260731-183000-web-entry-plan.md): the library core runs in a
+   browser bundle — define workflows, connect, run, get bytes. Types need
+   no runtime: the consumer includes a generated sdk.d.ts in its tsconfig.
+   PROBED FACTS (2026-07-31): Comfy Cloud ws accepts `?token=<api-key>` on
+   the upgrade (header-equivalent; no-auth refused) — the browser ws auth
+   path, since browsers cannot set ws headers. Comfy Cloud HTTP sends NO
+   CORS headers → browser-direct cloud is blocked; cloud rides
+   `comfy-ts serve` as the proxy. Stock ComfyUI needs `--enable-cors-header`
+   for browser access. The honest support matrix: local/LAN direct, cloud
+   via serve.
+   STORAGE SEAM (`src/storage/`): `ComfyStorage` = the sync fs subset the
+   core path uses (readTextIfExists/readBytes/writeText/writeBytes/exists/
+   mkdirp/mtimeMs) + environment (homedir/cwd). Resolution order in
+   `ComfyTS.create`: explicit `{ storage }` → entry-installed default
+   (index.ts installs node, web.ts installs memory) → getBuiltinModule
+   autodetect (node 22+/bun reach node:fs WITHOUT a static import — covers
+   in-repo direct src imports: cli, tests, scripts) → loud throw naming the
+   entries. `nodeStorage.ts` is the ONLY core-path module that may import
+   node:fs statically; the memory backend is a Map keyed by absolute path
+   (`MediaImage.absPath` becomes a key into it on web — retrieveImage wrote
+   the bytes there, so lazy getters work unchanged). The manager loaders ARE
+   in the web graph (state.ts → ComfyRegistry imports them statically), so
+   they ride the seam too — a browser touch of `comfyts.registry` fails
+   loud at USE time ([memory storage] no such file), never at import.
+   cli/, tui/, ssh-host-manager/, exampleAssets keep raw node:fs: node-only
+   by construction, never in the web graph.
+   WS: `ResilientWebsocket` resolves its transport at connect time, once per
+   process: dynamic import of `'ws'` through a VARIABLE specifier (bundlers
+   cannot chase it, node always has the dep) → `globalThis.WebSocket`
+   (browser) → transport-dead. On a headerless transport the ws url carries
+   `?token=<apiKey>` (the probed cloud contract) — hostUrl's "auth never
+   rides the query string" rule has exactly that exemption; custom header
+   pairs on a headerless transport are a loud error, not a silent drop.
+   An unrecoverable transport reports ONCE through `onTransportDead`
+   (ComfyHost wires it to markFailed so connect() rejects instead of
+   hanging) and the client goes permanently closed — no retry storm, no
+   unhandled rejection from the void'd connect loop.
+   SHARP: never in the web graph. MediaImage keeps ONE class (decided
+   2026-07-31: environment is a per-process fact, not a per-image fact —
+   no Base/Web/Sharp split): fs through the seam, metadata/hash prefer the
+   cached buffer, base64 without Buffer. `generatePreview`/
+   `generateMiniPreview` are DELETED (zero callers, undocumented,
+   changelog states it loud); `processWithSharp`/`_inplace` lazy-import
+   sharp and throw loud in browser. ComfyExecution imports sharp lazily;
+   non-'raw' saveFormat without sharp = loud error.
+   HASH: `hashArrayBuffer` + ComfySchema's cache-key hash use a pure-JS
+   SHA-1 whose output matches node:crypto byte-for-byte (vector-tested) —
+   upload dedupe names stay identical across the swap.
+   ENTRY (`src/web.ts`): a CURATED export list (never a re-export of
+   index.ts — exampleAssets, ssh, manager loaders must not enter the
+   graph), installs its backends at import time. package.json gains the
+   `./web` export; tsdown builds it as a second entry.
+   GUARD (frozen-invariant tier): `tests/web-bundle.test.ts` bundles
+   src/web.ts with Bun.build target browser and FAILS if `node:*`, `ws` or
+   `sharp` reach the output — the machine rule that keeps every later
+   commit honest.
 
 ## Workflow import pipeline (litegraph → canonical → prompt)
 

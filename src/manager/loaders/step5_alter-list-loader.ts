@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { getComfyStorage } from 'src/storage/ComfyStorage.ts'
 import { type } from 'arktype'
 import type { ComfyRegistry } from 'src/manager/ComfyRegistry.ts'
 import { ManagerParseError } from 'src/manager/loaders/parseReport.ts'
@@ -11,7 +11,7 @@ import {
 export const _getAlterList = (DB: ComfyRegistry): void => {
    const counter = DB.report.file('alter-list.json')
 
-   const raw: unknown = JSON.parse(readFileSync('src/manager/json/alter-list.json', 'utf8'))
+   const raw: unknown = JSON.parse(getComfyStorage().readText('src/manager/json/alter-list.json'))
    const root = ComfyManagerFileAlterListRoot_ark(raw)
    if (root instanceof type.errors) throw new ManagerParseError('alter-list.json', root.summary)
 

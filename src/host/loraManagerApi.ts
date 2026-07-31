@@ -1,7 +1,6 @@
-import { createHash } from 'node:crypto'
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { type } from 'arktype'
-import { dirname } from 'pathe'
+import { getComfyStorage } from 'src/storage/ComfyStorage.ts'
+import { sha1HexOfString } from 'src/utils/sha1.ts'
 import type { ComfyHost } from 'src/host/ComfyHost.ts'
 import { logError } from 'src/utils/log.ts'
 
@@ -80,8 +79,9 @@ export function looksLikeImage(bytes: Uint8Array): boolean {
  * a non-image content-type OR non-image magic bytes => no preview, not a crash.
  */
 export async function fetchLoraPreviewBytes(host: ComfyHost, previewUrl: string): Promise<Uint8Array | null> {
-   const cachePath = comfyts.resolveFromCache(`lora-previews/${createHash('sha1').update(previewUrl).digest('hex')}`)
-   if (existsSync(cachePath)) return new Uint8Array(readFileSync(cachePath))
+   const storage = getComfyStorage()
+   const cachePath = comfyts.resolveFromCache(`lora-previews/${sha1HexOfString(previewUrl)}`)
+   if (storage.exists(cachePath)) return storage.readBytes(cachePath)
    try {
       // preview_url is already a full server-relative path — no /api probing
       const res = await host.fetch(previewUrl, {}, { apiPrefix: false })
@@ -90,8 +90,7 @@ export async function fetchLoraPreviewBytes(host: ComfyHost, previewUrl: string)
       if (ct !== '' && !ct.startsWith('image/')) return null // HTML fallback etc.
       const bytes = new Uint8Array(await res.arrayBuffer())
       if (!looksLikeImage(bytes)) return null
-      mkdirSync(dirname(cachePath), { recursive: true })
-      writeFileSync(cachePath, bytes)
+      storage.writeBytes(cachePath, bytes)
       return bytes
    } catch {
       return null

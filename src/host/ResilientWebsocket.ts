@@ -1,9 +1,51 @@
-import WebSocket, { type CloseEvent, type Event, type MessageEvent } from 'ws'
+// transport-agnostic since 2026-07-31 (architecture item 13): node uses the
+// `ws` package (custom upgrade headers work), browsers the native WebSocket.
+// The `ws` import specifier is a VARIABLE so browser bundlers never chase it.
 import type { Maybe } from 'src/types/index.ts'
 import { bang } from 'src/utils/bang.ts'
+import { extractErrorMessage } from 'src/utils/extractErrorMessage.ts'
 import { logInfo } from 'src/utils/log.ts'
 
-type Message = string | Buffer
+type Message = string | Uint8Array
+
+/** structural face of both transports (ws package AND browser WebSocket) */
+export type WsLike = {
+   binaryType: string
+   onmessage: ((event: WsMessageEvent) => void) | null
+   onopen: ((event: unknown) => void) | null
+   onclose: ((event: WsCloseEvent) => void) | null
+   onerror: ((event: unknown) => void) | null
+   send(data: Message): void
+   close(): void
+}
+
+/** what both transports deliver with binaryType 'arraybuffer': string or ArrayBuffer in `data` */
+export type WsMessageEvent = { data: unknown }
+export type WsCloseEvent = { code: number; reason: string }
+
+type WsCtor = new (url: string, opts?: { headers?: Record<string, string> }) => WsLike
+
+type WsTransport = { ctor: WsCtor; supportsHeaders: boolean }
+
+let transportPromise: Promise<WsTransport> | null = null
+
+/** node: the ws package (headers on the upgrade). browser: native WebSocket. */
+function resolveWsTransport(): Promise<WsTransport> {
+   transportPromise ??= (async (): Promise<WsTransport> => {
+      const specifier = 'ws'
+      try {
+         // cast: the ws package ctor fits WsCtor structurally; a variable
+         // specifier types the import as any, so the shape is stated here
+         const mod = (await import(specifier)) as { default: WsCtor }
+         return { ctor: mod.default, supportsHeaders: true }
+      } catch {
+         const native = (globalThis as { WebSocket?: WsCtor }).WebSocket
+         if (native != null) return { ctor: native, supportsHeaders: false }
+         throw new Error(`no WebSocket transport: neither the 'ws' package nor a global WebSocket is available`)
+      }
+   })()
+   return transportPromise
+}
 
 type WsDebugMessage = {
    type: 'info' | 'error'
@@ -12,9 +54,8 @@ type WsDebugMessage = {
 }
 
 export class ResilientWebSocketClient {
-   // private protocols?: string | string[]
    private url: string
-   private currentWS?: Maybe<WebSocket>
+   private currentWS?: Maybe<WsLike>
    private messageBuffer: Message[] = []
 
    isOpen: boolean = false
@@ -32,19 +73,24 @@ export class ResilientWebSocketClient {
 
    constructor(
       public options: {
-         url: () => string /*protocols?: string | string[]*/
-         /** upgrade-request headers (auth: X-API-Key & co) — a thunk, re-read on every reconnect */
+         url: () => string
+         /** upgrade-request headers (auth: X-API-Key & co) — a thunk, re-read on every reconnect.
+          * On a headerless transport (browser) X-API-Key rides `?token=` instead
+          * (the probed Comfy Cloud contract); other headers throw loud. */
          headers?: () => Record<string, string>
-         onMessage: (event: MessageEvent) => void
+         onMessage: (event: WsMessageEvent) => void
          onConnectOrReconnect: () => void
          onClose: () => void
+         /** transport unrecoverable (no ws package AND no global WebSocket, or ctor threw):
+          * reported here ONCE, the client goes permanently closed — never a retry storm */
+         onTransportDead?: (error: unknown) => void
       },
    ) {
       this.url = options.url()
-      this.connect()
+      void this.connect()
    }
 
-   private reconnectTimeout?: Maybe<NodeJS.Timeout>
+   private reconnectTimeout?: Maybe<ReturnType<typeof setTimeout>>
    private permanentlyClosed: boolean = false
 
    /** close and stop reconnecting (lets a script exit cleanly) */
@@ -56,7 +102,21 @@ export class ResilientWebSocketClient {
       this.isOpen = false
    }
 
-   private connect(): void {
+   /** headerless transports carry the api key as ?token= — everything else is refused loud */
+   private headerlessUrl(headers: Record<string, string>): string {
+      const rest = { ...headers }
+      const apiKey = rest['X-API-Key']
+      delete rest['X-API-Key']
+      const extra = Object.keys(rest)
+      if (extra.length > 0)
+         throw new Error(
+            `custom ws headers (${extra.join(', ')}) need the 'ws' package — a browser WebSocket cannot set upgrade headers`,
+         )
+      if (apiKey == null) return this.url
+      return this.url + (this.url.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(apiKey)
+   }
+
+   private async connect(): Promise<void> {
       this.isOpen = false
       const prevWS = this.currentWS
 
@@ -68,18 +128,32 @@ export class ResilientWebSocketClient {
          this.addInfo('Previous WebSocket discarded')
          prevWS.close()
       }
-      const ws = new WebSocket(this.url, { headers: this.options.headers?.() })
+
+      let ws: WsLike
+      try {
+         const transport = await resolveWsTransport()
+         if (this.permanentlyClosed) return // closed while the transport resolved
+         const headers = this.options.headers?.() ?? {}
+         ws = transport.supportsHeaders
+            ? new transport.ctor(this.url, { headers })
+            : new transport.ctor(this.headerlessUrl(headers))
+      } catch (e) {
+         // connect() runs void'd (ctor + reconnect timer): a rethrow here would be
+         // an unhandled rejection, so the failure reports through onTransportDead
+         this.addError(`cannot open WebSocket: ${extractErrorMessage(e)}`)
+         this.permanentlyClosed = true
+         this.options.onTransportDead?.(e)
+         return
+      }
       ws.binaryType = 'arraybuffer'
 
       this.currentWS = ws
 
-      if (this.options.onMessage) {
-         ws.onmessage = (event: MessageEvent): void => {
-            this.options.onMessage(event)
-         }
+      ws.onmessage = (event: WsMessageEvent): void => {
+         this.options.onMessage(event)
       }
 
-      ws.onopen = (_event: Event): void => {
+      ws.onopen = (): void => {
          if (ws !== this.currentWS) return
          this.addInfo('✅ WebSocket connected to ' + this.url)
          this.isOpen = true
@@ -87,17 +161,17 @@ export class ResilientWebSocketClient {
          this.flushMessageBuffer()
       }
 
-      ws.onclose = (event: CloseEvent): void => {
+      ws.onclose = (event: WsCloseEvent): void => {
          if (ws !== this.currentWS) return
          this.isOpen = false
          this.options.onClose()
          if (this.permanentlyClosed) return
          this.addError(`WebSocket closed (reason=${JSON.stringify(event.reason)}, code=${event.code})`)
          this.addInfo('⏱️ reconnecting in 2 seconds...')
-         this.reconnectTimeout = setTimeout(() => this.connect(), 2000)
+         this.reconnectTimeout = setTimeout(() => void this.connect(), 2000)
       }
 
-      ws.onerror = (event: Event): void => {
+      ws.onerror = (event: unknown): void => {
          if (ws !== this.currentWS) return
          this.addError(`WebSocket ERROR` + JSON.stringify(event))
          console.error({ event })
@@ -118,32 +192,4 @@ export class ResilientWebSocketClient {
          this.currentWS?.send(message)
       }
    }
-
-   /** forward WebSocket add event listeners to the current WebSocket instance */
-   public addEventListener<K extends keyof WebSocketEventMap>(
-      type: K,
-      listener:
-         | ((event: WebSocket.WebSocketEventMap[K]) => void)
-         | { handleEvent(event: WebSocket.WebSocketEventMap[K]): void },
-      options?: WebSocket.EventListenerOptions,
-   ): void {
-      this.currentWS?.addEventListener(type, listener, options)
-   }
-
-   /** forward WebSocket remove event listeners to the current WebSocket instance */
-   public removeEventListener<K extends keyof WebSocketEventMap>(
-      type: K,
-      listener:
-         | ((event: WebSocket.WebSocketEventMap[K]) => void)
-         | { handleEvent(event: WebSocket.WebSocketEventMap[K]): void },
-   ): void {
-      this.currentWS?.removeEventListener(type, listener)
-   }
-}
-
-type WebSocketEventMap = {
-   open: Event
-   close: CloseEvent
-   error: Event
-   message: MessageEvent
 }

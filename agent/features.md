@@ -106,6 +106,19 @@ are read live (tweak in the TUI while serving) and never written. Binds
 - ✅ gen / outline / tui (tui look & feel not yet signed off by a human playtest)
 - ✅ serve (drafts over HTTP, Rémi's GO 2026-07-31)
 
+## G8 — runs in the browser
+
+`import { ComfyTS } from 'comfy-ts/web'`: the core library in a browser
+bundle — in-memory storage backend (the `ComfyStorage` seam), native
+WebSocket (api key as `?token=` on the upgrade, the probed cloud contract),
+pure-JS sha1, no sharp/ws/node:* in the graph (machine-guarded by
+`tests/web-bundle.test.ts`). Local/LAN hosts connect directly behind
+`--enable-cors-header`; Comfy Cloud lacks CORS and rides `comfy-ts serve`.
+Browser example: `examples/web/` (`bun examples/web/serve.ts`).
+
+- ✅ web entry + storage seam + bundle guard (Rémi's full GO 2026-07-31)
+- 🔶 browser playtest by a human — pending
+
 ## Non-goals
 
 - no UI (CushyStudio's job), no LLM calls. `comfy-ts serve` is a thin LOCAL

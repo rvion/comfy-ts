@@ -43,5 +43,7 @@
    // tests/ stays OUT of tsc on purpose: tests drive a schema-less host whose
    // base builder is index-typed (factories possibly-undefined under
    // noUncheckedIndexedAccess). bun test executes them; oxlint/oxfmt cover them.
-   "include": ["src", "scripts", "examples", ".comfy-ts/hosts/**/sdk.d.ts", "*.ts"]
+   "include": ["src", "scripts", "examples", ".comfy-ts/hosts/**/sdk.d.ts", "*.ts"],
+   // examples/web has its OWN config (dom lib) — chained by `bun run typecheck`
+   "exclude": ["examples/web"]
 }

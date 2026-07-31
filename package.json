@@ -1,6 +1,6 @@
 {
    "name": "comfy-ts",
-   "version": "1.3.0",
+   "version": "1.4.0",
    "description": "The complete TypeScript toolkit for ComfyUI and generative AI. Fully type-safe SDK with autocomplete on every node, companion CLI, TUI, agentic docs, and 50+ examples. Design, run and deploy creative pipelines for image, video, audio, 3d and text on any ComfyUI, local, cloud or hosted.",
    "keywords": [
       "comfyui",
@@ -48,6 +48,12 @@
             "default": "./dist/index.cjs"
          }
       },
+      "./web": {
+         "import": {
+            "types": "./dist/web.d.ts",
+            "default": "./dist/web.js"
+         }
+      },
       "./src/*": "./src/*"
    },
    "files": [
@@ -63,7 +69,7 @@
       "build:watch": "tsdown --watch",
       "test": "bun test",
       "test:watch": "bun test --watch",
-      "typecheck": "tsc --noEmit",
+      "typecheck": "tsc --noEmit && tsc -p examples/web/tsconfig.json",
       "typecheck:lib": "tsc -p tsconfig.lib.json",
       "lint": "oxlint src examples scripts tests",
       "format": "oxfmt src examples scripts tests",

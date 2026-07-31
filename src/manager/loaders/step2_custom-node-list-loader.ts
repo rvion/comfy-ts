@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync } from 'node:fs'
+import { getComfyStorage } from 'src/storage/ComfyStorage.ts'
 import { type } from 'arktype'
 import { ansi as chalk } from 'src/utils/ansi.ts'
 import { githubRegexpV1 } from 'src/utils/githubRegexes.ts'
@@ -17,7 +17,7 @@ export const _getKnownPlugins = (DB: ComfyRegistry): void => {
    let totalFileSeen = 0
 
    // parse rows: loose raw schema per row, skip+report failures, normalize survivors
-   const raw: unknown = JSON.parse(readFileSync('src/manager/json/custom-node-list.json', 'utf8'))
+   const raw: unknown = JSON.parse(getComfyStorage().readText('src/manager/json/custom-node-list.json'))
    const root = ComfyManagerFilePluginListRoot_ark(raw)
    if (root instanceof type.errors) throw new ManagerParseError('custom-node-list.json', root.summary)
 
@@ -68,7 +68,7 @@ export const _getKnownPlugins = (DB: ComfyRegistry): void => {
       }
       out1 += '\n'
       const out1Path = 'src/manager/generated/KnownComfyPluginTitle.ts'
-      writeFileSync(out1Path, out1 + '\n', 'utf-8')
+      getComfyStorage().writeText(out1Path, out1 + '\n')
       console.log(`   > generated: ${chalk.blue.underline(out1Path)}`)
 
       // FileType
@@ -79,7 +79,7 @@ export const _getKnownPlugins = (DB: ComfyRegistry): void => {
       out2 += 'export type KnownComfyPluginURL =\n'
       for (const fileName of sortedFileNames) out2 += `    | ${JSON.stringify(fileName)}\n`
       const out2Path = 'src/manager/generated/KnownComfyPluginURL.ts'
-      writeFileSync(out2Path, out2, 'utf-8')
+      getComfyStorage().writeText(out2Path, out2)
       console.log(`   > generated: ${chalk.blue.underline(out2Path)}`)
    }
 

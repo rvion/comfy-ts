@@ -56,6 +56,15 @@ New dep = a decision. First ask: can ~20 lines of current code do it?
      runtime-checked (`isLoraStrength`, key ∈ options), the record is claimed
      as the var's value type (`src/cli/serve/applyVarPayload.ts`) — same
      wire-tolerance family as 4, but the check is COMPLETE, not soft.
+  10. runtime-boundary probes of the web entry (architecture item 13), each
+     null-checked right after: `process.getBuiltinModule('node:fs')` results
+     claimed as the structural NodeFsLike/NodeOsLike faces and node
+     `readFileSync(p,'utf8')` as string (`src/storage/ComfyStorage.ts`);
+     VARIABLE-specifier dynamic imports (typed as any by tsc) claimed as
+     their module shapes (`src/host/ResilientWebsocket.ts` ws ctor,
+     `src/utils/lazySharp.ts`); `globalThis` probes for WebSocket and the
+     comfyts storage backref (`ResilientWebsocket.ts`, `ComfyStorage.ts` —
+     extends family 3 beyond src/state.ts).
 - Known violations to burn down (documented, do NOT replicate): scattered `as any` in
   `ComfyNode._convertPromptExtToPrompt` / dynamic outputs wiring; `softValidate`/`bong`
   returning lying casts on failure (both documented at the definition);

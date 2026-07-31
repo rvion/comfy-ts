@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+   <head>
+      <meta charset="utf-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1" />
+      <title>comfy-ts/web — txt2img in the browser</title>
+      <style>
+         :root {
+            color-scheme: dark;
+         }
+         body {
+            font-family: ui-monospace, monospace;
+            max-width: 640px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+            background: #111;
+            color: #ddd;
+         }
+         label {
+            display: block;
+            margin-top: 0.8rem;
+            font-size: 0.8rem;
+            opacity: 0.7;
+         }
+         input,
+         textarea {
+            width: 100%;
+            box-sizing: border-box;
+            background: #1a1a1a;
+            color: #ddd;
+            border: 1px solid #333;
+            padding: 0.5rem;
+            font: inherit;
+         }
+         button {
+            margin-top: 1rem;
+            padding: 0.5rem 1.5rem;
+            background: #2a6;
+            color: #fff;
+            border: 0;
+            font: inherit;
+            cursor: pointer;
+         }
+         #status {
+            margin-top: 0.8rem;
+            min-height: 1.2em;
+            opacity: 0.8;
+         }
+         #output {
+            margin-top: 1rem;
+            max-width: 100%;
+         }
+         .note {
+            font-size: 0.75rem;
+            opacity: 0.5;
+            margin-top: 1.5rem;
+         }
+      </style>
+   </head>
+   <body>
+      <h1>comfy-ts/web</h1>
+      <label for="host">ComfyUI host (started with <code>--enable-cors-header '*'</code>)</label>
+      <input id="host" value="http://127.0.0.1:8188" />
+      <label for="ckpt">checkpoint name (as the host knows it)</label>
+      <input id="ckpt" value="v1-5-pruned-emaonly.ckpt" />
+      <label for="prompt">prompt</label>
+      <textarea id="prompt" rows="3">a lighthouse on a cliff, dramatic sky</textarea>
+      <button id="generate">generate</button>
+      <div id="status"></div>
+      <img id="output" alt="" />
+      <p class="note">
+         Everything runs in this page: comfy-ts/web talks to the host directly (schema fetch, websocket progress, image
+         download). Nothing touches disk — the library writes to an in-memory store.
+      </p>
+      <script type="module" src="./example.js"></script>
+   </body>
+</html>

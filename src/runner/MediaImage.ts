@@ -1,8 +1,9 @@
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { type } from 'arktype'
 import { type ImageMeta, imageMeta } from 'image-meta'
-import { basename, dirname } from 'pathe'
-import sharp, { type Sharp } from 'sharp'
+import { basename } from 'pathe'
+import type { Sharp } from 'sharp'
+import { getComfyStorage } from 'src/storage/ComfyStorage.ts'
+import { importSharp } from 'src/utils/lazySharp.ts'
 import type { ComfyHost } from 'src/host/ComfyHost.ts'
 import type { ComfyNodeMetadata } from 'src/graph/ComfyNodeID.ts'
 import type { ComfyApiNodeJson } from 'src/sdk-generator/comfy-api-json.ts'
@@ -170,8 +171,11 @@ export class MediaImage {
     * does not includes the prefix `data:image/png;base64,`
     */
    getBase64Payload(): string {
-      const bin = Buffer.from(this.buffer)
-      return bin.toString('base64')
+      const bytes = this.buffer
+      let bin = ''
+      const chunk = 0x8000 // String.fromCharCode arg-count limit
+      for (let i = 0; i < bytes.length; i += chunk) bin += String.fromCharCode(...bytes.subarray(i, i + chunk))
+      return btoa(bin)
    }
 
    /** return the ArrayBuffer for this file, regardless it's exact representation  */
@@ -180,9 +184,7 @@ export class MediaImage {
    private _buffer: Maybe<Uint8Array> = null
    get buffer(): Uint8Array {
       if (this._buffer != null) return this._buffer
-      const buff: Buffer | ArrayBuffer = readFileSync(this.absPath)
-      const uint8arr = new Uint8Array(buff)
-      this._buffer = uint8arr
+      this._buffer = getComfyStorage().readBytes(this.absPath)
       return this._buffer
    }
    freeBuffer = (): void => void (this._buffer = null)
@@ -202,17 +204,14 @@ export class MediaImage {
    private _metadata: Maybe<ImageMeta> = null
    get metadata(): ImageMeta {
       if (this._metadata != null) return this._metadata
-      const buff = readFileSync(this.absPath)
-      const uint8arr = new Uint8Array(buff)
-      this._metadata = imageMeta(uint8arr)
+      this._metadata = imageMeta(this.buffer)
       return this._metadata
    }
 
    private _hash: Maybe<string> = null
    get hash(): string {
       if (this._hash != null) return this._hash
-      const buff: Buffer | ArrayBuffer = readFileSync(this.absPath)
-      this._hash = hashArrayBuffer(new Uint8Array(buff))
+      this._hash = hashArrayBuffer(this.buffer)
       return this._hash
    }
 
@@ -224,8 +223,9 @@ export class MediaImage {
       /** processing function */
       fn: (sharp: Sharp) => Sharp,
    ): Promise<this> => {
-      const buff = await fn(sharp(this.absPath)).toBuffer()
-      writeFileSync(this.absPath, buff)
+      const sharp = await importSharp('processWithSharp_inplace')
+      const buff = await fn(sharp(this.buffer)).toBuffer()
+      getComfyStorage().writeBytes(this.absPath, new Uint8Array(buff))
       this.updateBuffer(new Uint8Array(buff))
       return this
    }
@@ -241,22 +241,10 @@ export class MediaImage {
       /** where to save the resulting image */
       path?: AbsolutePath,
    ): Promise<MediaImage> => {
-      const res: Sharp = fn(sharp(this.absPath))
+      const sharp = await importSharp('processWithSharp')
       path ??= this.absPath + `.processed-${Date.now()}` + this.extension
-      await res.toFile(path)
-      const buffer = await res.toBuffer()
+      const buffer = new Uint8Array(await fn(sharp(this.buffer)).toBuffer())
+      getComfyStorage().writeBytes(path, buffer)
       return new MediaImage({ path, buffer })
-   }
-
-   generatePreview = async (targetPath: string): Promise<void> => {
-      const img = sharp(this.absPath).rotate().resize(100).jpeg({ mozjpeg: true })
-      mkdirSync(dirname(targetPath), { recursive: true })
-      await img.toFile(targetPath)
-   }
-
-   generateMiniPreview = async (): Promise<string> => {
-      const image2 = await sharp(this.absPath).resize(32, 32, { fit: 'inside' }).webp({ quality: 1 }).toBuffer()
-      const x = image2.toString('base64')
-      return x
    }
 }

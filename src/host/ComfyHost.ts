@@ -1,6 +1,5 @@
-import { existsSync, mkdirSync, readFileSync, statSync } from 'node:fs'
+import { getComfyStorage } from 'src/storage/ComfyStorage.ts'
 import { type } from 'arktype'
-import type { MessageEvent } from 'ws'
 import type { KnownComfyPluginTitle } from 'src/manager/generated/KnownComfyPluginTitle.ts'
 import type { KnownComfyPluginURL } from 'src/manager/generated/KnownComfyPluginURL.ts'
 import type { ComfyManagerPluginInfo } from 'src/manager/types/ComfyManagerPluginInfo.ts'
@@ -28,13 +27,12 @@ import { extractErrorMessage } from 'src/utils/extractErrorMessage.ts'
 import { printArkResultInConsole } from 'src/utils/printArkResultInConsole.ts'
 import { readableStringify } from 'src/utils/stringifyReadable.ts'
 import { logError as toastError, logInfo } from 'src/utils/log.ts'
-import { writeFileAsync } from 'src/utils/writeFile.ts'
 import type { ComfyInstallType } from 'src/host/ComfyInstallType.ts'
 import { ComfyManager } from 'src/host/ComfyManager.ts'
 import { ComfyUploader } from 'src/host/ComfyUploader.ts'
 import { type ParsedHostBase, parseHostBase, renderHttpBase, renderWsUrl } from 'src/host/hostUrl.ts'
 import type { Requirements } from 'src/host/Requirements.ts'
-import { ResilientWebSocketClient } from 'src/host/ResilientWebsocket.ts'
+import { ResilientWebSocketClient, type WsMessageEvent } from 'src/host/ResilientWebsocket.ts'
 import { DefinedWorkflow, type DefineWorkflowSpec } from 'src/vars/DefinedWorkflow.ts'
 import type { VarsSpec } from 'src/vars/ComfyVars.ts'
 
@@ -65,7 +63,7 @@ export type ComfyHostData = {
    installType?: ComfyInstallType
 
    // misc
-   onWsMessageAny?: (e: MessageEvent) => void
+   onWsMessageAny?: (e: WsMessageEvent) => void
    onWsMessageArrayBuffer?: (e: ArrayBuffer) => void
    onWsMessageJSON?: (e: WsMsg) => void
 }
@@ -122,10 +120,10 @@ export class ComfyHost<ID extends string = string> {
       this.cacheFolder = comfyts.resolveFromHosts(this.data.id)
 
       // create the folder if it does not exist
-      const exists = existsSync(this.cacheFolder)
-      if (!exists) {
+      const storage = getComfyStorage()
+      if (!storage.exists(this.cacheFolder)) {
          console.log('🟢 creating folder', this.cacheFolder)
-         mkdirSync(this.cacheFolder, { recursive: true })
+         storage.mkdirp(this.cacheFolder)
       }
 
       this.comfyJSONPath = comfyts.resolve(this.cacheFolder, `object_info.json`)
@@ -435,22 +433,22 @@ export class ComfyHost<ID extends string = string> {
 
    private async writeSDKToDisk(): Promise<void> {
       if (this.data.sdkAutoWrite === false) return
+      const storage = getComfyStorage()
       const comfySchemaTs = this.schema.codegenDTS({ hostId: this.data.id })
       // skip the 4MB write when nothing changed (fast re-connects)
-      if (existsSync(this.sdkDTSPath) && readFileSync(this.sdkDTSPath, 'utf-8') === comfySchemaTs) return
-      await writeFileAsync(this.sdkDTSPath, comfySchemaTs, 'utf-8')
+      if (storage.readTextIfExists(this.sdkDTSPath) === comfySchemaTs) return
+      storage.writeText(this.sdkDTSPath, comfySchemaTs)
    }
 
    private shouldUseSchemaCache(): boolean {
       if (this._schemaStrategy === 'refresh') return false
-      const exists = existsSync(this.comfyJSONPath)
+      const mtimeMs = getComfyStorage().mtimeMs(this.comfyJSONPath)
       if (this._schemaStrategy === 'cache') {
-         if (!exists) throw new Error(`connect({schema:'cache'}) but no cache at ${this.comfyJSONPath}`)
+         if (mtimeMs == null) throw new Error(`connect({schema:'cache'}) but no cache at ${this.comfyJSONPath}`)
          return true
       }
-      if (!exists) return false
-      const ageMs = Date.now() - statSync(this.comfyJSONPath).mtimeMs
-      return ageMs < this._schemaMaxAgeMs
+      if (mtimeMs == null) return false
+      return Date.now() - mtimeMs < this._schemaMaxAgeMs
    }
 
    // WEBSCKET -----------------------------------------------------------------------------
@@ -501,10 +499,12 @@ export class ComfyHost<ID extends string = string> {
             await this.waitForSession()
             this.markReady()
          },
-         onMessage: (e: MessageEvent): void => this.onMessage(e),
+         onMessage: (e: WsMessageEvent): void => this.onMessage(e),
          url: () => this.getWSUrl(),
-         // auth rides the upgrade HEADERS, never the query string
+         // auth rides the upgrade headers; headerless transports (browser)
+         // remap X-API-Key to ?token= inside the ws client
          headers: () => this.authHeaders(),
+         onTransportDead: (e): void => this.markFailed(e),
          onClose: (): void => {
             logInfo(`[👢] WEBSOCKET: closed connection to ComfyUI host ${this.data.id}`)
          },
@@ -531,7 +531,7 @@ export class ComfyHost<ID extends string = string> {
     * examples must still open in the TUI; run() fetches the real schema through
     * connect() anyway). Not memoized in that case, so a later gen/connect retries. */
    loadSchemaFromCache(): Promise<void> {
-      if (this._schemaFromCache == null && !existsSync(this.comfyJSONPath)) {
+      if (this._schemaFromCache == null && !getComfyStorage().exists(this.comfyJSONPath)) {
          toastError(
             `no schema cache for host '${this.data.id}' at ${this.comfyJSONPath} — continuing with base types (no node/model unions); run \`comfy-ts gen --id ${this.data.id} --host <url>\` or connect() once to create it`,
          )
@@ -546,7 +546,7 @@ export class ComfyHost<ID extends string = string> {
          this.schema.RUN_BASIC_CHECKS()
 
          // the on-disk sdk was generated from this same cache — only write when missing
-         if (!existsSync(this.sdkDTSPath)) await this.writeSDKToDisk()
+         if (!getComfyStorage().exists(this.sdkDTSPath)) await this.writeSDKToDisk()
       })().catch((e: unknown) => {
          this._schemaFromCache = null // a missing cache must stay retryable (e.g. after gen:sdk)
          throw e
@@ -626,7 +626,7 @@ export class ComfyHost<ID extends string = string> {
          // e.g. lora-manager serves HTML at /embeddings)
          const object_info_json = await this.fetchJSON_<{ [key: string]: ComfySchemaJSON[string] }>('/object_info')
          const object_info_str = readableStringify(object_info_json, 4)
-         void writeFileAsync(this.comfyJSONPath, object_info_str, 'utf-8')
+         getComfyStorage().writeText(this.comfyJSONPath, object_info_str)
          // use ark to check if payload match the type, and display errors if not
          const res = ComfySchemaJSON_ark(object_info_json)
          if (res instanceof type.errors) {
@@ -638,7 +638,7 @@ export class ComfyHost<ID extends string = string> {
          const embeddings_json = await this.fetchJSON_<EmbeddingName[]>('/embeddings').catch(
             () => [] as EmbeddingName[],
          )
-         void writeFileAsync(this.embeddingsPath, JSON.stringify(embeddings_json), 'utf-8')
+         getComfyStorage().writeText(this.embeddingsPath, JSON.stringify(embeddings_json))
 
          // 3 ------------------------------------
          // update schema
@@ -657,7 +657,7 @@ export class ComfyHost<ID extends string = string> {
          console.error(error)
          console.error('🔴 FAILURE TO GENERATE the typed sdk', extractErrorMessage(error))
 
-         const schemaExists = existsSync(this.sdkDTSPath)
+         const schemaExists = getComfyStorage().exists(this.sdkDTSPath)
          if (!schemaExists) await this.writeSDKToDisk()
          this.markFailed(error)
       } finally {
@@ -726,7 +726,7 @@ export class ComfyHost<ID extends string = string> {
     * never revives one) */
    lastWsMessageAt: number | null = null
 
-   onMessage(e: MessageEvent): void {
+   onMessage(e: WsMessageEvent): void {
       this.lastWsMessageAt = Date.now()
       if (this.data.onWsMessageAny) this.data.onWsMessageAny(e)
       if (e.data instanceof ArrayBuffer) {

@@ -1,5 +1,51 @@
 # comfy-ts
 
+## 1.4.0
+
+The browser release: `import { ComfyTS } from 'comfy-ts/web'` runs the
+library in a browser bundle — define workflows, connect to a host over the
+native WebSocket, run, get bytes back, nothing touching disk.
+
+**Removed** (stated loud): `MediaImage.generatePreview` and
+`MediaImage.generateMiniPreview` are gone. Both were undocumented
+convenience wrappers; `processWithSharp` covers them in one call
+(`img.processWithSharp((s) => s.resize(100).jpeg())`). Also gone:
+`ResilientWebSocketClient.addEventListener`/`removeEventListener` (never
+called; the `on*` options cover the surface), and `onWsMessageAny` now
+receives a structural `{ data: unknown }` event instead of the `ws`
+package's `MessageEvent` type.
+
+### `comfy-ts/web`
+
+- New package export, ESM only. Same API surface as the node entry minus
+  the node-only bits (`exampleImagePath`, `isTuiActive`). Types work
+  unchanged: include a generated `sdk.d.ts` in your tsconfig.
+- Storage is a pluggable seam: node gets the real filesystem (unchanged
+  behavior), the web entry an in-memory store, and
+  `ComfyTS.create({ storage })` accepts your own backend
+  (`ComfyStorage`: 9 sync methods + `homedir`/`cwd`).
+- Browser websocket auth: an `apiKey` rides the upgrade as `?token=…`
+  (browsers cannot set upgrade headers; Comfy Cloud accepts the query
+  form). Custom `headers` pairs on a browser transport throw loud instead
+  of silently dropping auth.
+- Support matrix, honestly: local/LAN hosts connect directly when ComfyUI
+  runs with `--enable-cors-header '*'`. Comfy Cloud sends no CORS headers
+  today, so cloud from a browser goes through `comfy-ts serve`.
+- Runnable browser example under `examples/web/`
+  (`bun examples/web/serve.ts`).
+
+### Library
+
+- `MediaImage.metadata` and `.hash` reuse the already-loaded buffer instead
+  of re-reading the file; `processWithSharp`/`processWithSharp_inplace`
+  load sharp lazily and throw a clear error in browsers.
+- Hashing (upload dedupe, enum names, preview cache keys) moved to a
+  pure-JS sha1 with output identical to node's — existing hash-named
+  uploads and caches stay valid.
+- Re-encoded outputs (`saveFormat` other than `'raw'`) keep working on
+  node and error loudly where sharp is unavailable.
+- `downloadFile` uses fetch instead of node:https.
+
 ## 1.3.0
 
 The serve release: every draft you tune in the TUI becomes a local HTTP

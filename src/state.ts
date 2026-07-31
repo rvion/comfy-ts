@@ -1,9 +1,9 @@
-import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'pathe'
 import pkgJson from '../package.json' with { type: 'json' }
 import { ComfyHost, type ComfyHostData } from 'src/host/ComfyHost.ts'
 import { parseHostBase, renderHttpBase } from 'src/host/hostUrl.ts'
 import { ComfyRegistry } from 'src/manager/ComfyRegistry.ts'
+import { type ComfyStorage, resolveComfyStorage } from 'src/storage/ComfyStorage.ts'
 import { type AbsolutePath, asAbsolutePath, type RelativePath } from 'src/types/index.ts'
 
 /** the ONE settings-file location rule — run-tui reads it BEFORE any module
@@ -16,12 +16,17 @@ export function settingsPathFor(root: string): AbsolutePath {
 export class ComfyTS {
    version = pkgJson.version
 
-   constructor(p: { rootPath?: string } = {}) {
+   /** the storage seam (architecture item 13): node fs by default, in-memory on web */
+   storage: ComfyStorage
+
+   constructor(p: { rootPath?: string; storage?: ComfyStorage } = {}) {
       // global registration: the rest of the lib resolves paths through `comfyts`
       const globalHack = globalThis as { comfyts?: ComfyTS }
       if (globalHack.comfyts != null) throw new Error('ComfyTS instance already created')
       globalHack.comfyts = this
-      if (p.rootPath) this.rootPath = asAbsolutePath(p.rootPath)
+      // storage FIRST: the default rootPath comes from it (browser has no process.cwd)
+      this.storage = resolveComfyStorage(p.storage)
+      this.rootPath = asAbsolutePath(p.rootPath ?? this.storage.cwd())
       this.baseFolder = asAbsolutePath(join(this.rootPath, '.comfy-ts'))
       this.hostsFolder = asAbsolutePath(join(this.baseFolder, 'hosts'))
       this.outputPath = asAbsolutePath(join(this.baseFolder, 'outputs'))
@@ -32,7 +37,7 @@ export class ComfyTS {
     * it. Workflow modules MUST use this (the TUI imports many of them into one
     * process); `new ComfyTS()` still throws on a second instance.
     */
-   static create(p: { rootPath?: string } = {}): ComfyTS {
+   static create(p: { rootPath?: string; storage?: ComfyStorage } = {}): ComfyTS {
       const globalHack = globalThis as { comfyts?: ComfyTS }
       const existing = globalHack.comfyts
       if (existing == null) return new ComfyTS(p)
@@ -82,8 +87,8 @@ export class ComfyTS {
       return this._registry
    }
 
-   /** root path used to resolve things */
-   rootPath: AbsolutePath = asAbsolutePath(process.cwd())
+   /** root path used to resolve things (set in the constructor, storage.cwd() default) */
+   rootPath: AbsolutePath
 
    /**
     * every repo using comfy-ts gets ONE `.comfy-ts/` folder:
@@ -126,12 +131,11 @@ export class ComfyTS {
    }
 
    readJSON_ = <T>(absPath: AbsolutePath, def?: T): T => {
-      const exists = existsSync(absPath)
-      if (!exists) {
+      const str = this.storage.readTextIfExists(absPath)
+      if (str == null) {
          if (def != null) return def
          throw new Error(`file does not exist ${absPath}`)
       }
-      const str = readFileSync(absPath, 'utf8')
       const json = JSON.parse(str)
       return json
    }

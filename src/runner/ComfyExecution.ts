@@ -1,12 +1,12 @@
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
-import { dirname } from 'pathe'
 import { localOutputPath, runTimestamp, uniquifyOutputPath } from 'src/runner/outputPath.ts'
 
 /** paths claimed by in-flight retrievals: two same-second runs on a
  * counter-resetting cloud host compute the same name before either writes */
 const CLAIMED_OUTPUT_PATHS = new Set<string>()
-import sharp, { type FormatEnum } from 'sharp'
+import type { FormatEnum } from 'sharp'
 import type { ComfyHost } from 'src/host/ComfyHost.ts'
+import { getComfyStorage } from 'src/storage/ComfyStorage.ts'
+import { importSharp } from 'src/utils/lazySharp.ts'
 import { getPngMetadataFromUint8Array } from 'src/image-utils/_getPngMetadata.ts'
 import type { ComfyNodeId } from 'src/graph/ComfyNodeID.ts'
 import { asAbsolutePath, type ImageSaveFormat, type Maybe } from 'src/types/index.ts'
@@ -100,7 +100,7 @@ export class ComfyExecution {
       const line = `▶ [${bar}] ${p.percent.toFixed(0).padStart(3)}%${node} · ${(p.elapsedMs / 1000).toFixed(0)}s`
       if (line === this._lastLoggedLine) return
       this._lastLoggedLine = line
-      if (process.stdout.isTTY) process.stdout.write(`\r\x1b[2K${line}`)
+      if (globalThis.process?.stdout?.isTTY) process.stdout.write(`\r\x1b[2K${line}`)
       else console.log(line)
    }
 
@@ -108,7 +108,7 @@ export class ComfyExecution {
       if (!this.logProgress) return
       const p = this.progress
       const line = `${this.status === 'Failure' ? '🔴' : '🟢'} ${this.status.toLowerCase()} in ${(p.elapsedMs / 1000).toFixed(1)}s · ${this.images.length} image(s)`
-      if (process.stdout.isTTY) process.stdout.write(`\r\x1b[2K${line}\n`)
+      if (globalThis.process?.stdout?.isTTY) process.stdout.write(`\r\x1b[2K${line}\n`)
       else console.log(line)
    }
 
@@ -229,9 +229,8 @@ export class ComfyExecution {
       }
       // last-resort uniquifier: bump past files on disk AND paths claimed by
       // still-downloading retrievals — never overwrite
-      absPath = uniquifyOutputPath({ path: absPath, exists: existsSync, claimed: CLAIMED_OUTPUT_PATHS })
-      const dir = dirname(absPath)
-      mkdirSync(dir, { recursive: true })
+      const storage = getComfyStorage()
+      absPath = uniquifyOutputPath({ path: absPath, exists: (p) => storage.exists(p), claimed: CLAIMED_OUTPUT_PATHS })
 
       // ref
       let img: MediaImage
@@ -253,15 +252,19 @@ export class ComfyExecution {
             return 'png'
          })()
 
-         await sharp(buff)
+         // node-only branch: re-encoding needs sharp (saveFormat 'raw' is the web path)
+         const sharp = await importSharp(`saveFormat '${sf.format}' re-encoding`)
+         const encoded = await sharp(buff)
             .withMetadata()
             .withExif({ IFD0: textChunk })
             // sharp expect quality between 1 and 100
             .toFormat(format, sf.quality ? { quality: Math.round(sf.quality * 100) } : undefined)
-            .toFile(absPath)
+            .toBuffer()
+         storage.writeBytes(asAbsolutePath(absPath), new Uint8Array(encoded))
 
          img = new MediaImage({
             path: asAbsolutePath(absPath),
+            buffer: new Uint8Array(encoded),
             execution: this,
             promptNodeID: promptNodeID,
             comfyUIInfos: {
@@ -276,7 +279,7 @@ export class ComfyExecution {
          const response = await this.host.fetchFile(imgRoute)
          const buff = await response.arrayBuffer()
          const uint8arr = new Uint8Array(buff)
-         writeFileSync(absPath, uint8arr)
+         storage.writeBytes(asAbsolutePath(absPath), uint8arr)
          img = new MediaImage({
             path: asAbsolutePath(absPath),
             buffer: uint8arr,

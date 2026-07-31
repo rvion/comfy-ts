@@ -1,6 +1,5 @@
-import crypto from 'node:crypto'
+import { sha1Hex } from 'src/utils/sha1.ts'
 
-export const hashArrayBuffer = (buffer: /* ArrayBuffer |  */ Uint8Array): string => {
-   const data = Buffer.from(buffer)
-   return crypto.createHash('sha1').update(data).digest('hex')
+export const hashArrayBuffer = (buffer: Uint8Array): string => {
+   return sha1Hex(buffer)
 }

@@ -47,7 +47,8 @@ export function renderHttpBase(p: ParsedHostBase): string {
    return `${p.scheme}://${p.host}${renderPort(p)}${p.basePath}`
 }
 
-/** ws(s) endpoint; auth NEVER rides the query string (headers own it) */
+/** ws(s) endpoint; auth rides the upgrade headers — EXCEPT headerless
+ * transports (browser), where the ws client remaps X-API-Key to ?token= */
 export function renderWsUrl(p: ParsedHostBase): string {
    const scheme = p.scheme === 'https' ? 'wss' : 'ws'
    return `${scheme}://${p.host}${renderPort(p)}${p.basePath}/ws`

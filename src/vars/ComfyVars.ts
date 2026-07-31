@@ -1,11 +1,10 @@
 // Vars: the standard "tweak & re-run" contract. A workflow defined via
 // host.defineWorkflow({ vars, build }) rebuilds its graph from current var
 // values on every run — drivers (scripts, the TUI) edit vars between runs.
-import { readFileSync } from 'node:fs'
-import { homedir } from 'node:os'
 import { imageMeta } from 'image-meta'
 import { action, makeObservable, observable } from 'mobx'
 import { basename, isAbsolute, join, resolve } from 'pathe'
+import { getComfyStorage } from 'src/storage/ComfyStorage.ts'
 import { getLoraKeyword } from 'src/vars/loraKeywords.ts'
 
 export type VarKind = 'text' | 'int' | 'float' | 'seed' | 'toggle' | 'choice' | 'loras' | 'size' | 'image'
@@ -475,7 +474,7 @@ export class SizeVar extends ComfyVar<SizeValue> {
       if (iv == null || iv.value === '') return null
       try {
          const abs = iv.absPath()
-         const meta = imageMeta(new Uint8Array(readFileSync(abs)))
+         const meta = imageMeta(getComfyStorage().readBytes(abs))
          if (meta.width == null || meta.height == null) return null
          return { width: meta.width, height: meta.height, name: basename(abs) }
       } catch {
@@ -525,7 +524,7 @@ export class ImageVarEmptyError extends Error {
 /** trim + expand a leading `~/` — every ImageVar write funnels through this */
 function expandUserPath(raw: string): string {
    const trimmed = raw.trim()
-   return trimmed.startsWith('~/') ? join(homedir(), trimmed.slice(2)) : trimmed
+   return trimmed.startsWith('~/') ? join(getComfyStorage().homedir(), trimmed.slice(2)) : trimmed
 }
 
 /**
@@ -564,7 +563,7 @@ export class ImageVar extends ComfyVar<string> {
    absPath(): string {
       if (!this.isSet()) throw this.emptyError()
       if (isAbsolute(this.value)) return this.value
-      return resolve(this.opts.folder ?? process.cwd(), this.value)
+      return resolve(this.opts.folder ?? getComfyStorage().cwd(), this.value)
    }
    /** empty = unset: the build fails LOUD here (varValues calls outValue) */
    override outValue(): string {
@@ -573,7 +572,7 @@ export class ImageVar extends ComfyVar<string> {
    }
    override display(): string {
       if (!this.isSet()) return '(unset) pick a file'
-      const home = homedir()
+      const home = getComfyStorage().homedir()
       return this.value.startsWith(`${home}/`) ? `~${this.value.slice(home.length)}` : this.value
    }
 }

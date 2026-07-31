@@ -1,4 +1,4 @@
-import crypto from 'node:crypto'
+import { sha1HexOfString } from 'src/utils/sha1.ts'
 import { getUnionNameBasedOnFirstFoundEnumName } from 'src/sdk-generator/_getUnionNameBasedOnFirstFoundEnumName.ts'
 import { toQualifiedNodeKey } from 'src/sdk-generator/_toQualifiedNodeKey.ts'
 import { ComfyNodeSchema } from 'src/sdk-generator/ComfyNodeSchema.ts'
@@ -280,7 +280,7 @@ export class ComfySchema {
          enumValues.length === 0 //
             ? `[[empty]]`
             : enumValues.sort().join('|')
-      const hash = crypto.createHash('sha1').update(hashContent).digest('hex').slice(0, 8)
+      const hash = sha1HexOfString(hashContent).slice(0, 8)
 
       // 3. retrieve or create an EnumInfo
       let unionInfo: Maybe<ComfyUnionInfo> = this.knownUnionByHash.get(hash)

@@ -1,4 +1,4 @@
-import { writeFileSync, readFileSync } from 'node:fs'
+import { getComfyStorage } from 'src/storage/ComfyStorage.ts'
 import { type } from 'arktype'
 import { ansi as chalk } from 'src/utils/ansi.ts'
 import { toQualifiedNodeKey } from 'src/sdk-generator/_toQualifiedNodeKey.ts'
@@ -14,7 +14,7 @@ export const _getCustomNodeRegistry = (DB: ComfyRegistry): void => {
    const counter = DB.report.file('extension-node-map.json')
    let totalCustomNodeSeen: number = 0
 
-   const raw: unknown = JSON.parse(readFileSync('src/manager/json/extension-node-map.json', 'utf8'))
+   const raw: unknown = JSON.parse(getComfyStorage().readText('src/manager/json/extension-node-map.json'))
    const root = type('Record<string, unknown>')(raw)
    if (root instanceof type.errors) throw new ManagerParseError('extension-node-map.json', root.summary)
 
@@ -64,7 +64,7 @@ export const _getCustomNodeRegistry = (DB: ComfyRegistry): void => {
       out += '\n'
 
       const outPath = 'src/manager/generated/KnownComfyCustomNodeName.ts'
-      writeFileSync(outPath, out + '\n', 'utf-8')
+      getComfyStorage().writeText(outPath, out + '\n')
       console.log(`   > generated: ${chalk.blue.underline(outPath)}`)
    }
 

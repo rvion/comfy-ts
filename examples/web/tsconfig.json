@@ -1,0 +1,15 @@
+{
+   // the ONE dom-typed corner of the repo: the browser example needs document/
+   // URL.createObjectURL. src/ stays dom-free by machine (root + lib configs
+   // have no dom lib), so a dom global leaking into the library fails there.
+   "extends": "../../tsconfig.json",
+   "compilerOptions": {
+      "lib": ["ESNext", "DOM", "DOM.Iterable"],
+      "paths": {
+         "src/*": ["../../src/*"],
+         "comfy-ts": ["../../src/index.ts"],
+         "comfy-ts/web": ["../../src/web.ts"]
+      }
+   },
+   "include": [".", "../../src"]
+}
