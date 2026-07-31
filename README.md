@@ -315,6 +315,12 @@ Every combination is a valid choice — you pick where the image lives.
 | `SaveImageWebsocket` | none          | no          | no         |
 | `SaveImageWebsocket` | `save: …`     | no          | yes        |
 
+Running comfy-ts on the same machine as ComfyUI? Then row one is the best
+of both worlds: `SaveImage` with no `save:` writes the file exactly once,
+by the server, and it is already local — read it straight from ComfyUI's
+own `output/` folder. (A locality-aware fast-path where the library skips
+the HTTP download and hands you that path itself is on the roadmap.)
+
 Running an imported workflow or template that uses `SaveImage`? `ephemeral:
 true` rewrites its save nodes to `SaveImageWebsocket` in the sent prompt (the
 graph you authored stays untouched) and deletes the run's server history entry
