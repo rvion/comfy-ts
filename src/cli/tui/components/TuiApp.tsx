@@ -1,6 +1,5 @@
 import { Box, Text, useApp, useInput, useStdin } from 'ink'
 import { observer } from 'mobx-react-lite'
-import { basename } from 'pathe'
 import { CopyOverlay } from 'src/cli/tui/components/CopyOverlay.tsx'
 import { DraftsOverlay } from 'src/cli/tui/components/DraftsOverlay.tsx'
 import { Header } from 'src/cli/tui/components/Header.tsx'
@@ -291,11 +290,11 @@ export const TuiApp = observer((p: { st: TuiSt }) => {
                <Box paddingX={1}>
                   <ProgressLine st={s} />
                </Box>
-               {s.exec.outputs.length > 0 && (
+               {s.exec.outputLabels.length > 0 && (
                   <Box borderStyle="round" paddingX={1} flexDirection="column">
-                     {s.exec.outputs.map((o) => (
-                        <Text key={o} color="green" wrap="truncate">
-                           {basename(o)} <Text color="gray">{o}</Text>
+                     {s.exec.outputLabels.map((o, ix) => (
+                        <Text key={`${ix}-${o.name}`} color={o.memory ? 'yellow' : 'green'} wrap="truncate">
+                           {o.name} <Text color="gray">{o.detail}</Text>
                         </Text>
                      ))}
                   </Box>

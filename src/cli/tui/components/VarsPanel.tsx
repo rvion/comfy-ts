@@ -79,7 +79,8 @@ const VarRow = observer(
 export const VarsPanel = observer((p: { st: TuiSt }) => {
    const s = p.st
    // label column = longest label + marker, so [kind] and values line up
-   const labelW = Math.max(6, ...s.entries.map(([name, v]) => (v.label ?? name).length)) + 3
+   // ('save to disk'.length covers the TUI-owned last row)
+   const labelW = Math.max(12, ...s.entries.map(([name, v]) => (v.label ?? name).length)) + 3
    const focused = s.mode === 'nav' || s.mode === 'edit'
    const boxRef = useRef<DOMElement>(null)
    useEffect(() => {
@@ -102,7 +103,7 @@ export const VarsPanel = observer((p: { st: TuiSt }) => {
             </Text>
          </Box>
          {w.moreAbove && <Text color="gray">…</Text>}
-         {s.entries.slice(w.start, w.end).map(([name, varDef], sliceIx) => (
+         {s.entries.slice(w.start, Math.min(w.end, s.entries.length)).map(([name, varDef], sliceIx) => (
             <VarRow
                key={name}
                name={name}
@@ -113,6 +114,25 @@ export const VarsPanel = observer((p: { st: TuiSt }) => {
                compact={s.varsCompact}
             />
          ))}
+         {/* the TUI-owned save toggle rides the vars list as its last row (item 14) */}
+         {w.end > s.entries.length && (
+            <Box flexDirection="row">
+               <Box width={labelW} flexShrink={0}>
+                  <Text inverse={s.onSaveRow}>
+                     {s.onSaveRow ? '▸ ' : '  '}
+                     save to disk
+                  </Text>
+               </Box>
+               <Box width={9} flexShrink={0}>
+                  <Text color="gray">[tui]</Text>
+               </Box>
+               <Box flexGrow={1}>
+                  <Text color={s.settings.saveToDisk ? 'cyan' : 'yellow'} wrap="truncate">
+                     {s.settings.saveToDisk ? 'on → .comfy-ts/outputs/' : 'off — outputs stay in memory'}
+                  </Text>
+               </Box>
+            </Box>
+         )}
          {w.moreBelow && <Text color="gray">…</Text>}
       </Box>
    )

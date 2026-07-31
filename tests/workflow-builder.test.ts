@@ -775,6 +775,50 @@ describe('ephemeral outputs: SaveImageWebsocket frame correlation (item 14)', ()
    })
 })
 
+describe('tui save toggle: memory-only outputs stay first-class', () => {
+   it('save off passes save:false to run() and the outputs box says in memory', async () => {
+      const { v } = await import('src/vars/ComfyVars.ts')
+      const { TuiSt } = await import('src/cli/tui/state/TuiSt.ts')
+      const { ComfyExecution } = await import('src/runner/ComfyExecution.ts')
+      const { MediaImage } = await import('src/runner/MediaImage.ts')
+      const { PromptID_ark } = await import('src/runner/ComfyWsApi.ts')
+
+      const png1x1 = Uint8Array.from(
+         atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=='),
+         (c) => c.charCodeAt(0),
+      )
+
+      const { runInAction } = await import('mobx')
+      const wf = host.defineWorkflow({ id: 'tui-save-toggle', vars: { seed: v.seed(1) }, build: () => {} })
+      const st = new TuiSt(wf)
+      runInAction(() => (st.settings.saveToDisk = false))
+      let received: RunSettings | undefined
+      wf.run = (settings: RunSettings = {}): Promise<ComfyExecution> => {
+         received = settings
+         const execution = new ComfyExecution(host.workflow({ id: 'sv' }), {
+            id: PromptID_ark.assert('p-save-toggle'),
+            executed: true,
+            graphID: 'sv',
+            status: 'Success',
+         })
+         execution.images.push(new MediaImage({ buffer: png1x1 }))
+         return Promise.resolve(execution)
+      }
+      await st.exec.run()
+      expect(received?.save).toBe(false)
+      expect(st.exec.outputImages.length).toBe(1)
+      expect(st.exec.outputImages[0]?.absPath).toBeNull()
+      expect(st.exec.outputLabels[0]?.memory).toBe(true)
+      expect(st.exec.outputLabels[0]?.detail).toContain('in memory')
+
+      // toggle back on: run() gets a real save prefix again
+      runInAction(() => (st.settings.saveToDisk = true))
+      await st.exec.run()
+      expect(received?.save).toEqual({ prefix: 'tui-save-toggle' })
+      st.dispose()
+   })
+})
+
 describe('tui tree ↔ vars focus round trip', () => {
    it('← lands on the ACTIVE DRAFT row, → on a draft row goes back to the vars panel', async () => {
       const { asAbsolutePath } = await import('src/types/index.ts')

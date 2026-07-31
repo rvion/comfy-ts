@@ -241,11 +241,28 @@ describe('VarsPanel viewport (reviewer follow-up: selection clipped off-screen o
    it('the selection stays inside the window at both ends', async () => {
       const st = await build()
       st.setVarsViewH(8)
-      st.selIx = 13
+      // the list's true last row is the TUI-owned save toggle (entries + 1)
+      st.selIx = 14
+      expect(st.onSaveRow).toBe(true)
       expect(st.selIx).toBeGreaterThanOrEqual(st.varsWindow.start)
       expect(st.selIx).toBeLessThan(st.varsWindow.end)
       expect(st.varsWindow.moreAbove).toBe(true)
       expect(st.varsWindow.moreBelow).toBe(false)
+   })
+
+   it('the save row: last in the wrap cycle, ⏎ toggles the persisted setting', async () => {
+      const st = await build()
+      st.selIx = 0
+      st.moveSel(-1)
+      expect(st.selIx).toBe(14)
+      expect(st.onSaveRow).toBe(true)
+      expect(st.settings.saveToDisk).toBe(true)
+      st.activate()
+      expect(st.settings.saveToDisk).toBe(false)
+      st.activate()
+      expect(st.settings.saveToDisk).toBe(true)
+      st.moveSel(1)
+      expect(st.selIx).toBe(0)
    })
 
    it('compact mode: on while the list overflows, off when everything fits', async () => {

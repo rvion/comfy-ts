@@ -60,6 +60,7 @@ export class SettingsSt {
          lastWorkflow: this.lastWorkflow,
          hostOverrideId: this.hostOverrideId,
          collapsedDirs: this.collapsedDirs,
+         saveToDisk: this.saveToDisk,
       })
    }
 
@@ -74,6 +75,8 @@ export class SettingsSt {
    hostOverrideId: string | null = null
    /** folded tree dirs (hand-tuned state persists, like every other surface) */
    collapsedDirs: string[] = []
+   /** the vars-panel save toggle (architecture item 14): off = outputs stay in memory */
+   saveToDisk: boolean = true
 
    rememberDraft(moduleKey: string, draft: string): void {
       this.lastDraft[moduleKey] = draft
@@ -99,6 +102,7 @@ export class SettingsSt {
          if (typeof o.lastWorkflow === 'string') this.lastWorkflow = o.lastWorkflow
          if (typeof o.hostOverrideId === 'string') this.hostOverrideId = o.hostOverrideId
          if (Array.isArray(o.collapsedDirs)) this.collapsedDirs = o.collapsedDirs.filter((d) => typeof d === 'string')
+         if (typeof o.saveToDisk === 'boolean') this.saveToDisk = o.saveToDisk
       } catch {
          // corrupt settings must never block the TUI — start from defaults
       }

@@ -1,6 +1,8 @@
 import { spawn } from 'node:child_process'
+import { existsSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { makeAutoObservable, runInAction } from 'mobx'
-import { basename } from 'pathe'
+import { basename, join } from 'pathe'
 import type { ComfyHost } from 'src/host/ComfyHost.ts'
 import type { ExecutionProgress } from 'src/runner/ComfyExecution.ts'
 import { imageClipboardCommand } from 'src/cli/tui/imageClipboard.ts'
@@ -8,7 +10,7 @@ import { extractErrorMessage } from 'src/utils/extractErrorMessage.ts'
 import type { SeedVar } from 'src/vars/ComfyVars.ts'
 import type { TuiSt } from 'src/cli/tui/state/TuiSt.ts'
 import { draftKeyForFile } from 'src/cli/tui/state/DraftsSt.ts'
-import type { AbsolutePath } from 'src/types/index.ts'
+import type { MediaImage } from 'src/runner/MediaImage.ts'
 
 /** popup body: summary + the head of the copied json (proof of WHAT is in the clipboard) */
 export function jsonHead(text: string, maxLines: number): string[] {
@@ -27,7 +29,8 @@ export class ExecSt {
    /** runs we launched that have not finished (the server executes them FIFO) */
    inFlight: number = 0
    progress: ExecutionProgress | null = null
-   outputs: string[] = []
+   /** last run's outputs — MediaImages, so memory-only runs (save toggle off) stay first-class */
+   outputImages: MediaImage[] = []
    runCount: number = 0
    lastStatus: string | null = null
    error: string | null = null
@@ -53,11 +56,31 @@ export class ExecSt {
 
    /** workflow switch: wipe run artifacts, keep a hello notice */
    resetForWorkflow(notice: string): void {
-      this.outputs = []
+      this.outputImages = []
       this.error = null
       this.notice = notice
       this.runCount = 0
       this.lastStatus = null
+   }
+
+   /** outputs box rows: path when saved, honest memory label otherwise */
+   get outputLabels(): { name: string; detail: string; memory: boolean }[] {
+      return this.outputImages.map((img) => {
+         if (img.absPath != null) return { name: basename(img.absPath), detail: img.absPath, memory: false }
+         const dims = img.width != null && img.height != null ? `${img.width}x${img.height}, ` : ''
+         return { name: img.filename, detail: `(${dims}in memory — i copies, o opens)`, memory: true }
+      })
+   }
+
+   /** a file path for viewer/clipboard: the saved file, or the bytes
+    * materialized into os tmpdir (deliberate user action, never a silent
+    * save — architecture item 14). The path derives from the content hash,
+    * so re-materializing is a cheap existsSync, no retention needed. */
+   private materialize(img: MediaImage): string {
+      if (img.absPath != null) return img.absPath
+      const path = join(tmpdir(), `comfy-ts-mem-${img.hash.slice(0, 8)}${img.extension}`)
+      if (!existsSync(path)) writeFileSync(path, img.buffer)
+      return path
    }
 
    /** every run takes THIS path, queued ones included: same progress, outputs, previews */
@@ -87,19 +110,18 @@ export class ExecSt {
       try {
          const execution = await this.st.wf.run({
             host: this.st.hostOverride ?? undefined,
-            // the TUI OPTS INTO local saving (library default is memory-only,
-            // item 14): the outputs list and `o` open-in-viewer need files.
-            // Outputs group per module under .comfy-ts/outputs/<module>/
-            save: { prefix: this.saveDirPrefix },
+            // the save toggle (vars panel last row, item 14): on = files under
+            // .comfy-ts/outputs/<module>/, off = outputs stay in memory
+            save: this.st.settings.saveToDisk ? { prefix: this.saveDirPrefix } : false,
             onProgress: (p) => runInAction(() => this.onProgress(p)),
          })
          runInAction(() => {
-            this.outputs = execution.images.map((i) => i.absPath).filter((p): p is AbsolutePath => p != null)
+            this.outputImages = execution.images.slice()
             this.lastStatus = execution.status
             this.runCount++
          })
          const lastImage = execution.images[execution.images.length - 1]
-         if (lastImage?.absPath != null) void this.st.preview.renderOutput(lastImage.absPath)
+         if (lastImage != null) void this.st.preview.renderOutput(lastImage.absPath ?? lastImage.buffer)
       } catch (e) {
          runInAction(() => {
             this.error = extractErrorMessage(e)
@@ -140,9 +162,16 @@ export class ExecSt {
 
    /** 'o': real pixels in the OS viewer — the in-terminal ceiling is half-blocks */
    openLastOutput(): void {
-      const last = this.outputs[this.outputs.length - 1]
-      if (last == null) {
+      const lastImg = this.outputImages[this.outputImages.length - 1]
+      if (lastImg == null) {
          this.notice = 'no output image yet'
+         return
+      }
+      let last: string
+      try {
+         last = this.materialize(lastImg)
+      } catch (e) {
+         this.notice = `open failed: ${extractErrorMessage(e)}`
          return
       }
       const cmd = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'start' : 'xdg-open'
@@ -153,7 +182,7 @@ export class ExecSt {
          })
       })
       proc.unref()
-      this.notice = `opened ${basename(last)}`
+      this.notice = `opened ${basename(last)}${lastImg.absPath == null ? ` (memory image via ${last})` : ''}`
    }
 
    // ---- clipboard ----
@@ -183,9 +212,19 @@ export class ExecSt {
    }
    /** 'i': the LAST generated image's pixels → clipboard (paste anywhere) */
    async copyLastImage(): Promise<void> {
-      const last = this.outputs[this.outputs.length - 1]
-      if (last == null) {
+      const lastImg = this.outputImages[this.outputImages.length - 1]
+      if (lastImg == null) {
          this.showCopyPopup('image → clipboard', false, ['no output image yet — r runs the workflow first'])
+         return
+      }
+      let last: string
+      try {
+         last = this.materialize(lastImg)
+      } catch (e) {
+         this.showCopyPopup('image → clipboard', false, [
+            `COPY FAILED for ${lastImg.filename}`,
+            `could not write the memory image to tmp: ${extractErrorMessage(e)}`,
+         ])
          return
       }
       let file = last

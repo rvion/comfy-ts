@@ -52,8 +52,9 @@ export class PreviewSt {
    latentDims: { width: number; height: number } | null = null
    /** at least one latent frame arrived this run — false + progress = server sends none */
    latentSeenThisRun: boolean = false
-   /** last output path, so a settings change can re-render it */
-   private lastOutputPath: string | null = null
+   /** last output, kept so a settings change can re-render it: a path when
+    * the run saved, raw bytes for memory-only runs (item 14) */
+   private lastOutput: string | Uint8Array | null = null
 
    get show(): boolean {
       return this.st.settings.previewPanel
@@ -162,7 +163,7 @@ export class PreviewSt {
       this.latentBytes = null
       this.latentDims = null
       this.latentSeenThisRun = false
-      this.lastOutputPath = null
+      this.lastOutput = null
    }
 
    /** run boundary: drop the latents so the next run never shows the previous one's */
@@ -177,7 +178,7 @@ export class PreviewSt {
    onSettingsChanged(): void {
       this.outputAnsi = null
       this.outputBytes = null
-      if (this.show && this.lastOutputPath != null) void this.renderOutput(this.lastOutputPath)
+      if (this.show && this.lastOutput != null) void this.renderOutput(this.lastOutput)
    }
 
    /** what the painter should show RIGHT NOW (native renderer only; mirrors the panel's source) */
@@ -227,13 +228,13 @@ export class PreviewSt {
       return Math.max(10, this.st.termRows - 12)
    }
 
-   async renderOutput(path: string): Promise<void> {
-      this.lastOutputPath = path
+   async renderOutput(src: string | Uint8Array): Promise<void> {
+      this.lastOutput = src
       if (!this.show) return
       try {
          if (this.useNative) {
             // pre-shrink ONCE: the painter re-uploads on every repaint, so ~100KB beats ~2MB
-            const shrunk = await sharp(path)
+            const shrunk = await sharp(src)
                .resize(896, 896, { fit: 'inside', withoutEnlargement: true })
                .png()
                .toBuffer()
@@ -242,7 +243,7 @@ export class PreviewSt {
             })
             return
          }
-         const rendered = await imageBufferToAnsi(path, { width: this.width, height: this.height })
+         const rendered = await imageBufferToAnsi(src, { width: this.width, height: this.height })
          runInAction(() => {
             this.outputAnsi = rendered
          })
@@ -302,9 +303,9 @@ export class PreviewSt {
          )
          .png()
          .toBuffer()
-      const outPath = this.lastOutputPath
-      if (outPath == null) return imageBufferToAnsi(thumb, { width: this.width, height: this.height })
-      const base = await sharp(outPath).resize(pxW, pxH, { fit: 'inside' }).png().toBuffer()
+      const out = this.lastOutput
+      if (out == null) return imageBufferToAnsi(thumb, { width: this.width, height: this.height })
+      const base = await sharp(out).resize(pxW, pxH, { fit: 'inside' }).png().toBuffer()
       const composed = await sharp(base)
          .composite([{ input: thumb, gravity: 'northeast' }])
          .png()

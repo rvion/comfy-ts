@@ -201,9 +201,19 @@ export class TuiSt {
       return this.entries[this.selIx]
    }
 
+   /** the vars list carries ONE TUI-owned row after the workflow vars: the
+    * save-to-disk toggle (architecture item 14) */
+   get varRowCount(): number {
+      return this.entries.length + 1
+   }
+
+   /** true while the selection sits on the save-to-disk pseudo-row */
+   get onSaveRow(): boolean {
+      return this.selIx === this.entries.length
+   }
+
    moveSel(delta: number): void {
-      const len = this.entries.length
-      if (len === 0) return
+      const len = this.varRowCount
       this.selIx = (this.selIx + delta + len) % len
    }
 
@@ -224,7 +234,7 @@ export class TuiSt {
    }
 
    get varsWindow(): ListWindow {
-      return listWindow({ count: this.entries.length, selected: this.selIx, budget: this.varsBudget })
+      return listWindow({ count: this.varRowCount, selected: this.selIx, budget: this.varsBudget })
    }
 
    /**
@@ -237,7 +247,7 @@ export class TuiSt {
       const w = this.varsWindow
       if (w.moreAbove || w.moreBelow) return true
       const h = this.varsViewH > 0 ? this.varsViewH : Math.max(5, this.termRows - 5)
-      return this.entries.length + 2 > h
+      return this.varRowCount + 2 > h
    }
 
    // kind-discriminated narrowing casts below are sanctioned (agent/coding.md):
@@ -245,6 +255,10 @@ export class TuiSt {
 
    /** enter/space on a var: toggle, open an overlay, or inline-edit */
    activate(): void {
+      if (this.onSaveRow) {
+         this.settings.saveToDisk = !this.settings.saveToDisk
+         return
+      }
       const sel = this.selected?.[1]
       if (sel == null) return
       if (sel.kind === 'toggle') (sel as ToggleVar).toggle()

@@ -48,7 +48,7 @@ const st = new TuiSt(wf)
 st.workflows.files = files
 if (smokeMode === 'vars') {
    st.mode = 'nav'
-   st.selIx = 12 // deep in the list, tall prompt above
+   st.selIx = 13 // the LAST var (n12), tall prompt above, save row below
 } else {
    st.mode = 'tree'
    st.tree.ix = 12 // mid-list: both `…` markers must show
