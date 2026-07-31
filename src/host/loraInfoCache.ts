@@ -113,27 +113,48 @@ export function readLoraMirror(hostId: string): LoraMirror | null {
  * `comfyts.hosts` — exactly the hosts this process can be asked about.
  */
 const byHost = new Map<string, Map<string, LmLoraItem>>()
-/** hosts already looked for, INCLUDING the ones with no mirror (see reloadLoraInfoCache) */
-const loadedHostIds = new Set<string>()
+/** hosts already looked for, INCLUDING the ones with no mirror on disk → their mtime is null */
+const loadedMtimes = new Map<string, number | null>()
 
+/** cheap: no stat, no parse — this runs inside the overlay's render for every row */
 function ensureLoaded(): void {
-   for (const hostId of comfyts.hosts.keys()) {
-      if (loadedHostIds.has(hostId)) continue
-      loadedHostIds.add(hostId)
-      const mirror = readLoraMirror(hostId)
-      if (mirror == null) continue
-      byHost.set(hostId, new Map(Object.entries(mirror.loras)))
-   }
+   for (const hostId of comfyts.hosts.keys()) if (!loadedMtimes.has(hostId)) loadHost(hostId)
+}
+
+function loadHost(hostId: string): void {
+   const storage = getComfyStorage()
+   const path = loraMirrorPath(hostId)
+   loadedMtimes.set(hostId, storage.mtimeMs(path))
+   const mirror = readLoraMirror(hostId)
+   if (mirror != null) byHost.set(hostId, new Map(Object.entries(mirror.loras)))
+   // a mirror that EXISTS but will not parse (a sync killed mid-write) still makes
+   // this host authoritative, with an empty map: falling through to another host's
+   // entries is exactly the wrong-model-name bug the per-host split removed
+   else if (storage.exists(path)) byHost.set(hostId, new Map())
+   else byHost.delete(hostId)
 }
 
 /**
- * forget everything loaded, so the next read picks up a fresh `comfy-ts loras`.
- * A long-lived process (the TUI, `comfy-ts serve`) has no other way to see a
- * re-sync that happened in another terminal.
+ * re-read any mirror whose file changed (or appeared) since we loaded it.
+ * `comfy-ts loras` in another terminal is the normal case, and without this a
+ * TUI session kept the stale data — or kept knowing NOTHING, for a host whose
+ * first sync happened while it was open. One stat per registered host, so this
+ * belongs at user-initiated moments (opening the loras overlay), never in a render.
  */
+export function refreshLoraInfoCacheIfChanged(): void {
+   const storage = getComfyStorage()
+   for (const hostId of comfyts.hosts.keys()) {
+      const seen = loadedMtimes.get(hostId)
+      const now = storage.mtimeMs(loraMirrorPath(hostId))
+      // `undefined` = never looked; `null` = looked, no file. Both differ from a real mtime.
+      if (!loadedMtimes.has(hostId) || seen !== now) loadHost(hostId)
+   }
+}
+
+/** forget everything loaded, so the next read re-reads from disk (tests, and a hard refresh) */
 export function reloadLoraInfoCache(): void {
    byHost.clear()
-   loadedHostIds.clear()
+   loadedMtimes.clear()
 }
 
 /**

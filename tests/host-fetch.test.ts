@@ -271,6 +271,51 @@ describe('cloud degrade — local-only surfaces stay loud but nonfatal', () => {
       expect(errors.join('\n')).toContain('INCOMPLETE')
    })
 
+   test('an empty page MID-sweep with more promised is partial, never ok', async () => {
+      // a server that pages by the size it CHOSE (100) while we asked for 500:
+      // page 2 comes back empty with 50 loras still unfetched
+      const srv = serve((req) => {
+         const url = new URL(req.url)
+         if (url.pathname !== '/api/lm/loras/list') return undefined
+         const page = Number(url.searchParams.get('page') ?? '1')
+         const items = page === 1 ? Array.from({ length: 100 }, (_, i) => ({ file_name: `l-${i}` })) : []
+         return Response.json({ items, total: 150 })
+      })
+      const comfy = freshComfy()
+      const host = comfy.host({ id: 'lm-shortpage', url: `http://127.0.0.1:${srv.port}` })
+      const sweep = await fetchLoraList(host)
+      // `ok` here let the cli write 100 of 150 loras over a good mirror and print 🟢
+      expect(sweep.status).toBe('partial')
+      expect(sweep.status === 'partial' ? sweep.items.length : 0).toBe(100)
+   })
+
+   test('a non-json answer returns a sweep, never a throw', async () => {
+      // ComfyUI SPA-fallbacks unknown routes to 200 index.html
+      const srv = serve((req) => {
+         if (new URL(req.url).pathname !== '/api/lm/loras/list') return undefined
+         return new Response('<!doctype html><html lang="en">…', { headers: { 'content-type': 'text/html' } })
+      })
+      const comfy = freshComfy()
+      const host = comfy.host({ id: 'lm-html', url: `http://127.0.0.1:${srv.port}` })
+      const sweep = await fetchLoraList(host) // must not reject
+      expect(sweep.status).toBe('absent')
+   })
+
+   test('a 5xx or 403 on page 1 is UNREACHABLE, not "extension not installed"', async () => {
+      const comfy = freshComfy()
+      for (const status of [500, 403]) {
+         const srv = serve((req) => {
+            if (new URL(req.url).pathname !== '/api/lm/loras/list') return undefined
+            return new Response('nope', { status })
+         })
+         const host = comfy.host({ id: `lm-${status}`, url: `http://127.0.0.1:${srv.port}` })
+         const sweep = await fetchLoraList(host)
+         // lm rescanning its model db 500s; telling the user it is not installed
+         // sends them to reinstall a working extension
+         expect(sweep.status).toBe('unreachable')
+      }
+   })
+
    test('fetchLoraList stops on an empty page even when `total` lies', async () => {
       const srv = serve((req) => {
          if (new URL(req.url).pathname !== '/api/lm/loras/list') return undefined

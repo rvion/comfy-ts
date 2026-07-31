@@ -258,7 +258,7 @@ export const TuiApp = observer((p: { st: TuiSt }) => {
 
    return (
       // FIXED height, not min: content taller than the terminal must window
-      // itself (tree) or clip, never grow the frame — his overflow repro
+      // itself (tree) or clip, never grow the frame — the overflow repro
       <Box flexDirection="column" height={s.termRows - 1}>
          <Header st={s} />
          <Box flexDirection="row" flexGrow={1} flexShrink={1} overflow="hidden">

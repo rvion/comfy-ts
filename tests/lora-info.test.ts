@@ -202,3 +202,130 @@ describe('tui render smoke (real ink mount, pipe stdout — never a look judgeme
       expect(res.status).toBe(0)
    })
 })
+
+describe('two hosts never share a lora entry (a merged cache injected the wrong trigger words)', () => {
+   // the same FILE NAME on two hosts is routinely a different model: one machine's
+   // `styles/portrait.safetensors` has nothing to do with another's
+   const SHARED = 'styles\\portrait.safetensors'
+   const item = (p: { name: string; word: string }): LmLoraItem => ({
+      file_name: 'portrait',
+      folder: 'styles',
+      model_name: p.name,
+      civitai: { trainedWords: [p.word] },
+   })
+
+   beforeAll(() => {
+      comfyts.host({ id: 'host-b', host: '127.0.0.1', port: 65502 })
+      writeLoraMirror(
+         buildLoraMirror({
+            hostId: 'lm-host',
+            hostUrl: '',
+            fetchedAt: '',
+            items: [...items, item({ name: 'Portrait A', word: 'portrait a style' })],
+         }),
+      )
+      writeLoraMirror(
+         buildLoraMirror({
+            hostId: 'host-b',
+            hostUrl: '',
+            fetchedAt: '',
+            items: [item({ name: 'Portrait B', word: 'portrait b style' })],
+         }),
+      )
+      reloadLoraInfoCache()
+   })
+
+   it('each host reads its OWN metadata for the same name', () => {
+      expect(getLoraDisplayName(SHARED, 'lm-host')).toBe('Portrait A')
+      expect(getLoraDisplayName(SHARED, 'host-b')).toBe('Portrait B')
+      expect(getLoraTriggerWords(SHARED, 'lm-host')).toEqual(['portrait a style'])
+      expect(getLoraTriggerWords(SHARED, 'host-b')).toEqual(['portrait b style'])
+   })
+
+   it('a host WITH a mirror never borrows another host s entry for a lora it lacks', () => {
+      // AURORA exists on lm-host only. host-b has a mirror, so it must answer
+      // "I do not know this lora" rather than serve lm-host's entry
+      expect(getLoraInfo(AURORA, 'host-b')).toBeNull()
+      expect(getLoraTriggerWords(AURORA, 'host-b')).toEqual([])
+      expect(getLoraDisplayName(AURORA, 'host-b')).toBe('aurora-ink-v3.safetensors') // falls back to the file name
+      expect(getLoraInfo(AURORA, 'lm-host')).not.toBeNull()
+   })
+
+   it('the prompt injects the ACTIVE host s trigger words, never the other host s', async () => {
+      const { v } = await import('src/vars/ComfyVars.ts')
+      const loras = v.loras([SHARED], { [SHARED]: 1 })
+      // bindHost is what DefinedWorkflow does at define time
+      loras.bindHost({ data: { id: 'host-b' }, schema: { getLoras: () => [SHARED] } })
+      const prompt = v.prompt('a cat', { loraKeywordsFrom: loras })
+      expect(prompt.outValue().positive).toBe('portrait b style, a cat')
+   })
+
+   it('with no hostId at all, any host that knows the name still answers (display fallback)', () => {
+      expect(['Portrait A', 'Portrait B']).toContain(getLoraDisplayName(SHARED))
+   })
+})
+
+describe('a sync in another terminal becomes visible without a restart', () => {
+   // its OWN host: rewriting a mirror another test reads is how test files start
+   // lying to each other (this exact clobber broke the keyword round trip below)
+   it('refreshLoraInfoCacheIfChanged picks up a mirror that appeared after first read', async () => {
+      const { refreshLoraInfoCacheIfChanged } = await import('src/host/loraInfoCache.ts')
+      comfyts.host({ id: 'host-late', host: '127.0.0.1', port: 65503 })
+      const NEW = 'styles\\late-arrival.safetensors'
+      // read it once so the host is recorded as "looked at, no mirror"
+      expect(getLoraInfo(NEW, 'host-late')).toBeNull()
+
+      // a `comfy-ts loras` run elsewhere writes the file for the first time
+      writeLoraMirror(
+         buildLoraMirror({
+            hostId: 'host-late',
+            hostUrl: '',
+            fetchedAt: '',
+            items: [{ file_name: 'late-arrival', folder: 'styles', model_name: 'Late Arrival' }],
+         }),
+      )
+      expect(getLoraInfo(NEW, 'host-late')).toBeNull() // still stale without a refresh
+      refreshLoraInfoCacheIfChanged()
+      expect(getLoraDisplayName(NEW, 'host-late')).toBe('Late Arrival')
+   })
+})
+
+describe('the keyword state machine is a round trip, not a one-way door', () => {
+   it('mirror → hand → emptied tombstone → ⌃D → mirror again, all from the overlay', async () => {
+      const { v } = await import('src/vars/ComfyVars.ts')
+      const { TuiSt } = await import('src/cli/tui/state/TuiSt.ts')
+      const { getLoraKeyword, isLoraKeywordFromMirror } = await import('src/vars/loraKeywords.ts')
+      const wf = host.defineWorkflow({
+         id: 'kw-cycle',
+         vars: { loras: v.loras([ZEPHYR]) },
+         build: () => {},
+      })
+      const st = new TuiSt(wf)
+      st.selIx = 0
+      st.activate()
+      const ZEPHYR_WORDS = 'a portrait of zephyr the pilot, flight jacket'
+
+      // 1. mirror: nobody typed anything
+      expect(getLoraKeyword(ZEPHYR, 'lm-host')).toBe(ZEPHYR_WORDS)
+      expect(isLoraKeywordFromMirror(ZEPHYR, 'lm-host')).toBe(true)
+
+      // 2. hand: ⌃K opens an editor session, committing sets the override
+      st.loras.beginKeyword()
+      st.editor.buffer = 'my words'
+      st.editor.commitInline()
+      expect(getLoraKeyword(ZEPHYR, 'lm-host')).toBe('my words')
+      expect(isLoraKeywordFromMirror(ZEPHYR, 'lm-host')).toBe(false)
+
+      // 3. tombstone: ⌃K then empty means "inject nothing", NOT "fall back"
+      st.loras.beginKeyword()
+      st.editor.buffer = ''
+      st.editor.commitInline()
+      expect(getLoraKeyword(ZEPHYR, 'lm-host')).toBe('')
+
+      // 4. ⌃D is the way back — without it this state was unreachable-in-reverse
+      st.loras.resetKeyword()
+      expect(getLoraKeyword(ZEPHYR, 'lm-host')).toBe(ZEPHYR_WORDS)
+      expect(isLoraKeywordFromMirror(ZEPHYR, 'lm-host')).toBe(true)
+      st.dispose()
+   })
+})

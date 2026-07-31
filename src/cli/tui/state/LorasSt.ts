@@ -1,5 +1,5 @@
 import { makeAutoObservable, reaction } from 'mobx'
-import { getLoraPreviewUrl, loraMatchesFilter } from 'src/host/loraInfoCache.ts'
+import { getLoraPreviewUrl, loraMatchesFilter, refreshLoraInfoCacheIfChanged } from 'src/host/loraInfoCache.ts'
 import { fetchLoraList, fetchLoraPreviewBytes, loraKey, loraPreviewMapFrom } from 'src/host/loraManagerApi.ts'
 import { imageBufferToAnsi } from 'src/utils/ansiImage.ts'
 import { extractErrorMessage } from 'src/utils/extractErrorMessage.ts'
@@ -36,9 +36,15 @@ export class LorasSt {
       return sel?.kind === 'loras' ? (sel as LorasVar<string>) : null
    }
 
-   /** the host these loras live on: its mirror is the one that describes them */
+   /**
+    * the host a run will actually target, which is what the metadata must
+    * describe. NOT `wf.host`: pressing `h` overrides the run host, and reading
+    * the defining host's mirror then showed one host's model names while the
+    * generation went to another. `bindHost` also stamped the defining host onto
+    * the var at define time, so the injected keywords are re-pointed with it.
+    */
    get hostId(): string {
-      return this.st.wf.host.data.id
+      return this.st.runHost.data.id
    }
 
    /**
@@ -55,6 +61,14 @@ export class LorasSt {
 
    begin(): void {
       if (this.selectedVar == null) return
+      // a `comfy-ts loras` run in another terminal must be visible without
+      // restarting the TUI: one stat per host, at a moment the user chose
+      refreshLoraInfoCacheIfChanged()
+      // `bindHost` stamped the DEFINING host onto the var at define time; `h` may
+      // since have pointed runs elsewhere. Re-point here (a computed getter must
+      // stay pure, and the host cannot change while this overlay is open).
+      const lv = this.selectedVar
+      if (lv != null) lv.hostId = this.hostId
       this.st.mode = 'overlay-loras'
       this.ix = 0
       this.filter = ''
@@ -116,7 +130,7 @@ export class LorasSt {
             ? 'empty clears'
             : isLoraKeywordFromMirror(name, this.hostId)
               ? 'from lora-manager · empty = inject nothing'
-              : `overrides lora-manager · ⌃D restores "${fromMirror}"`
+              : `overrides lora-manager · esc then ⌃D restores "${fromMirror}"`
       this.st.editor.beginCustom({
          title: `keyword for ${LorasVar.shortName(name)} (${hint})`,
          initial: getLoraKeyword(name, this.hostId),
@@ -157,7 +171,7 @@ export class LorasSt {
       if (name == null || this._busy) return
       this._busy = true
       try {
-         const host = this.st.wf.host
+         const host = this.st.runHost
          // the local mirror answers first (`comfy-ts loras`) — no request at all
          let url = getLoraPreviewUrl(name, host.data.id)
          let miss = 'no preview available'

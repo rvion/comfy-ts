@@ -209,9 +209,9 @@ export class ExecSt {
       this.st.mode = 'overlay-copy'
    }
    /** 'i': the LAST generated image's pixels → clipboard (paste anywhere).
-    * The primary route pipes png bytes over stdin — no disk write at all
-    * ; only when that tool fails does it fall back to
-    * the materialized-file command, and the popup says which route ran. */
+    * The primary route pipes png bytes over stdin, so no disk write happens at
+    * all; only when that tool fails does it fall back to the materialized-file
+    * command, and the popup says which route ran. */
    async copyLastImage(): Promise<void> {
       const lastImg = this.outputImages[this.outputImages.length - 1]
       if (lastImg == null) {

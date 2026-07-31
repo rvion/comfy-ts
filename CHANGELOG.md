@@ -1,5 +1,17 @@
 # comfy-ts
 
+## 2.4.2
+
+Three ways `comfy-ts loras` could report success while quietly losing loras. All present in 2.4.0 and 2.4.1.
+
+- **Fixed: a truncated sweep was written as if complete.** If the host returned an empty page while its own `total` said more loras were coming, the sweep counted as finished and the partial result overwrote your mirror — printing a green summary and listing the dropped loras as "gone from the host". 2.4.0's promise that the command "refuses to write a half-finished sweep" only held for some truncations; it holds for all of them now.
+- **Fixed: a host answering HTML or an empty body threw** instead of returning a result, so `comfy-ts loras` died with `Failed to parse JSON` and the TUI preview showed a generic error. A ComfyUI reverse proxy serving its SPA fallback on an unknown route hits this.
+- **Fixed: any error status on the first page was reported as "the extension is not installed".** A 500 (lora-manager rescanning its model database) or a 403 sent you off to reinstall a working extension. Only 404/405 mean absent now; anything else says unreachable and names the status.
+- **Lora metadata follows the host a run will actually target.** After overriding the run host with `h` in the TUI, the overlay showed the defining host's model names and injected its trigger words. Both now come from the host the generation goes to.
+- **A mirror synced while the TUI is open is picked up.** Opening the loras overlay re-reads any mirror whose file changed, so `comfy-ts loras` in another terminal no longer needs a restart to take effect.
+- A failed sweep no longer leaves an empty `.comfy-ts/hosts/<id>/` behind when you typo `--id`, and a genuinely new host id is no longer refused just because other host folders exist.
+- An unparseable mirror no longer silently falls back to another host's lora metadata.
+
 ## 2.4.1
 
 - **An unreachable host now answers immediately instead of waiting out the connect deadline.** A refused TCP connection means nothing is listening, so retrying it cannot help: the websocket client reports a close that never opened instead of spending the 2s retry loop, and `connect()` rejects at once with `ComfyHostUnreachableError`. `comfy-ts serve` returns its 502 in milliseconds, so a dead host no longer costs every queued request 30 seconds each. A server that ACCEPTS but never speaks (a busy single threaded ComfyUI) is a different case and still gets the full `timeoutMs` deadline. Reconnects after a successful connect are untouched and still retry forever.

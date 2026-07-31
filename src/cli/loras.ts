@@ -1,5 +1,5 @@
 // refresh the local mirror of what ComfyUI-Lora-Manager knows about a host's loras
-import { readdirSync } from 'node:fs'
+import { readdirSync, rmdirSync } from 'node:fs'
 import { join } from 'pathe'
 import { flagReader } from 'src/cli/flags.ts'
 import { buildLoraMirror, readLoraMirror, writeLoraMirror } from 'src/host/loraInfoCache.ts'
@@ -33,14 +33,11 @@ export async function runLoras(args: string[]): Promise<number> {
       console.error(`[comfy-ts loras] 🔴 --id <host-id> is required (known: ${hint})`)
       return 1
    }
-   // a typo'd id used to be CREATED as a side effect of registering the host, and
-   // the junk folder then broke the `--id` default (and outline's) for good
-   if (explicitId != null && known.length > 0 && !known.includes(explicitId)) {
-      console.error(
-         `[comfy-ts loras] 🔴 unknown host id '${explicitId}' (known: ${known.join(', ')}). Run \`comfy-ts gen --id ${explicitId} --host <url>\` first if it is new.`,
-      )
-      return 1
-   }
+   // registering a host MKDIRS .comfy-ts/hosts/<id>/, so a typo used to leave a
+   // junk folder that broke the `--id` default (and outline's) for good. Rather
+   // than refuse unknown ids — `loras` has no real dependency on `gen` — remember
+   // whether the folder pre-existed and take it back if the sweep fails.
+   const hostDirExisted = known.includes(id)
 
    // ComfyTS FIRST: every .comfy-ts path, the mirror's included, resolves through the global
    const comfy = ComfyTS.create()
@@ -52,16 +49,29 @@ export async function runLoras(args: string[]): Promise<number> {
    const apiKey = getFlag('api-key') ?? process.env.COMFY_CLOUD_API_KEY
    const host = comfy.host({ id, url: hostUrl, apiKey: apiKey ?? undefined })
 
+   /** a sweep that never produced a mirror must leave no trace of this run */
+   const abandon = (): void => {
+      if (hostDirExisted) return
+      const dir = join(process.cwd(), '.comfy-ts', 'hosts', id)
+      try {
+         if (readdirSync(dir).length === 0) rmdirSync(dir)
+      } catch {
+         // best effort: a non-empty or vanished dir is not this command's business
+      }
+   }
+
    console.log(`[comfy-ts loras] sweeping ${hostUrl} /api/lm/loras/list …`)
    const sweep = await fetchLoraList(host)
    if (sweep.status === 'absent') {
       console.error(
          `[comfy-ts loras] 🔴 ${hostUrl} has no ComfyUI-Lora-Manager: the extension is not installed there. Mirror left untouched.`,
       )
+      abandon()
       return 1
    }
    if (sweep.status === 'unreachable') {
       console.error(`[comfy-ts loras] 🔴 ${hostUrl} unreachable — ${sweep.reason}. Mirror left untouched.`)
+      abandon()
       return 1
    }
    if (sweep.status === 'partial') {
@@ -70,6 +80,7 @@ export async function runLoras(args: string[]): Promise<number> {
       console.error(
          `[comfy-ts loras] 🔴 the sweep broke off after ${sweep.items.length} loras (${sweep.reason}). Writing that would drop every lora past it, so the mirror is left untouched. Re-run when the host is healthy.`,
       )
+      abandon()
       return 1
    }
 

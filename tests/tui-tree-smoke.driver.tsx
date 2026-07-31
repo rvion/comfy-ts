@@ -2,7 +2,7 @@
 // bun test directly): fakes a tiny terminal via SMOKE_ROWS, mounts the REAL
 // TuiApp with more rows than fit — SMOKE_MODE 'tree' (default) or 'vars' —
 // and lets the final pipe frame prove the frame never exceeds the terminal
-// height (his overflow repro) and the list windows itself with `…` markers.
+// height (the overflow repro) and the list windows itself with `…` markers.
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { render } from 'ink'

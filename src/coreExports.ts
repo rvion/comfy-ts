@@ -121,6 +121,7 @@ export {
    loraMatchesFilter,
    loraSearchNames,
    loraSearchText,
+   refreshLoraInfoCacheIfChanged,
    reloadLoraInfoCache,
 } from 'src/host/loraInfoCache.ts'
 export { loraTag } from 'src/utils/loraTag.ts'

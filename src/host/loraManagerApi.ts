@@ -129,11 +129,24 @@ export async function fetchLoraList(host: ComfyHost): Promise<LoraSweep> {
          return page === 1 ? { status: 'unreachable', reason } : partial(items, reason)
       }
       if (!res.ok) {
-         if (page === 1) return { status: 'absent' } // 404 on page 1 = extension absent
+         // ONLY a route-not-there status means "no extension here". A 500 while lm
+         // rescans its model db, or a 403, used to be announced to the user as
+         // "the extension is not installed" — the same wrong-cause report the
+         // discriminated status exists to prevent
+         const missing = res.status === 404 || res.status === 405
+         if (page === 1)
+            return missing ? { status: 'absent' } : { status: 'unreachable', reason: `answered ${res.status}` }
          return partial(items, `page ${page} answered ${res.status}`)
       }
-      const json: unknown = await res.json()
-      const parsed = lmLoraPage(json)
+      let parsed: ReturnType<typeof lmLoraPage>
+      try {
+         // json() throws on an html SPA fallback or an empty body, and a THROW is
+         // a fifth outcome this function promises not to have
+         parsed = lmLoraPage(await res.json())
+      } catch (e) {
+         const reason = `page ${page} did not answer json: ${extractErrorMessage(e)}`
+         return page === 1 ? { status: 'absent' } : partial(items, reason)
+      }
       if (parsed instanceof type.errors) {
          // wire tolerance (agent/coding.md): lm drifts faster than our schema
          return partial(items, `page ${page} shape mismatch: ${parsed.summary}`)
@@ -141,7 +154,15 @@ export async function fetchLoraList(host: ComfyHost): Promise<LoraSweep> {
       const pageItems = parsed.items.filter(isRecord)
       items.push(...pageItems)
       const total = parsed.total
-      if (pageItems.length === 0 || (total != null && items.length >= total)) return { status: 'ok', items }
+      if (total != null && items.length >= total) return { status: 'ok', items }
+      if (pageItems.length === 0) {
+         // an empty page is the END only when nothing said there was more. With a
+         // `total` still ahead of us the collection is TRUNCATED, and calling that
+         // `ok` let the cli overwrite a good mirror and print 🟢 while dropping loras
+         return total == null || page === 1
+            ? { status: 'ok', items }
+            : partial(items, `page ${page} came back empty with ${items.length}/${total} fetched`)
+      }
    }
    return partial(items, `stopped at the ${MAX_PAGES}-page runaway limit`)
 }

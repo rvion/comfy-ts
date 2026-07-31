@@ -19,7 +19,7 @@ const MIN_FRAME_BYTES = 64
  * repaint WAS the native-mode flicker.) A mobx reaction covers
  * byte-only changes (fresh latent/output/lora bytes with no frame write).
  * NOT React: effects only fire for the component that re-rendered, which is
- * why a useEffect painter missed frames (his report: image waited for input).
+ * why a useEffect painter missed frames (reported: the image waited for input).
  */
 export function installProtocolImagePainter(st: TuiSt): () => void {
    // capability, not current setting: the menu can switch to native at any

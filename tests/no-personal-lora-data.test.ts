@@ -37,7 +37,8 @@ function trackedFiles(): string[] {
 /**
  * npm packs by package.json's `files` whitelist and never consults git, so a
  * file that is merely UNTRACKED still ships. Scanning only `git ls-files` would
- * leave that hole open: walk the shipped source trees from disk too.
+ * leave that hole open: walk every packed tree from disk too. `dist/` is the
+ * sharpest case — gitignored AND published, so neither half of the union saw it.
  */
 function packedSourceFiles(): string[] {
    const out: string[] = []
@@ -49,11 +50,20 @@ function packedSourceFiles(): string[] {
          } else out.push(full)
       }
    }
-   for (const root of ['src', 'examples']) if (existsSync(root)) walk(root)
+   for (const root of ['src', 'examples', 'dist']) if (existsSync(root)) walk(root)
    return out
 }
 
+/** the upstream ComfyUI-Manager mirrors: huge, third-party, and not model inventories */
+const UPSTREAM_MIRRORS = /^src\/manager\/json\//
+
 describe('no captured lora inventory is tracked by git', () => {
+   it('runs from the repo root, or it scans almost nothing and passes green', () => {
+      // every path here is cwd-relative: from a subdirectory `git ls-files` returns
+      // a subtree and `src/` does not exist, so the guard would silently no-op
+      expect(existsSync('package.json') && existsSync('src') && existsSync('tests')).toBe(true)
+   })
+
    it('nothing git tracks, and nothing npm would pack, carries lora-manager dump markers', () => {
       const offenders: string[] = []
       for (const file of [...new Set([...trackedFiles(), ...packedSourceFiles()])]) {
@@ -64,7 +74,9 @@ describe('no captured lora inventory is tracked by git', () => {
          } catch {
             continue // deleted but still indexed
          }
-         if (stat.size > 20_000_000) continue // the upstream manager mirrors, not lora data
+         // skip by IDENTITY, never by size: a big capture is the worst case, not the exempt one
+         if (UPSTREAM_MIRRORS.test(file)) continue
+         if (stat.size > 40_000_000) continue // a file this big is not text we can scan in a test
          let text: string
          try {
             text = readFileSync(file, 'utf8')
@@ -90,7 +102,7 @@ describe('no captured lora inventory is tracked by git', () => {
       const offenders: string[] = []
       for (const file of [...new Set([...trackedFiles(), ...packedSourceFiles()])]) {
          if (file === SELF || file === SYNTHETIC) continue
-         if (!/\.(json|ts|tsx)$/.test(file)) continue
+         if (!/\.(json|jsonl|ts|tsx|md|txt|csv)$/.test(file)) continue
          let text: string
          try {
             text = readFileSync(file, 'utf8')
