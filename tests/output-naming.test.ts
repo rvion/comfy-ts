@@ -65,7 +65,7 @@ describe('localOutputPath (pure): dir intent + timestamp, never the raw server n
       ).toBe('audio_20260731-154210.flac')
    })
 
-   it('an explicit local dir override (saveFormat.prefix) wins over everything', () => {
+   it('an explicit local dir override (save.prefix) wins over everything', () => {
       expect(
          localOutputPath({
             localDir: 'my/place',

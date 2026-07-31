@@ -13,11 +13,12 @@ import { extractErrorMessage } from 'src/utils/extractErrorMessage.ts'
 
 export type ServeModule = { key: string; file: string; dw: DefinedWorkflow }
 
-/** structural face of ComfyExecution — tests inject a fake starter */
+/** structural face of ComfyExecution — tests inject a fake starter.
+ * absPath is null for in-memory images (a ws-saver run with saving off) */
 export type ServeExecution = {
    done: Promise<unknown>
    status: string
-   images: { absPath: string; filename: string }[]
+   images: { absPath: string | null; filename: string }[]
    data: { id: string; error?: unknown }
 }
 
@@ -26,11 +27,13 @@ export type ServeStarter = (mod: ServeModule) => Promise<ServeExecution>
 export type ServeRequest = { method: string; url: string; accept?: string; body?: string }
 export type ServeReply = { status: number; contentType: string; body: string | Uint8Array }
 
-/** connect + fresh graph from current var values + send; done is awaited OUTSIDE the module mutex */
+/** connect + fresh graph from current var values + send; done is awaited OUTSIDE the module mutex.
+ * serve OPTS INTO local saving (library default is memory-only, architecture.md
+ * item 14): the /outputs/ routes serve files, grouped per module */
 const realStarter: ServeStarter = async (mod) => {
    await mod.dw.host.connect()
    const wf = await mod.dw.build({ advance: true })
-   return await wf.start({})
+   return await wf.start({ save: { prefix: mod.key } })
 }
 
 const CONTENT_TYPES: Record<string, string> = {
@@ -265,7 +268,7 @@ export class ServeApp {
 
       // Accept: image/* → first image's bytes directly (curl -o, <img src>)
       const first = execution.images[0]
-      if (req.accept?.includes('image/') && first != null) {
+      if (req.accept?.includes('image/') && first?.absPath != null) {
          const contentType = CONTENT_TYPES[extname(first.absPath).toLowerCase()] ?? 'application/octet-stream'
          return { status: 200, contentType, body: new Uint8Array(readFileSync(first.absPath)) }
       }
@@ -279,7 +282,7 @@ export class ServeApp {
          seeds,
          images: execution.images.map((img) => ({
             filename: img.filename,
-            url: this.outputUrl(img.absPath),
+            url: img.absPath != null ? this.outputUrl(img.absPath) : null,
             absPath: img.absPath,
          })),
       })

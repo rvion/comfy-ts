@@ -13,6 +13,7 @@ import {
    type ComfyStatusData,
    type LogEntry,
    type PromptID,
+   type PendingWsItem,
    type PromptRelated_WsMsg,
    type WsMsg,
    WsMsg_ark,
@@ -574,6 +575,20 @@ export class ComfyHost<ID extends string = string> {
       return this.postJSON_('/interrupt', {})
    }
 
+   // HISTORY SCRUB (architecture.md item 14) -------------------------------------------
+   // deletes the server-side history ENTRY (workflow JSON, prompts, output
+   // filenames) — never files: the ephemeral tier creates none to begin with
+
+   /** delete ONE prompt's server history entry */
+   deleteHistory = (promptId: string): Promise<void> => {
+      return this.postJSON_('/history', { delete: [promptId] })
+   }
+
+   /** wipe the server's WHOLE prompt history (every user of that server) */
+   clearHistory = (): Promise<void> => {
+      return this.postJSON_('/history', { clear: true })
+   }
+
    // SERVER LOGS ----------------------------------------------------------------------
    // /internal routes are served bare (no /api prefix, no custom-node hijacks)
 
@@ -669,7 +684,7 @@ export class ComfyHost<ID extends string = string> {
    executions: Map<PromptID, ComfyExecution> = new Map()
 
    /** buffer in case we receive packets out of order */
-   _pendingMsgs = new Map<PromptID, PromptRelated_WsMsg[]>()
+   _pendingMsgs = new Map<PromptID, PendingWsItem[]>()
 
    /** the active prompt currently running on this host */
    private activePromptID: PromptID | null = null
@@ -732,6 +747,23 @@ export class ComfyHost<ID extends string = string> {
       if (e.data instanceof ArrayBuffer) {
          const frame = parseBinaryWsFrame(e.data)
          if (frame.kind === 'preview') {
+            // OUTPUT, not preview: while a SaveImageWebsocket node executes,
+            // each preview-kind frame IS one output image (frames follow their
+            // 'executing' message on the same socket — architecture.md item 14)
+            const activeExec = this.activePromptID != null ? this.executions.get(this.activePromptID) : null
+            if (activeExec?.wsOutputNodeExecuting) {
+               activeExec.onWsImageOutput({ bytes: frame.bytes, mime: frame.mime })
+               return
+            }
+            // pre-registration window (reviewer catch 2026-07-31): ws messages
+            // can beat the POST /prompt response, and an ephemeral output frame
+            // in that window would be the ONLY copy of the image — buffer it IN
+            // ORDER with the json messages; ComfyExecution.onCreate replays the
+            // queue and decides output-vs-latent from the state at replay time
+            if (this.activePromptID != null) {
+               const pending = this._pendingMsgs.get(this.activePromptID)
+               if (pending != null) pending.push({ type: 'binary_preview_frame', bytes: frame.bytes, mime: frame.mime })
+            }
             // type 1 AND the cloud's type 4 (preview + metadata) feed the same hook
             const imageBlob = new Blob([frame.bytes], { type: frame.mime })
             this.latentPreview = {

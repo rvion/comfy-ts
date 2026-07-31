@@ -8,9 +8,10 @@ import type { LiteGraphJSON } from 'src/litegraph/LiteGraphJSON.ts'
 import { ComfyNode } from 'src/graph/ComfyNode.ts'
 import type { ComfyNodeId, ComfyNodeMetadata } from 'src/graph/ComfyNodeID.ts'
 import { ComfyExecution, type ExecutionProgress } from 'src/runner/ComfyExecution.ts'
+import { rewriteSaveNodesToWebsocket } from 'src/runner/ephemeral.ts'
 import type { ComfySchema } from 'src/sdk-generator/ComfySchema.ts'
 import type { ComfyApiJson, ComfyApiNodeJson } from 'src/sdk-generator/comfy-api-json.ts'
-import { type AbsolutePath, type ImageSaveFormat, type Maybe, type Tagged } from 'src/types/index.ts'
+import { type AbsolutePath, type Maybe, type SaveOptions, type Tagged } from 'src/types/index.ts'
 import type { SdkForHost } from 'src/types/comfy-sdk.ts'
 import { bang } from 'src/utils/bang.ts'
 import { deepCopyNaive } from 'src/utils/deepCopyNaive.ts'
@@ -35,7 +36,16 @@ export type ProgressReport = {
 export type ComfyNodeIdMode = 'use_stringified_numbers_only' | 'use_class_name_and_number'
 
 export type RunSettings = {
-   saveFormat?: ImageSaveFormat
+   /** local disk saving is OPT-IN: unset/false keeps outputs in memory only
+    * (`execution.images` buffers); `true` = raw save, an object re-encodes/relocates */
+   save?: boolean | SaveOptions
+   /** rewrite every SaveImage node to SaveImageWebsocket in the SENT prompt —
+    * outputs never touch the server disk. Implies `scrubHistory` unless that
+    * is explicitly false. (architecture.md item 14) */
+   ephemeral?: boolean
+   /** delete this run's server history entry (workflow JSON, prompts, filenames)
+    * after `done` — loud but non-fatal on failure */
+   scrubHistory?: boolean
    idMode?: ComfyNodeIdMode
    /** render a live single-line progress report to the console */
    log?: boolean
@@ -350,6 +360,15 @@ export class ComfyWorkflow<ID extends string = string> {
          apiJson: deepCopyNaive(this.toApiJson(p.idMode ?? 'use_stringified_numbers_only')),
          workflowJson: await this.toWorkflowJson(),
       }
+      // ephemeral: rewrite in the SNAPSHOT only — the live graph stays editable/exportable as authored
+      if (p.ephemeral) {
+         const rewritten = rewriteSaveNodesToWebsocket(snapshot.apiJson)
+         const hasWsSaver = Object.values(snapshot.apiJson).some((n) => n.class_type === 'SaveImageWebsocket')
+         if (rewritten === 0 && !hasWsSaver)
+            console.warn(
+               `🟡 ephemeral run: no SaveImage/SaveImageWebsocket node in workflow '${this.id}' — nothing streams back`,
+            )
+      }
       const out: ApiPromptInput = {
          client_id: this.host.comfySessionId,
          prompt: snapshot.apiJson,
@@ -385,7 +404,10 @@ export class ComfyWorkflow<ID extends string = string> {
          },
          {
             snapshot,
-            saveFormat: p.saveFormat,
+            save: p.save,
+            ephemeral: p.ephemeral ?? false,
+            // ephemeral implies the scrub unless the caller explicitly opted out
+            scrubHistory: p.scrubHistory ?? p.ephemeral ?? false,
             onProgress: p.onProgress,
             logProgress: p.log ?? false,
          },

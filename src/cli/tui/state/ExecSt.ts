@@ -7,6 +7,8 @@ import { imageClipboardCommand } from 'src/cli/tui/imageClipboard.ts'
 import { extractErrorMessage } from 'src/utils/extractErrorMessage.ts'
 import type { SeedVar } from 'src/vars/ComfyVars.ts'
 import type { TuiSt } from 'src/cli/tui/state/TuiSt.ts'
+import { draftKeyForFile } from 'src/cli/tui/state/DraftsSt.ts'
+import type { AbsolutePath } from 'src/types/index.ts'
 
 /** popup body: summary + the head of the copied json (proof of WHAT is in the clipboard) */
 export function jsonHead(text: string, maxLines: number): string[] {
@@ -41,6 +43,12 @@ export class ExecSt {
 
    get running(): boolean {
       return this.inFlight > 0
+   }
+
+   /** local save dir for this module's outputs (same key the drafts use) */
+   private get saveDirPrefix(): string {
+      const cur = this.st.workflows.currentPath
+      return cur != null ? draftKeyForFile(cur) : (this.st.wf.spec.id ?? 'workflow')
    }
 
    /** workflow switch: wipe run artifacts, keep a hello notice */
@@ -79,15 +87,19 @@ export class ExecSt {
       try {
          const execution = await this.st.wf.run({
             host: this.st.hostOverride ?? undefined,
+            // the TUI OPTS INTO local saving (library default is memory-only,
+            // item 14): the outputs list and `o` open-in-viewer need files.
+            // Outputs group per module under .comfy-ts/outputs/<module>/
+            save: { prefix: this.saveDirPrefix },
             onProgress: (p) => runInAction(() => this.onProgress(p)),
          })
          runInAction(() => {
-            this.outputs = execution.images.map((i) => i.absPath)
+            this.outputs = execution.images.map((i) => i.absPath).filter((p): p is AbsolutePath => p != null)
             this.lastStatus = execution.status
             this.runCount++
          })
          const lastImage = execution.images[execution.images.length - 1]
-         if (lastImage) void this.st.preview.renderOutput(lastImage.absPath)
+         if (lastImage?.absPath != null) void this.st.preview.renderOutput(lastImage.absPath)
       } catch (e) {
          runInAction(() => {
             this.error = extractErrorMessage(e)

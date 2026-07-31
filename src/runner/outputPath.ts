@@ -4,12 +4,12 @@
  * `_00001_` counter every run, so trusting it overwrote the same file — and
  * a `foo/krea/` prefix means the DIRECTORY foo/krea/, not a `krea_` name
  * prefix. Local names are ours: dir from the prompt's own filename_prefix
- * (or an explicit saveFormat.prefix override), then
+ * (or an explicit save.prefix override), then
  * `<stem>_<timestamp>_<counter><ext>` so every run sorts chronologically
  * per stem and nothing ever collides.
  */
 export const localOutputPath = (p: {
-   /** explicit local dir override (ImageSaveFormat.prefix) — wins when set */
+   /** explicit local dir override (SaveOptions.prefix) — wins when set */
    localDir?: string
    /** the SaveImage node's own filename_prefix as sent in the prompt */
    filenamePrefix?: string

@@ -58,14 +58,19 @@ src/host/                  per-server connection layer
 src/runner/                execution
    ComfyWorkflow.ts        live graph, prompt JSON emission, POST /prompt, progress
    ComfyExecution.ts          one execution: done promise (success AND failure), images + imageErrors.
-                           LOCAL OUTPUT NAMING (his repro 2026-07-31, pure
-                           outputPath.ts): never the raw server filename — a
-                           cloud host resets its _00001_ counter per run, so
-                           it overwrote the same local file. Dir intent from
-                           the prompt's own filename_prefix (`foo/krea/` IS
-                           the directory foo/krea/), saveFormat.prefix as
-                           explicit override, name = stem_timestamp_counter,
-                           exists-bump as last resort: never overwrite.
+                           Outputs are IN-MEMORY by default; `save:` opts into
+                           disk (item 14). LOCAL OUTPUT NAMING when saving
+                           (his repro 2026-07-31, pure outputPath.ts): never
+                           the raw server filename — a cloud host resets its
+                           _00001_ counter per run, so it overwrote the same
+                           local file. Dir intent from the prompt's own
+                           filename_prefix (`foo/krea/` IS the directory
+                           foo/krea/), save.prefix as explicit override,
+                           name = stem_timestamp_counter, exists-bump as last
+                           resort: never overwrite. Also home of the
+                           SaveImageWebsocket output path (item 14):
+                           onWsImageOutput turns correlated binary frames
+                           into execution.images.
    ComfyWsApi.ts           arktype schemas of every ws message
    wsBinaryFrame.ts        pure parser for BINARY ws frames (1 preview,
                            3 text, 4 preview+metadata — the cloud sends 4;
@@ -217,8 +222,9 @@ tests/                     bun tests (headless) + fixtures
 5. `workflow.run({ log, onProgress })` → `start()` freezes an ExecutionSnapshot
    (apiJson + workflowJson), POSTs /prompt; ws messages route
    `ComfyHost.onMessage` → `routeOrBuffer` → `ComfyExecution.onPromptRelatedMessage`;
-   progress emits per message; executed images land in `execution.images: MediaImage[]`;
-   `execution.done` resolves on success AND failure (check `status`).
+   progress emits per message; executed images land in `execution.images: MediaImage[]`
+   (in-memory buffers by default — local disk writes are OPT-IN via `save:`,
+   item 14); `execution.done` resolves on success AND failure (check `status`).
 6. re-run contract: `host.defineWorkflow({ vars, build })` → `DefinedWorkflow` —
    `build(b, varValues, wf)` re-executes per `run()`; it may be ASYNC (uploads
    etc. — the wf param feeds `MediaImage.loadInWorkflow_*`). `run()` starts with
@@ -613,7 +619,7 @@ tests/                     bun tests (headless) + fixtures
    `generateMiniPreview` are DELETED (zero callers, undocumented,
    changelog states it loud); `processWithSharp`/`_inplace` lazy-import
    sharp and throw loud in browser. ComfyExecution imports sharp lazily;
-   non-'raw' saveFormat without sharp = loud error.
+   a re-encoding `save.format` without sharp = loud error.
    HASH: `hashArrayBuffer` + ComfySchema's cache-key hash use a pure-JS
    SHA-1 whose output matches node:crypto byte-for-byte (vector-tested) —
    upload dedupe names stay identical across the swap.
@@ -625,6 +631,80 @@ tests/                     bun tests (headless) + fixtures
    src/web.ts with Bun.build target browser and FAILS if `node:*`, `ws` or
    `sharp` reach the output — the machine rule that keeps every later
    commit honest.
+
+14. ephemeral outputs & privacy (his GO 2026-07-31: "do them all"). The goal:
+   users who need generated images to never persist — on the server, locally,
+   or both. Three server-side tiers, weakest to strongest:
+   - `SaveImage` — permanent files in the server's `output/` dir, full
+     workflow JSON embedded in the PNG metadata. No delete API upstream.
+   - `PreviewImage` — files in the server's `temp/` dir: wiped on server
+     restart, `--temp-directory` can point at a tmpfs. Weak tier, docs only.
+   - `SaveImageWebsocket` (core node, images-only input, no filename_prefix) —
+     streams each image as a BINARY ws frame, never touches the server disk.
+     The strong tier; every image example uses it.
+   CORRELATION (the upstream contract, per
+   `script_examples/websockets_api_example_ws_images.py`): while the
+   `executing` node is a SaveImageWebsocket, each binary preview-kind frame IS
+   one output image (frames follow their `executing` message on the same
+   socket, so ordering is guaranteed). `ComfyHost.onMessage` routes a
+   preview-kind frame to the ACTIVE execution's `onWsImageOutput` when the
+   currently executing node's class_type in the execution SNAPSHOT (not the
+   live graph — the ephemeral rewrite below only touches the snapshot) is
+   `SaveImageWebsocket`; every other preview frame stays a latent preview
+   (disjoint by construction: latents arrive during sampler nodes).
+   `onWsImageOutput` builds a `MediaImage` from the frame bytes (path only
+   when saving) and pushes it to `execution.images`. PRE-REGISTRATION WINDOW
+   (reviewer catch 2026-07-31): ws messages can beat the POST /prompt
+   response, and an output frame in that window is the image's ONLY copy —
+   preview-kind frames are buffered IN ORDER with the json messages
+   (`PendingWsItem` = PromptRelated_WsMsg | PendingBinaryFrame in
+   `_pendingMsgs`) and `ComfyExecution.onCreate` replays the queue, deciding
+   output-vs-latent from the executing state at replay time (stale latents
+   drop; the live latent hook still fired at arrival).
+   LOCAL SAVING IS OPT-IN (his call 2026-07-31): `RunSettings.save?: boolean |
+   SaveOptions` (`SaveOptions = { format?, prefix?, quality? }`, format
+   defaults `'raw'`; `save: true` = raw). Default (unset/false): images are
+   in-memory `MediaImage`s — `absPath` is `Maybe`, `filename`/`extension`
+   derive from hash + metadata when pathless, `freeBuffer()` no-ops (the
+   buffer is the only copy). `saveFormat`/`ImageSaveFormat` are RENAMED to
+   `save`/`SaveOptions` (breaking, one code path — no dual spelling). The
+   TUI and serve OPT IN explicitly (their outputs panel / `/outputs/` routes
+   need files): both pass `save: { prefix: <module id or key> }`, so their
+   behavior is unchanged and outputs group per module under
+   `.comfy-ts/outputs/`.
+   EPHEMERAL SUGAR: `RunSettings.ephemeral?: boolean` rewrites every
+   `SaveImage` node to `SaveImageWebsocket` (drop `filename_prefix`) in the
+   SENT snapshot only, via the pure `rewriteSaveNodesToWebsocket(apiJson)`
+   (`src/runner/ephemeral.ts`) — imported workflows and templates get the
+   strong tier without editing the graph. Implies `scrubHistory` unless
+   explicitly false.
+   HISTORY SCRUB: `host.deleteHistory(promptId)` / `host.clearHistory()` →
+   `POST /history` `{delete:[id]}` / `{clear:true}` (upstream API; removes
+   the server-side history entry: the full workflow JSON, prompts, filenames
+   — NOT files, which the strong tier never creates).
+   `RunSettings.scrubHistory?: boolean` runs deleteHistory inside `_finish`
+   after retrievals; failures are LOUD but non-fatal (a privacy feature that
+   crashes the run would push users to disable it).
+   THE INPUTS GAP (honest limit): `/upload/image` files persist in the
+   server's `input/` dir (cloud: their bucket) and upstream has NO delete
+   API. An ephemeral run whose snapshot contains upload-consuming nodes
+   (`LoadImage`/`LoadImageMask`) logs ONE loud warning at finish. The
+   alternative: `MediaImage.loadInWorkflow_viaBase64Node(wf)` feature-detects
+   a base64 image loader on the host schema (closed table, first match:
+   `ETN_LoadImageBase64` (comfyui-tooling-nodes, input `image`),
+   `easy loadImageBase64` (easy-use, input `base64_data`, `image_output:
+   'Hide'` so the node itself saves nothing)) and inlines the image into the
+   prompt JSON — no file ever lands on the server (the prompt still enters
+   history: scrubHistory covers it). No supported node on the host = loud
+   throw naming the table. Comfy Cloud ships NONE of them (verified against
+   the committed catalog 2026-07-31): cloud inputs must ride uploads, stated
+   limitation.
+   WHAT WE NEVER CLAIM: server logs, RAM, crash dumps, reverse proxies, and
+   cloud provider retention are out of reach. README states the tiers and
+   these limits; overclaiming "never persists" would be a lie a user
+   inherits. Video/audio savers (`SaveVideo`, `SaveAudio*`) have NO
+   websocket variant upstream — those outputs persist server-side, stated
+   per example.
 
 ## Workflow import pipeline (litegraph → canonical → prompt)
 

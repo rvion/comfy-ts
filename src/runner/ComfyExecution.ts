@@ -9,7 +9,8 @@ import { getComfyStorage } from 'src/storage/ComfyStorage.ts'
 import { importSharp } from 'src/utils/lazySharp.ts'
 import { getPngMetadataFromUint8Array } from 'src/image-utils/_getPngMetadata.ts'
 import type { ComfyNodeId } from 'src/graph/ComfyNodeID.ts'
-import { asAbsolutePath, type ImageSaveFormat, type Maybe } from 'src/types/index.ts'
+import { type AbsolutePath, asAbsolutePath, type Maybe, type SaveOptions } from 'src/types/index.ts'
+import { bang } from 'src/utils/bang.ts'
 import { exhaust } from 'src/utils/exhaust.ts'
 import type { ComfyExecutionStatus } from 'src/runner/ComfyExecutionStatus.ts'
 import type { ComfyWorkflow, ComfyWorkflowID, ExecutionSnapshot, ProgressReport } from 'src/runner/ComfyWorkflow.ts'
@@ -17,7 +18,7 @@ import type { ComfyWorkflow, ComfyWorkflowID, ExecutionSnapshot, ProgressReport 
 import type {
    ComfyImageInfo,
    PromptID,
-   PromptRelated_WsMsg,
+   PendingWsItem,
    WsMsgExecuted,
    WsMsgExecuting,
    WsMsgExecutionError,
@@ -49,14 +50,18 @@ export class ComfyExecution {
       public data: ComfyExecutionData,
       init: {
          snapshot?: ExecutionSnapshot
-         saveFormat?: Maybe<ImageSaveFormat>
+         save?: Maybe<boolean | SaveOptions>
+         scrubHistory?: boolean
+         ephemeral?: boolean
          onProgress?: Maybe<(p: ExecutionProgress) => void>
          logProgress?: boolean
       } = {},
    ) {
       // settings FIRST: onCreate flushes buffered ws messages whose handlers read them
       this.snapshot = init.snapshot ?? null
-      this.saveFormat = init.saveFormat ?? null
+      this.save = init.save === true ? {} : init.save === false ? null : (init.save ?? null)
+      this.scrubHistory = init.scrubHistory ?? false
+      this.ephemeral = init.ephemeral ?? false
       this.onProgress = init.onProgress ?? null
       this.logProgress = init.logProgress ?? false
       // register with the host so websocket messages route here,
@@ -65,8 +70,12 @@ export class ComfyExecution {
       this.onCreate()
    }
 
-   // post-process
-   saveFormat: Maybe<ImageSaveFormat> = null
+   /** local disk saving, OPT-IN (architecture.md item 14); null = outputs stay in memory */
+   save: Maybe<SaveOptions> = null
+   /** delete this run's server history entry after `done` */
+   scrubHistory: boolean = false
+   /** this run's SaveImage nodes were rewritten to SaveImageWebsocket in the snapshot */
+   ephemeral: boolean = false
 
    /** exactly what was sent to the host, frozen at send time (replayable) */
    snapshot: Maybe<ExecutionSnapshot> = null
@@ -141,8 +150,14 @@ export class ComfyExecution {
       return this.data.status ?? 'New'
    }
 
-   onPromptRelatedMessage = (msg: PromptRelated_WsMsg): void => {
+   onPromptRelatedMessage = (msg: PendingWsItem): void => {
       const graph = this.workflow
+      // replayed pre-registration binary frame: an OUTPUT only when the ws
+      // saver was executing at this point of the stream; stale latents drop
+      if (msg.type === 'binary_preview_frame') {
+         if (this.wsOutputNodeExecuting) this.onWsImageOutput({ bytes: msg.bytes, mime: msg.mime })
+         return
+      }
       if (msg.type === 'execution_start') return
       else if (msg.type === 'execution_cached') graph.onExecutionCached(msg)
       else if (msg.type === 'executing') this.onExecuting(msg)
@@ -193,8 +208,9 @@ export class ComfyExecution {
    }
    private pendingPromises: Promise<void>[] = []
 
-   /** image retrievals that failed (their images are missing from `images`) */
-   imageErrors: { image: ComfyImageInfo; error: unknown }[] = []
+   /** image retrievals that failed (their images are missing from `images`);
+    * `image` is null for SaveImageWebsocket frames (no server-side file info exists) */
+   imageErrors: { image: Maybe<ComfyImageInfo>; error: unknown }[] = []
 
    retrieveImage = async (
       //
@@ -203,99 +219,149 @@ export class ComfyExecution {
    ): Promise<void> => {
       // retrieve the node
       const promptNode = this.workflow.data.apiJson?.[promptNodeID]
-      const promptMeta = this.workflow.data.metadata?.[promptNodeID]
       if (promptNode == null) throw new Error(`❌ invariant violation: promptNode is null`)
 
       // image route on the host (cloud answers a 302 signed url — fetchFile follows it unauthed)
       const imgRoute = '/view?' + new URLSearchParams(comfyImageInfo).toString()
+      const response = await this.host.fetchFile(imgRoute)
+      const bytes = new Uint8Array(await response.arrayBuffer())
 
-      // target path on disk: OUR naming, never the raw server filename — a
-      // cloud host resets its _00001_ counter per run, so the server name
-      // overwrote the same local file on every run (his repro 2026-07-31)
-      const sf = this.saveFormat
-      const promptPrefix = promptNode.inputs['filename_prefix']
-      let absPath: string = comfyts.resolveFromOutput(
-         localOutputPath({
-            localDir: sf?.prefix,
-            filenamePrefix: typeof promptPrefix === 'string' ? promptPrefix : undefined,
-            subfolder: comfyImageInfo.subfolder,
-            filename: comfyImageInfo.filename,
-            timestamp: runTimestamp(new Date(this.startedAt)),
-         }),
-      )
-      if (sf?.format && sf.format !== 'raw') {
-         const extension = sf.format.split('/')[1]
-         absPath += '.' + extension
+      const comfyUIInfos = { comfyImageInfo, comfyHostHttpURL: this.host.getServerHostHTTP() }
+
+      // local saving is OPT-IN (architecture.md item 14): no save → in-memory only
+      const sf = this.save
+      if (sf == null) {
+         return this.pushImage(
+            new MediaImage({ buffer: bytes, execution: this, promptNodeID: promptNodeID, comfyUIInfos }),
+            promptNodeID,
+         )
       }
-      // last-resort uniquifier: bump past files on disk AND paths claimed by
-      // still-downloading retrievals — never overwrite
-      const storage = getComfyStorage()
-      absPath = uniquifyOutputPath({ path: absPath, exists: (p) => storage.exists(p), claimed: CLAIMED_OUTPUT_PATHS })
 
-      // ref
-      let img: MediaImage
+      const promptPrefix = promptNode.inputs['filename_prefix']
+      const written = await this.encodeAndWrite({
+         bytes,
+         sf,
+         filenamePrefix: typeof promptPrefix === 'string' ? promptPrefix : undefined,
+         subfolder: comfyImageInfo.subfolder,
+         filename: comfyImageInfo.filename,
+      })
+      this.pushImage(
+         new MediaImage({
+            path: written.path,
+            buffer: written.bytes,
+            execution: this,
+            promptNodeID: promptNodeID,
+            comfyUIInfos,
+         }),
+         promptNodeID,
+      )
+   }
 
-      // RE-ENCODE (COMPRESSED)
-      if (sf && sf.format !== 'raw') {
-         const response = await this.host.fetchFile(imgRoute)
-         const buff = await response.arrayBuffer()
+   /** re-encode when asked, then write under OUR local naming — never the raw
+    * server filename: a cloud host resets its _00001_ counter per run, so the
+    * server name overwrote the same local file on every run (his repro 2026-07-31) */
+   private encodeAndWrite = async (p: {
+      bytes: Uint8Array
+      sf: SaveOptions
+      filenamePrefix?: string
+      subfolder: string
+      filename: string
+   }): Promise<{ path: AbsolutePath; bytes: Uint8Array }> => {
+      let bytes = p.bytes
+      const reencode = p.sf.format != null && p.sf.format !== 'raw'
+      if (reencode) {
+         // PNG text chunk (workflow provenance) survives the re-encode as EXIF
          let textChunk = {}
          try {
-            const res = getPngMetadataFromUint8Array(new Uint8Array(buff))
+            const res = getPngMetadataFromUint8Array(p.bytes)
             if (res.success) textChunk = res.value
          } catch {}
 
          const format = ((): keyof FormatEnum => {
-            if (sf.format === 'image/jpeg') return 'jpeg'
-            if (sf.format === 'image/png') return 'png'
-            if (sf.format === 'image/webp') return 'webp'
+            if (p.sf.format === 'image/jpeg') return 'jpeg'
+            if (p.sf.format === 'image/webp') return 'webp'
             return 'png'
          })()
 
-         // node-only branch: re-encoding needs sharp (saveFormat 'raw' is the web path)
-         const sharp = await importSharp(`saveFormat '${sf.format}' re-encoding`)
-         const encoded = await sharp(buff)
+         // node-only branch: re-encoding needs sharp (save 'raw' is the web path)
+         const sharp = await importSharp(`save format '${p.sf.format}' re-encoding`)
+         const encoded = await sharp(p.bytes)
             .withMetadata()
             .withExif({ IFD0: textChunk })
             // sharp expect quality between 1 and 100
-            .toFormat(format, sf.quality ? { quality: Math.round(sf.quality * 100) } : undefined)
+            .toFormat(format, p.sf.quality ? { quality: Math.round(p.sf.quality * 100) } : undefined)
             .toBuffer()
-         storage.writeBytes(asAbsolutePath(absPath), new Uint8Array(encoded))
-
-         img = new MediaImage({
-            path: asAbsolutePath(absPath),
-            buffer: new Uint8Array(encoded),
-            execution: this,
-            promptNodeID: promptNodeID,
-            comfyUIInfos: {
-               comfyImageInfo: comfyImageInfo,
-               comfyHostHttpURL: this.host.getServerHostHTTP(),
-            },
-         })
+         bytes = new Uint8Array(encoded)
       }
 
-      // SAVE RAW ------------------------------------------------------------------------------------------
-      else {
-         const response = await this.host.fetchFile(imgRoute)
-         const buff = await response.arrayBuffer()
-         const uint8arr = new Uint8Array(buff)
-         storage.writeBytes(asAbsolutePath(absPath), uint8arr)
-         img = new MediaImage({
-            path: asAbsolutePath(absPath),
-            buffer: uint8arr,
-            execution: this,
-            promptNodeID: promptNodeID,
-            comfyUIInfos: {
-               comfyImageInfo: comfyImageInfo,
-               comfyHostHttpURL: this.host.getServerHostHTTP(),
-            },
-         })
-      }
+      let absPath: string = comfyts.resolveFromOutput(
+         localOutputPath({
+            localDir: p.sf.prefix,
+            filenamePrefix: p.filenamePrefix,
+            subfolder: p.subfolder,
+            filename: p.filename,
+            timestamp: runTimestamp(new Date(this.startedAt)),
+         }),
+      )
+      if (reencode) absPath += '.' + bang(p.sf.format).split('/')[1]
+      // last-resort uniquifier: bump past files on disk AND paths claimed by
+      // still-downloading retrievals — never overwrite
+      const storage = getComfyStorage()
+      absPath = uniquifyOutputPath({ path: absPath, exists: (x) => storage.exists(x), claimed: CLAIMED_OUTPUT_PATHS })
+      storage.writeBytes(asAbsolutePath(absPath), bytes)
+      return { path: asAbsolutePath(absPath), bytes }
+   }
 
-      // accumulate outputs on the prompt; tags from node metadata ride along
+   /** accumulate an output on the prompt; tags from node metadata ride along */
+   private pushImage(img: MediaImage, promptNodeID: Maybe<string>): void {
+      const promptMeta = promptNodeID != null ? this.workflow.data.metadata?.[promptNodeID] : null
       if (promptMeta?.tag) img.tags.push(promptMeta.tag)
       if (promptMeta?.tags) img.tags.push(...promptMeta.tags)
       this.images.push(img)
+   }
+
+   /** true while the currently executing node is a SaveImageWebsocket in the
+    * SENT snapshot (the ephemeral rewrite only touches the snapshot, so the
+    * live graph may still say SaveImage) — binary frames are then OUTPUTS */
+   get wsOutputNodeExecuting(): boolean {
+      const uid = this.workflow.currentExecutingNode?.uid
+      if (uid == null) return false
+      const apiJson = this.snapshot?.apiJson ?? this.workflow.apiJson
+      return apiJson[uid]?.class_type === 'SaveImageWebsocket'
+   }
+
+   /** one binary ws frame = one output image of the executing SaveImageWebsocket
+    * node (architecture.md item 14 — the zero-server-disk path) */
+   onWsImageOutput = (p: { bytes: Uint8Array; mime: string }): void => {
+      const promptNodeID = this.workflow.currentExecutingNode?.uid ?? null
+      this.pendingPromises.push(
+         this.storeWsImage(p, promptNodeID).catch((e: unknown) => {
+            console.error(`🔴 failed to store a SaveImageWebsocket output:`, e)
+            this.imageErrors.push({ image: null, error: e })
+         }),
+      )
+   }
+
+   private storeWsImage = async (
+      p: { bytes: Uint8Array; mime: string },
+      promptNodeID: Maybe<string>,
+   ): Promise<void> => {
+      const sf = this.save
+      if (sf == null) {
+         return this.pushImage(new MediaImage({ buffer: p.bytes, execution: this, promptNodeID }), promptNodeID)
+      }
+      const ext = p.mime === 'image/jpeg' ? 'jpg' : (p.mime.split('/')[1] ?? 'png')
+      const written = await this.encodeAndWrite({
+         bytes: p.bytes,
+         sf,
+         subfolder: '',
+         // ws frames carry no server filename — the workflow id is the stem
+         filename: `${this.workflow.id}.${ext}`,
+      })
+      this.pushImage(
+         new MediaImage({ path: written.path, buffer: written.bytes, execution: this, promptNodeID }),
+         promptNodeID,
+      )
    }
 
    /** images retrieved for this execution, in arrival order (final once `done` resolves) */
@@ -314,6 +380,28 @@ export class ComfyExecution {
       // finished executions receive no further messages — free the routing maps
       this.host.executions.delete(this.data.id)
       this.host._pendingMsgs.delete(this.data.id)
+
+      // the inputs gap, stated loud (item 14): ephemeral covers OUTPUTS only —
+      // uploaded inputs persist in the server's input/ dir, no upstream delete API
+      if (this.ephemeral) {
+         const classTypes = Object.values(this.snapshot?.apiJson ?? {}).map((n) => n.class_type)
+         if (classTypes.includes('LoadImage') || classTypes.includes('LoadImageMask')) {
+            console.warn(
+               `🟡 ephemeral run ${this.data.id}: outputs never touched the server disk, but the graph's ` +
+                  `LoadImage nodes reference files in the host's input/ folder (uploads persist — ComfyUI has ` +
+                  `no delete API). Use MediaImage.loadInWorkflow_viaBase64Node to keep inputs off the server too.`,
+            )
+         }
+      }
+
+      // history scrub AFTER retrievals: loud but never fatal — a privacy
+      // feature that crashes the run would push users to disable it
+      if (this.scrubHistory) {
+         await this.host.deleteHistory(this.data.id).catch((e: unknown) => {
+            console.error(`🔴 failed to scrub history entry ${this.data.id} on host ${this.host.data.id}:`, e)
+         })
+      }
+
       this.finishProgressLine()
       this._resolve(this)
    }

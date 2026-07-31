@@ -697,6 +697,84 @@ describe('tui queued runs', () => {
    })
 })
 
+describe('ephemeral outputs: SaveImageWebsocket frame correlation (item 14)', () => {
+   it('binary frames during the ws-saver node become in-memory execution.images', async () => {
+      const { ComfyExecution } = await import('src/runner/ComfyExecution.ts')
+      const { PromptID_ark } = await import('src/runner/ComfyWsApi.ts')
+
+      const wf = host.workflow({ id: 'ws-out' })
+      const b = wf.builder
+      const ckpt = b.CheckpointLoaderSimple({ ckpt_name: 'model.safetensors' })
+      const latent = b.EmptyLatentImage({ width: 64, height: 64, batch_size: 1 })
+      const saver = b.SaveImageWebsocket({ images: b.VAEDecode({ samples: latent, vae: ckpt }) })
+
+      const promptId = PromptID_ark.assert('p-ws-1')
+      const execution = new ComfyExecution(
+         wf,
+         { id: promptId, executed: false, graphID: wf.id },
+         { snapshot: { apiJson: wf.toApiJson(), workflowJson: await wf.toWorkflowJson() } },
+      )
+
+      // the 'executing' message points at the ws saver → frames are OUTPUTS now
+      host.routeOrBuffer(promptId, { type: 'executing', data: { prompt_id: promptId, node: saver.uid } })
+      expect(execution.wsOutputNodeExecuting).toBe(true)
+
+      // a type-1 binary frame: 4B eventType=1 · 4B imageType=2 (png) · bytes
+      const png = Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 1, 2, 3, 4])
+      const frame = new ArrayBuffer(8 + png.length)
+      const view = new DataView(frame)
+      view.setUint32(0, 1)
+      view.setUint32(4, 2)
+      new Uint8Array(frame, 8).set(png)
+      host.onMessage({ data: frame })
+
+      await new Promise((r) => setTimeout(r, 0))
+      expect(execution.images.length).toBe(1)
+      expect(execution.images[0]?.absPath).toBeNull() // memory only: saving is opt-in
+      expect(execution.images[0]?.buffer).toEqual(png)
+      expect(execution.imageErrors).toEqual([])
+
+      // while a NON-saver node executes, the same frame is a latent preview again
+      host.routeOrBuffer(promptId, { type: 'executing', data: { prompt_id: promptId, node: ckpt.uid } })
+      expect(execution.wsOutputNodeExecuting).toBe(false)
+      host.onMessage({ data: frame })
+      await new Promise((r) => setTimeout(r, 0))
+      expect(execution.images.length).toBe(1)
+      host.executions.delete(promptId)
+   })
+
+   it('frames beating the POST /prompt response are buffered and replayed (reviewer repro)', async () => {
+      const { ComfyExecution } = await import('src/runner/ComfyExecution.ts')
+      const { PromptID_ark } = await import('src/runner/ComfyWsApi.ts')
+
+      const wf = host.workflow({ id: 'ws-race' })
+      const b = wf.builder
+      const ckpt = b.CheckpointLoaderSimple({ ckpt_name: 'model.safetensors' })
+      const latent = b.EmptyLatentImage({ width: 64, height: 64, batch_size: 1 })
+      const saver = b.SaveImageWebsocket({ images: b.VAEDecode({ samples: latent, vae: ckpt }) })
+      const snapshot = { apiJson: wf.toApiJson(), workflowJson: await wf.toWorkflowJson() }
+
+      // ws beats the POST /prompt response: executing + output frame arrive
+      // BEFORE any ComfyExecution exists for the prompt
+      const promptId = PromptID_ark.assert('p-ws-race')
+      host.routeOrBuffer(promptId, { type: 'executing', data: { prompt_id: promptId, node: saver.uid } })
+      const png = Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 9, 9, 9])
+      const frame = new ArrayBuffer(8 + png.length)
+      const view = new DataView(frame)
+      view.setUint32(0, 1)
+      view.setUint32(4, 2)
+      new Uint8Array(frame, 8).set(png)
+      host.onMessage({ data: frame })
+
+      // the execution registers late — onCreate must replay the frame as an OUTPUT
+      const execution = new ComfyExecution(wf, { id: promptId, executed: false, graphID: wf.id }, { snapshot })
+      await new Promise((r) => setTimeout(r, 0))
+      expect(execution.images.length).toBe(1)
+      expect(execution.images[0]?.buffer).toEqual(png)
+      host.executions.delete(promptId)
+   })
+})
+
 describe('tui tree ↔ vars focus round trip', () => {
    it('← lands on the ACTIVE DRAFT row, → on a draft row goes back to the vars panel', async () => {
       const { asAbsolutePath } = await import('src/types/index.ts')

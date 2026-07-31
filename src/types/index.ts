@@ -24,9 +24,13 @@ export const asRelativePath = (path: string): RelativePath => path as RelativePa
 
 // #region Image
 export type ConvertibleImageFormat = 'image/png' | 'image/jpeg' | 'image/webp' | 'raw'
-export type ImageSaveFormat = {
-   format: ConvertibleImageFormat
+/** local disk saving is OPT-IN per run: `save: true` = raw bytes, an object re-encodes/relocates */
+export type SaveOptions = {
+   /** 'raw' (default) writes the bytes untouched; an image/* mime re-encodes through sharp */
+   format?: ConvertibleImageFormat
+   /** local dir under `.comfy-ts/outputs/` (wins over the prompt's own filename_prefix) */
    prefix?: string
+   /** 0..1, re-encode only */
    quality?: number
 }
 

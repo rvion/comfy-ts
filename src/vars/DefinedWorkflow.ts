@@ -119,7 +119,9 @@ export class DefinedWorkflow<ID extends string = string, V extends VarsSpec = Va
       await host.connect()
       const wf = await this.build({ advance: true, host })
       const execution = await wf.run({
-         saveFormat: settings.saveFormat,
+         save: settings.save,
+         ephemeral: settings.ephemeral,
+         scrubHistory: settings.scrubHistory,
          idMode: settings.idMode,
          log: settings.log,
          onProgress: settings.onProgress,

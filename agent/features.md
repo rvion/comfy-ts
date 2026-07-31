@@ -119,6 +119,22 @@ Browser example: `examples/web/` (`bun examples/web/serve.ts`).
 - ✅ web entry + storage seam + bundle guard (Rémi's full GO 2026-07-31)
 - 🔶 browser playtest by a human — pending
 
+## G9 — leave no traces (ephemeral outputs, his GO 2026-07-31)
+
+Images that never persist: `SaveImageWebsocket` outputs stream over the ws and
+never touch the server disk (every image example uses it); local saving is
+OPT-IN (`run({ save })` — default keeps outputs in memory only);
+`ephemeral: true` rewrites `SaveImage` → `SaveImageWebsocket` in the sent
+prompt and scrubs the server history entry after the run
+(`host.deleteHistory`/`clearHistory`). Honest limits are part of the feature:
+uploads persist server-side (base64 loaders are the feature-detected
+alternative, absent on cloud), video/audio savers have no ws variant, server
+logs/RAM/cloud retention are out of reach. Contract: architecture.md item 14.
+
+- ✅ ws output correlation + memory-default outputs + opt-in `save`
+- ✅ `ephemeral` rewrite + history scrub + upload warning
+- ✅ `loadInWorkflow_viaBase64Node` (feature-detected, windows-1 verified table)
+
 ## Non-goals
 
 - no UI (CushyStudio's job), no LLM calls. `comfy-ts serve` is a thin LOCAL

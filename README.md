@@ -56,6 +56,7 @@ const host = comfy.host({ id: 'my-gpu', host: '127.0.0.1', port: 8188 })
 await host.connect() // fetches the schema, writes your typed SDK
 
 const txt2img = host.defineWorkflow({
+   id: 'txt2img', // names the saved outputs (and the TUI tree entry)
    vars: {},
    build: (b) => {
       // b is typed: autocomplete on EVERY node of THIS host
@@ -68,20 +69,24 @@ const txt2img = host.defineWorkflow({
          seed: 42, steps: 20, cfg: 7,
          sampler_name: 'euler', scheduler: 'normal', denoise: 1,
       })
-      b.SaveImage({ images: b.VAEDecode({ samples, vae: ckpt }) })
+      // streams the image back over the websocket — nothing saved on the server
+      b.SaveImageWebsocket({ images: b.VAEDecode({ samples, vae: ckpt }) })
    },
 })
 
-const execution = await txt2img.run({ log: true }) // ▶ [██████░░] 71% · KSampler · 10s
-for (const img of execution.images) console.log(img.absPath) // downloaded outputs
+const execution = await txt2img.run({ log: true, save: true }) // ▶ [██████░░] 71% · KSampler · 10s
+for (const img of execution.images) console.log(img.absPath) // saved outputs
 host.disconnect()
 ```
 
 ```sh
 $ bun myFirstWorkflow.ts
-▶ [████████████████] 100% · SaveImage · 12s
-.comfy-ts/outputs/txt2img_00001.png
+▶ [████████████████] 100% · SaveImageWebsocket · 12s
+.comfy-ts/outputs/txt2img_20260731-142012.png
 ```
+
+Drop `save: true` and the outputs never touch a disk at all — `img.buffer`
+holds the bytes in memory ("Ephemeral outputs" below).
 
 One tsconfig line activates the generated types:
 
@@ -273,6 +278,59 @@ await txt2img.run({ log: true }) // fresh graph, fresh image
 `vars` can be a lambda receiving `v` so vars reference each other:
 `v.prompt('a cozy house', { loraKeywordsFrom: loras })` prefixes the active
 loras' trigger keywords. Name the file `*.cflow.ts` and the TUI finds it.
+
+## 🕶️ Ephemeral outputs: leave no traces
+
+Some images should not outlive the run — client work, private subjects,
+anything you would not leave in a shared server's `output/` folder. ComfyUI
+has three image savers, and they differ exactly there:
+
+| saver                | where the image lands server-side                  | how long it stays              |
+| -------------------- | -------------------------------------------------- | ------------------------------ |
+| `SaveImage`          | `output/` dir, workflow JSON embedded in the PNG   | forever (no delete API)        |
+| `PreviewImage`       | `temp/` dir                                        | until the server restarts      |
+| `SaveImageWebsocket` | nowhere — streamed back as binary ws frames        | never touches the server disk  |
+
+comfy-ts treats `SaveImageWebsocket` as a first-class output: its frames land
+in `execution.images` like any other output, and **local saving is opt-in** —
+without `save`, the images exist only in memory (`img.buffer`, `img.getAsBlob()`,
+`img.getBase64Url()`; `img.absPath` is null):
+
+```ts
+// zero disk, end to end: nothing on the server, nothing locally
+const execution = await txt2img.run({ log: true })
+const bytes = execution.images[0]?.buffer
+
+// opt-in local save, grouped in a subfolder
+await txt2img.run({ log: true, save: { prefix: 'my-project' } })
+```
+
+Running an imported workflow or template that uses `SaveImage`? `ephemeral:
+true` rewrites its save nodes to `SaveImageWebsocket` in the sent prompt (the
+graph you authored stays untouched) and deletes the run's server history entry
+afterwards — the history holds your full workflow, prompts included:
+
+```ts
+await workflow.run({ ephemeral: true }) // implies scrubHistory: true
+await host.clearHistory()               // or wipe the server's whole history
+```
+
+Honest limits, so you can decide what to trust:
+
+- **uploaded inputs persist**: `/upload/image` files stay in the server's
+  `input/` dir (ComfyUI has no delete API). If the host has a base64 loader
+  node installed (`ETN_LoadImageBase64` from comfyui-tooling-nodes, or
+  ComfyUI-Easy-Use's `easy loadImageBase64`),
+  `mediaImage.loadInWorkflow_viaBase64Node(wf)` inlines the image into the
+  prompt instead — no server file, and `scrubHistory` erases the prompt after.
+  Comfy Cloud ships neither, so cloud inputs currently must ride uploads.
+- **video/audio have no websocket saver** upstream: `SaveVideo` / `SaveAudio*`
+  outputs persist on the host.
+- **out of our reach**: server logs, RAM, crash dumps, reverse proxies, and a
+  cloud provider's own retention policy. Ephemeral mode controls what the
+  ComfyUI API persists — nothing more, and we won't pretend otherwise.
+
+Every image example in `examples/` uses `SaveImageWebsocket`.
 
 ## 🖥️ The TUI
 
@@ -519,6 +577,8 @@ committing it is what buys you typed CI.
 | per-host namespace codegen (`Comfy.<HostNs>.*`)                |   ✅   |
 | idempotent connect, resilient websocket, latent previews       |   ✅   |
 | hash-named, deduped image upload                               |   ✅   |
+| ephemeral outputs: `SaveImageWebsocket` streaming, opt-in save |   ✅   |
+| `ephemeral` rewrite + server history scrub + base64 inputs     |   ✅   |
 | export api.json + autolayouted workflow.json                   |   ✅   |
 | import api.json into a live workflow                           |   ✅   |
 | import workflow.json (litegraph → api conversion)              |   ✅   |
