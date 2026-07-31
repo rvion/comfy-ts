@@ -1,6 +1,10 @@
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { dirname } from 'pathe'
-import { localOutputPath, runTimestamp } from 'src/runner/outputPath.ts'
+import { localOutputPath, runTimestamp, uniquifyOutputPath } from 'src/runner/outputPath.ts'
+
+/** paths claimed by in-flight retrievals: two same-second runs on a
+ * counter-resetting cloud host compute the same name before either writes */
+const CLAIMED_OUTPUT_PATHS = new Set<string>()
 import sharp, { type FormatEnum } from 'sharp'
 import type { ComfyHost } from 'src/host/ComfyHost.ts'
 import { getPngMetadataFromUint8Array } from 'src/image-utils/_getPngMetadata.ts'
@@ -223,14 +227,9 @@ export class ComfyExecution {
          const extension = sf.format.split('/')[1]
          absPath += '.' + extension
       }
-      // last-resort uniquifier (same second, same stem, same counter): bump,
-      // never overwrite
-      if (existsSync(absPath)) {
-         const dot = absPath.lastIndexOf('.')
-         const stem = dot === -1 ? absPath : absPath.slice(0, dot)
-         const ext = dot === -1 ? '' : absPath.slice(dot)
-         for (let n = 2; existsSync(absPath); n++) absPath = `${stem}-${n}${ext}`
-      }
+      // last-resort uniquifier: bump past files on disk AND paths claimed by
+      // still-downloading retrievals — never overwrite
+      absPath = uniquifyOutputPath({ path: absPath, exists: existsSync, claimed: CLAIMED_OUTPUT_PATHS })
       const dir = dirname(absPath)
       mkdirSync(dir, { recursive: true })
 

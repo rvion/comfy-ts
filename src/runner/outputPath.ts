@@ -28,13 +28,11 @@ export const localOutputPath = (p: {
    const counter = counterMatch?.[1]
    const serverStem = counterMatch != null ? base.slice(0, base.length - counterMatch[0].length) : base
 
-   // directory + stem intent: explicit local dir > prompt prefix > server layout
+   // directory + stem intent: explicit local dir > prompt prefix > server
+   // layout. The stem SURVIVES a localDir override — identity keeps sorting
    let dir: string
    let stem: string
-   if (p.localDir != null) {
-      dir = p.localDir
-      stem = ''
-   } else if (p.filenamePrefix != null && p.filenamePrefix !== '') {
+   if (p.filenamePrefix != null && p.filenamePrefix !== '') {
       const slash = p.filenamePrefix.lastIndexOf('/')
       dir = slash === -1 ? '' : p.filenamePrefix.slice(0, slash)
       stem = slash === -1 ? p.filenamePrefix : p.filenamePrefix.slice(slash + 1)
@@ -42,9 +40,32 @@ export const localOutputPath = (p: {
       dir = p.subfolder
       stem = serverStem
    }
+   if (p.localDir != null) dir = p.localDir
 
    const name = [stem === '' ? null : stem, p.timestamp, counter].filter((x) => x != null).join('_') + ext
    return dir === '' ? name : `${dir}/${name}`
+}
+
+/**
+ * never-overwrite guard: bump `-2`, `-3`, … while the path exists on disk OR
+ * was already CLAIMED by a still-downloading retrieval (two same-second runs
+ * on a counter-resetting cloud host compute the same name — reviewer catch).
+ * The chosen path is claimed before returning.
+ */
+export const uniquifyOutputPath = (p: {
+   path: string
+   exists: (path: string) => boolean
+   claimed: Set<string>
+}): string => {
+   let out = p.path
+   if (p.exists(out) || p.claimed.has(out)) {
+      const dot = out.lastIndexOf('.')
+      const stem = dot === -1 ? out : out.slice(0, dot)
+      const ext = dot === -1 ? '' : out.slice(dot)
+      for (let n = 2; p.exists(out) || p.claimed.has(out); n++) out = `${stem}-${n}${ext}`
+   }
+   p.claimed.add(out)
+   return out
 }
 
 /** YYYYMMDD-HHmmss, local time — sortable, text-encodable, no colons for filesystems */

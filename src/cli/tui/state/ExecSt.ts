@@ -176,13 +176,32 @@ export class ExecSt {
          this.showCopyPopup('image → clipboard', false, ['no output image yet — r runs the workflow first'])
          return
       }
-      const command = imageClipboardCommand(process.platform, last)
+      let file = last
+      let command = imageClipboardCommand(process.platform, file)
+      if (command == null && process.platform === 'darwin') {
+         // osascript only tags bytes — webp/etc must become real png first
+         try {
+            const { default: sharp } = await import('sharp')
+            const { tmpdir } = await import('node:os')
+            const { join } = await import('pathe')
+            file = join(tmpdir(), `comfy-ts-clip-${Date.now()}.png`)
+            await sharp(last).png().toFile(file)
+            command = imageClipboardCommand(process.platform, file)
+         } catch (e) {
+            this.showCopyPopup('image → clipboard', false, [
+               `COPY FAILED for ${basename(last)}`,
+               `png transcode failed: ${extractErrorMessage(e)}`,
+            ])
+            return
+         }
+      }
       if (command == null) {
          this.showCopyPopup('image → clipboard', false, [`no clipboard image tool for ${process.platform}`])
          return
       }
+      const cmd = command
       const ok = await new Promise<boolean>((resolve) => {
-         const proc = spawn(command.cmd, command.args, { stdio: 'ignore' })
+         const proc = spawn(cmd.cmd, cmd.args, { stdio: 'ignore' })
          proc.on('error', () => resolve(false))
          proc.on('close', (code) => resolve(code === 0))
       })
@@ -192,10 +211,7 @@ export class ExecSt {
             ok,
             ok
                ? [`${basename(last)} — paste the pixels anywhere`, '', last]
-               : [
-                    `COPY FAILED for ${basename(last)}`,
-                    `${command.cmd} exited non-zero — is it installed and allowed ?`,
-                 ],
+               : [`COPY FAILED for ${basename(last)}`, `could not run ${cmd.cmd} — is it installed and allowed ?`],
          )
       })
    }

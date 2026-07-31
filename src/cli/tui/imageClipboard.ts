@@ -10,21 +10,27 @@ const extOf = (path: string): string => {
 export const imageClipboardCommand = (platform: NodeJS.Platform, path: string): ImageClipboardCommand | null => {
    const ext = extOf(path)
    if (platform === 'darwin') {
-      // JPEG has its own clipboard class; everything else goes in as PNGf
-      const cls = ext === 'jpg' || ext === 'jpeg' ? 'JPEG picture' : '«class PNGf»'
+      // osascript TAGS bytes with the class, it never transcodes: PNGf on a
+      // webp would paste garbage under a green popup — only png/jpeg pass;
+      // the caller transcodes anything else to png first (reviewer catch)
+      if (ext !== 'png' && ext !== 'jpg' && ext !== 'jpeg') return null
+      const cls = ext === 'png' ? '«class PNGf»' : 'JPEG picture'
       return {
          cmd: 'osascript',
          args: ['-e', `set the clipboard to (read (POSIX file ${JSON.stringify(path)}) as ${cls})`],
       }
    }
    if (platform === 'win32') {
+      // single-quoted PS string, inner quotes doubled: a double-quoted string
+      // would interpolate $ and ` from user-controlled paths (reviewer catch)
+      const psQuoted = `'${path.replaceAll("'", "''")}'`
       return {
          cmd: 'powershell',
          args: [
             '-NoProfile',
             '-Sta',
             '-Command',
-            `Add-Type -AssemblyName System.Windows.Forms,System.Drawing; $img=[System.Drawing.Image]::FromFile(${JSON.stringify(path)}); [System.Windows.Forms.Clipboard]::SetImage($img); $img.Dispose()`,
+            `Add-Type -AssemblyName System.Windows.Forms,System.Drawing; $img=[System.Drawing.Image]::FromFile(${psQuoted}); [System.Windows.Forms.Clipboard]::SetImage($img); $img.Dispose()`,
          ],
       }
    }
