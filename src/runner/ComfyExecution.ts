@@ -1,5 +1,6 @@
-import { mkdirSync, writeFileSync } from 'node:fs'
-import { dirname, join } from 'pathe'
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
+import { dirname } from 'pathe'
+import { localOutputPath, runTimestamp } from 'src/runner/outputPath.ts'
 import sharp, { type FormatEnum } from 'sharp'
 import type { ComfyHost } from 'src/host/ComfyHost.ts'
 import { getPngMetadataFromUint8Array } from 'src/image-utils/_getPngMetadata.ts'
@@ -204,14 +205,31 @@ export class ComfyExecution {
       // image route on the host (cloud answers a 302 signed url — fetchFile follows it unauthed)
       const imgRoute = '/view?' + new URLSearchParams(comfyImageInfo).toString()
 
-      // target path on disk
+      // target path on disk: OUR naming, never the raw server filename — a
+      // cloud host resets its _00001_ counter per run, so the server name
+      // overwrote the same local file on every run (his repro 2026-07-31)
       const sf = this.saveFormat
+      const promptPrefix = promptNode.inputs['filename_prefix']
       let absPath: string = comfyts.resolveFromOutput(
-         join(sf?.prefix ?? comfyImageInfo.subfolder, comfyImageInfo.filename),
+         localOutputPath({
+            localDir: sf?.prefix,
+            filenamePrefix: typeof promptPrefix === 'string' ? promptPrefix : undefined,
+            subfolder: comfyImageInfo.subfolder,
+            filename: comfyImageInfo.filename,
+            timestamp: runTimestamp(new Date(this.startedAt)),
+         }),
       )
       if (sf?.format && sf.format !== 'raw') {
          const extension = sf.format.split('/')[1]
          absPath += '.' + extension
+      }
+      // last-resort uniquifier (same second, same stem, same counter): bump,
+      // never overwrite
+      if (existsSync(absPath)) {
+         const dot = absPath.lastIndexOf('.')
+         const stem = dot === -1 ? absPath : absPath.slice(0, dot)
+         const ext = dot === -1 ? '' : absPath.slice(dot)
+         for (let n = 2; existsSync(absPath); n++) absPath = `${stem}-${n}${ext}`
       }
       const dir = dirname(absPath)
       mkdirSync(dir, { recursive: true })

@@ -57,7 +57,15 @@ src/host/                  per-server connection layer
    loraManagerApi.ts       ComfyUI-Lora-Manager extension client (list + previews)
 src/runner/                execution
    ComfyWorkflow.ts        live graph, prompt JSON emission, POST /prompt, progress
-   ComfyExecution.ts          one execution: done promise (success AND failure), images + imageErrors
+   ComfyExecution.ts          one execution: done promise (success AND failure), images + imageErrors.
+                           LOCAL OUTPUT NAMING (his repro 2026-07-31, pure
+                           outputPath.ts): never the raw server filename — a
+                           cloud host resets its _00001_ counter per run, so
+                           it overwrote the same local file. Dir intent from
+                           the prompt's own filename_prefix (`foo/krea/` IS
+                           the directory foo/krea/), saveFormat.prefix as
+                           explicit override, name = stem_timestamp_counter,
+                           exists-bump as last resort: never overwrite.
    ComfyWsApi.ts           arktype schemas of every ws message
    wsBinaryFrame.ts        pure parser for BINARY ws frames (1 preview,
                            3 text, 4 preview+metadata — the cloud sends 4;
