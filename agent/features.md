@@ -94,9 +94,20 @@ previews during a run, last output after, selected-lora previews via the
 optional ComfyUI-Lora-Manager extension, cached + content-type-guarded), ⌃R
 runs from any mode, `o` opens the last output in the OS viewer.
 
+`bunx comfy-ts serve [module|dir]` → drafts as a local HTTP generation API:
+`POST /generate/<module>/<draft>` (or `/generate/<draft>` when unambiguous)
+with `{ ...vars }` overriding the draft's values, blocking response with
+output urls (or raw image bytes under `Accept: image/*`); `GET /drafts`
+self-describes every var (kind, allowed values, ranges, defaults) so a
+frontend can build a form; `GET /outputs/…` serves the results. Draft files
+are read live (tweak in the TUI while serving) and never written. Binds
+127.0.0.1:8288 by default. Full contract: agent/architecture.md item 12.
+
 - ✅ gen / outline / tui (tui look & feel not yet signed off by a human playtest)
+- ✅ serve (drafts over HTTP, Rémi's GO 2026-07-31)
 
 ## Non-goals
 
-- no UI (CushyStudio's job), no server, no LLM calls.
+- no UI (CushyStudio's job), no LLM calls. `comfy-ts serve` is a thin LOCAL
+  bridge over drafts — no auth, no multi-tenant, no hosted product.
 - no support matrix beyond ComfyUI's own API surface.

@@ -81,11 +81,21 @@ describe('imageClipboardCommand (pure): platform command for copying image PIXEL
       expect(c?.args).toContain('/tmp/out.png')
    })
 
-   it('win32: powershell Clipboard.SetImage', async () => {
+   it('win32: powershell Clipboard.SetImage, single-quoted so $ and backtick stay literal', async () => {
       const { imageClipboardCommand } = await import('src/cli/tui/imageClipboard.ts')
-      const c = imageClipboardCommand('win32', 'C:\\out.png')
+      const c = imageClipboardCommand('win32', "C:\\out$dir\\o'ut.png")
       expect(c?.cmd).toBe('powershell')
-      expect(c?.args.join(' ')).toContain('SetImage')
+      const script = c?.args.join(' ') ?? ''
+      expect(script).toContain('SetImage')
+      // single-quoted PS string, inner quotes doubled — never a double-quoted
+      // interpolating string (reviewer catch: $ and ` in user paths)
+      expect(script).toContain("'C:\\out$dir\\o''ut.png'")
+      expect(script).not.toContain('"C:')
+   })
+
+   it('darwin: non-png/jpeg returns null — tagging raw webp bytes as PNGf would paste garbage with a green popup', async () => {
+      const { imageClipboardCommand } = await import('src/cli/tui/imageClipboard.ts')
+      expect(imageClipboardCommand('darwin', '/tmp/out.webp')).toBeNull()
    })
 })
 

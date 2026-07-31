@@ -144,6 +144,15 @@ src/cli/tui/               ink+mobx TUI, per build/app-state-tree doctrine:
                            packaged-dir walk lives in src/exampleAssets.ts)
    run-tui.tsx             entry: discovery, resilient first load, keyboard
                            protocols, mount, dispose
+src/cli/serve/             `comfy-ts serve`: drafts as a local HTTP generation
+                           API (see "serve" item 12 below; plain classes, no
+                           mobx — not a UI):
+   run-serve.ts            entry: arg parse, discovery, module import, startup
+                           print, node:http wiring
+   ServeApp.ts             route table + request handling (transport-free
+                           `handle()` — headless-tested with an injected runner)
+   describeVar.ts          PURE var → JSON descriptor (+ console rendering)
+   applyVarPayload.ts      PURE payload value → var, per kind, error|null
 src/litegraph/             ComfyUI saved-workflow JSON format, 3 layers (see
                            "Workflow import pipeline" below):
    LiteGraph*.ts           TOLERANT wire schemas (arktype + IsEqual TS mirror):
@@ -484,6 +493,58 @@ tests/                     bun tests (headless) + fixtures
    `{ "favorites": ["/abs/dir", …], "recents": ["/abs/img.png", …],
    "lastFolder": "/abs/dir" }` — recents most-recent-first, deduped, capped
    at 20; a corrupt file logs and starts fresh, never blocks the TUI.
+
+12. serve (`src/cli/serve/`, Rémi's GO 2026-07-31): drafts become a LOCAL HTTP
+   generation API — hand-tune in the TUI, then `comfy-ts serve` makes every
+   draft callable by any frontend/curl/service. Same bun-hop as `tui` (imports
+   `.cflow.ts` modules).
+   DISCOVERY: `comfy-ts serve [dir | module.cflow.ts]` — explicit file serves
+   that module only; dir/no-arg scans `**/*.cflow.ts` (scanCflowFiles) WITHOUT
+   the bundled examples (deliberate deviation from tui discovery: serve is for
+   the user's tuned drafts, ~50 example routes would be noise). All modules
+   import at startup; a failing module prints loud, is skipped, and stays
+   listed under `loadErrors` in the index JSON — the server starts with the
+   rest.
+   ROUTES (draft names may hold spaces → URL-encoded, decoded per segment):
+   - `POST /generate/<module>/<draft>` — canonical. `<module>` is the module
+     basename (draftKeyForFile), `<draft>` a draft json under
+     `.comfy-ts/drafts/<module>/` OR the implicit `default` (spec defaults,
+     no file needed). Body `{ ...vars }`, all keys optional — draft values
+     are the defaults, payload overrides. Unknown var name or invalid value
+     → 400 echoing the allowed names/values, nothing queued.
+   - `POST /generate/<draft>` — unqualified alias (his sketched shape):
+     resolves when serving a single module or when exactly one module has
+     that draft; ambiguous → 400 listing the qualified routes.
+   - `GET /` and `GET /drafts` — machine-readable index: modules, drafts,
+     var descriptors (describeVar: kind, label, default, choices/options/
+     range/presets). `GET /drafts/<module>/<draft>` adds that draft's values.
+     The STARTUP PRINT renders the same descriptors — one introspection pass,
+     two views.
+   - `GET /outputs/<path>` — static file serving from `comfyts.outputPath`
+     (resolved-path prefix check, no traversal).
+   REQUEST FLOW (per-module promise-chain MUTEX — vars are shared mutable
+   state, two concurrent POSTs must not stomp each other): reset all vars →
+   load draft json fresh from disk (live: TUI edits between requests are
+   picked up; serve NEVER writes draft files) → applyVarPayload overrides →
+   seed policy → `build({advance:true})` + `start()` under the mutex, then
+   RELEASE and await `execution.done` outside it (Comfy queues server-side;
+   waiting concurrently is safe).
+   SEED POLICY per (module, draft), in-memory: explicit payload seed wins
+   (fixed for that request); mode `?` rerolls per request; `+`/`-` continue
+   from the last SERVED value (draft value on the first request); `=` uses
+   the draft value.
+   IMAGE VARS: payload string is a local path (must exist → else 400) or an
+   http(s) url — downloaded to `outputs/serve-inputs/` and the var gets that
+   path. Empty/unset image var fails as 400 via ImageVarEmptyError, before
+   anything is queued.
+   RESPONSE: blocking. JSON `{ ok, module, draft, promptId, durationMs,
+   seeds: { <var>: number }, images: [{ filename, url (/outputs/…),
+   absPath }] }`; execution Failure → 500 with
+   the error payload; `Accept: image/*` returns the FIRST image's bytes
+   directly (so `<img src>` / curl -o work). Progress streaming is NOT v1.
+   EXPOSURE: binds 127.0.0.1:8288 by default; `--bind`/`--port` override,
+   non-loopback bind prints a loud warning (a generation API is remote code
+   paths on the GPU box). No auth in v1.
 
 ## Workflow import pipeline (litegraph → canonical → prompt)
 

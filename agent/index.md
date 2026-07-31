@@ -35,6 +35,7 @@ plan and runs only the checks.
 - `bun run templates:check` — compat sweep of that corpus against our litegraph
   schemas; the failure ranking is the format-grind worklist
 - `bun run tui` opens the TUI over `**/*.cflow.ts` under cwd (tweak & re-run)
+- `bun run serve` exposes drafts as a local HTTP API (`POST /generate/<module>/<draft>`)
 - `bun run hooks:install` activates the banned-keywords commit guard (`.githooks/`)
 - examples in `examples/` are `*.cflow.ts` workflow modules: they import offline
   from the schema cache, connect to a live ComfyUI host on first run

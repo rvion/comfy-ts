@@ -228,6 +228,12 @@ export class SeedVar extends ComfyVar<number> {
    override afterRun(): void {
       this.advance()
    }
+   /** mode is part of the seed's state: a reset must not keep a caller's `?`/`+` alive
+    * ('=' is the construction default; drafts restore their own mode via loadJSON) */
+   override reset(): this {
+      this.setMode('=')
+      return super.reset()
+   }
    /** parse `+` `- 12` `= 5` `?` or a bare number (=> fixed). Keeps the current number when none given */
    parse(raw: string): boolean {
       const m = raw.trim().match(/^([+\-=?])?\s*(\d+)?$/)
@@ -603,11 +609,13 @@ export const v = {
 export type AnyVar = {
    readonly kind: VarKind
    readonly value: unknown
+   readonly defaultValue: unknown
    readonly label?: string
    /** the vars-spec key — DefinedWorkflow writes it at define time */
    name?: string
    parse(raw: string): boolean
    loadJSON(value: unknown): unknown
+   reset(): unknown
    toJSON(): unknown
    outValue(): unknown
    display(): string

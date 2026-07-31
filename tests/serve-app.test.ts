@@ -1,0 +1,279 @@
+import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { createServer } from 'node:http'
+import { tmpdir } from 'node:os'
+import { join } from 'pathe'
+import { makeRequestListener } from 'src/cli/serve/run-serve.ts'
+import { ServeApp, type ServeExecution, type ServeModule, type ServeStarter } from 'src/cli/serve/ServeApp.ts'
+import { draftsDirForFile } from 'src/cli/tui/state/DraftsSt.ts'
+import { ComfyTS } from 'src/state.ts'
+import { v } from 'src/vars/ComfyVars.ts'
+
+// the global registration is process-wide state: this file owns ONE temp-root
+// instance (ServeApp resolves drafts + outputs through it), restored after
+const globalHack = globalThis as { comfyts?: ComfyTS }
+let prior: ComfyTS | undefined
+let root: string
+let comfy: ComfyTS
+
+beforeAll(() => {
+   prior = globalHack.comfyts
+   Reflect.deleteProperty(globalThis, 'comfyts')
+   root = mkdtempSync(join(tmpdir(), 'comfy-ts-serve-'))
+   comfy = ComfyTS.create({ rootPath: root })
+})
+afterAll(() => {
+   if (prior != null) globalHack.comfyts = prior
+   else Reflect.deleteProperty(globalThis, 'comfyts')
+})
+
+function fakeExecution(p: { id?: string; status?: string; images?: string[]; error?: unknown } = {}): ServeExecution {
+   return {
+      done: Promise.resolve(null),
+      status: p.status ?? 'Success',
+      images: (p.images ?? []).map((absPath) => ({ absPath, filename: absPath.split('/').pop() ?? absPath })),
+      data: { id: p.id ?? 'prompt-1', error: p.error },
+   }
+}
+
+/** a served module over throwaway vars; the starter is injected per test */
+function makeModule(key: string): ServeModule {
+   const host = comfy.host({ id: `serve-test-host`, host: '127.0.0.1', port: 65500 })
+   const dw = host.defineWorkflow({
+      id: key,
+      vars: {
+         prompt: v.text('default prompt'),
+         seed: v.seed(7),
+         steps: v.int(8, { min: 1, max: 40 }),
+         sampler: v.choice(['euler', 'ddim'] as const, 'euler'),
+         source: v.image(''),
+      },
+      build: () => {},
+   })
+   return { key, file: `/fake/${key}.cflow.ts`, dw }
+}
+
+/** snapshot what the starter saw (the values the graph would be built from) */
+function snapshottingStarter(seen: Record<string, unknown>[], exec?: () => ServeExecution): ServeStarter {
+   return (mod) => {
+      seen.push(Object.fromEntries(mod.dw.entries().map(([k, varDef]) => [k, varDef.toJSON()])))
+      return Promise.resolve(exec?.() ?? fakeExecution())
+   }
+}
+
+async function post(app: ServeApp, path: string, body?: unknown, accept?: string) {
+   return app.handle({ method: 'POST', url: path, body: body == null ? '' : JSON.stringify(body), accept })
+}
+
+function parse(reply: { body: string | Uint8Array }): Record<string, unknown> {
+   return JSON.parse(typeof reply.body === 'string' ? reply.body : new TextDecoder().decode(reply.body))
+}
+
+describe('ServeApp routing + introspection', () => {
+   it('GET / and /drafts self-describe modules, drafts, vars', async () => {
+      const mod = makeModule('wf-index')
+      const app = new ServeApp([mod], { outputRoot: join(root, 'out') })
+      const reply = await app.handle({ method: 'GET', url: '/drafts' })
+      expect(reply.status).toBe(200)
+      const body = parse(reply)
+      const wf = (body.workflows as Record<string, unknown>[])[0]!
+      expect(wf.module).toBe('wf-index')
+      expect(wf.drafts).toEqual(['default'])
+      const vars = wf.vars as Record<string, { kind: string; choices?: string[] }>
+      expect(vars.sampler?.choices).toEqual(['euler', 'ddim'])
+      expect(vars.seed?.kind).toBe('seed')
+   })
+
+   it('GET /drafts/<module>/<draft> merges stored values; unknown → 404', async () => {
+      const mod = makeModule('wf-detail')
+      mkdirSync(draftsDirForFile(mod.file), { recursive: true })
+      writeFileSync(join(draftsDirForFile(mod.file), 'tuned.json'), JSON.stringify({ prompt: 'tuned!' }))
+      const app = new ServeApp([mod], { outputRoot: join(root, 'out') })
+      const body = parse(await app.handle({ method: 'GET', url: '/drafts/wf-detail/tuned' }))
+      expect((body.values as Record<string, unknown>).prompt).toBe('tuned!')
+      expect((await app.handle({ method: 'GET', url: '/drafts/wf-detail/nope' })).status).toBe(404)
+      expect((await app.handle({ method: 'GET', url: '/drafts/ghost/default' })).status).toBe(404)
+   })
+
+   it('unqualified /generate/<draft> resolves when unique, 400s when ambiguous', async () => {
+      const a = makeModule('wf-amb-a')
+      const b = makeModule('wf-amb-b')
+      for (const m of [a, b]) mkdirSync(draftsDirForFile(m.file), { recursive: true })
+      writeFileSync(join(draftsDirForFile(a.file), 'only-a.json'), '{}')
+      writeFileSync(join(draftsDirForFile(a.file), 'both.json'), '{}')
+      writeFileSync(join(draftsDirForFile(b.file), 'both.json'), '{}')
+      const seen: Record<string, unknown>[] = []
+      const app = new ServeApp([a, b], { starter: snapshottingStarter(seen), outputRoot: join(root, 'out') })
+      expect((await post(app, '/generate/only-a')).status).toBe(200)
+      const amb = await post(app, '/generate/both')
+      expect(amb.status).toBe(400)
+      expect(parse(amb).error).toContain('/generate/wf-amb-a/both')
+      expect((await post(app, '/generate/ghost-draft')).status).toBe(404)
+   })
+})
+
+describe('ServeApp generate', () => {
+   it('draft values are the defaults, payload overrides, run sees the merge', async () => {
+      const mod = makeModule('wf-gen')
+      mkdirSync(draftsDirForFile(mod.file), { recursive: true })
+      writeFileSync(join(draftsDirForFile(mod.file), 'tuned.json'), JSON.stringify({ prompt: 'from draft', steps: 12 }))
+      const seen: Record<string, unknown>[] = []
+      const app = new ServeApp([mod], { starter: snapshottingStarter(seen), outputRoot: join(root, 'out') })
+      const reply = await post(app, '/generate/wf-gen/tuned', { steps: 33 })
+      expect(reply.status).toBe(200)
+      expect(seen[0]).toMatchObject({ prompt: 'from draft', steps: 33 })
+      const body = parse(reply)
+      expect(body.ok).toBe(true)
+      expect(body.promptId).toBe('prompt-1')
+      // draft NOT hit by the previous request's payload: fresh reload each time
+      await post(app, '/generate/wf-gen/tuned')
+      expect(seen[1]).toMatchObject({ prompt: 'from draft', steps: 12 })
+   })
+
+   it('unknown var and invalid values 400 without starting anything', async () => {
+      const mod = makeModule('wf-400')
+      const seen: Record<string, unknown>[] = []
+      const app = new ServeApp([mod], { starter: snapshottingStarter(seen), outputRoot: join(root, 'out') })
+      const unknown = await post(app, '/generate/wf-400/default', { nope: 1 })
+      expect(unknown.status).toBe(400)
+      expect(parse(unknown).error).toContain("unknown var 'nope'")
+      const badChoice = await post(app, '/generate/wf-400/default', { sampler: 'dpmpp' })
+      expect(badChoice.status).toBe(400)
+      const badImage = await post(app, '/generate/wf-400/default', { source: '/definitely/not/here.png' })
+      expect(badImage.status).toBe(400)
+      expect(parse(badImage).error).toContain('file not found')
+      const badBody = await app.handle({ method: 'POST', url: '/generate/wf-400/default', body: '[1,2]' })
+      expect(badBody.status).toBe(400)
+      expect(seen.length).toBe(0)
+   })
+
+   it("seed policy: '+' continues across requests, '?' rerolls, explicit payload wins", async () => {
+      const mod = makeModule('wf-seed')
+      mkdirSync(draftsDirForFile(mod.file), { recursive: true })
+      writeFileSync(join(draftsDirForFile(mod.file), 'inc.json'), JSON.stringify({ seed: { mode: '+', value: 100 } }))
+      const seen: Record<string, unknown>[] = []
+      const app = new ServeApp([mod], { starter: snapshottingStarter(seen), outputRoot: join(root, 'out') })
+      const r1 = parse(await post(app, '/generate/wf-seed/inc'))
+      const r2 = parse(await post(app, '/generate/wf-seed/inc'))
+      expect((r1.seeds as Record<string, number>).seed).toBe(100)
+      expect((r2.seeds as Record<string, number>).seed).toBe(101)
+      const r3 = parse(await post(app, '/generate/wf-seed/inc', { seed: 55 }))
+      expect((r3.seeds as Record<string, number>).seed).toBe(55)
+      const r4 = parse(await post(app, '/generate/wf-seed/inc'))
+      expect((r4.seeds as Record<string, number>).seed).toBe(56)
+   })
+
+   it("reviewer's repro: a payload seed mode must NOT leak into the next request", async () => {
+      const mod = makeModule('wf-seed-leak')
+      const seen: Record<string, unknown>[] = []
+      const app = new ServeApp([mod], { starter: snapshottingStarter(seen), outputRoot: join(root, 'out') })
+      // request 1 asks for reroll mode; the default draft has mode '=' value 7
+      await post(app, '/generate/wf-seed-leak/default', { seed: { mode: '?' } })
+      // request 2 sends NO seed: it must get the draft's fixed 7, not a reroll
+      const r2 = parse(await post(app, '/generate/wf-seed-leak/default'))
+      expect((r2.seeds as Record<string, number>).seed).toBe(7)
+      expect((seen[1] as { seed: { mode: string } }).seed.mode).toBe('=')
+   })
+
+   it('concurrent posts on one module never interleave var state (mutex)', async () => {
+      const mod = makeModule('wf-mutex')
+      let inFlight = 0
+      let maxInFlight = 0
+      const seen: Record<string, unknown>[] = []
+      const starter: ServeStarter = async (m) => {
+         inFlight++
+         maxInFlight = Math.max(maxInFlight, inFlight)
+         await new Promise((r) => setTimeout(r, 15))
+         seen.push(Object.fromEntries(m.dw.entries().map(([k, varDef]) => [k, varDef.toJSON()])))
+         inFlight--
+         return fakeExecution()
+      }
+      const app = new ServeApp([mod], { starter, outputRoot: join(root, 'out') })
+      const [a, b] = await Promise.all([
+         post(app, '/generate/wf-mutex/default', { prompt: 'first' }),
+         post(app, '/generate/wf-mutex/default', { prompt: 'second' }),
+      ])
+      expect(a.status).toBe(200)
+      expect(b.status).toBe(200)
+      expect(maxInFlight).toBe(1)
+      expect(seen.map((s) => s.prompt).sort()).toEqual(['first', 'second'])
+   })
+
+   it('execution Failure → 500 with the error payload', async () => {
+      const mod = makeModule('wf-fail')
+      const app = new ServeApp([mod], {
+         starter: () => Promise.resolve(fakeExecution({ status: 'Failure', error: { node: '3', reason: 'OOM' } })),
+         outputRoot: join(root, 'out'),
+      })
+      const reply = await post(app, '/generate/wf-fail/default')
+      expect(reply.status).toBe(500)
+      expect(parse(reply).error).toMatchObject({ reason: 'OOM' })
+   })
+
+   it('images map to /outputs urls; Accept: image/* returns the raw bytes', async () => {
+      const outputRoot = join(root, 'out')
+      const imgAbs = join(outputRoot, 'sub dir', 'result.png')
+      mkdirSync(join(outputRoot, 'sub dir'), { recursive: true })
+      const bytes = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10])
+      writeFileSync(imgAbs, bytes)
+      const mod = makeModule('wf-img')
+      const app = new ServeApp([mod], {
+         starter: () => Promise.resolve(fakeExecution({ images: [imgAbs] })),
+         outputRoot,
+      })
+      const body = parse(await post(app, '/generate/wf-img/default'))
+      const img = (body.images as { url: string }[])[0]!
+      expect(img.url).toBe('/outputs/sub%20dir/result.png')
+      // the url round-trips through the static route
+      const fetched = await app.handle({ method: 'GET', url: img.url })
+      expect(fetched.status).toBe(200)
+      expect(fetched.contentType).toBe('image/png')
+      expect(fetched.body).toEqual(bytes)
+      // Accept: image/* short-circuits to the first image's bytes
+      const raw = await post(app, '/generate/wf-img/default', undefined, 'image/*')
+      expect(raw.contentType).toBe('image/png')
+      expect(raw.body).toEqual(bytes)
+   })
+
+   it('outputs route refuses path traversal', async () => {
+      const mod = makeModule('wf-trav')
+      const app = new ServeApp([mod], { outputRoot: join(root, 'out') })
+      const reply = await app.handle({ method: 'GET', url: '/outputs/../../etc/passwd' })
+      expect(reply.status).toBe(400)
+      expect(parse(reply).error).toContain('escapes')
+      // the outputs ROOT itself is a directory, not a servable file
+      expect((await app.handle({ method: 'GET', url: '/outputs/' })).status).toBe(404)
+      // malformed percent-escapes are a client error, not a crash
+      expect((await app.handle({ method: 'GET', url: '/outputs/%ZZ' })).status).toBe(400)
+   })
+})
+
+describe('http layer (makeRequestListener over a real socket)', () => {
+   it('serves the index, answers OPTIONS with CORS, 413s an oversized body', async () => {
+      const mod = makeModule('wf-http')
+      const app = new ServeApp([mod], { outputRoot: join(root, 'out') })
+      const server = createServer(makeRequestListener(app))
+      await new Promise<void>((r) => server.listen(0, '127.0.0.1', r))
+      const addr = server.address()
+      if (addr == null || typeof addr === 'string') throw new Error('no port')
+      const base = `http://127.0.0.1:${addr.port}`
+      try {
+         const index = await fetch(`${base}/drafts`)
+         expect(index.status).toBe(200)
+         expect(index.headers.get('access-control-allow-origin')).toBe('*')
+         const preflight = await fetch(`${base}/generate/x`, { method: 'OPTIONS' })
+         expect(preflight.status).toBe(204)
+         expect(preflight.headers.get('access-control-allow-methods')).toContain('POST')
+         // reviewer's repro: the old overflow path destroyed the socket without answering
+         const big = await fetch(`${base}/generate/wf-http/default`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: `{"prompt":"${'x'.repeat(11_000_000)}"}`,
+         })
+         expect(big.status).toBe(413)
+         expect(((await big.json()) as { error: string }).error).toContain('too large')
+      } finally {
+         await new Promise((r) => server.close(r))
+      }
+   })
+})

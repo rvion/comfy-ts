@@ -52,6 +52,10 @@ New dep = a decision. First ask: can ~20 lines of current code do it?
   8. stdout.write monkey-patch in the TUI protocol-image painter: the wrapper
      reimplements the exact overload set, then is cast to
      `typeof process.stdout.write` (`src/cli/tui/protocolImagePainter.ts`).
+  9. serve payload validation: after every entry of a POST body value is
+     runtime-checked (`isLoraStrength`, key ∈ options), the record is claimed
+     as the var's value type (`src/cli/serve/applyVarPayload.ts`) — same
+     wire-tolerance family as 4, but the check is COMPLETE, not soft.
 - Known violations to burn down (documented, do NOT replicate): scattered `as any` in
   `ComfyNode._convertPromptExtToPrompt` / dynamic outputs wiring; `softValidate`/`bong`
   returning lying casts on failure (both documented at the definition);

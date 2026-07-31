@@ -85,7 +85,8 @@
       "release": "bun scripts/release.ts",
       "release:dry": "bun scripts/release.ts --dry-run",
       "prepublishOnly": "bun run ci && bun run build",
-      "tui": "bun src/cli/comfy-ts-cli.ts tui"
+      "tui": "bun src/cli/comfy-ts-cli.ts tui",
+      "serve": "bun src/cli/comfy-ts-cli.ts serve"
    },
    "rvt": {
       "skip": [

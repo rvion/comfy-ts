@@ -83,3 +83,39 @@ describe('localOutputPath (pure): dir intent + timestamp, never the raw server n
       expect(run('20260731-154210')).not.toBe(run('20260731-154299'))
    })
 })
+
+describe('reviewer catches', () => {
+   it('sf.prefix override keeps the workflow stem — identity survives the dir move', () => {
+      expect(
+         localOutputPath({
+            localDir: 'my/place',
+            filenamePrefix: 'foo/krea/',
+            subfolder: 'foo',
+            filename: 'krea_00001_.png',
+            timestamp: T,
+         }),
+      ).toBe('my/place/20260731-154210_00001.png')
+      expect(
+         localOutputPath({
+            localDir: 'my/place',
+            filenamePrefix: 'foo/krea',
+            subfolder: 'foo',
+            filename: 'krea_00001_.png',
+            timestamp: T,
+         }),
+      ).toBe('my/place/krea_20260731-154210_00001.png')
+   })
+
+   it('uniquifyOutputPath: claimed-but-unwritten paths bump too (same-second concurrent runs)', async () => {
+      const { uniquifyOutputPath } = await import('src/runner/outputPath.ts')
+      const claimed = new Set<string>()
+      const a = uniquifyOutputPath({ path: '/o/x_1.png', exists: () => false, claimed })
+      const b = uniquifyOutputPath({ path: '/o/x_1.png', exists: () => false, claimed })
+      const c = uniquifyOutputPath({ path: '/o/x_1.png', exists: () => false, claimed })
+      expect(a).toBe('/o/x_1.png')
+      expect(b).toBe('/o/x_1-2.png')
+      expect(c).toBe('/o/x_1-3.png')
+      const d = uniquifyOutputPath({ path: '/o/y.png', exists: (s) => s === '/o/y.png', claimed })
+      expect(d).toBe('/o/y-2.png')
+   })
+})

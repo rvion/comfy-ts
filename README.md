@@ -309,10 +309,35 @@ bunx comfy-ts gen --id my-gpu --host http://127.0.0.1:8188
 bunx comfy-ts outline              # what's inside that 2MB sdk.d.ts?
 bunx comfy-ts tui                  # your *.cflow.ts + bundled examples
 bunx comfy-ts tui [dir | module]   # scan just that
+bunx comfy-ts serve [dir | module] # drafts as a local HTTP API (below)
 ```
 
 Any reachable host: the box under your desk or a GPU machine across the
 network, same command, same output.
+
+## 🌐 Serve: drafts as an HTTP API
+
+Hand-tune a draft in the TUI, then make it callable by anything that speaks
+HTTP — a web frontend, curl, n8n, another service:
+
+```bash
+bunx comfy-ts serve                # every *.cflow.ts under cwd, port 8288
+```
+
+```bash
+curl -X POST http://127.0.0.1:8288/generate/txt2img/default \
+  -H 'content-type: application/json' \
+  -d '{"prompt": "a red cube", "steps": 8}'
+# → { "ok": true, "images": [{ "url": "/outputs/…png", … }], "seeds": … }
+```
+
+Draft values are the defaults, the JSON body overrides per request, and every
+value is validated before anything is queued (wrong choice? the 400 lists the
+allowed ones). `GET /drafts` self-describes every workflow, draft and var —
+enough for a frontend to render a form. `Accept: image/*` returns the image
+bytes directly (`curl … -H 'accept: image/*' -o out.png`). Drafts are
+re-read on every request: keep the TUI open, tweak, next call uses the new
+values. Binds to localhost only unless you say otherwise (`--bind`, `--port`).
 
 ## 🌍 Hosts: local, LAN, Comfy Cloud, any provider
 

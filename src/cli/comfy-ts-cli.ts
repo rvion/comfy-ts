@@ -22,6 +22,12 @@ Usage:
          host.defineWorkflow(...)); no arg scans cwd + the examples bundled
          with comfy-ts, an explicit dir/file limits to it (file preselected)
 
+   comfy-ts serve [dir | workflow-module.ts] [--port 8288] [--bind 127.0.0.1]
+         drafts as a local HTTP generation API: POST /generate/<module>/<draft>
+         with { ...vars } overriding the draft's values (blocking; raw image
+         bytes under Accept: image/*), GET /drafts self-describes every var,
+         GET /outputs/... serves the results. No bundled examples, no auth.
+
    comfy-ts help
 `
 
@@ -29,18 +35,22 @@ async function main(): Promise<number> {
    const [cmd, ...rest] = process.argv.slice(2)
    if (cmd === 'gen') return runGen(rest)
    if (cmd === 'outline') return runOutline(rest)
-   if (cmd === 'tui') {
+   if (cmd === 'tui' || cmd === 'serve') {
       // .cflow.ts workflow modules need bun: node refuses to strip types under
       // node_modules, exactly where the packaged examples live — and the bin's
-      // node shebang means `bunx comfy-ts tui` lands here under NODE. Hop to
-      // bun when we are not already in it; without bun, runTui degrades loudly.
+      // node shebang means `bunx comfy-ts tui|serve` lands here under NODE. Hop
+      // to bun when we are not already in it; without bun, degrade loudly.
       if (process.versions.bun == null) {
          const self = fileURLToPath(import.meta.url)
-         const res = spawnSync('bun', [self, 'tui', ...rest], { stdio: 'inherit' })
+         const res = spawnSync('bun', [self, cmd, ...rest], { stdio: 'inherit' })
          if (res.error == null) return res.status ?? 1
          console.error(
-            `[comfy-ts tui] bun not found (${res.error.message}) — continuing under node: the examples packaged in node_modules cannot load here, and your own .cflow.ts modules rely on node's type stripping`,
+            `[comfy-ts ${cmd}] bun not found (${res.error.message}) — continuing under node: the examples packaged in node_modules cannot load here, and your own .cflow.ts modules rely on node's type stripping`,
          )
+      }
+      if (cmd === 'serve') {
+         const { runServe } = await import('src/cli/serve/run-serve.ts')
+         return runServe(rest)
       }
       // lazy import: keeps ink/react out of the codegen paths
       const { runTui } = await import('src/cli/tui/run-tui.tsx')
