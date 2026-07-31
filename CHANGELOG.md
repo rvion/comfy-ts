@@ -1,5 +1,10 @@
 # comfy-ts
 
+## Unreleased
+
+- **Re-encoded saves get one honest extension**: `save: { format: 'image/webp' }` now writes `shot_20260731-154210_00001.webp`. It used to append the new extension after the server's original one (`…_00001.png.webp`), which named the bytes twice and got the first name wrong.
+- **`host.latentPreview.url` is revoked when the next frame replaces it.** Every preview frame used to leak its blob into the object-url registry for the life of the process (one frame per sampler step). If you hold on to a url across frames, read the bytes or re-create the url from `latentPreview.blob`; `onLatentPreview` hands you the raw bytes and is unaffected.
+
 ## 2.1.0
 
 The TUI catches up with ephemeral outputs: saving is a visible choice, and memory-only runs are fully usable.

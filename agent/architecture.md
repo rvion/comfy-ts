@@ -59,7 +59,9 @@ src/runner/                execution
                            filename_prefix (`foo/krea/` IS the directory
                            foo/krea/), save.prefix as explicit override,
                            name = stem_timestamp_counter, exists-bump as last
-                           resort: never overwrite. Also home of the
+                           resort: never overwrite. A `save.format` re-encode
+                           REPLACES the extension (`…_00001.webp`), never
+                           appends one. Also home of the
                            SaveImageWebsocket output path (item 14):
                            onWsImageOutput turns correlated binary frames
                            into execution.images.

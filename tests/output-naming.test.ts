@@ -106,6 +106,18 @@ describe('reviewer catches', () => {
       ).toBe('my/place/krea_20260731-154210_00001.png')
    })
 
+   it('a re-encoded save REPLACES the extension: webp bytes are never named .png.webp', async () => {
+      const { withExtension } = await import('src/runner/outputPath.ts')
+      expect(withExtension('/out/foo/krea_20260731-154210_00001.png', 'webp')).toBe(
+         '/out/foo/krea_20260731-154210_00001.webp',
+      )
+      expect(withExtension('/out/foo/krea_20260731-154210_00001.png', 'jpeg')).toBe(
+         '/out/foo/krea_20260731-154210_00001.jpeg',
+      )
+      // a dot in a DIRECTORY must not be mistaken for the file's extension
+      expect(withExtension('/out/my.dir/shot', 'png')).toBe('/out/my.dir/shot.png')
+   })
+
    it('uniquifyOutputPath: claimed-but-unwritten paths bump too (same-second concurrent runs)', async () => {
       const { uniquifyOutputPath } = await import('src/runner/outputPath.ts')
       const claimed = new Set<string>()

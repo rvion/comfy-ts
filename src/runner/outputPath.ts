@@ -46,6 +46,17 @@ export const localOutputPath = (p: {
    return dir === '' ? name : `${dir}/${name}`
 }
 
+/** REPLACE the extension (never append one): a re-encoded save owns its whole
+ * name now that local naming is ours, so `save: {format:'image/webp'}` writes
+ * `shot_20260731-154210_00001.webp`, not `…_00001.png.webp` — appending
+ * described the bytes twice and the first description was a lie */
+export const withExtension = (path: string, ext: string): string => {
+   const slash = path.lastIndexOf('/')
+   const dot = path.lastIndexOf('.')
+   const stem = dot > slash ? path.slice(0, dot) : path
+   return `${stem}.${ext}`
+}
+
 /**
  * never-overwrite guard: bump `-2`, `-3`, … while the path exists on disk OR
  * was already CLAIMED by a still-downloading retrieval (two same-second runs

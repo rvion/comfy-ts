@@ -1,9 +1,5 @@
-import { localOutputPath, runTimestamp, uniquifyOutputPath } from 'src/runner/outputPath.ts'
-
-/** paths claimed by in-flight retrievals: two same-second runs on a
- * counter-resetting cloud host compute the same name before either writes */
-const CLAIMED_OUTPUT_PATHS = new Set<string>()
 import type { FormatEnum } from 'sharp'
+import { localOutputPath, runTimestamp, uniquifyOutputPath, withExtension } from 'src/runner/outputPath.ts'
 import type { ComfyHost } from 'src/host/ComfyHost.ts'
 import { getComfyStorage } from 'src/storage/ComfyStorage.ts'
 import { importSharp } from 'src/utils/lazySharp.ts'
@@ -25,6 +21,12 @@ import type {
    WsMsgExecutionSuccess,
 } from 'src/runner/ComfyWsApi.ts'
 import { MediaImage } from 'src/runner/MediaImage.ts'
+
+/** paths claimed by in-flight retrievals: two same-second runs on a
+ * counter-resetting cloud host compute the same name before either writes.
+ * A claim is released as soon as the write lands (the file itself then holds
+ * the name) or fails (the name is free again) — the set never accumulates */
+const CLAIMED_OUTPUT_PATHS = new Set<string>()
 
 export type ComfyExecutionData = {
    id: PromptID
@@ -303,12 +305,18 @@ export class ComfyExecution {
             timestamp: runTimestamp(new Date(this.startedAt)),
          }),
       )
-      if (reencode) absPath += '.' + bang(p.sf.format).split('/')[1]
+      if (reencode) absPath = withExtension(absPath, bang(bang(p.sf.format).split('/')[1]))
       // last-resort uniquifier: bump past files on disk AND paths claimed by
       // still-downloading retrievals — never overwrite
       const storage = getComfyStorage()
       absPath = uniquifyOutputPath({ path: absPath, exists: (x) => storage.exists(x), claimed: CLAIMED_OUTPUT_PATHS })
-      storage.writeBytes(asAbsolutePath(absPath), bytes)
+      try {
+         storage.writeBytes(asAbsolutePath(absPath), bytes)
+      } finally {
+         // the file (or the failure) now owns the name — holding the claim
+         // forever would grow the set for the whole life of a `serve` process
+         CLAIMED_OUTPUT_PATHS.delete(absPath)
+      }
       return { path: asAbsolutePath(absPath), bytes }
    }
 

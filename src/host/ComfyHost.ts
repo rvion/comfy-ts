@@ -764,7 +764,11 @@ export class ComfyHost<ID extends string = string> {
                const pending = this._pendingMsgs.get(this.activePromptID)
                if (pending != null) pending.push({ type: 'binary_preview_frame', bytes: frame.bytes, mime: frame.mime })
             }
-            // type 1 AND the cloud's type 4 (preview + metadata) feed the same hook
+            // type 1 AND the cloud's type 4 (preview + metadata) feed the same hook.
+            // The object url REGISTRY holds a strong ref to its blob until it is
+            // revoked (node and browsers alike), and a sampler emits one frame per
+            // step: revoke the outgoing one or a long session retains every latent
+            if (this.latentPreview != null) URL.revokeObjectURL(this.latentPreview.url)
             const imageBlob = new Blob([frame.bytes], { type: frame.mime })
             this.latentPreview = {
                blob: imageBlob,
