@@ -29,7 +29,9 @@ body {
 }
 .topbar h1 { font-size: 15px; margin: 0; font-weight: 600; }
 .topbar .dim { color: var(--dim); font-size: 12px; }
-.cols { display: flex; flex: 1; min-height: 0; }
+.burger { font-size: 16px; padding: 3px 10px; align-self: center; }
+.cols { display: flex; flex: 1; min-height: 0; position: relative; }
+.backdrop { display: none; }
 
 .sidebar {
    width: 240px; flex-shrink: 0; overflow-y: auto;
@@ -97,15 +99,26 @@ button.link { border: 0; background: none; color: var(--accent); padding: 0; }
 .run-card { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; }
 .run-card .meta { color: var(--dim); font-size: 12px; margin-bottom: 8px; }
 .run-card .imgs { display: flex; flex-wrap: wrap; gap: 10px; }
-.run-card img { max-width: 320px; max-height: 320px; border-radius: 6px; display: block; }
+.run-card img { max-width: min(320px, 100%); max-height: 320px; border-radius: 6px; display: block; }
 .run-card .noimg { color: var(--dim); font-style: italic; }
 
 .loras-box { border: 1px solid var(--border); border-radius: 6px; background: var(--panel); }
 .loras-box .search { padding: 6px; border-bottom: 1px solid var(--border); }
 .loras-box .search input { width: 100%; }
-.loras-list { max-height: 260px; overflow-y: auto; padding: 4px 0; }
+.loras-body { display: flex; align-items: stretch; }
+.loras-list { flex: 1; min-width: 0; max-height: 260px; overflow-y: auto; padding: 4px 0; }
 .lora-row { display: flex; gap: 8px; align-items: center; padding: 3px 10px; }
-.lora-row .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lora-row .name {
+   flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+   background: none; border: 0; color: inherit; font: inherit; text-align: left; padding: 0; cursor: pointer;
+}
+.lora-row .name:hover { color: var(--accent); }
+.lora-pane {
+   width: 210px; flex-shrink: 0; border-left: 1px solid var(--border);
+   padding: 8px; overflow-y: auto; max-height: 260px;
+}
+.lora-pane img { max-width: 100%; max-height: 170px; border-radius: 6px; display: block; }
+.lora-pane-name { font-size: 12px; margin-top: 6px; overflow-wrap: break-word; }
 .lora-row.active .name { color: var(--green); }
 .lora-row input[type='number'] { width: 64px; padding: 2px 6px; font-size: 12px; }
 .lora-row .st-label { color: var(--dim); font-size: 11px; }
@@ -116,4 +129,35 @@ button.link { border: 0; background: none; color: var(--accent); padding: 0; }
 
 .center { display: flex; height: 100%; align-items: center; justify-content: center; color: var(--dim); }
 .center .error { color: var(--red); max-width: 640px; white-space: pre-wrap; }
+
+/* results right of the form on wide screens ("bottom or right": right ≥1100px, bottom below) */
+@media (min-width: 1100px) {
+   .work { display: flex; gap: 18px; align-items: flex-start; }
+   .form-col { flex: 1; min-width: 0; }
+   .results-col { width: 380px; flex-shrink: 0; }
+   .results-col .gallery { margin-top: 0; }
+}
+
+/* the sidebar becomes a fixed drawer over a backdrop */
+@media (max-width: 800px) {
+   .sidebar {
+      position: fixed; top: 0; left: 0; bottom: 0; width: 264px; z-index: 30;
+      box-shadow: 4px 0 24px rgba(0, 0, 0, 0.5); padding-top: 12px;
+   }
+   .backdrop { display: block; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.5); z-index: 25; }
+   .side-draft { padding: 9px 12px 9px 26px; }
+}
+
+/* phone: label over control, 16px inputs (below that iOS zooms the page on focus) */
+@media (max-width: 640px) {
+   .main { padding: 12px 12px 60px; }
+   .var-row { grid-template-columns: 1fr; gap: 4px; }
+   .var-label { padding-top: 0; }
+   .var-label .kind { display: inline; margin-left: 6px; }
+   input[type='text'], input[type='number'], textarea, select { font-size: 16px; }
+   input[type='number'] { width: 96px; }
+   .runbar { flex-wrap: wrap; }
+   .loras-body { flex-direction: column; }
+   .lora-pane { width: auto; border-left: 0; border-top: 1px solid var(--border); max-height: 240px; }
+}
 `

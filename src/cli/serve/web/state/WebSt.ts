@@ -5,10 +5,10 @@ import { fetchDraftValues, fetchIndex, type ModuleDescription } from 'src/cli/se
 import { FormSt } from 'src/cli/serve/web/state/FormSt.ts'
 import { RunSt } from 'src/cli/serve/web/state/RunSt.ts'
 
-/** selection survives a reload (his standing default: hand-tuned state persists and restores) */
+/** selection + drawer survive a reload (his standing default: hand-tuned state persists and restores) */
 const STORAGE_KEY = 'comfy-ts-serve-ui'
 
-type StoredSelection = { module?: string; draft?: string }
+type StoredSelection = { module?: string; draft?: string; sidebar?: boolean }
 
 function readStoredSelection(): StoredSelection {
    try {
@@ -16,6 +16,10 @@ function readStoredSelection(): StoredSelection {
    } catch {
       return {}
    }
+}
+
+function isNarrowScreen(): boolean {
+   return window.matchMedia('(max-width: 800px)').matches
 }
 
 export class WebSt {
@@ -26,12 +30,35 @@ export class WebSt {
    form: FormSt | null = null
    formLoading = false
    formError: string | null = null
+   /** drawer on narrow screens, collapsible column on wide ones — stored toggle wins over the width default */
+   sidebarOpen: boolean
    run: RunSt
 
    constructor() {
       this.run = new RunSt()
+      this.sidebarOpen = readStoredSelection().sidebar ?? !isNarrowScreen()
       makeAutoObservable(this, { run: false, form: observableRef, modules: observableShallow })
       void this.boot()
+   }
+
+   toggleSidebar(): void {
+      this.sidebarOpen = !this.sidebarOpen
+      this.persist()
+   }
+
+   private persist(): void {
+      try {
+         localStorage.setItem(
+            STORAGE_KEY,
+            JSON.stringify({
+               module: this.form?.moduleKey,
+               draft: this.form?.draft,
+               sidebar: this.sidebarOpen,
+            }),
+         )
+      } catch {
+         // storage full/blocked: state just won't survive the reload
+      }
    }
 
    moduleByKey(key: string): ModuleDescription | null {
@@ -59,30 +86,34 @@ export class WebSt {
       }
    }
 
+   /** latest-wins guard for rapid draft clicks: only the newest select may write form state */
+   private selectToken = 0
+
    async select(p: { module: string; draft: string }): Promise<void> {
       const mod = this.moduleByKey(p.module)
       if (mod == null) return
+      const token = ++this.selectToken
       runInAction(() => {
          this.formLoading = true
          this.formError = null
+         // picking a draft is the drawer's exit on a phone
+         if (isNarrowScreen()) this.sidebarOpen = false
       })
-      try {
-         localStorage.setItem(STORAGE_KEY, JSON.stringify({ module: p.module, draft: p.draft }))
-      } catch {
-         // storage full/blocked: selection just won't survive the reload
-      }
       try {
          const reply = await fetchDraftValues(p)
          runInAction(() => {
+            if (token !== this.selectToken) return
             this.form = new FormSt(p.module, p.draft, mod, reply.values ?? {})
+            this.persist()
          })
       } catch (e) {
          runInAction(() => {
+            if (token !== this.selectToken) return
             this.formError = e instanceof Error ? e.message : String(e)
          })
       } finally {
          runInAction(() => {
-            this.formLoading = false
+            if (token === this.selectToken) this.formLoading = false
          })
       }
    }

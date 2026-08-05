@@ -53,6 +53,16 @@ export function postGenerate(p: {
    })
 }
 
+export type LoraInfo = { name: string; displayName: string; triggerWords: string[] }
+
+export function fetchLoraInfo(p: { host: string; name: string }): Promise<LoraInfo> {
+   return jsonFetch(`/lora-info/${encodeURIComponent(p.host)}/${encodeURIComponent(p.name)}`)
+}
+
+export function loraPreviewSrc(p: { host: string; name: string }): string {
+   return `/lora-preview/${encodeURIComponent(p.host)}/${encodeURIComponent(p.name)}`
+}
+
 export async function uploadFile(p: { file: File }): Promise<{ path: string; url: string | null }> {
    const bytes = new Uint8Array(await p.file.arrayBuffer())
    let bin = ''

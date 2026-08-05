@@ -43,6 +43,8 @@ export class VarSt {
 
 export class FormSt {
    vars: VarSt[]
+   /** the module's host id — lora hover data routes are host-scoped */
+   readonly host: string
 
    constructor(
       public readonly moduleKey: string,
@@ -50,10 +52,11 @@ export class FormSt {
       mod: ModuleDescription,
       values: Record<string, unknown>,
    ) {
+      this.host = mod.host
       this.vars = Object.entries(mod.vars).map(
          ([name, desc]) => new VarSt(name, desc, normalizeInitial(desc, values[name])),
       )
-      makeAutoObservable(this, { vars: false, moduleKey: false, draft: false })
+      makeAutoObservable(this, { vars: false, moduleKey: false, draft: false, host: false })
    }
 
    get dirtyCount(): number {

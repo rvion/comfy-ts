@@ -39,10 +39,22 @@ export function asSizeForm(raw: unknown): SizeFormValue {
    return { width: 1024, height: 1024 }
 }
 
-/** what a fresh VarSt starts from: the draft value when present, else the descriptor default — seed/size normalized so controls never branch on shape */
+/** drop record keys the host no longer offers: a stale draft entry is invisible in the
+ * option-driven list, and applyVarPayload rejects the whole record over it — the draft
+ * itself stays untouched, only what the form POSTS is pruned */
+export function pruneLorasRecord(raw: unknown, options: readonly string[]): Record<string, unknown> {
+   if (raw == null || typeof raw !== 'object' || Array.isArray(raw)) return {}
+   const known = new Set(options)
+   const out: Record<string, unknown> = {}
+   for (const [k, st] of Object.entries(raw as Record<string, unknown>)) if (known.has(k)) out[k] = st
+   return out
+}
+
+/** what a fresh VarSt starts from: the draft value when present, else the descriptor default — seed/size/loras normalized so controls never branch on shape */
 export function normalizeInitial(desc: VarDescriptor, raw: unknown): unknown {
    if (desc.kind === 'seed') return asSeedForm(raw ?? desc.default)
    if (desc.kind === 'size') return asSizeForm(raw ?? desc.default)
+   if (desc.kind === 'loras') return pruneLorasRecord(raw ?? desc.default, desc.options ?? [])
    return raw ?? desc.default
 }
 

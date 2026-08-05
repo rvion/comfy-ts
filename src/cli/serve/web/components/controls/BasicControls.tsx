@@ -70,8 +70,16 @@ export const ToggleControl = observer(function ToggleControl(p: { v: VarSt }) {
 
 export const ChoiceControl = observer(function ChoiceControl(p: { v: VarSt }) {
    const choices = p.v.desc.choices ?? []
+   const value = typeof p.v.value === 'string' ? p.v.value : ''
    return (
-      <select value={typeof p.v.value === 'string' ? p.v.value : ''} onChange={(e) => p.v.set(e.target.value)}>
+      <select value={value} onChange={(e) => p.v.set(e.target.value)}>
+         {/* honest display for a value outside the current union (stale draft): the
+             browser would silently SHOW the first option while the state differs */}
+         {choices.includes(value) ? null : (
+            <option value={value} disabled>
+               {value === '' ? '(unset)' : `${value} (not on this host)`}
+            </option>
+         )}
          {choices.map((c) => (
             <option key={c} value={c}>
                {c}

@@ -7,6 +7,14 @@ import { basename, dirname, extname, join, resolve } from 'pathe'
 import { applyVarPayload } from 'src/cli/serve/applyVarPayload.ts'
 import { describeVar, type VarDescriptor } from 'src/cli/serve/describeVar.ts'
 import { draftsDirForFile, listDraftsForFile } from 'src/cli/tui/state/DraftsSt.ts'
+import {
+   getLoraDisplayName,
+   getLoraPreviewUrl,
+   getLoraTriggerWords,
+   refreshLoraInfoCacheIfChanged,
+} from 'src/host/loraInfoCache.ts'
+import { fetchLoraList, fetchLoraPreviewBytes, loraKey, loraPreviewMapFrom } from 'src/host/loraManagerApi.ts'
+import type { ComfyHost } from 'src/host/ComfyHost.ts'
 import type { ImageVar, SeedVar } from 'src/vars/ComfyVars.ts'
 import type { DefinedWorkflow } from 'src/vars/DefinedWorkflow.ts'
 import { extractErrorMessage } from 'src/utils/extractErrorMessage.ts'
@@ -48,6 +56,15 @@ const CONTENT_TYPES: Record<string, string> = {
    '.txt': 'text/plain',
 }
 
+/** magic-byte sniff for the preview proxy — fetchLoraPreviewBytes already guarantees an image */
+function sniffImageContentType(bytes: Uint8Array): string {
+   if (bytes[0] === 0x89 && bytes[1] === 0x50) return 'image/png'
+   if (bytes[0] === 0xff && bytes[1] === 0xd8) return 'image/jpeg'
+   if (bytes[0] === 0x47 && bytes[1] === 0x49) return 'image/gif'
+   if (bytes[0] === 0x52 && bytes[1] === 0x49) return 'image/webp' // RIFF container
+   return 'application/octet-stream'
+}
+
 function json(status: number, payload: unknown): ServeReply {
    return { status, contentType: 'application/json', body: JSON.stringify(payload, null, 2) }
 }
@@ -59,6 +76,8 @@ const USAGE = [
    'POST /generate/<module>/<draft> with { ...vars } — run, blocking',
    'POST /generate/<draft> — unqualified, when unambiguous',
    'POST /upload with {"name","dataBase64"} — store a browser file for an image var',
+   'GET  /lora-info/<hostId>/<lora> — display name + trigger words (local mirror)',
+   'GET  /lora-preview/<hostId>/<lora> — preview image bytes',
    'GET  /outputs/<path> — generated files',
 ]
 
@@ -118,13 +137,22 @@ export class ServeApp {
             return json(400, { error: `bad url encoding: ${path}` })
          }
          if (req.method === 'GET') {
-            // a browser lands on the control panel; every other client keeps the json index
-            if (segs.length === 0 && this.opts.webJs != null && req.accept?.includes('text/html') === true)
-               return { status: 200, contentType: 'text/html; charset=utf-8', body: WEB_SHELL }
+            // a browser lands on the control panel; every other client keeps the json index.
+            // the bundle resolves BEFORE the shell ships: a shell whose /web/app.js 404s is
+            // a blank dark page, the json index is a usable answer
+            if (segs.length === 0 && this.opts.webJs != null && req.accept?.includes('text/html') === true) {
+               this.webJsCache ??= this.opts.webJs()
+               if ((await this.webJsCache) != null)
+                  return { status: 200, contentType: 'text/html; charset=utf-8', body: WEB_SHELL }
+            }
             if (segs.length === 0 || (segs[0] === 'drafts' && segs.length === 1)) return this.replyIndex()
             if (segs[0] === 'web' && segs[1] === 'app.js' && segs.length === 2) return await this.replyWebJs()
             if (segs[0] === 'drafts' && segs.length === 3 && segs[1] != null && segs[2] != null)
                return this.replyDraft(segs[1], segs[2])
+            if (segs[0] === 'lora-info' && segs.length === 3 && segs[1] != null && segs[2] != null)
+               return this.replyLoraInfo(segs[1], segs[2])
+            if (segs[0] === 'lora-preview' && segs.length === 3 && segs[1] != null && segs[2] != null)
+               return await this.replyLoraPreview(segs[1], segs[2])
             if (segs[0] === 'outputs') return this.replyOutput(segs.slice(1))
             return json(404, { error: `no route: GET ${path}`, usage: USAGE })
          }
@@ -277,6 +305,55 @@ export class ServeApp {
       writeFileSync(abs, bytes)
       console.log(`[serve] upload → ${abs} (${bytes.length} bytes)`)
       return json(200, { ok: true, path: abs, url: this.outputUrl(abs) })
+   }
+
+   // #region lora hover data ---------------------------------------------------
+   private hostById(hostId: string): ComfyHost | null {
+      return this.modules.map((m) => m.dw.host).find((h) => h.data.id === hostId) ?? null
+   }
+
+   private hostIds(): string {
+      return [...new Set(this.modules.map((m) => m.dw.host.data.id))].join(', ')
+   }
+
+   /** mirror-backed text for the hover pane, no network */
+   private replyLoraInfo(hostId: string, lora: string): ServeReply {
+      if (this.hostById(hostId) == null)
+         return json(404, { error: `unknown host '${hostId}' — hosts: ${this.hostIds()}` })
+      refreshLoraInfoCacheIfChanged()
+      return json(200, {
+         name: lora,
+         displayName: getLoraDisplayName(lora, hostId),
+         triggerWords: getLoraTriggerWords(lora, hostId),
+      })
+   }
+
+   /** preview url resolution misses per host, so an absent lora-manager costs ONE sweep, not one per hover */
+   private previewSweeps = new Map<string, Promise<Map<string, string> | null>>()
+
+   private async replyLoraPreview(hostId: string, lora: string): Promise<ServeReply> {
+      const host = this.hostById(hostId)
+      if (host == null) return json(404, { error: `unknown host '${hostId}' — hosts: ${this.hostIds()}` })
+      refreshLoraInfoCacheIfChanged()
+      let url = getLoraPreviewUrl(lora, hostId)
+      if (url == null) {
+         // the TUI's fallback: unsynced mirror (or a lora it never saw) → ask the live host once
+         let sweep = this.previewSweeps.get(hostId)
+         if (sweep == null) {
+            sweep = fetchLoraList(host).then((r) =>
+               r.status === 'absent' || r.status === 'unreachable' ? null : loraPreviewMapFrom(r.items),
+            )
+            this.previewSweeps.set(hostId, sweep)
+         }
+         url = (await sweep)?.get(loraKey(lora)) ?? null
+      }
+      if (url == null)
+         return json(404, { error: `no preview known for '${lora}' (run: comfy-ts loras --id ${hostId})` })
+      const bytes = await fetchLoraPreviewBytes(host, url)
+      // one 404 for two causes on purpose: unreachable host and no-image both mean "nothing to show"
+      if (bytes == null)
+         return json(404, { error: `no image preview for '${lora}' (host '${hostId}' unreachable, or not an image)` })
+      return { status: 200, contentType: sniffImageContentType(bytes), body: bytes }
    }
 
    private outputUrl(absPath: string): string | null {

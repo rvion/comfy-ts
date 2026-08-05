@@ -1,4 +1,5 @@
-// layout root: topbar, sidebar, form + gallery
+// layout root: topbar (burger toggles the sidebar), sidebar drawer, form
+// column + results column (right on wide screens, below on narrow ones)
 import { observer } from 'mobx-react-lite'
 import { Gallery } from 'src/cli/serve/web/components/Gallery.tsx'
 import { Sidebar } from 'src/cli/serve/web/components/Sidebar.tsx'
@@ -16,6 +17,14 @@ export const App = observer(function App(p: { st: WebSt }) {
    return (
       <div className="app">
          <div className="topbar">
+            <button
+               type="button"
+               className="burger"
+               title="toggle the workflow menu"
+               onClick={() => p.st.toggleSidebar()}
+            >
+               ☰
+            </button>
             <h1>comfy-ts serve</h1>
             <span className="dim">
                {p.st.modules.length} workflow{p.st.modules.length === 1 ? '' : 's'} · drafts are the base, edits
@@ -23,13 +32,20 @@ export const App = observer(function App(p: { st: WebSt }) {
             </span>
          </div>
          <div className="cols">
-            <Sidebar st={p.st} />
+            {p.st.sidebarOpen ? <div className="backdrop" onClick={() => p.st.toggleSidebar()} /> : null}
+            {p.st.sidebarOpen ? <Sidebar st={p.st} /> : null}
             <div className="main">
                {p.st.formError != null ? <div className="center error">🔴 {p.st.formError}</div> : null}
                {p.st.formLoading && p.st.form == null ? <div className="center">loading draft…</div> : null}
                {p.st.modules.length === 0 ? <div className="center">no workflow modules loaded</div> : null}
-               <VarsForm st={p.st} />
-               <Gallery st={p.st} />
+               <div className="work">
+                  <div className="form-col">
+                     <VarsForm st={p.st} />
+                  </div>
+                  <div className="results-col">
+                     <Gallery st={p.st} />
+                  </div>
+               </div>
             </div>
          </div>
       </div>

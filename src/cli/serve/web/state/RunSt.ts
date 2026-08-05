@@ -22,6 +22,8 @@ export class RunSt {
          const result = await postGenerate(p)
          runInAction(() => {
             this.results.unshift({ ...result, at: new Date().toLocaleTimeString() })
+            // full-size <img>s per run: an unbounded session would eat the tab
+            if (this.results.length > 20) this.results.length = 20
          })
       } catch (e) {
          runInAction(() => {

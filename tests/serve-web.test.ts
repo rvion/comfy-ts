@@ -35,6 +35,22 @@ describe('serve web ui routes', () => {
       expect(reply.contentType).toBe('application/json')
    })
 
+   it('GET / falls back to the json index when the bundle resolves to null — never a blank shell', async () => {
+      const app = makeApp({ webJs: () => Promise.resolve(null) })
+      const reply = await app.handle({ method: 'GET', url: '/', accept: 'text/html' })
+      expect(reply.contentType).toBe('application/json')
+      expect(JSON.parse(String(reply.body)).server).toBe('comfy-ts serve')
+   })
+
+   it('GET /lora-info and /lora-preview 404 an unknown host by name', async () => {
+      const app = makeApp()
+      const info = await app.handle({ method: 'GET', url: '/lora-info/nope/some-lora' })
+      const preview = await app.handle({ method: 'GET', url: '/lora-preview/nope/some-lora' })
+      expect(info.status).toBe(404)
+      expect(JSON.parse(String(info.body)).error).toContain("unknown host 'nope'")
+      expect(preview.status).toBe(404)
+   })
+
    it('GET /drafts stays json even for a browser (the api contract is unchanged)', async () => {
       const app = makeApp({ webJs: () => Promise.resolve('js!') })
       const reply = await app.handle({ method: 'GET', url: '/drafts', accept: 'text/html' })

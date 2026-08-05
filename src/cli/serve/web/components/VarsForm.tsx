@@ -15,7 +15,7 @@ import { SizeControl } from 'src/cli/serve/web/components/controls/SizeControl.t
 import type { VarSt } from 'src/cli/serve/web/state/FormSt.ts'
 import type { WebSt } from 'src/cli/serve/web/state/WebSt.ts'
 
-const VarControl = observer(function VarControl(p: { v: VarSt }) {
+const VarControl = observer(function VarControl(p: { v: VarSt; host: string }) {
    switch (p.v.desc.kind) {
       case 'prompt':
          return <PromptControl v={p.v} />
@@ -31,7 +31,7 @@ const VarControl = observer(function VarControl(p: { v: VarSt }) {
       case 'choice':
          return <ChoiceControl v={p.v} />
       case 'loras':
-         return <LorasControl v={p.v} />
+         return <LorasControl v={p.v} host={p.host} />
       case 'size':
          return <SizeControl v={p.v} />
       case 'image':
@@ -42,7 +42,7 @@ const VarControl = observer(function VarControl(p: { v: VarSt }) {
    }
 })
 
-const VarRow = observer(function VarRow(p: { v: VarSt }) {
+const VarRow = observer(function VarRow(p: { v: VarSt; host: string }) {
    return (
       <div className="var-row">
          <div className="var-label">
@@ -55,7 +55,7 @@ const VarRow = observer(function VarRow(p: { v: VarSt }) {
             <span className="kind">{p.v.desc.kind}</span>
          </div>
          <div className="var-control">
-            <VarControl v={p.v} />
+            <VarControl v={p.v} host={p.host} />
          </div>
       </div>
    )
@@ -70,7 +70,7 @@ export const VarsForm = observer(function VarsForm(p: { st: WebSt }) {
             <b>{form.moduleKey}</b> / {form.draft}
          </h2>
          {form.vars.map((v) => (
-            <VarRow key={v.name} v={v} />
+            <VarRow key={v.name} v={v} host={form.host} />
          ))}
          <div className="runbar">
             <button
