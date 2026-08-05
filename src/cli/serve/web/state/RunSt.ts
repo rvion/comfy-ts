@@ -12,11 +12,13 @@ function sleep(ms: number): Promise<void> {
 
 export class RunSt {
    isRunning = false
+   /** the module the in-flight run belongs to — the RunningCard must not follow the selection */
+   runningModule: string | null = null
    error: string | null = null
    results: RunResult[] = []
    progressPercent: number | null = null
    hasPreview = false
-   /** bumped per poll that saw a preview — the <img> cache-buster */
+   /** the server's frame seq — the <img> cache-buster, changes only on a NEW frame */
    previewTick = 0
    /** staleness guard for the poll loop (mobx-mechanics: counters, not flags) */
    private pollGen = 0
@@ -37,6 +39,7 @@ export class RunSt {
       if (this.isRunning) return
       const gen = ++this.pollGen
       this.isRunning = true
+      this.runningModule = p.module
       this.error = null
       this.progressPercent = null
       this.hasPreview = false
@@ -57,6 +60,7 @@ export class RunSt {
          runInAction(() => {
             if (gen === this.pollGen) {
                this.isRunning = false
+               this.runningModule = null
                this.progressPercent = null
             }
          })
@@ -73,7 +77,7 @@ export class RunSt {
                if (gen !== this.pollGen) return
                this.progressPercent = status.percent
                this.hasPreview = status.hasPreview
-               if (status.hasPreview) this.previewTick++
+               this.previewTick = status.previewSeq ?? 0
             })
          } catch {
             // a missed poll is not an incident; the POST's own error is the loud path

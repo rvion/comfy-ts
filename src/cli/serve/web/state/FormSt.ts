@@ -52,7 +52,9 @@ export class FormSt {
    saveError: string | null = null
    private disposers: IReactionDisposer[] = []
    /** saves are chained so two PUTs can never land out of order */
-   private saveChain: Promise<unknown> = Promise.resolve()
+   private saveChain: Promise<boolean> = Promise.resolve(true)
+   /** the values json the server last confirmed — save() no-ops when nothing changed */
+   private lastSaved: string
 
    constructor(
       public readonly moduleKey: string,
@@ -64,7 +66,16 @@ export class FormSt {
       this.vars = Object.entries(mod.vars).map(
          ([name, desc]) => new VarSt(name, desc, normalizeInitial(desc, values[name])),
       )
-      makeAutoObservable(this, { vars: false, moduleKey: false, draft: false, host: false })
+      this.lastSaved = JSON.stringify(this.valuesJSON())
+      makeAutoObservable<FormSt, 'disposers' | 'saveChain' | 'lastSaved'>(this, {
+         vars: false,
+         moduleKey: false,
+         draft: false,
+         host: false,
+         disposers: false,
+         saveChain: false,
+         lastSaved: false,
+      })
       // the persistence idiom: the values json is change-detector AND payload
       this.disposers.push(
          reaction(
@@ -78,6 +89,19 @@ export class FormSt {
    dispose(): void {
       for (const d of this.disposers) d()
       this.disposers = []
+      // a draft switch inside the debounce window must not lose the edit
+      if (JSON.stringify(this.valuesJSON()) !== this.lastSaved) void this.save()
+   }
+
+   /** tab-close/hide flush: keepalive survives page teardown, fire-and-forget by nature */
+   flushKeepalive(): void {
+      const encoded = JSON.stringify(this.valuesJSON())
+      if (encoded === this.lastSaved) return
+      this.lastSaved = encoded
+      void saveDraft(
+         { module: this.moduleKey, draft: this.draft, values: JSON.parse(encoded) as Record<string, unknown> },
+         { keepalive: true },
+      ).catch(() => {})
    }
 
    valuesJSON(): Record<string, unknown> {
@@ -88,25 +112,34 @@ export class FormSt {
       return this.vars.filter((v) => v.dirty).length
    }
 
-   /** persist the draft now; generate() awaits this so the server reads what the form shows */
-   save(): Promise<unknown> {
+   /** persist the draft now. Resolves FALSE on failure — generate() must not run stale inputs */
+   save(): Promise<boolean> {
+      const encoded = JSON.stringify(this.valuesJSON())
+      if (encoded === this.lastSaved) return this.saveChain
       runInAction(() => {
          this.saveState = 'saving'
       })
-      this.saveChain = this.saveChain.then(() =>
-         saveDraft({ module: this.moduleKey, draft: this.draft, values: this.valuesJSON() }).then(
-            () =>
-               runInAction(() => {
-                  this.saveState = 'saved'
-                  this.saveError = null
-               }),
-            (e: unknown) =>
-               runInAction(() => {
-                  this.saveState = 'error'
-                  this.saveError = e instanceof Error ? e.message : String(e)
-               }),
-         ),
-      )
+      this.saveChain = this.saveChain.then(async () => {
+         try {
+            await saveDraft({
+               module: this.moduleKey,
+               draft: this.draft,
+               values: JSON.parse(encoded) as Record<string, unknown>,
+            })
+            runInAction(() => {
+               this.lastSaved = encoded
+               this.saveState = 'saved'
+               this.saveError = null
+            })
+            return true
+         } catch (e) {
+            runInAction(() => {
+               this.saveState = 'error'
+               this.saveError = e instanceof Error ? e.message : String(e)
+            })
+            return false
+         }
+      })
       return this.saveChain
    }
 

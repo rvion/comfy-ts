@@ -53,19 +53,26 @@ export function postGenerate(p: {
    })
 }
 
-export function saveDraft(p: {
-   module: string
-   draft: string
-   values: Record<string, unknown>
-}): Promise<{ ok: true; drafts: string[] }> {
+export function saveDraft(
+   p: { module: string; draft: string; values: Record<string, unknown> },
+   opts: { keepalive?: boolean } = {},
+): Promise<{ ok: true; drafts: string[] }> {
    return jsonFetch(`/drafts/${encodeURIComponent(p.module)}/${encodeURIComponent(p.draft)}`, {
       method: 'PUT',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(p.values),
+      // keepalive survives page teardown — the beforeunload flush rides it
+      keepalive: opts.keepalive === true,
    })
 }
 
-export type RunStatus = { running: boolean; status: string; percent: number | null; hasPreview: boolean }
+export type RunStatus = {
+   running: boolean
+   status: string
+   percent: number | null
+   hasPreview: boolean
+   previewSeq: number | null
+}
 
 export function fetchRunStatus(p: { module: string }): Promise<RunStatus> {
    return jsonFetch(`/run/${encodeURIComponent(p.module)}`)

@@ -342,6 +342,17 @@ curl -X POST http://127.0.0.1:8288/generate/txt2img/moody \
 
 Draft values are the defaults, the JSON body overrides per request, and every value is validated before anything is queued (wrong choice? the 400 lists the allowed ones). `GET /drafts` self-describes every workflow, draft and var — enough for a frontend to render a form. `Accept: image/*` returns the image bytes directly (`curl … -H 'accept: image/*' -o out.png`). Drafts are re-read on every request: keep the TUI open, tweak, next call uses the new values. Binds to localhost only unless you say otherwise (`--bind`, `--port`).
 
+### The web panel
+
+Open the same url in a **browser** and you get a full control panel — no frontend to write:
+
+- every var as its real control: prompt textarea (`//` comments, `- ` negative lines), sliders, seed mode buttons (fixed / +1 / -1 / random) with 🎲, size presets, image upload with preview, and a lora picker popup — a searchable gallery of preview cards with human model names and trigger words from the [lora mirror](#loras), active loras pinned on top with per-lora model/clip strengths
+- edits **autosave into the selected draft**, exactly like the TUI (the two stay in sync live); duplicate a draft from the header
+- generate with a live progress bar and latent preview, results in a gallery — click any image for the lightbox (copy to clipboard / open / delete)
+- works on a phone: collapsible menu, everything touch-sized; lora images and titles can be hidden with one persistent toggle each
+
+The JSON api above is unchanged — the panel is just another client of it.
+
 ## 🕸️ In the browser: `comfy-ts/web`
 
 The same library runs in a browser bundle — define workflows, connect to a host, run, get bytes back, no server in between:

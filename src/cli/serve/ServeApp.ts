@@ -103,8 +103,11 @@ const WEB_SHELL = `<!doctype html>
 
 export class ServeApp {
    private starter: ServeStarter
-   /** last SERVED seed per `module/draft/var` — '+'/'-' modes continue from it */
-   private seedState = new Map<string, number>()
+   /** last SERVED seed per `module/draft/var` — '+'/'-' modes continue from it.
+    * draftBase remembers which DRAFT value the continuation grew from: when the
+    * draft's seed changes (the web form autosaves a typed value), the typed
+    * value wins and the continuation restarts there */
+   private seedState = new Map<string, { last: number; draftBase: number }>()
    /** per-module promise chain: vars are shared mutable state, apply→send is exclusive */
    private chains = new Map<string, Promise<unknown>>()
    /** the bundle is built at most once per process, first browser hit pays it */
@@ -334,6 +337,8 @@ export class ServeApp {
    /** the DraftsSt name rule, verbatim — the two surfaces must accept the same names */
    private validDraftName(raw: string): string | null {
       const name = raw.trim()
+      // length cap: past it the fs answers ENAMETOOLONG as a raw 500
+      if (name.length > 100) return null
       return /^[\w][\w .-]*$/.test(name) ? name : null
    }
 
@@ -369,7 +374,9 @@ export class ServeApp {
 
    // #region live run state (web ui polling: progress + latent preview) --------
    private liveRuns = new Map<string, ServeExecution>()
-   private latentPreviews = new Map<string, { bytes: Uint8Array; mime: string }>()
+   /** seq counts frames so the poller refetches only on a NEW one, not every tick */
+   private latentPreviews = new Map<string, { bytes: Uint8Array; mime: string; seq: number }>()
+   private latentSeq = 0
 
    private replyRunStatus(modKey: string): ServeReply {
       const mod = this.moduleByKey(modKey)
@@ -381,6 +388,7 @@ export class ServeApp {
          status: exec?.status ?? 'idle',
          percent: running ? (exec.progressGlobal?.percent ?? null) : null,
          hasPreview: this.latentPreviews.has(mod.key),
+         previewSeq: this.latentPreviews.get(mod.key)?.seq ?? null,
       })
    }
 
@@ -545,6 +553,12 @@ export class ServeApp {
          }
       }
 
+      // the DRAFT's seed values, before payload overrides: the +/- continuation
+      // compares against what the draft file says, not what a payload injected
+      const draftSeedValues = new Map<string, number>()
+      for (const [k, varDef] of mod.dw.entries())
+         if (varDef.kind === 'seed') draftSeedValues.set(k, (varDef as SeedVar).value)
+
       // 2. payload overrides (image urls download first, so the var gets a local path)
       const varMap = new Map(mod.dw.entries())
       for (const [k, rawValue] of Object.entries(payload)) {
@@ -579,14 +593,17 @@ export class ServeApp {
          if (varDef.kind !== 'seed') continue
          const seedVar = varDef as SeedVar
          const stateKey = `${mod.key}/${draft}/${k}`
+         const draftValue = draftSeedValues.get(k) ?? seedVar.value
          if (!(k in payload)) {
             if (seedVar.mode === '?') seedVar.randomize()
             else if (seedVar.mode === '+' || seedVar.mode === '-') {
-               const last = this.seedState.get(stateKey)
-               if (last != null) seedVar.set(last + (seedVar.mode === '+' ? 1 : -1))
+               const prev = this.seedState.get(stateKey)
+               // continue only while the draft still holds the value the chain grew from
+               if (prev != null && prev.draftBase === draftValue)
+                  seedVar.set(prev.last + (seedVar.mode === '+' ? 1 : -1))
             }
          }
-         this.seedState.set(stateKey, seedVar.value)
+         this.seedState.set(stateKey, { last: seedVar.value, draftBase: draftValue })
          seeds[k] = seedVar.value
       }
 
@@ -595,7 +612,7 @@ export class ServeApp {
       // the previous run's preview must not linger over the new one
       this.latentPreviews.delete(mod.key)
       mod.dw.host.onLatentPreview = (p) => {
-         this.latentPreviews.set(mod.key, { bytes: p.bytes, mime: p.mime })
+         this.latentPreviews.set(mod.key, { bytes: p.bytes, mime: p.mime, seq: ++this.latentSeq })
       }
       try {
          return { execution: await this.starter(mod) }

@@ -29,8 +29,9 @@ export function asSizeForm(raw: unknown): SizeFormValue {
 }
 
 /** drop record keys the host no longer offers: a stale draft entry is invisible in the
- * option-driven list, and applyVarPayload rejects the whole record over it — the draft
- * itself stays untouched, only what the form POSTS is pruned */
+ * option-driven list and would fail the build server-side. With live drafts the pruned
+ * record is what the next autosave WRITES, so stale keys heal out of the draft file —
+ * deliberate: a lora the host lost is dead weight the ui cannot even display */
 export function pruneLorasRecord(raw: unknown, options: readonly string[]): Record<string, unknown> {
    if (raw == null || typeof raw !== 'object' || Array.isArray(raw)) return {}
    const known = new Set(options)

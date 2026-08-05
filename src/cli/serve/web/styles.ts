@@ -120,6 +120,15 @@ button.mode.sel { background: var(--accent-dim); border-color: var(--accent); co
 }
 .lora-chip button { border: 0; background: none; color: inherit; padding: 0; font-size: 11px; }
 .lora-chip button:hover { color: var(--red); }
+/* image mode: the row chip becomes the same preview card as the popup */
+.lora-chip.card {
+   flex-direction: column; align-items: stretch; border-radius: 8px; padding: 6px;
+   background: var(--panel-2); border: 1px solid var(--border); width: 132px;
+}
+.lora-chip.card .lora-thumb { height: 110px; }
+.lora-chip.card .chip-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lora-chip.card button { align-self: flex-end; }
+.chip-title { min-width: 0; }
 
 .modal-overlay {
    position: fixed; inset: 0; z-index: 50; background: rgba(0, 0, 0, 0.55);
@@ -152,9 +161,17 @@ div.lora-thumb.none {
    color: var(--dim); font-size: 11px; background: var(--bg); font-style: italic;
 }
 .st-label { color: var(--dim); font-size: 11px; }
-.lora-row.active .name { color: var(--green); }
-.lora-row input[type='number'] { width: 64px; padding: 2px 6px; font-size: 12px; }
-.lora-row .st-label { color: var(--dim); font-size: 11px; }
+
+.img-button { padding: 0; border: 0; background: none; cursor: zoom-in; display: block; min-width: 0; }
+.lightbox {
+   display: flex; flex-direction: column; gap: 8px; max-width: min(1100px, 100%); max-height: 100%;
+}
+.lightbox img { max-width: 100%; max-height: calc(90vh - 60px); object-fit: contain; border-radius: 8px; }
+.lightbox-bar {
+   display: flex; gap: 12px; align-items: center; justify-content: center; flex-wrap: wrap;
+   background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px;
+}
+.lightbox-bar a { color: var(--accent); text-decoration: none; }
 .loras-more { color: var(--dim); font-size: 12px; padding: 4px 10px; }
 
 .img-preview { margin-top: 8px; }
@@ -196,7 +213,5 @@ div.lora-thumb.none {
    .modal { max-height: 100%; height: 100%; width: 100%; border-radius: 0; }
    .lora-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
    .runbar { flex-wrap: wrap; }
-   .loras-body { flex-direction: column; }
-   .lora-pane { width: auto; border-left: 0; border-top: 1px solid var(--border); max-height: 240px; }
 }
 `

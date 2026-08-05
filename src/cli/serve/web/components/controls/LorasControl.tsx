@@ -1,13 +1,16 @@
-// loras: the form row is a SUMMARY (active chips + browse button); the picker
-// itself is a popup — filter, the ACTIVE section pinned on top (strengths,
-// trigger words), then a preview-card gallery of every option. Names come from
-// the mirror's display names (descriptor optionLabels); payload keys stay the
-// raw enum values: { "<name>": [model, clip] }, replaced by copy on every edit
+// loras: the form row shows the ACTIVE loras as the same preview cards as the
+// popup (image + display name + ✕); the 🖼/🏷 toggles hide images/titles on
+// EVERY lora surface (NSFW screens, persisted on WebSt) and with both hidden
+// the row collapses to a count. The popup owns editing: filter, active section
+// with strengths + trigger words, preview-card gallery (tap ACTIVATES; the
+// active section deactivates). Names come from descriptor optionLabels; the
+// value keeps raw enum keys: { "<name>": [model, clip] }, replaced by copy
 import { observer, useLocalObservable } from 'mobx-react-lite'
 import { useEffect, type ReactNode } from 'react'
 import { fetchLoraInfo, loraPreviewSrc, type LoraInfo } from 'src/cli/serve/web/api.ts'
 import type { LoraStrength } from 'src/vars/ComfyVars.ts'
 import type { VarSt } from 'src/cli/serve/web/state/FormSt.ts'
+import type { WebSt } from 'src/cli/serve/web/state/WebSt.ts'
 
 const CARD_CAP = 60
 
@@ -35,7 +38,7 @@ type LocalSt = {
    notePreviewFailed(name: string): void
 }
 
-export const LorasControl = observer(function LorasControl(p: { v: VarSt; host: string }) {
+export const LorasControl = observer(function LorasControl(p: { v: VarSt; host: string; st: WebSt }) {
    const local = useLocalObservable<LocalSt>(() => ({
       open: false,
       filter: '',
@@ -60,6 +63,8 @@ export const LorasControl = observer(function LorasControl(p: { v: VarSt; host: 
    const label = (name: string): string => labels[name] ?? name
    const isActive = (name: string): boolean => record[name] != null && record[name] !== false
    const activeNames = options.filter(isActive)
+   const showImages = p.st.showLoraImages
+   const showTitles = p.st.showLoraTitles
 
    const setEntry = (name: string, st: LoraStrength | null): void => {
       const next = { ...record }
@@ -83,14 +88,25 @@ export const LorasControl = observer(function LorasControl(p: { v: VarSt; host: 
       }
    }, [open, activeKey, host, local])
 
+   // esc closes wherever focus is, not only inside the filter input
+   useEffect(() => {
+      if (!open) return
+      const onKey = (e: KeyboardEvent): void => {
+         if (e.key === 'Escape') local.setOpen(false)
+      }
+      window.addEventListener('keydown', onKey)
+      return () => window.removeEventListener('keydown', onKey)
+   }, [open, local])
+
    const needle = local.filter.toLowerCase()
    const matchesFilter = (name: string): boolean =>
       name.toLowerCase().includes(needle) || label(name).toLowerCase().includes(needle)
    const matches = options.filter(matchesFilter)
    const cards = matches.filter((o) => !isActive(o)).slice(0, CARD_CAP)
 
-   const thumb = (name: string): ReactNode =>
-      local.previewFailed.has(name) ? (
+   const thumb = (name: string): ReactNode => {
+      if (!showImages) return null
+      return local.previewFailed.has(name) ? (
          <div className="lora-thumb none">no preview</div>
       ) : (
          <img
@@ -102,31 +118,55 @@ export const LorasControl = observer(function LorasControl(p: { v: VarSt; host: 
             onError={() => local.notePreviewFailed(name)}
          />
       )
+   }
+
+   const visibilityToggles = (
+      <>
+         <button
+            type="button"
+            className={showImages ? 'mode sel' : 'mode'}
+            title={showImages ? 'hide lora images' : 'show lora images'}
+            onClick={() => p.st.toggleLoraImages()}
+         >
+            🖼
+         </button>
+         <button
+            type="button"
+            className={showTitles ? 'mode sel' : 'mode'}
+            title={showTitles ? 'hide lora titles' : 'show lora titles'}
+            onClick={() => p.st.toggleLoraTitles()}
+         >
+            🏷
+         </button>
+      </>
+   )
 
    return (
       <div>
          <div className="row-inline">
-            {activeNames.map((name) => (
-               <span key={name} className="lora-chip" title={name}>
-                  {label(name)}
-                  <button type="button" title="remove" onClick={() => setEntry(name, null)}>
-                     ✕
-                  </button>
+            {!showImages && !showTitles ? (
+               <span className="hint">
+                  {activeNames.length} lora{activeNames.length === 1 ? '' : 's'} selected
                </span>
-            ))}
+            ) : (
+               activeNames.map((name) => (
+                  <span key={name} className={showImages ? 'lora-chip card' : 'lora-chip'} title={name}>
+                     {thumb(name)}
+                     {showTitles ? <span className="chip-title">{label(name)}</span> : null}
+                     <button type="button" title="remove" onClick={() => setEntry(name, null)}>
+                        ✕
+                     </button>
+                  </span>
+               ))
+            )}
             <button type="button" onClick={() => local.setOpen(true)}>
                {activeNames.length === 0 ? `choose loras… (${options.length})` : 'edit…'}
             </button>
+            {visibilityToggles}
          </div>
 
          {local.open ? (
-            <div
-               className="modal-overlay"
-               onClick={() => local.setOpen(false)}
-               onKeyDown={(e) => {
-                  if (e.key === 'Escape') local.setOpen(false)
-               }}
-            >
+            <div className="modal-overlay" onClick={() => local.setOpen(false)}>
                <div className="modal" onClick={(e) => e.stopPropagation()}>
                   <div className="modal-head">
                      <input
@@ -136,6 +176,7 @@ export const LorasControl = observer(function LorasControl(p: { v: VarSt; host: 
                         value={local.filter}
                         onChange={(e) => local.setFilter(e.target.value)}
                      />
+                     {visibilityToggles}
                      <button type="button" title="close (esc)" onClick={() => local.setOpen(false)}>
                         ✕
                      </button>
@@ -152,7 +193,7 @@ export const LorasControl = observer(function LorasControl(p: { v: VarSt; host: 
                                     {thumb(name)}
                                     <div className="lora-active-text">
                                        <div className="lora-label" title={name}>
-                                          {label(name)}
+                                          {showTitles ? label(name) : '···'}
                                        </div>
                                        {typeof info === 'object' && info.triggerWords.length > 0 ? (
                                           <div className="hint">{info.triggerWords.join(', ')}</div>
@@ -199,7 +240,7 @@ export const LorasControl = observer(function LorasControl(p: { v: VarSt; host: 
                               onClick={() => setEntry(name, [1, 1])}
                            >
                               {thumb(name)}
-                              <div className="lora-label">{label(name)}</div>
+                              <div className="lora-label">{showTitles ? label(name) : name.slice(0, 2) + '···'}</div>
                            </button>
                         ))}
                      </div>

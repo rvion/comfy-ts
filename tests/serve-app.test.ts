@@ -339,6 +339,7 @@ describe('ServeApp draft save (PUT) + live run state', () => {
          status: 'idle',
          percent: null,
          hasPreview: false,
+         previewSeq: null,
       })
       await app.handle({ method: 'POST', url: '/generate/wf-run-status/default', body: '{}' })
       const after = await app.handle({ method: 'GET', url: '/run/wf-run-status' })
@@ -349,5 +350,33 @@ describe('ServeApp draft save (PUT) + live run state', () => {
       expect(preview.status).toBe(404)
       const unknown = await app.handle({ method: 'GET', url: '/run/nope' })
       expect(unknown.status).toBe(404)
+   })
+})
+
+describe('seed continuation vs an edited draft value (live-draft model)', () => {
+   it("a NEW draft seed value restarts the +/- continuation — the user's typed seed must win", async () => {
+      const mod = makeModule('wf-seed-edit')
+      const seen: Record<string, unknown>[] = []
+      const app = new ServeApp([mod], { outputRoot: join(root, 'out'), starter: snapshottingStarter(seen) })
+      await app.handle({
+         method: 'PUT',
+         url: '/drafts/wf-seed-edit/inc',
+         body: JSON.stringify({ seed: { mode: '+', value: 100 } }),
+      })
+      await app.handle({ method: 'POST', url: '/generate/wf-seed-edit/inc', body: '{}' })
+      await app.handle({ method: 'POST', url: '/generate/wf-seed-edit/inc', body: '{}' })
+      expect((seen[0]?.seed as { value: number }).value).toBe(100)
+      expect((seen[1]?.seed as { value: number }).value).toBe(101)
+      // the user types 500 into the web form → autosave PUTs the new draft value
+      await app.handle({
+         method: 'PUT',
+         url: '/drafts/wf-seed-edit/inc',
+         body: JSON.stringify({ seed: { mode: '+', value: 500 } }),
+      })
+      await app.handle({ method: 'POST', url: '/generate/wf-seed-edit/inc', body: '{}' })
+      expect((seen[2]?.seed as { value: number }).value).toBe(500)
+      // and the continuation resumes from there
+      await app.handle({ method: 'POST', url: '/generate/wf-seed-edit/inc', body: '{}' })
+      expect((seen[3]?.seed as { value: number }).value).toBe(501)
    })
 })

@@ -8,7 +8,13 @@ import { RunSt } from 'src/cli/serve/web/state/RunSt.ts'
 /** selection + drawer survive a reload (his standing default: hand-tuned state persists and restores) */
 const STORAGE_KEY = 'comfy-ts-serve-ui'
 
-type StoredSelection = { module?: string; draft?: string; sidebar?: boolean }
+type StoredSelection = {
+   module?: string
+   draft?: string
+   sidebar?: boolean
+   loraImages?: boolean
+   loraTitles?: boolean
+}
 
 function readStoredSelection(): StoredSelection {
    try {
@@ -32,17 +38,38 @@ export class WebSt {
    formError: string | null = null
    /** drawer on narrow screens, collapsible column on wide ones — stored toggle wins over the width default */
    sidebarOpen: boolean
+   /** lora image/title visibility, EVERY lora surface (row cards + popup) — the hide toggles are NSFW screens */
+   showLoraImages: boolean
+   showLoraTitles: boolean
    run: RunSt
 
    constructor() {
       this.run = new RunSt()
-      this.sidebarOpen = readStoredSelection().sidebar ?? !isNarrowScreen()
+      const stored = readStoredSelection()
+      this.sidebarOpen = stored.sidebar ?? !isNarrowScreen()
+      this.showLoraImages = stored.loraImages ?? true
+      this.showLoraTitles = stored.loraTitles ?? true
       makeAutoObservable(this, { run: false, form: observableRef, modules: observableShallow })
+      // a closing/hidden tab must not lose an edit still inside the autosave debounce
+      window.addEventListener('beforeunload', () => this.form?.flushKeepalive())
+      document.addEventListener('visibilitychange', () => {
+         if (document.visibilityState === 'hidden') this.form?.flushKeepalive()
+      })
       void this.boot()
    }
 
    toggleSidebar(): void {
       this.sidebarOpen = !this.sidebarOpen
+      this.persist()
+   }
+
+   toggleLoraImages(): void {
+      this.showLoraImages = !this.showLoraImages
+      this.persist()
+   }
+
+   toggleLoraTitles(): void {
+      this.showLoraTitles = !this.showLoraTitles
       this.persist()
    }
 
@@ -54,6 +81,8 @@ export class WebSt {
                module: this.form?.moduleKey,
                draft: this.form?.draft,
                sidebar: this.sidebarOpen,
+               loraImages: this.showLoraImages,
+               loraTitles: this.showLoraTitles,
             }),
          )
       } catch {
@@ -127,7 +156,9 @@ export class WebSt {
    private async generateNow(): Promise<void> {
       const form = this.form
       if (form == null || this.run.isRunning) return
-      await form.save()
+      const saved = await form.save()
+      // the header already shows the loud save error; running the stale draft would lie
+      if (!saved) return
       await this.run.generate({ module: form.moduleKey, draft: form.draft, payload: {} })
    }
 
@@ -136,6 +167,8 @@ export class WebSt {
       const form = this.form
       const name = rawName.trim()
       if (form == null || name === '') return
+      const existing = this.moduleByKey(form.moduleKey)?.drafts.includes(name) === true
+      if (existing && !window.confirm(`draft '${name}' already exists — overwrite it?`)) return
       try {
          const reply = await saveDraft({ module: form.moduleKey, draft: name, values: form.valuesJSON() })
          runInAction(() => {

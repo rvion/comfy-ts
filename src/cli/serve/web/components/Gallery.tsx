@@ -1,15 +1,104 @@
-// results, newest first: per-run delete + clear all, per-image copy (clipboard
-// wants png, clipboard.ts re-encodes) and open-in-tab
+// results, newest first: per-run delete + clear all; clicking any image (latent
+// included) opens the LIGHTBOX (esc/backdrop closes; copy / open / delete
+// inside). copy needs a secure context (localhost is one, LAN http is not) —
+// the button hides where the clipboard api is absent
 import { observer, useLocalObservable } from 'mobx-react-lite'
+import { useEffect } from 'react'
 import { runPreviewSrc } from 'src/cli/serve/web/api.ts'
 import { copyImageToClipboard } from 'src/cli/serve/web/clipboard.ts'
 import type { WebSt } from 'src/cli/serve/web/state/WebSt.ts'
 
+const canCopy = typeof navigator !== 'undefined' && navigator.clipboard != null
+
+type LightboxTarget = { url: string; title: string; promptId: string | null }
+
+type GalleryLocal = {
+   copyNote: { url: string; text: string } | null
+   lightbox: LightboxTarget | null
+   setCopyNote(url: string, text: string): void
+   openLightbox(target: LightboxTarget): void
+   closeLightbox(): void
+}
+
+function useGalleryLocal(): GalleryLocal {
+   return useLocalObservable<GalleryLocal>(() => ({
+      copyNote: null,
+      lightbox: null,
+      setCopyNote(url: string, text: string) {
+         this.copyNote = { url, text }
+      },
+      openLightbox(target: LightboxTarget) {
+         this.lightbox = target
+      },
+      closeLightbox() {
+         this.lightbox = null
+      },
+   }))
+}
+
+const Lightbox = observer(function Lightbox(p: { st: WebSt; local: GalleryLocal }) {
+   const box = p.local.lightbox
+   useEffect(() => {
+      if (box == null) return
+      const onKey = (e: KeyboardEvent): void => {
+         if (e.key === 'Escape') p.local.closeLightbox()
+      }
+      window.addEventListener('keydown', onKey)
+      return () => window.removeEventListener('keydown', onKey)
+   }, [box, p.local])
+   if (box == null) return null
+   const copy = (): void => {
+      copyImageToClipboard(box.url)
+         .then(() => p.local.setCopyNote(box.url, 'copied ✓'))
+         .catch((e: unknown) =>
+            p.local.setCopyNote(box.url, `copy failed: ${e instanceof Error ? e.message : String(e)}`),
+         )
+   }
+   return (
+      <div className="modal-overlay" onClick={() => p.local.closeLightbox()}>
+         <div className="lightbox" onClick={(e) => e.stopPropagation()}>
+            <img src={box.url} alt={box.title} />
+            <div className="lightbox-bar">
+               <span className="hint" title={box.title}>
+                  {box.title}
+               </span>
+               {canCopy ? (
+                  <button type="button" onClick={copy}>
+                     copy
+                  </button>
+               ) : null}
+               <a href={box.url} target="_blank" rel="noreferrer">
+                  open ↗
+               </a>
+               {box.promptId != null ? (
+                  <button
+                     type="button"
+                     title="remove this result"
+                     onClick={() => {
+                        if (box.promptId != null) p.st.run.remove(box.promptId)
+                        p.local.closeLightbox()
+                     }}
+                  >
+                     delete
+                  </button>
+               ) : null}
+               {p.local.copyNote?.url === box.url ? <span className="hint">{p.local.copyNote.text}</span> : null}
+               <button type="button" title="close (esc)" onClick={() => p.local.closeLightbox()}>
+                  ✕
+               </button>
+            </div>
+         </div>
+      </div>
+   )
+})
+
 /** live card while a run is in flight: progress bar + the latest latent frame */
-const RunningCard = observer(function RunningCard(p: { st: WebSt }) {
-   const moduleKey = p.st.form?.moduleKey
+const RunningCard = observer(function RunningCard(p: { st: WebSt; local: GalleryLocal }) {
+   // the RUNNING module, never the selection: switching modules mid-run must not retarget the card
+   const moduleKey = p.st.run.runningModule
    if (!p.st.run.isRunning || moduleKey == null) return null
    const percent = p.st.run.progressPercent
+   const previewUrl = runPreviewSrc({ module: moduleKey, tick: p.st.run.previewTick })
    return (
       <div className="run-card running">
          <div className="meta">
@@ -21,7 +110,13 @@ const RunningCard = observer(function RunningCard(p: { st: WebSt }) {
          </div>
          {p.st.run.hasPreview ? (
             <div className="imgs">
-               <img src={runPreviewSrc({ module: moduleKey, tick: p.st.run.previewTick })} alt="latent preview" />
+               <button
+                  type="button"
+                  className="img-button"
+                  onClick={() => p.local.openLightbox({ url: previewUrl, title: 'latent preview', promptId: null })}
+               >
+                  <img src={previewUrl} alt="latent preview" />
+               </button>
             </div>
          ) : null}
       </div>
@@ -29,22 +124,11 @@ const RunningCard = observer(function RunningCard(p: { st: WebSt }) {
 })
 
 export const Gallery = observer(function Gallery(p: { st: WebSt }) {
-   const local = useLocalObservable(() => ({
-      /** url → 'copied' | error text, cleared on the next copy */
-      copyNote: null as { url: string; text: string } | null,
-      setCopyNote(url: string, text: string) {
-         this.copyNote = { url, text }
-      },
-   }))
-   const copy = (url: string): void => {
-      copyImageToClipboard(url)
-         .then(() => local.setCopyNote(url, 'copied ✓'))
-         .catch((e: unknown) => local.setCopyNote(url, `copy failed: ${e instanceof Error ? e.message : String(e)}`))
-   }
+   const local = useGalleryLocal()
    if (p.st.run.results.length === 0 && !p.st.run.isRunning) return null
    return (
       <div className="gallery">
-         <RunningCard st={p.st} />
+         <RunningCard st={p.st} local={local} />
          {p.st.run.results.length > 0 ? (
             <div className="gallery-head">
                <span>
@@ -74,22 +158,18 @@ export const Gallery = observer(function Gallery(p: { st: WebSt }) {
                <div className="imgs">
                   {r.images.map((img) =>
                      img.url != null ? (
-                        <div key={img.filename} className="img-cell">
-                           <a href={img.url} target="_blank" rel="noreferrer">
-                              <img src={img.url} alt={img.filename} title={img.filename} />
-                           </a>
-                           <div className="img-actions">
-                              <button type="button" onClick={() => copy(img.url ?? '')}>
-                                 copy
-                              </button>
-                              <a href={img.url} target="_blank" rel="noreferrer">
-                                 open ↗
-                              </a>
-                              {local.copyNote?.url === img.url ? (
-                                 <span className="hint">{local.copyNote.text}</span>
-                              ) : null}
-                           </div>
-                        </div>
+                        <button
+                           key={img.filename}
+                           type="button"
+                           className="img-button"
+                           title={img.filename}
+                           onClick={() => {
+                              if (img.url != null)
+                                 local.openLightbox({ url: img.url, title: img.filename, promptId: r.promptId })
+                           }}
+                        >
+                           <img src={img.url} alt={img.filename} />
+                        </button>
                      ) : (
                         <div key={img.filename} className="noimg">
                            {img.filename} (not saved locally — no preview)
@@ -100,6 +180,7 @@ export const Gallery = observer(function Gallery(p: { st: WebSt }) {
                </div>
             </div>
          ))}
+         <Lightbox st={p.st} local={local} />
       </div>
    )
 })
