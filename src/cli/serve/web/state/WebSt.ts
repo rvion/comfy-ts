@@ -2,6 +2,7 @@
 // child stores hang off it, components read and call)
 import { makeAutoObservable, observableRef, observableShallow, runInAction } from 'mobx'
 import { fetchDraftValues, fetchIndex, saveDraft, type ModuleDescription } from 'src/cli/serve/web/api.ts'
+import { EnhancerSt } from 'src/cli/serve/web/state/EnhancerSt.ts'
 import { FormSt } from 'src/cli/serve/web/state/FormSt.ts'
 import { RunSt } from 'src/cli/serve/web/state/RunSt.ts'
 
@@ -42,14 +43,17 @@ export class WebSt {
    showLoraImages: boolean
    showLoraTitles: boolean
    run: RunSt
+   /** prompt refiner: own store, own localStorage blob (the openrouter key never leaves the browser) */
+   enhancer: EnhancerSt
 
    constructor() {
       this.run = new RunSt()
+      this.enhancer = new EnhancerSt()
       const stored = readStoredSelection()
       this.sidebarOpen = stored.sidebar ?? !isNarrowScreen()
       this.showLoraImages = stored.loraImages ?? true
       this.showLoraTitles = stored.loraTitles ?? true
-      makeAutoObservable(this, { run: false, form: observableRef, modules: observableShallow })
+      makeAutoObservable(this, { run: false, enhancer: false, form: observableRef, modules: observableShallow })
       // a closing/hidden tab must not lose an edit still inside the autosave debounce
       window.addEventListener('beforeunload', () => this.form?.flushKeepalive())
       document.addEventListener('visibilitychange', () => {
@@ -134,6 +138,9 @@ export class WebSt {
       }
       const token = ++this.selectToken
       runInAction(() => {
+         // the refiner points at a var of the OUTGOING form: applying it after the swap
+         // would write into a discarded object, so the modal closes with its form
+         this.enhancer.close()
          this.formLoading = true
          this.formError = null
          // picking a draft is the drawer's exit on a phone

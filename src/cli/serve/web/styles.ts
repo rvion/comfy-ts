@@ -200,6 +200,20 @@ div.lora-thumb.none {
 .lightbox-bar a { color: var(--accent); text-decoration: none; }
 .loras-more { color: var(--dim); font-size: 12px; padding: 4px 10px; }
 
+/* prompt enhancer modal */
+.modal-foot {
+   display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+   padding: 10px; border-top: 1px solid var(--border);
+}
+.enh-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
+.enh-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.enh-cols textarea { width: 100%; }
+.enh-cols textarea[readonly] { color: var(--dim); }
+.enh-think {
+   max-height: 160px; overflow-y: auto; white-space: pre-wrap; font-size: 12px;
+   color: var(--dim); background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 8px;
+}
+
 .img-preview { margin-top: 8px; }
 .img-preview img { max-width: 220px; max-height: 220px; border-radius: 6px; border: 1px solid var(--border); }
 
@@ -239,5 +253,7 @@ div.lora-thumb.none {
    .modal { max-height: 100%; height: 100%; width: 100%; border-radius: 0; }
    .lora-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
    .runbar { flex-wrap: wrap; }
+   /* side by side prompts do not fit a phone: stack yours over the rewrite */
+   .enh-cols { grid-template-columns: 1fr; }
 }
 `

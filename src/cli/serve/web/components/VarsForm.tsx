@@ -16,10 +16,10 @@ import { SizeControl } from 'src/cli/serve/web/components/controls/SizeControl.t
 import type { VarSt } from 'src/cli/serve/web/state/FormSt.ts'
 import type { WebSt } from 'src/cli/serve/web/state/WebSt.ts'
 
-const VarControl = observer(function VarControl(p: { v: VarSt; host: string; st: WebSt }) {
+const VarControl = observer(function VarControl(p: { v: VarSt; host: string; st: WebSt; module: string }) {
    switch (p.v.desc.kind) {
       case 'prompt':
-         return <PromptControl v={p.v} />
+         return <PromptControl v={p.v} st={p.st} module={p.module} />
       case 'text':
          return <TextControl v={p.v} />
       case 'int':
@@ -43,7 +43,7 @@ const VarControl = observer(function VarControl(p: { v: VarSt; host: string; st:
    }
 })
 
-const VarRow = observer(function VarRow(p: { v: VarSt; host: string; st: WebSt }) {
+const VarRow = observer(function VarRow(p: { v: VarSt; host: string; st: WebSt; module: string }) {
    return (
       <div className="var-row">
          <div className="var-label">
@@ -61,7 +61,7 @@ const VarRow = observer(function VarRow(p: { v: VarSt; host: string; st: WebSt }
             <span className="kind">{p.v.desc.kind}</span>
          </div>
          <div className="var-control">
-            <VarControl v={p.v} host={p.host} st={p.st} />
+            <VarControl v={p.v} host={p.host} st={p.st} module={p.module} />
          </div>
       </div>
    )
@@ -107,6 +107,8 @@ export const VarsForm = observer(function VarsForm(p: { st: WebSt }) {
    // ⌘⏎ / ctrl+⏎ submits from anywhere, textarea included (his ask)
    useEffect(() => {
       const onKey = (e: KeyboardEvent): void => {
+         // the enhancer modal owns ⌘⏎ while it is open (refine), so a rewrite never queues a run
+         if (p.st.enhancer.isOpen) return
          if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
             e.preventDefault()
             p.st.generate()
@@ -138,7 +140,7 @@ export const VarsForm = observer(function VarsForm(p: { st: WebSt }) {
          {form.vars.map((v) => (
             // keyed by DRAFT too: a draft switch must reset per-row ui state (lora filter,
             // remembered strengths), not carry the other draft's over
-            <VarRow key={`${form.draft}/${v.name}`} v={v} host={form.host} st={p.st} />
+            <VarRow key={`${form.draft}/${v.name}`} v={v} host={form.host} st={p.st} module={form.moduleKey} />
          ))}
          <div className="runbar">
             <button

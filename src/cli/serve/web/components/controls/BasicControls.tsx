@@ -1,15 +1,20 @@
 // the small per-kind controls: prompt, text, int/float, toggle, choice —
 // bigger kinds (seed, size, loras, image) have their own files
 import { observer } from 'mobx-react-lite'
+import { PromptEnhancer } from 'src/cli/serve/web/components/PromptEnhancer.tsx'
 import type { VarSt } from 'src/cli/serve/web/state/FormSt.ts'
+import type { WebSt } from 'src/cli/serve/web/state/WebSt.ts'
 
-export const PromptControl = observer(function PromptControl(p: { v: VarSt }) {
+export const PromptControl = observer(function PromptControl(p: { v: VarSt; st: WebSt; module: string }) {
    const text = typeof p.v.value === 'string' ? p.v.value : ''
    const rows = Math.min(12, Math.max(4, text.split('\n').length + 1))
    return (
       <div>
          <textarea rows={rows} value={text} onChange={(e) => p.v.set(e.target.value)} />
-         <div className="hint">// line = comment · "- " line = negative prompt</div>
+         <div className="row-inline">
+            <span className="hint">// line = comment · "- " line = negative prompt</span>
+            <PromptEnhancer v={p.v} st={p.st} module={p.module} />
+         </div>
       </div>
    )
 })
