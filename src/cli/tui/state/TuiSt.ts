@@ -1,5 +1,4 @@
-import { makeAutoObservable, runInAction } from 'mobx'
-import { observableRef } from 'src/cli/tui/mobxCompat.ts'
+import { makeAutoObservable, observableRef, runInAction } from 'mobx'
 import { listWindow, type ListWindow } from 'src/cli/tui/listWindow.ts'
 import type { SeedVar, ToggleVar, AnyVar } from 'src/vars/ComfyVars.ts'
 import { ImagePickerSt } from 'src/cli/tui/imagePicker/ImagePickerSt.ts'

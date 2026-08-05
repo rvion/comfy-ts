@@ -1,5 +1,5 @@
 import { Box, Text } from 'ink'
-import { observer } from 'src/cli/tui/mobxCompat.ts'
+import { observer } from 'mobx-react-lite'
 import { KeyHints } from 'src/cli/tui/components/StatusBar.tsx'
 import type { TuiSt } from 'src/cli/tui/state/TuiSt.ts'
 

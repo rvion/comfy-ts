@@ -1,5 +1,5 @@
 import { Box, measureElement, Text } from 'ink'
-import { observer } from 'src/cli/tui/mobxCompat.ts'
+import { observer } from 'mobx-react-lite'
 import { useEffect, useRef } from 'react'
 import type { DOMElement } from 'ink'
 import { EditField } from 'src/cli/tui/components/EditField.tsx'

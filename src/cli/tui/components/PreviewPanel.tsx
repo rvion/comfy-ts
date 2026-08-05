@@ -1,5 +1,5 @@
 import { Box, Text } from 'ink'
-import { observer } from 'src/cli/tui/mobxCompat.ts'
+import { observer } from 'mobx-react-lite'
 import type { TuiSt } from 'src/cli/tui/state/TuiSt.ts'
 
 /** right-side panel: selected-lora preview in the loras overlay, live latent while running,

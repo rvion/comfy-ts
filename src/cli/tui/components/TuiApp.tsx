@@ -1,5 +1,5 @@
 import { Box, Text, useApp, useInput, useStdin } from 'ink'
-import { observer } from 'src/cli/tui/mobxCompat.ts'
+import { observer } from 'mobx-react-lite'
 import { CopyOverlay } from 'src/cli/tui/components/CopyOverlay.tsx'
 import { DraftsOverlay } from 'src/cli/tui/components/DraftsOverlay.tsx'
 import { Header } from 'src/cli/tui/components/Header.tsx'

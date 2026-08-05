@@ -1,5 +1,5 @@
 import { Box, Text } from 'ink'
-import { observer } from 'src/cli/tui/mobxCompat.ts'
+import { observer } from 'mobx-react-lite'
 import { OverlayList } from 'src/cli/tui/components/OverlayList.tsx'
 import { PICKER_PANES } from 'src/cli/tui/imagePicker/ImagePickerSt.ts'
 import type { TuiSt } from 'src/cli/tui/state/TuiSt.ts'

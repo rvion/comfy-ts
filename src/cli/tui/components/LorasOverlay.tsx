@@ -1,5 +1,5 @@
 import { Text } from 'ink'
-import { observer } from 'src/cli/tui/mobxCompat.ts'
+import { observer } from 'mobx-react-lite'
 import { OverlayList } from 'src/cli/tui/components/OverlayList.tsx'
 import { getLoraDisplayName } from 'src/host/loraInfoCache.ts'
 import { loraBasename } from 'src/host/loraManagerApi.ts'
