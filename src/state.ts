@@ -95,6 +95,7 @@ export class ComfyTS {
     *    .comfy-ts/hosts/<id>/{object_info.json, embeddings.json, sdk.d.ts}
     *    .comfy-ts/outputs/...   generated images & workflows
     *    .comfy-ts/drafts/<workflow-id>/<draft>.json   TUI var snapshots (local, gitignored)
+    *    .comfy-ts/prompt-enhancers/<name>.md          serve web ui master prompts (local, gitignored)
     */
    baseFolder: AbsolutePath
    hostsFolder: AbsolutePath
@@ -102,6 +103,11 @@ export class ComfyTS {
 
    resolveFromDrafts(relativePath: string): AbsolutePath {
       return asAbsolutePath(join(this.baseFolder, 'drafts', relativePath))
+   }
+
+   /** master prompts of the serve web ui's prompt enhancer — hand-editable markdown */
+   resolveFromPromptEnhancers(relativePath: string): AbsolutePath {
+      return asAbsolutePath(join(this.baseFolder, 'prompt-enhancers', relativePath))
    }
 
    resolveFromCache(relativePath: string): AbsolutePath {

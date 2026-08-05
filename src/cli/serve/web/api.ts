@@ -97,6 +97,25 @@ export function loraPreviewSrc(p: { host: string; name: string }): string {
    return `/lora-preview/${encodeURIComponent(p.host)}/${encodeURIComponent(p.name)}`
 }
 
+/** master prompts of the enhancer, files under `.comfy-ts/prompt-enhancers/` (server-owned) */
+export type PromptEnhancer = { name: string; text: string }
+
+export function fetchPromptEnhancers(): Promise<{ enhancers: PromptEnhancer[] }> {
+   return jsonFetch('/prompt-enhancers')
+}
+
+export function savePromptEnhancer(p: PromptEnhancer): Promise<{ ok: true; enhancers: PromptEnhancer[] }> {
+   return jsonFetch(`/prompt-enhancers/${encodeURIComponent(p.name)}`, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ text: p.text }),
+   })
+}
+
+export function deletePromptEnhancer(p: { name: string }): Promise<{ ok: true; enhancers: PromptEnhancer[] }> {
+   return jsonFetch(`/prompt-enhancers/${encodeURIComponent(p.name)}`, { method: 'DELETE' })
+}
+
 export async function uploadFile(p: { file: File }): Promise<{ path: string; url: string | null }> {
    const bytes = new Uint8Array(await p.file.arrayBuffer())
    let bin = ''

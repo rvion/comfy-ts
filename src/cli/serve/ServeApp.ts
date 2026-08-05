@@ -6,6 +6,8 @@ import { nanoid } from 'nanoid'
 import { basename, dirname, extname, join, resolve } from 'pathe'
 import { applyVarPayload } from 'src/cli/serve/applyVarPayload.ts'
 import { describeVar, type VarDescriptor } from 'src/cli/serve/describeVar.ts'
+import { deletePromptEnhancer, listPromptEnhancers, writePromptEnhancer } from 'src/cli/serve/promptEnhancers.ts'
+import { validStoreName } from 'src/cli/serve/safeName.ts'
 import { draftsDirForFile, listDraftsForFile } from 'src/cli/tui/state/DraftsSt.ts'
 import {
    getLoraDisplayName,
@@ -84,6 +86,8 @@ const USAGE = [
    'POST /upload with {"name","dataBase64"} — store a browser file for an image var',
    'GET  /lora-info/<hostId>/<lora> — display name + trigger words (local mirror)',
    'GET  /lora-preview/<hostId>/<lora> — preview image bytes',
+   'GET  /prompt-enhancers — the web ui master prompts (.comfy-ts/prompt-enhancers/*.md)',
+   'PUT  /prompt-enhancers/<name> with {"text"} — write one · DELETE /prompt-enhancers/<name> — remove it',
    'GET  /outputs/<path> — generated files',
 ]
 
@@ -165,6 +169,7 @@ export class ServeApp {
                return this.replyLoraInfo(segs[1], segs[2])
             if (segs[0] === 'lora-preview' && segs.length === 3 && segs[1] != null && segs[2] != null)
                return await this.replyLoraPreview(segs[1], segs[2])
+            if (segs[0] === 'prompt-enhancers' && segs.length === 1) return this.replyPromptEnhancers()
             if (segs[0] === 'outputs') return this.replyOutput(segs.slice(1))
             return json(404, { error: `no route: GET ${path}`, usage: USAGE })
          }
@@ -178,6 +183,10 @@ export class ServeApp {
             return await this.replySaveDraft(segs[1], segs[2], req)
          if (req.method === 'DELETE' && segs[0] === 'drafts' && segs.length === 3 && segs[1] != null && segs[2] != null)
             return await this.replyDeleteDraft(segs[1], segs[2])
+         if (req.method === 'PUT' && segs[0] === 'prompt-enhancers' && segs.length === 2 && segs[1] != null)
+            return this.replySavePromptEnhancer(segs[1], req)
+         if (req.method === 'DELETE' && segs[0] === 'prompt-enhancers' && segs.length === 2 && segs[1] != null)
+            return this.replyDeletePromptEnhancer(segs[1])
          return json(404, { error: `no route: ${req.method} ${path}`, usage: USAGE })
       } catch (e) {
          console.error('[serve] request crashed:', e)
@@ -195,14 +204,10 @@ export class ServeApp {
       return ['default', ...onDisk.filter((n) => n !== 'default')]
    }
 
-   /** THE draft-name gate, shared by every route that turns a url segment into a path.
-    * handle() decodes per segment, so `%2F` reaches here as a real `/` while the segment
-    * count still looks right — an unguarded reader would read (and RUN) any json on disk */
+   /** THE draft-name gate, shared by every route that turns a url segment into a path
+    * (safeName.ts owns the rule — the prompt-enhancer routes call the same function) */
    private validDraftName(raw: string): string | null {
-      const name = raw.trim()
-      // length cap: past it the fs answers ENAMETOOLONG as a raw 500
-      if (name.length > 100) return null
-      return /^[\w][\w .-]*$/.test(name) ? name : null
+      return validStoreName(raw)
    }
 
    /** absolute path of a draft file, or null when the name is not one we accept */
@@ -400,6 +405,50 @@ export class ServeApp {
       })
       console.log(`[serve] draft deleted: ${mod.key}/${rawDraft.trim()}`)
       return json(200, { ok: true, module: mod.key, draft: rawDraft.trim(), drafts: this.draftsFor(mod) })
+   }
+
+   // #region prompt enhancers (the web ui's master prompts, as .md files) ------
+   /** the folder is seeded on the first read, so `refine-krea2-prompt.md` exists to be edited */
+   private replyPromptEnhancers(): ServeReply {
+      try {
+         return json(200, { enhancers: listPromptEnhancers() })
+      } catch (e) {
+         return json(500, { error: `prompt-enhancers folder unreadable: ${extractErrorMessage(e)}` })
+      }
+   }
+
+   private replySavePromptEnhancer(rawName: string, req: ServeRequest): ServeReply {
+      const name = validStoreName(rawName)
+      if (name == null)
+         return json(400, { error: `invalid enhancer name '${rawName}' — letters/digits then letters, digits, ". -_"` })
+      let parsed: unknown
+      try {
+         parsed = JSON.parse(req.body ?? '')
+      } catch (e) {
+         return json(400, { error: `body is not valid json: ${extractErrorMessage(e)}` })
+      }
+      if (parsed == null || typeof parsed !== 'object' || Array.isArray(parsed))
+         return json(400, { error: 'body must be { "text": "<master prompt>" }' })
+      const text = (parsed as Record<string, unknown>).text
+      if (typeof text !== 'string') return json(400, { error: 'body must be { "text": "<master prompt>" }' })
+      try {
+         writePromptEnhancer(name, text)
+      } catch (e) {
+         return json(500, { error: `could not write enhancer '${name}': ${extractErrorMessage(e)}` })
+      }
+      return json(200, { ok: true, name, enhancers: listPromptEnhancers() })
+   }
+
+   private replyDeletePromptEnhancer(rawName: string): ServeReply {
+      const name = validStoreName(rawName)
+      if (name == null) return json(400, { error: `invalid enhancer name '${rawName}'` })
+      try {
+         deletePromptEnhancer(name)
+      } catch (e) {
+         return json(500, { error: `could not delete enhancer '${name}': ${extractErrorMessage(e)}` })
+      }
+      console.log(`[serve] prompt enhancer deleted: ${name}`)
+      return json(200, { ok: true, name, enhancers: listPromptEnhancers() })
    }
 
    // #region live run state (web ui polling: progress + latent preview) --------

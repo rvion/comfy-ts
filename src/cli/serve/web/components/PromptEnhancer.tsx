@@ -2,25 +2,47 @@
 // a library of named master prompts. Nothing touches the var until APPLY.
 import { observer } from 'mobx-react-lite'
 import { useEffect } from 'react'
-import type { ReasoningEffort } from 'src/cli/serve/web/openrouter.ts'
-import type { EnhancerSt } from 'src/cli/serve/web/state/EnhancerSt.ts'
+import type { ProviderId, ReasoningEffort } from 'src/cli/serve/web/llm.ts'
+import { PROVIDERS, type EnhancerSt } from 'src/cli/serve/web/state/EnhancerSt.ts'
 import type { VarSt } from 'src/cli/serve/web/state/FormSt.ts'
 import type { WebSt } from 'src/cli/serve/web/state/WebSt.ts'
 
 const EFFORTS: ReasoningEffort[] = ['off', 'low', 'medium', 'high']
 
+const PROVIDER_LABEL: Record<ProviderId, string> = {
+   openrouter: 'openrouter (cloud)',
+   openwebui: 'open webui (local)',
+}
+
 const Settings = observer(function Settings(p: { e: EnhancerSt }) {
    const models = p.e.visibleModels
+   const local = p.e.provider === 'openwebui'
    return (
       <div>
-         <div className="section-title">openrouter · the key stays in this browser</div>
+         <div className="section-title">provider · keys stay in this browser</div>
          <div className="enh-row">
+            <select value={p.e.provider} onChange={(ev) => p.e.setProvider(ev.target.value)}>
+               {PROVIDERS.map((id) => (
+                  <option key={id} value={id}>
+                     {PROVIDER_LABEL[id]}
+                  </option>
+               ))}
+            </select>
+            {local ? (
+               <input
+                  type="text"
+                  placeholder="http://localhost:3000"
+                  value={p.e.baseUrl}
+                  onChange={(ev) => p.e.setBaseUrl(ev.target.value)}
+                  style={{ flex: 1, minWidth: 180 }}
+               />
+            ) : null}
             <input
                type="password"
-               placeholder="sk-or-v1-… (localStorage only)"
+               placeholder={local ? 'open webui api key (blank if none)' : 'sk-or-v1-… (localStorage only)'}
                value={p.e.apiKey}
                onChange={(ev) => p.e.setApiKey(ev.target.value)}
-               style={{ flex: 1, minWidth: 200 }}
+               style={{ flex: 1, minWidth: 160 }}
             />
             <button type="button" onClick={() => void p.e.loadModels()} disabled={p.e.modelsState === 'loading'}>
                {p.e.modelsState === 'loading' ? 'loading…' : 'load models'}
@@ -42,27 +64,34 @@ const Settings = observer(function Settings(p: { e: EnhancerSt }) {
             ) : (
                <input
                   type="text"
-                  placeholder="model id, e.g. anthropic/claude-sonnet-5"
+                  placeholder={local ? 'model id, e.g. qwen3:8b' : 'model id, e.g. anthropic/claude-sonnet-5'}
                   value={p.e.model}
                   onChange={(ev) => p.e.setModel(ev.target.value)}
                   style={{ flex: 1 }}
                />
             )}
-            <label className="row-inline" title="only models that support reasoning">
+            <label className="row-inline" title="hide models that report no reasoning support">
                <input type="checkbox" checked={p.e.thinkingOnly} onChange={() => p.e.toggleThinkingOnly()} />
                <span className="hint">thinking only</span>
             </label>
-            <label className="row-inline" title="reasoning effort sent to the model">
-               <span className="hint">effort</span>
-               <select value={p.e.effort} onChange={(ev) => p.e.setEffort(ev.target.value)}>
-                  {EFFORTS.map((x) => (
-                     <option key={x} value={x}>
-                        {x}
-                     </option>
-                  ))}
-               </select>
-            </label>
+            {local ? null : (
+               <label className="row-inline" title="reasoning effort sent to the model">
+                  <span className="hint">effort</span>
+                  <select value={p.e.effort} onChange={(ev) => p.e.setEffort(ev.target.value)}>
+                     {EFFORTS.map((x) => (
+                        <option key={x} value={x}>
+                           {x}
+                        </option>
+                     ))}
+                  </select>
+               </label>
+            )}
          </div>
+         {local ? (
+            <div className="hint">
+               a local model's &lt;think&gt; block is routed to the thinking pane, never into your prompt
+            </div>
+         ) : null}
          {p.e.modelsError !== '' ? <div className="error">🔴 {p.e.modelsError}</div> : null}
       </div>
    )
@@ -70,22 +99,40 @@ const Settings = observer(function Settings(p: { e: EnhancerSt }) {
 
 const MasterPrompt = observer(function MasterPrompt(p: { e: EnhancerSt }) {
    const preset = p.e.preset
-   if (preset == null) return null
+   if (preset == null) {
+      return (
+         <div>
+            <div className="section-title">master prompt</div>
+            <div className="hint">
+               {p.e.presetsState === 'loading' ? 'loading .comfy-ts/prompt-enhancers/…' : 'no master prompt yet'}
+            </div>
+            {p.e.presetsError !== '' ? <div className="error">🔴 {p.e.presetsError}</div> : null}
+            <button type="button" onClick={() => p.e.addPreset('refine-prompt')}>
+               create one
+            </button>
+         </div>
+      )
+   }
    const rename = (): void => {
-      const name = window.prompt('rename this master prompt', preset.name)
-      if (name != null) p.e.renamePreset(name)
+      const name = window.prompt('rename this master prompt (renames the file)', preset.name)
+      if (name != null) void p.e.renamePreset(name)
    }
    const create = (): void => {
       const name = window.prompt('name the new master prompt', 'refine-<model>-prompt')
       if (name != null) p.e.addPreset(name)
    }
+   const remove = (): void => {
+      if (window.confirm(`delete master prompt '${preset.name}'? the .md file is removed.`)) void p.e.deletePreset()
+   }
    return (
       <div>
-         <div className="section-title">master prompt · one per image model</div>
+         <div className="section-title">
+            master prompt · one per image model · .comfy-ts/prompt-enhancers/{preset.name}.md
+         </div>
          <div className="enh-row">
-            <select value={preset.id} onChange={(ev) => p.e.selectPreset(ev.target.value)} style={{ flex: 1 }}>
+            <select value={preset.name} onChange={(ev) => p.e.selectPreset(ev.target.value)} style={{ flex: 1 }}>
                {p.e.presets.map((m) => (
-                  <option key={m.id} value={m.id}>
+                  <option key={m.name} value={m.name}>
                      {m.name}
                   </option>
                ))}
@@ -99,17 +146,14 @@ const MasterPrompt = observer(function MasterPrompt(p: { e: EnhancerSt }) {
             <button type="button" onClick={rename}>
                rename
             </button>
-            <button type="button" onClick={() => p.e.deletePreset()} title="delete this master prompt">
+            <button type="button" onClick={remove} title="delete this master prompt file">
                ✕
             </button>
-            <button
-               type="button"
-               className="link"
-               onClick={() => p.e.restoreDefaults()}
-               title="re-add the shipped ones"
-            >
-               restore defaults
-            </button>
+            <span className="hint">
+               {p.e.saveState === 'saving' ? 'saving…' : null}
+               {p.e.saveState === 'saved' ? 'autosaved to disk' : null}
+               {p.e.saveState === 'error' ? `🔴 save failed: ${p.e.saveError}` : null}
+            </span>
          </div>
          <textarea rows={8} value={preset.text} onChange={(ev) => p.e.setPresetText(ev.target.value)} />
       </div>
