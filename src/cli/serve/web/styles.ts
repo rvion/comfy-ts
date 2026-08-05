@@ -86,6 +86,8 @@ button:hover { border-color: var(--accent); }
 button:disabled { opacity: 0.5; cursor: default; }
 button.primary { background: var(--accent); border-color: var(--accent); color: #0d1117; font-weight: 600; padding: 8px 22px; }
 button.link { border: 0; background: none; color: var(--accent); padding: 0; }
+button.link.danger { color: var(--dim); }
+button.link.danger:hover { color: var(--red); }
 button.mode { padding: 4px 8px; font-size: 12px; }
 button.mode.sel { background: var(--accent-dim); border-color: var(--accent); color: #fff; }
 

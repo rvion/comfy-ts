@@ -136,6 +136,17 @@ export const VarsForm = observer(function VarsForm(p: { st: WebSt }) {
             <button type="button" className="link" title="save these values as a new draft" onClick={duplicate}>
                duplicate…
             </button>
+            <button
+               type="button"
+               className="link danger"
+               title="delete this draft's file (default resets to the workflow's own values)"
+               onClick={() => {
+                  if (window.confirm(`delete draft '${form.draft}' of ${form.moduleKey}? the file is removed.`))
+                     void p.st.deleteDraft({ module: form.moduleKey, draft: form.draft })
+               }}
+            >
+               delete
+            </button>
          </div>
          {form.vars.map((v) => (
             // keyed by DRAFT too: a draft switch must reset per-row ui state (lora filter,

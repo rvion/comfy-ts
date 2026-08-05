@@ -1,7 +1,7 @@
 // ROOT state tree of the serve web ui (app-state-tree doctrine: one root,
 // child stores hang off it, components read and call)
 import { makeAutoObservable, observableRef, observableShallow, runInAction } from 'mobx'
-import { fetchDraftValues, fetchIndex, saveDraft, type ModuleDescription } from 'src/cli/serve/web/api.ts'
+import { deleteDraft, fetchDraftValues, fetchIndex, saveDraft, type ModuleDescription } from 'src/cli/serve/web/api.ts'
 import { EnhancerSt } from 'src/cli/serve/web/state/EnhancerSt.ts'
 import { FormSt } from 'src/cli/serve/web/state/FormSt.ts'
 import { RunSt } from 'src/cli/serve/web/state/RunSt.ts'
@@ -186,6 +186,31 @@ export class WebSt {
       // the header already shows the loud save error; running the stale draft would lie
       if (!saved) return
       this.run.enqueue({ module: form.moduleKey, draft: form.draft, payload })
+   }
+
+   /** delete the draft FILE, then fall back to another draft (DraftsSt.deleteDraft's rule).
+    * ORDER: the form is dropped WITHOUT flushing FIRST — its autosave would otherwise
+    * re-create the file the server is about to delete */
+   async deleteDraft(p: { module: string; draft: string }): Promise<void> {
+      const form = this.form
+      if (form != null && form.moduleKey === p.module && form.draft === p.draft) {
+         form.dispose({ flush: false })
+         runInAction(() => {
+            this.form = null
+         })
+      }
+      try {
+         const reply = await deleteDraft(p)
+         runInAction(() => {
+            this.modules = this.modules.map((m) => (m.module === p.module ? { ...m, drafts: reply.drafts } : m))
+         })
+         const fallback = reply.drafts.includes('default') ? 'default' : (reply.drafts[0] ?? 'default')
+         await this.select({ module: p.module, draft: fallback })
+      } catch (e) {
+         runInAction(() => {
+            this.formError = e instanceof Error ? e.message : String(e)
+         })
+      }
    }
 
    /** duplicate = save the current values under a new name, then switch to it */

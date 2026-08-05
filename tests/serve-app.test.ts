@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'pathe'
@@ -402,5 +402,56 @@ describe('draft name is one gate for every route (traversal)', () => {
 
       const write = await app.handle({ method: 'PUT', url: '/drafts/wf-traversal/..%2F..%2Fpwned', body: '{}' })
       expect(write.status).toBe(400)
+   })
+})
+
+describe('ServeApp draft delete (DELETE)', () => {
+   it('removes the file, reports the remaining drafts, and the draft stops resolving', async () => {
+      const mod = makeModule('wf-del')
+      const app = new ServeApp([mod], { outputRoot: join(root, 'out') })
+      await app.handle({ method: 'PUT', url: '/drafts/wf-del/scratch', body: JSON.stringify({ prompt: 'bye' }) })
+      const path = join(draftsDirForFile(mod.file), 'scratch.json')
+      expect(existsSync(path)).toBe(true)
+
+      const del = await app.handle({ method: 'DELETE', url: '/drafts/wf-del/scratch' })
+      expect(del.status).toBe(200)
+      expect(existsSync(path)).toBe(false)
+      expect((JSON.parse(String(del.body)) as { drafts: string[] }).drafts).not.toContain('scratch')
+      expect((await app.handle({ method: 'GET', url: '/drafts/wf-del/scratch' })).status).toBe(404)
+   })
+
+   it("deleting 'default' removes the FILE while the implicit default survives (the reset)", async () => {
+      const mod = makeModule('wf-del-default')
+      const app = new ServeApp([mod], { outputRoot: join(root, 'out') })
+      await app.handle({
+         method: 'PUT',
+         url: '/drafts/wf-del-default/default',
+         body: JSON.stringify({ prompt: 'tuned default' }),
+      })
+      await app.handle({ method: 'DELETE', url: '/drafts/wf-del-default/default' })
+      expect(existsSync(join(draftsDirForFile(mod.file), 'default.json'))).toBe(false)
+      const after = await app.handle({ method: 'GET', url: '/drafts/wf-del-default/default' })
+      expect(after.status).toBe(200)
+      // back to the spec value, not the tuned one
+      expect((JSON.parse(String(after.body)) as { values: { prompt: string } }).values.prompt).toBe('default prompt')
+   })
+
+   it('the name gate applies: a traversal name is 400 and touches nothing', async () => {
+      const mod = makeModule('wf-del-gate')
+      const app = new ServeApp([mod], { outputRoot: join(root, 'out') })
+      const outside = join(draftsDirForFile(mod.file), '..', '..', 'keep-me.json')
+      mkdirSync(dirname(outside), { recursive: true })
+      writeFileSync(outside, '{}')
+      const bad = await app.handle({ method: 'DELETE', url: '/drafts/wf-del-gate/..%2F..%2Fkeep-me' })
+      expect(bad.status).toBe(400)
+      expect(existsSync(outside)).toBe(true)
+      expect((await app.handle({ method: 'DELETE', url: '/drafts/ghost/x' })).status).toBe(404)
+   })
+
+   it('deleting a draft that has no file still reports ok (the end state is what matters)', async () => {
+      const mod = makeModule('wf-del-missing')
+      const app = new ServeApp([mod], { outputRoot: join(root, 'out') })
+      const reply = await app.handle({ method: 'DELETE', url: '/drafts/wf-del-missing/never-existed' })
+      expect(reply.status).toBe(200)
    })
 })

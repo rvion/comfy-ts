@@ -66,6 +66,10 @@ export function saveDraft(
    })
 }
 
+export function deleteDraft(p: { module: string; draft: string }): Promise<{ ok: true; drafts: string[] }> {
+   return jsonFetch(`/drafts/${encodeURIComponent(p.module)}/${encodeURIComponent(p.draft)}`, { method: 'DELETE' })
+}
+
 export type RunStatus = {
    running: boolean
    status: string

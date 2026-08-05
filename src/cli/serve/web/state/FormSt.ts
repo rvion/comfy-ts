@@ -89,9 +89,12 @@ export class FormSt {
       )
    }
 
-   dispose(): void {
+   /** stop the autosave. `flush: false` is the DELETE path: flushing there would write the
+    * draft file back milliseconds after the server removed it */
+   dispose(p: { flush?: boolean } = {}): void {
       for (const d of this.disposers) d()
       this.disposers = []
+      if (p.flush === false) return
       // a draft switch inside the debounce window must not lose the edit
       if (JSON.stringify(this.valuesJSON()) !== this.lastSaved) void this.save()
    }

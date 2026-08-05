@@ -1,7 +1,7 @@
 // `comfy-ts serve` request handling, transport-free: run-serve owns node:http,
 // tests call handle() directly with an injected starter. Full contract:
 // agent/architecture.md item 12.
-import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { nanoid } from 'nanoid'
 import { basename, dirname, extname, join, resolve } from 'pathe'
 import { applyVarPayload } from 'src/cli/serve/applyVarPayload.ts'
@@ -79,6 +79,7 @@ const USAGE = [
    'POST /generate/<module>/<draft> with { ...vars } — run, blocking',
    'POST /generate/<draft> — unqualified, when unambiguous',
    'PUT  /drafts/<module>/<draft> with { ...vars } — save (or duplicate to a new name) a draft',
+   'DELETE /drafts/<module>/<draft> — delete that draft file',
    'GET  /run/<module> — live run status · /run/<module>/preview — latent preview bytes',
    'POST /upload with {"name","dataBase64"} — store a browser file for an image var',
    'GET  /lora-info/<hostId>/<lora> — display name + trigger words (local mirror)',
@@ -175,6 +176,8 @@ export class ServeApp {
          if (req.method === 'POST' && segs[0] === 'upload' && segs.length === 1) return this.replyUpload(req)
          if (req.method === 'PUT' && segs[0] === 'drafts' && segs.length === 3 && segs[1] != null && segs[2] != null)
             return await this.replySaveDraft(segs[1], segs[2], req)
+         if (req.method === 'DELETE' && segs[0] === 'drafts' && segs.length === 3 && segs[1] != null && segs[2] != null)
+            return await this.replyDeleteDraft(segs[1], segs[2])
          return json(404, { error: `no route: ${req.method} ${path}`, usage: USAGE })
       } catch (e) {
          console.error('[serve] request crashed:', e)
@@ -381,6 +384,22 @@ export class ServeApp {
          return Promise.resolve()
       })
       return json(200, { ok: true, module: mod.key, draft, drafts: this.draftsFor(mod) })
+   }
+
+   /** delete the draft FILE. `default` is deletable like any other: the implicit `default`
+    * draft (spec values, no file) survives it, which is exactly the reset. Missing file is
+    * still a 200 — the caller asked for it to be gone, and it is */
+   private async replyDeleteDraft(modKey: string, rawDraft: string): Promise<ServeReply> {
+      const mod = this.moduleByKey(modKey)
+      if (mod == null) return json(404, { error: `unknown module '${modKey}'` })
+      const path = this.draftPath(mod, rawDraft)
+      if (path == null) return json(400, { error: `invalid draft name '${rawDraft}'` })
+      await this.exclusive(mod.key, () => {
+         if (existsSync(path)) rmSync(path)
+         return Promise.resolve()
+      })
+      console.log(`[serve] draft deleted: ${mod.key}/${rawDraft.trim()}`)
+      return json(200, { ok: true, module: mod.key, draft: rawDraft.trim(), drafts: this.draftsFor(mod) })
    }
 
    // #region live run state (web ui polling: progress + latent preview) --------
