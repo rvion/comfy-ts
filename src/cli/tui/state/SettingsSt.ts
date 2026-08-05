@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { makeAutoObservable, reaction, runInAction } from 'mobx'
 import { dirname } from 'pathe'
-import { protocolCapable } from 'src/cli/tui/state/PreviewSt.ts'
+import { protocolCapable } from 'src/utils/protocolImage.ts'
 import type { TuiSt } from 'src/cli/tui/state/TuiSt.ts'
 
 export type PreviewRenderer = 'native' | 'pixel'

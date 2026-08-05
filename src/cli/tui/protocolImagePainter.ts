@@ -1,5 +1,14 @@
 import { reaction } from 'mobx'
-import { protocolCapable } from 'src/cli/tui/state/PreviewSt.ts'
+import {
+   fitCellBox,
+   imageDims,
+   itermImageEscape,
+   KITTY_DELETE_ALL,
+   kittyDeleteEscape,
+   kittyPlaceEscape,
+   kittyTransmitEscape,
+} from 'src/cli/tui/imageEscapes.ts'
+import { imageProtocol } from 'src/utils/protocolImage.ts'
 import type { TuiSt } from 'src/cli/tui/state/TuiSt.ts'
 
 type WriteCb = (err?: Error | null) => void
@@ -9,49 +18,90 @@ const SYNC_END = '\u001b[?2026l'
 /** below this a write is a terminal query/reply, not a frame — no cells damaged */
 const MIN_FRAME_BYTES = 64
 
+/** kitty image ids: fixed, transmit-once bookkeeping keys */
+const MAIN_ID = 1
+const CORNER_ID = 2
+
 /**
- * paints the REAL image (OSC 1337) over the preview panel's cell rect.
- * Protocol images cannot go THROUGH ink (layout shreds the escape) and every
- * ink frame write ERASES the image's cells — so this hooks stdout.write and
- * re-paints SYNCHRONOUSLY within the same flush, the whole batch wrapped in
- * DEC 2026 synchronized-update markers: the terminal never presents the
- * erased-frame intermediate state. (The previous deferred setImmediate
- * repaint WAS the native-mode flicker.) A mobx reaction covers
+ * paints the REAL image (iTerm OSC 1337 / kitty APC _G) over the preview
+ * panel's cell rect. Protocol images cannot go THROUGH ink (layout shreds the
+ * escape) and every ink frame write ERASES the image's cells — so this hooks
+ * stdout.write and re-paints SYNCHRONOUSLY within the same flush, the whole
+ * batch wrapped in DEC 2026 synchronized-update markers: the terminal never
+ * presents the erased-frame intermediate state. (The previous deferred
+ * setImmediate repaint WAS the native-mode flicker.) A mobx reaction covers
  * byte-only changes (fresh latent/output/lora bytes with no frame write).
  * NOT React: effects only fire for the component that re-rendered, which is
  * why a useEffect painter missed frames (reported: the image waited for input).
+ * Kitty differs from iterm in three ways the code below encodes: data uploads
+ * ONCE per bytes object then a tiny placement re-paints per flush (same i,p
+ * replaces); kitty draws images OVER later text, so a gone image needs an
+ * explicit delete or it covers the menu; the cell box stretches, so it is
+ * fitted to the image aspect first.
  */
 export function installProtocolImagePainter(st: TuiSt): () => void {
    // capability, not current setting: the menu can switch to native at any
    // time — imageEscapes() is empty while pixel/hidden, so painting no-ops
-   if (!protocolCapable() || process.stdout.isTTY !== true) return () => {}
+   const proto = imageProtocol()
+   if (proto == null || process.stdout.isTTY !== true) return () => {}
    const original = process.stdout.write.bind(process.stdout)
-
-   const imageEscape = (bytes: Uint8Array, row: number, col: number, w: number, h: number): string => {
-      const b64 = Buffer.from(bytes).toString('base64')
-      // cursor save → CUP → image sized in CELLS → cursor restore
-      return `\u001b7\u001b[${row};${col}H\u001b]1337;File=inline=1;size=${bytes.byteLength};width=${w};height=${h};preserveAspectRatio=1:${b64}\u0007\u001b8`
-   }
 
    // first image row: header(3) + panel border(1) + 1 content row — row 6,
    // calibrated by playtest on iTerm2 (2026-07-27: row 5 painted one line too high)
    const CONTENT_ROW = 6
 
-   /** both images as ONE escape string ('' when nothing to paint) */
+   // kitty transmit-once state: which bytes object each image id currently holds
+   const transmitted = new Map<number, Uint8Array | null>()
+
+   const kittyShow = (bytes: Uint8Array, id: number, row: number, col: number, w: number, h: number): string => {
+      let out = ''
+      if (transmitted.get(id) !== bytes) {
+         out += kittyDeleteEscape(id) + kittyTransmitEscape(bytes, id)
+         transmitted.set(id, bytes)
+      }
+      return out + kittyPlaceEscape(id, row, col, w, h)
+   }
+
+   const kittyDrop = (id: number): string => {
+      if (transmitted.get(id) == null) return ''
+      transmitted.set(id, null)
+      return kittyDeleteEscape(id)
+   }
+
+   /** both images as ONE escape string ('' when nothing to paint or delete) */
    const imageEscapes = (): string => {
       const pv = st.preview
       const main = pv.protocolImage
       const corner = pv.protocolImageCorner
-      if (main == null && corner == null) return ''
       // panel outer left edge +1 border +1 padding
       const col = Math.max(1, st.termCols - (pv.width + 4) + 3)
+      if (proto === 'iterm') {
+         if (main == null && corner == null) return ''
+         let out = ''
+         if (main != null) out += itermImageEscape(main, CONTENT_ROW, col, pv.width, pv.height)
+         // small latent AFTER the big image so it stays on top; its cell box
+         // matches the latent's aspect (cornerBox) — a mismatched rect letterboxes
+         if (corner != null) {
+            const box = pv.cornerBox
+            out += itermImageEscape(corner, CONTENT_ROW, col + pv.width - box.w, box.w, box.h)
+         }
+         return out
+      }
+      // kitty: main box fitted to the image dims and centered in the panel rect
+      // (iterm letterboxes inside the box itself, kitty stretches)
       let out = ''
-      if (main != null) out += imageEscape(main, CONTENT_ROW, col, pv.width, pv.height)
-      // small latent AFTER the big image so it stays on top; its cell box
-      // matches the latent's aspect (cornerBox) — a mismatched rect letterboxes
-      if (corner != null) {
-         const box = pv.cornerBox
-         out += imageEscape(corner, CONTENT_ROW, col + pv.width - box.w, box.w, box.h)
+      if (main == null) out += kittyDrop(MAIN_ID)
+      else {
+         const dims = imageDims(main)
+         const box = fitCellBox({ imgW: dims.w, imgH: dims.h, w: pv.width, h: pv.height })
+         const row = CONTENT_ROW + Math.max(0, Math.floor((pv.height - box.h) / 2))
+         const c = col + Math.max(0, Math.floor((pv.width - box.w) / 2))
+         out += kittyShow(main, MAIN_ID, row, c, box.w, box.h)
+      }
+      if (corner == null) out += kittyDrop(CORNER_ID)
+      else {
+         const box = pv.cornerBox // already aspect-fitted from the latent dims
+         out += kittyShow(corner, CORNER_ID, CONTENT_ROW, col + pv.width - box.w, box.w, box.h)
       }
       return out
    }
@@ -89,6 +139,8 @@ export function installProtocolImagePainter(st: TuiSt): () => void {
    const disposeReaction = reaction(() => [st.preview.protocolImage, st.preview.protocolImageCorner], schedule)
    return () => {
       disposed = true
+      // ED at quit clears iterm images but NOT kitty ones: free them explicitly
+      if (proto === 'kitty') original(KITTY_DELETE_ALL)
       process.stdout.write = original
       disposeReaction()
    }

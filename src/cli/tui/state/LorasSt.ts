@@ -3,6 +3,7 @@ import { getLoraPreviewUrl, loraMatchesFilter, refreshLoraInfoCacheIfChanged } f
 import { fetchLoraList, fetchLoraPreviewBytes, loraKey, loraPreviewMapFrom } from 'src/host/loraManagerApi.ts'
 import { imageBufferToAnsi } from 'src/utils/ansiImage.ts'
 import { extractErrorMessage } from 'src/utils/extractErrorMessage.ts'
+import { protocolReadyBytes } from 'src/utils/protocolImage.ts'
 import { LorasVar } from 'src/vars/ComfyVars.ts'
 import {
    clearLoraKeywordOverride,
@@ -200,7 +201,13 @@ export class LorasSt {
          if (bytes == null) throw new Error('no image preview on the server')
          if (this.st.preview.useNative) {
             // the overlay painter shows the REAL image — no ansi rendering needed
-            this.st.preview.setOverlayImage({ bytes, ansi: null, name: `lora ${name}`, note: null })
+            // (protocolReadyBytes: kitty draws png only, previews can be jpeg/webp)
+            this.st.preview.setOverlayImage({
+               bytes: await protocolReadyBytes(bytes),
+               ansi: null,
+               name: `lora ${name}`,
+               note: null,
+            })
             return
          }
          const ansi = await imageBufferToAnsi(bytes, { width: this.st.preview.width, height: this.st.preview.height })

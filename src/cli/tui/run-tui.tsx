@@ -120,8 +120,9 @@ export async function runTui(args: string[]): Promise<number> {
    // Raw mode off = echo on, so flip it ourselves first (inside the try so the
    // finally always restores); ink owns it afterwards and restores cooked mode
    // on exit.
-   // REAL images over the preview panel rect on OSC-1337 terminals (repaints
-   // after every stdout flush + on image change — NOT a React effect)
+   // REAL images over the preview panel rect on capable terminals (iTerm OSC
+   // 1337 / kitty APC _G; repaints after every stdout flush + on image change —
+   // NOT a React effect)
    const uninstallPainter = installProtocolImagePainter(st)
    try {
       if (process.stdin.isTTY === true) process.stdin.setRawMode(true)

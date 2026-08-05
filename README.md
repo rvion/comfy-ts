@@ -278,7 +278,7 @@ No argument needed: it finds every `*.cflow.ts` under your project AND the examp
 | ------------ | -------------------------------------------------------------------------------- |
 | **(t)ree**   | every `*.cflow.ts` found, with named drafts (var snapshots) nested under it       |
 | **(v)ars**   | edit every knob: inline numbers, real multiline editor, fuzzy pickers, lora overlay with per-lora strengths |
-| **(p)review** | LIVE latent previews mid-run, then the final image, painted REAL on iTerm2/WezTerm/VS Code |
+| **(p)review** | LIVE latent previews mid-run, then the final image, painted REAL on kitty/Ghostty/iTerm2/WezTerm/VS Code |
 | **(h)ost**   | node/lora/embedding counts, live queue, re-codegen, restart Comfy, interrupt      |
 
 `r` runs, `s` rerolls the seed and runs, `o` opens the output, `c`/`C` copy workflow.json / api.json. Press `r` mid-run and it QUEUES with the values as they are right now. Drafts autosave: reopening lands you where you left off. Image vars open a full picker: browse the disk, favorite folders, recent picks, live preview of the highlighted image in the preview panel.

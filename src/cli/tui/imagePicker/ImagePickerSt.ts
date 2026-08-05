@@ -7,6 +7,7 @@ import { pickerPrefs } from 'src/cli/tui/imagePicker/pickerPrefs.ts'
 import { extractErrorMessage } from 'src/utils/extractErrorMessage.ts'
 import { fuzzyMatch } from 'src/utils/fuzzyMatch.ts'
 import { imageBufferToAnsi } from 'src/utils/ansiImage.ts'
+import { protocolReadyBytes } from 'src/utils/protocolImage.ts'
 import type { ImageVar } from 'src/vars/ComfyVars.ts'
 import type { TuiSt } from 'src/cli/tui/state/TuiSt.ts'
 
@@ -263,7 +264,13 @@ export class ImagePickerSt {
          // local file: bytes read directly, no host round-trip
          const bytes = new Uint8Array(readFileSync(path))
          if (this.st.preview.useNative) {
-            this.st.preview.setOverlayImage({ bytes, ansi: null, name: basename(path), note: null })
+            // protocolReadyBytes: kitty draws png only, browsed files can be jpeg/webp
+            this.st.preview.setOverlayImage({
+               bytes: await protocolReadyBytes(bytes),
+               ansi: null,
+               name: basename(path),
+               note: null,
+            })
          } else {
             const ansi = await imageBufferToAnsi(bytes, {
                width: this.st.preview.width,

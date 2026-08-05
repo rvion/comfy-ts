@@ -3,15 +3,9 @@ import sharp from 'sharp'
 import { imageMeta } from 'image-meta'
 import { imageBufferToAnsi } from 'src/utils/ansiImage.ts'
 import { extractErrorMessage } from 'src/utils/extractErrorMessage.ts'
+import { imageProtocol, protocolCapable, protocolReadyBytes } from 'src/utils/protocolImage.ts'
 import type { PreviewDuringRun, PreviewRenderer } from 'src/cli/tui/state/SettingsSt.ts'
 import type { TuiSt } from 'src/cli/tui/state/TuiSt.ts'
-
-/** OSC 1337 support: the panel can show REAL images instead of half-blocks */
-export function protocolCapable(): boolean {
-   if (process.env.COMFY_TS_NO_ITERM_IMAGES === '1') return false
-   const term = process.env.TERM_PROGRAM ?? ''
-   return term === 'iTerm.app' || term === 'WezTerm' || term === 'vscode' || process.env.LC_TERMINAL === 'iTerm2'
-}
 
 type MenuRow = { key: 'panel' | 'renderer' | 'during-run'; label: string; value: string }
 
@@ -109,7 +103,7 @@ export class PreviewSt {
          {
             key: 'renderer',
             label: 'renderer',
-            value: this.renderer + (protocolCapable() ? '' : ' (no protocol support)'),
+            value: this.renderer + (protocolCapable() ? '' : ' (this terminal cannot show real images)'),
          },
          {
             key: 'during-run',
@@ -263,11 +257,31 @@ export class PreviewSt {
       })
       if (!this.show || this.duringRun === 'last-output') return
       if (this.useNative) {
-         // server jpegs pass through untouched — the terminal scales them;
          // dims feed cornerBox so the corner rect matches the image aspect
          const meta = imageMeta(bytes)
-         this.latentBytes = bytes
-         this.latentDims = meta.width != null && meta.height != null ? { width: meta.width, height: meta.height } : null
+         const dims = meta.width != null && meta.height != null ? { width: meta.width, height: meta.height } : null
+         if (imageProtocol() !== 'kitty') {
+            // iterm scales any format: server jpegs pass through untouched
+            this.latentBytes = bytes
+            this.latentDims = dims
+            return
+         }
+         // kitty draws png only: transcode, busy-guarded like the pixel path
+         if (this._busy) return
+         this._busy = true
+         try {
+            const png = await protocolReadyBytes(bytes)
+            runInAction(() => {
+               this.latentBytes = png
+               this.latentDims = dims
+            })
+         } catch (e) {
+            runInAction(() => {
+               this.st.exec.notice = `latent preview: ${extractErrorMessage(e)}`
+            })
+         } finally {
+            this._busy = false
+         }
          return
       }
       if (this._busy) return
