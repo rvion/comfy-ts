@@ -1,12 +1,13 @@
-// loras. Two states per option: SELECTED (present in the record) and ON (not
-// `false`) — switching one off keeps its card in place instead of hiding it, and
-// its strength comes back when it does. The row carries the full controls
-// (on/off + model/clip), so nothing needs the popup to be adjusted; the popup
-// adds discovery: filter, the selected section with trigger words, and a
-// preview-card gallery of everything else. The 🖼/🏷 toggles hide images/titles
-// on EVERY lora surface (NSFW screens, persisted on WebSt); with both hidden the
-// row collapses to a count. Names come from descriptor optionLabels; the value
-// keeps raw enum keys: { "<name>": [model, clip] | false }, replaced by copy
+// loras as a PALETTE. The row shows only the loras you put in it; clicking a
+// card PAUSES or RESUMES it in place, so you can run a few images with a lora
+// and a few without, never reopening the popup to add it back. Model/clip
+// strengths sit on the card too. The popup is the only place that lists ALL
+// loras: tap one there to add it to the palette, ✕ on a card removes it.
+// Two states per option, LorasVar's own: in the palette = key present in the
+// record · paused = value `false` (the strength returns on resume). The 🖼/🏷
+// toggles hide images/titles on every lora surface (NSFW screens, persisted on
+// WebSt); with both hidden the row collapses to a count. Names come from
+// descriptor optionLabels; the value keeps raw enum keys, replaced by copy
 import { observer, useLocalObservable } from 'mobx-react-lite'
 import { useEffect, type ReactNode } from 'react'
 import { fetchLoraInfo, loraPreviewSrc, type LoraInfo } from 'src/cli/serve/web/api.ts'
@@ -96,17 +97,11 @@ export const LorasControl = observer(function LorasControl(p: { v: VarSt; host: 
       p.v.set(setLoraStrength(record, name, pair))
    }
 
-   /** the on/off switch + model/clip inputs, shared by the row cards and the modal */
-   const strengthControls = (name: string): ReactNode => {
+   /** model/clip inputs. A PAUSED lora still edits its strengths — they are what comes back */
+   const strengthInputs = (name: string): ReactNode => {
       const pair = isOn(name) ? loraStrengthPair(record[name]) : (local.prevStrength.get(name) ?? { model: 1, clip: 1 })
       return (
          <>
-            <input
-               type="checkbox"
-               checked={isOn(name)}
-               title={isOn(name) ? 'switch off (stays in the list)' : 'switch back on'}
-               onChange={(e) => toggleOn(name, e.target.checked)}
-            />
             <span className="st-label">m</span>
             <input
                type="number"
@@ -204,22 +199,33 @@ export const LorasControl = observer(function LorasControl(p: { v: VarSt; host: 
          <div className="row-inline">
             {!showImages && !showTitles ? (
                <span className="hint">
-                  {selectedNames.length} lora{selectedNames.length === 1 ? '' : 's'} selected
+                  {selectedNames.length} lora{selectedNames.length === 1 ? '' : 's'} in the palette
                </span>
             ) : (
                selectedNames.map((name) => (
                   <span
                      key={name}
                      className={`${showImages ? 'lora-chip card' : 'lora-chip'}${isOn(name) ? '' : ' off'}`}
-                     title={name}
                   >
-                     {thumb(name)}
-                     {showTitles ? <span className="chip-title">{label(name)}</span> : null}
-                     {/* strengths and the on/off switch live HERE: adjusting a lora must not
-                         cost a trip through the popup */}
+                     {/* THE palette gesture: the card itself pauses and resumes, so trying a
+                         few images with a lora and a few without never opens the popup */}
+                     <button
+                        type="button"
+                        className="lora-toggle"
+                        title={isOn(name) ? `${name}\nclick to pause` : `${name}\npaused — click to resume`}
+                        onClick={() => toggleOn(name, !isOn(name))}
+                     >
+                        {thumb(name)}
+                        {showTitles ? <span className="chip-title">{label(name)}</span> : null}
+                        <span className="chip-state">{isOn(name) ? '● on' : '⏸ paused'}</span>
+                     </button>
                      <span className="chip-controls">
-                        {strengthControls(name)}
-                        <button type="button" title="remove from the list" onClick={() => setEntry(name, null)}>
+                        {strengthInputs(name)}
+                        <button
+                           type="button"
+                           title="remove from the palette (the popup adds it back)"
+                           onClick={() => setEntry(name, null)}
+                        >
                            ✕
                         </button>
                      </span>
@@ -227,7 +233,7 @@ export const LorasControl = observer(function LorasControl(p: { v: VarSt; host: 
                ))
             )}
             <button type="button" onClick={() => local.setOpen(true)}>
-               {selectedNames.length === 0 ? `choose loras… (${options.length})` : 'edit…'}
+               {selectedNames.length === 0 ? `add loras… (${options.length})` : '+ add…'}
             </button>
             {visibilityToggles}
          </div>
@@ -251,7 +257,7 @@ export const LorasControl = observer(function LorasControl(p: { v: VarSt; host: 
                   <div className="modal-body">
                      {selectedNames.length > 0 ? (
                         <div className="lora-active-section">
-                           <div className="section-title">selected ({selectedNames.length})</div>
+                           <div className="section-title">your palette ({selectedNames.length})</div>
                            {selectedNames.filter(matchesFilter).map((name) => {
                               const info = local.info.get(name)
                               return (
@@ -267,7 +273,13 @@ export const LorasControl = observer(function LorasControl(p: { v: VarSt; host: 
                                           <div className="hint">{name}</div>
                                        )}
                                     </div>
-                                    {strengthControls(name)}
+                                    <input
+                                       type="checkbox"
+                                       checked={isOn(name)}
+                                       title={isOn(name) ? 'pause (stays in the palette)' : 'resume'}
+                                       onChange={(e) => toggleOn(name, e.target.checked)}
+                                    />
+                                    {strengthInputs(name)}
                                     <button
                                        type="button"
                                        title="remove from the list"
@@ -280,7 +292,7 @@ export const LorasControl = observer(function LorasControl(p: { v: VarSt; host: 
                            })}
                         </div>
                      ) : null}
-                     <div className="section-title">all loras</div>
+                     <div className="section-title">all loras — tap to add to the palette</div>
                      <div className="lora-grid">
                         {cards.map((name) => (
                            <button

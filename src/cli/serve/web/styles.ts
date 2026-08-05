@@ -128,12 +128,22 @@ button.mode.sel { background: var(--accent-dim); border-color: var(--accent); co
 .lora-chip.card .lora-thumb { height: 110px; }
 .lora-chip.card .chip-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .chip-title { min-width: 0; }
+/* the whole card is the pause/resume target — the palette gesture */
+.lora-toggle {
+   display: flex; flex-direction: column; gap: 4px; align-items: stretch; min-width: 0;
+   border: 0; background: none; color: inherit; font: inherit; padding: 0; cursor: pointer; text-align: left;
+}
+.lora-chip:not(.card) .lora-toggle { flex-direction: row; align-items: center; gap: 6px; }
+.lora-toggle:hover .chip-title { color: var(--accent); }
+.chip-state { font-size: 10px; color: var(--green); letter-spacing: 0.04em; }
+.lora-chip.off .chip-state { color: var(--amber); }
 .chip-controls { display: flex; gap: 4px; align-items: center; }
 .chip-controls input[type='number'] { width: 52px; padding: 1px 4px; font-size: 11px; }
 .chip-controls button { border: 0; background: none; color: inherit; padding: 0 2px; font-size: 11px; }
 .chip-controls button:hover { color: var(--red); }
-/* switched OFF: still listed, visibly not contributing */
-.lora-chip.off, .lora-active-row.off { opacity: 0.5; }
+/* PAUSED: still in the palette, visibly not contributing to the graph */
+.lora-chip.off, .lora-active-row.off { opacity: 0.55; }
+.lora-chip.off { border-style: dashed; }
 .lora-chip.off .lora-thumb, .lora-active-row.off .lora-thumb { filter: grayscale(1); }
 
 .queue { margin-top: 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--panel); }
