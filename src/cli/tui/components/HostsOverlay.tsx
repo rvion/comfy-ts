@@ -1,5 +1,5 @@
 import { Text } from 'ink'
-import { observer } from 'mobx-react-lite'
+import { observer } from 'src/cli/tui/mobxCompat.ts'
 import { OverlayList } from 'src/cli/tui/components/OverlayList.tsx'
 import type { TuiSt } from 'src/cli/tui/state/TuiSt.ts'
 

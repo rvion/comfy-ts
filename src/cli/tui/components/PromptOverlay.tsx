@@ -1,5 +1,5 @@
 import { Box, Text } from 'ink'
-import { observer } from 'mobx-react-lite'
+import { observer } from 'src/cli/tui/mobxCompat.ts'
 import { EditField } from 'src/cli/tui/components/EditField.tsx'
 import type { TuiSt } from 'src/cli/tui/state/TuiSt.ts'
 

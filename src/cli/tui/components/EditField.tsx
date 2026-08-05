@@ -1,5 +1,5 @@
 import { Text } from 'ink'
-import { observer } from 'mobx-react-lite'
+import { observer } from 'src/cli/tui/mobxCompat.ts'
 import type { TuiSt } from 'src/cli/tui/state/TuiSt.ts'
 
 const EDIT_WINDOW = 56

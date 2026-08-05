@@ -1,5 +1,5 @@
 import { Box, measureElement, Text } from 'ink'
-import { observer } from 'mobx-react-lite'
+import { observer } from 'src/cli/tui/mobxCompat.ts'
 import { useEffect, useRef } from 'react'
 import type { DOMElement } from 'ink'
 import type { TuiSt } from 'src/cli/tui/state/TuiSt.ts'

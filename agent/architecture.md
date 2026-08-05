@@ -78,6 +78,14 @@ src/vars/                  Vars (v.*) + DefinedWorkflow: the tweak & re-run cont
 src/cli/                   sidekick CLI (gen, outline, loras, tui, serve)
    loras.ts                `comfy-ts loras`: refresh the lora-manager mirror (item 8)
 src/cli/tui/               ink+mobx TUI, per build/app-state-tree doctrine:
+   mobxCompat.ts           the ONE mobx-major seam: `observableRef` resolved from
+                           either spelling (named export on 7, `observable.ref`
+                           on 6) + `observer` vendored from mobx-react-lite
+                           (MIT), so no dependency peer-pins a mobx major and
+                           the consumer's own mobx dedupes to one copy. Every
+                           other mobx API this repo touches is identical in
+                           6 and 7. TUI code imports `observer` from HERE,
+                           never from mobx-react-lite (which is gone).
    state/TuiSt.ts          ROOT state tree (one instance); children get `st` backref.
                            VARS VIEWPORT (2026-07-31, reviewer follow-up to the
                            tree viewport): varsWindow = listWindow over the
