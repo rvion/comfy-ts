@@ -24,7 +24,7 @@
         "oxfmt": "^0.60.0",
         "oxlint": "^1.75.0",
         "oxlint-tsgolint": "^7.0.2001",
-        "rvlib-ts-tools": "^0.2.0",
+        "rvlib-ts-tools": "^0.3.3",
         "tsdown": "^0.22.14",
         "typescript": "^7.0.2",
       },
@@ -425,7 +425,7 @@
 
     "rolldown-plugin-dts": ["rolldown-plugin-dts@0.27.13", "", { "dependencies": { "dts-resolver": "^3.0.0", "get-tsconfig": "5.0.0-beta.5", "obug": "^2.1.4", "yuku-ast": "^0.7.0", "yuku-codegen": "^0.7.0", "yuku-parser": "^0.7.0" }, "peerDependencies": { "@typescript/native-preview": "*", "@volar/typescript": "~2.4.0", "rolldown": "^1.0.0", "typescript": "^5.0.0 || ^6.0.0 || ~7.0.0", "vue-tsc": "~3.2.0 || ~3.3.0" }, "optionalPeers": ["@typescript/native-preview", "@volar/typescript", "typescript", "vue-tsc"] }, "sha512-DeVZJbbB0ajp5q6vABqC8ZCJzxftlxbiV60Bk96GFdQaysGVpgTTVjQu0lUt4Lb+aRCtejfOixtQKDRol7IuVQ=="],
 
-    "rvlib-ts-tools": ["rvlib-ts-tools@0.2.0", "", { "bin": { "rvt": "src/cli.ts" } }, "sha512-dCFlkwf8FHo+nj19f1wr7fKMN6WK8quBSuqEnVtmPhkOIZn6g40/XYs0rXBEXoJ6PI5jK1Ki1C/ekxkcpDDvug=="],
+    "rvlib-ts-tools": ["rvlib-ts-tools@0.3.3", "", { "bin": { "rvt": "src/cli.ts" } }, "sha512-bR/YiVLx2iEt1M7vIO+OOEh8/DDuumEKQ03Y8NwSjkNDtF379b+AO0T0UwJDQTvGGzl1AUxzDfsr2Eo8wxsVkA=="],
 
     "scheduler": ["scheduler@0.27.0", "", {}, "sha512-eNv+WrVbKu1f3vbYJT/xtiF5syA5HPIMtf9IgY/nKg0sWqzAUEvqY/xm7OcZc/qafLx/iO9FgOmeSAp4v5ti/Q=="],
 
