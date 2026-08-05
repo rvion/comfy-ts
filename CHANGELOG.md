@@ -1,5 +1,21 @@
 # comfy-ts
 
+## 2.7.0
+
+### The prompt refiner runs on a local model too
+
+- **Open WebUI is a second provider**, so the refiner can run on a model on your own box instead of a cloud one. Pick the provider in the modal, point it at your Open WebUI URL, and the API key is optional for a box that has no auth. Keys, base URL and selected model are kept per provider, so switching never sends a cloud model id to a local server.
+- **A local model's `<think>` block never lands in your prompt.** Reasoning models served through Open WebUI stream their thinking inline with the answer; it is split out into the thinking pane, including when a tag arrives split across two chunks.
+- **The model list no longer comes up empty on a local server.** Open WebUI does not report per-model capabilities, so "thinking only" now hides only models that explicitly report no reasoning support, instead of everything whose support is unknown. Reasoning effort is sent to OpenRouter only, since a local backend rejects the field.
+- **Master prompts are files: `.comfy-ts/prompt-enhancers/<name>.md`**, beside your drafts. Edit them in your editor or in the modal, where they autosave to disk. They are markdown, because a master prompt is a paragraph you want to read. New, duplicate, rename and delete act on the files. Upgrading from 2.6.0: master prompts previously lived in browser storage and are not carried over, and the folder is seeded with `refine-krea2-prompt.md` the first time the modal opens.
+- A provider that cannot be reached now says which URL failed and that a local server needs `CORS_ALLOW_ORIGIN` set, instead of reporting a bare "failed to fetch".
+
+### Serve
+
+- **`comfy-ts serve --host 0.0.0.0` for another machine** — your phone, or a tailnet peer. Bound beyond localhost, the startup print lists every address the machine answers on, with tailscale addresses labelled, so you can copy the URL instead of looking it up. `--bind` keeps working as the same flag, and the no-auth warning still prints on every non-loopback launch.
+- **Delete a draft from the web panel.** The form header's delete removes the draft file through `DELETE /drafts/<module>/<draft>`; deleting `default` resets it to the workflow's own values rather than losing anything.
+- New routes: `GET /prompt-enhancers` lists the master prompts, `PUT /prompt-enhancers/<name>` writes one, `DELETE /prompt-enhancers/<name>` removes it. Enhancer names go through the same check as draft names, so a name in the URL cannot escape the folder.
+
 ## 2.6.0
 
 `comfy-ts serve` grows a web control panel: open the same URL in a browser and every var of every draft is a real form control, with your edits saved back into the draft the TUI reads.
