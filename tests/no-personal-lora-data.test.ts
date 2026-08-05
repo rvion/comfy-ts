@@ -63,7 +63,7 @@ describe('no captured lora inventory is tracked by git', () => {
 
    it('nothing git tracks, and nothing npm would pack, carries lora-manager dump markers', () => {
       const offenders: string[] = []
-      for (const file of [...new Set([...trackedFiles(), ...packedSourceFiles()])]) {
+      for (const file of new Set([...trackedFiles(), ...packedSourceFiles()])) {
          if (file === SELF) continue
          let stat: { size: number }
          try {
@@ -98,7 +98,7 @@ describe('no captured lora inventory is tracked by git', () => {
       // relative, saved as any name — that is still a real collection.
       const NAME_KEY = /"(model_name|file_name)"\s*:/g
       const offenders: string[] = []
-      for (const file of [...new Set([...trackedFiles(), ...packedSourceFiles()])]) {
+      for (const file of new Set([...trackedFiles(), ...packedSourceFiles()])) {
          if (file === SELF || file === SYNTHETIC) continue
          if (!/\.(json|jsonl|ts|tsx|md|txt|csv)$/.test(file)) continue
          let text: string
