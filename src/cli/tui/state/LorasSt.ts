@@ -3,7 +3,7 @@ import { getLoraPreviewUrl, loraMatchesFilter, refreshLoraInfoCacheIfChanged } f
 import { fetchLoraList, fetchLoraPreviewBytes, loraKey, loraPreviewMapFrom } from 'src/host/loraManagerApi.ts'
 import { imageBufferToAnsi } from 'src/utils/ansiImage.ts'
 import { extractErrorMessage } from 'src/utils/extractErrorMessage.ts'
-import { protocolReadyBytes } from 'src/utils/protocolImage.ts'
+import { protocolReadyBytes } from 'src/cli/tui/protocolImage.ts'
 import { LorasVar } from 'src/vars/ComfyVars.ts'
 import {
    clearLoraKeywordOverride,
@@ -193,7 +193,7 @@ export class LorasSt {
          }
          const note = url != null ? null : miss
          if (url == null) {
-            this.st.preview.setOverlayImage({ bytes: null, ansi: null, name: `lora ${name}`, note })
+            this.st.preview.setOverlayImage({ bytes: null, ansi: null, name: `lora ${name}`, note }, 'overlay-loras')
             return
          }
          const bytes = await fetchLoraPreviewBytes(host, url)
@@ -202,24 +202,30 @@ export class LorasSt {
          if (this.st.preview.useNative) {
             // the overlay painter shows the REAL image — no ansi rendering needed
             // (protocolReadyBytes: kitty draws png only, previews can be jpeg/webp)
-            this.st.preview.setOverlayImage({
-               bytes: await protocolReadyBytes(bytes),
-               ansi: null,
-               name: `lora ${name}`,
-               note: null,
-            })
+            this.st.preview.setOverlayImage(
+               {
+                  bytes: await protocolReadyBytes(bytes),
+                  ansi: null,
+                  name: `lora ${name}`,
+                  note: null,
+               },
+               'overlay-loras',
+            )
             return
          }
          const ansi = await imageBufferToAnsi(bytes, { width: this.st.preview.width, height: this.st.preview.height })
-         this.st.preview.setOverlayImage({ bytes: null, ansi, name: `lora ${name}`, note: null })
+         this.st.preview.setOverlayImage({ bytes: null, ansi, name: `lora ${name}`, note: null }, 'overlay-loras')
       } catch (e) {
          // e.g. video previews sharp can't decode — placeholder, not an incident
-         this.st.preview.setOverlayImage({
-            bytes: null,
-            ansi: null,
-            name: `lora ${name}`,
-            note: extractErrorMessage(e),
-         })
+         this.st.preview.setOverlayImage(
+            {
+               bytes: null,
+               ansi: null,
+               name: `lora ${name}`,
+               note: extractErrorMessage(e),
+            },
+            'overlay-loras',
+         )
       } finally {
          this._busy = false
          // the cursor may have moved while we rendered: catch up once

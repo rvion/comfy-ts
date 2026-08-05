@@ -7,7 +7,7 @@ import { pickerPrefs } from 'src/cli/tui/imagePicker/pickerPrefs.ts'
 import { extractErrorMessage } from 'src/utils/extractErrorMessage.ts'
 import { fuzzyMatch } from 'src/utils/fuzzyMatch.ts'
 import { imageBufferToAnsi } from 'src/utils/ansiImage.ts'
-import { protocolReadyBytes } from 'src/utils/protocolImage.ts'
+import { protocolReadyBytes } from 'src/cli/tui/protocolImage.ts'
 import type { ImageVar } from 'src/vars/ComfyVars.ts'
 import type { TuiSt } from 'src/cli/tui/state/TuiSt.ts'
 
@@ -265,27 +265,33 @@ export class ImagePickerSt {
          const bytes = new Uint8Array(readFileSync(path))
          if (this.st.preview.useNative) {
             // protocolReadyBytes: kitty draws png only, browsed files can be jpeg/webp
-            this.st.preview.setOverlayImage({
-               bytes: await protocolReadyBytes(bytes),
-               ansi: null,
-               name: basename(path),
-               note: null,
-            })
+            this.st.preview.setOverlayImage(
+               {
+                  bytes: await protocolReadyBytes(bytes),
+                  ansi: null,
+                  name: basename(path),
+                  note: null,
+               },
+               'overlay-image',
+            )
          } else {
             const ansi = await imageBufferToAnsi(bytes, {
                width: this.st.preview.width,
                height: this.st.preview.height,
             })
-            this.st.preview.setOverlayImage({ bytes: null, ansi, name: basename(path), note: null })
+            this.st.preview.setOverlayImage({ bytes: null, ansi, name: basename(path), note: null }, 'overlay-image')
          }
       } catch (e) {
          // e.g. a file sharp can't decode — placeholder note, never a crash
-         this.st.preview.setOverlayImage({
-            bytes: null,
-            ansi: null,
-            name: basename(path),
-            note: extractErrorMessage(e),
-         })
+         this.st.preview.setOverlayImage(
+            {
+               bytes: null,
+               ansi: null,
+               name: basename(path),
+               note: extractErrorMessage(e),
+            },
+            'overlay-image',
+         )
       } finally {
          this._busy = false
          // the cursor may have moved while we rendered: catch up once

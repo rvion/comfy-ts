@@ -1,14 +1,6 @@
 import { reaction } from 'mobx'
-import {
-   fitCellBox,
-   imageDims,
-   itermImageEscape,
-   KITTY_DELETE_ALL,
-   kittyDeleteEscape,
-   kittyPlaceEscape,
-   kittyTransmitEscape,
-} from 'src/cli/tui/imageEscapes.ts'
-import { imageProtocol } from 'src/utils/protocolImage.ts'
+import { fitCellBox, imageDims, itermImageEscape, KITTY_DELETE_ALL, KittyImageSlot } from 'src/cli/tui/imageEscapes.ts'
+import { imageProtocol } from 'src/cli/tui/protocolImage.ts'
 import type { TuiSt } from 'src/cli/tui/state/TuiSt.ts'
 
 type WriteCb = (err?: Error | null) => void
@@ -21,6 +13,9 @@ const MIN_FRAME_BYTES = 64
 /** kitty image ids: fixed, transmit-once bookkeeping keys */
 const MAIN_ID = 1
 const CORNER_ID = 2
+/** corner placement z: pins the small latent ABOVE the main image (same-z
+ * stacking is recency, and a fresh output recreates MAIN after the corner) */
+const CORNER_Z = 1
 
 /**
  * paints the REAL image (iTerm OSC 1337 / kitty APC _G) over the preview
@@ -50,23 +45,9 @@ export function installProtocolImagePainter(st: TuiSt): () => void {
    // calibrated by playtest on iTerm2 (2026-07-27: row 5 painted one line too high)
    const CONTENT_ROW = 6
 
-   // kitty transmit-once state: which bytes object each image id currently holds
-   const transmitted = new Map<number, Uint8Array | null>()
-
-   const kittyShow = (bytes: Uint8Array, id: number, row: number, col: number, w: number, h: number): string => {
-      let out = ''
-      if (transmitted.get(id) !== bytes) {
-         out += kittyDeleteEscape(id) + kittyTransmitEscape(bytes, id)
-         transmitted.set(id, bytes)
-      }
-      return out + kittyPlaceEscape(id, row, col, w, h)
-   }
-
-   const kittyDrop = (id: number): string => {
-      if (transmitted.get(id) == null) return ''
-      transmitted.set(id, null)
-      return kittyDeleteEscape(id)
-   }
+   // kitty transmit-once state (KittyImageSlot owns the mechanics, tested pure)
+   const kittyMain = new KittyImageSlot(MAIN_ID)
+   const kittyCorner = new KittyImageSlot(CORNER_ID)
 
    /** both images as ONE escape string ('' when nothing to paint or delete) */
    const imageEscapes = (): string => {
@@ -90,18 +71,18 @@ export function installProtocolImagePainter(st: TuiSt): () => void {
       // kitty: main box fitted to the image dims and centered in the panel rect
       // (iterm letterboxes inside the box itself, kitty stretches)
       let out = ''
-      if (main == null) out += kittyDrop(MAIN_ID)
+      if (main == null) out += kittyMain.drop()
       else {
          const dims = imageDims(main)
          const box = fitCellBox({ imgW: dims.w, imgH: dims.h, w: pv.width, h: pv.height })
          const row = CONTENT_ROW + Math.max(0, Math.floor((pv.height - box.h) / 2))
          const c = col + Math.max(0, Math.floor((pv.width - box.w) / 2))
-         out += kittyShow(main, MAIN_ID, row, c, box.w, box.h)
+         out += kittyMain.show(main, row, c, box.w, box.h)
       }
-      if (corner == null) out += kittyDrop(CORNER_ID)
+      if (corner == null) out += kittyCorner.drop()
       else {
          const box = pv.cornerBox // already aspect-fitted from the latent dims
-         out += kittyShow(corner, CORNER_ID, CONTENT_ROW, col + pv.width - box.w, box.w, box.h)
+         out += kittyCorner.show(corner, CONTENT_ROW, col + pv.width - box.w, box.w, box.h, CORNER_Z)
       }
       return out
    }

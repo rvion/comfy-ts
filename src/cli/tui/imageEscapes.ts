@@ -2,7 +2,9 @@ import { imageMeta } from 'image-meta'
 
 // pure escape builders for the two real-image dialects; the painter owns WHEN
 // to emit them. Kitty rule one: q=2 on every command, kitty answers graphics
-// commands on stdin otherwise, straight into ink's input parser.
+// commands on stdin otherwise, straight into ink's input parser. Accepted
+// tradeoff: q=2 also swallows ERROR replies, so a transmit kitty rejects shows
+// as a blank panel (listening for replies would race ink's stdin handshakes).
 
 const ESC = '\u001b'
 /** APC terminator: ESC backslash */
@@ -62,9 +64,11 @@ export function kittyTransmitEscape(bytes: Uint8Array, id: number): string {
 }
 
 /** display a transmitted id at the cursor: same i,p replaces the previous
- * placement, so repaints never accumulate; C=1 keeps the cursor put */
-export function kittyPlaceEscape(id: number, row: number, col: number, w: number, h: number): string {
-   return `${ESC}7${ESC}[${row};${col}H${ESC}_Ga=p,i=${id},p=1,c=${w},r=${h},C=1,q=2${ST}${ESC}8`
+ * placement, so repaints never accumulate; C=1 keeps the cursor put; z pins
+ * stacking (same-z overlaps draw newest-on-top, recency is not a contract) */
+export function kittyPlaceEscape(id: number, row: number, col: number, w: number, h: number, z?: number): string {
+   const zKey = z == null ? '' : `,z=${z}`
+   return `${ESC}7${ESC}[${row};${col}H${ESC}_Ga=p,i=${id},p=1,c=${w},r=${h},C=1,q=2${zKey}${ST}${ESC}8`
 }
 
 /** delete this id's placements AND free its data (uppercase I) */
@@ -74,3 +78,28 @@ export function kittyDeleteEscape(id: number): string {
 
 /** free every image + placement — the quit path: ED does not clear kitty images */
 export const KITTY_DELETE_ALL = `${ESC}_Ga=d,d=A,q=2${ST}`
+
+/**
+ * per-id transmit-once bookkeeping: data uploads when the bytes OBJECT changes
+ * (delete-before-retransmit sidesteps the spec's underspecified reuse of a live
+ * id), a cheap placement re-paints every flush, drop deletes exactly once.
+ */
+export class KittyImageSlot {
+   private transmitted: Uint8Array | null = null
+   constructor(private id: number) {}
+
+   show(bytes: Uint8Array, row: number, col: number, w: number, h: number, z?: number): string {
+      let out = ''
+      if (this.transmitted !== bytes) {
+         out += kittyDeleteEscape(this.id) + kittyTransmitEscape(bytes, this.id)
+         this.transmitted = bytes
+      }
+      return out + kittyPlaceEscape(this.id, row, col, w, h, z)
+   }
+
+   drop(): string {
+      if (this.transmitted == null) return ''
+      this.transmitted = null
+      return kittyDeleteEscape(this.id)
+   }
+}

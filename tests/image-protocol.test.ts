@@ -6,8 +6,10 @@ import {
    kittyDeleteEscape,
    kittyPlaceEscape,
    kittyTransmitEscape,
+   itermImageEscape,
+   KittyImageSlot,
 } from 'src/cli/tui/imageEscapes.ts'
-import { imageProtocol, isPng, protocolCapable } from 'src/utils/protocolImage.ts'
+import { imageProtocol, isPng, protocolCapable } from 'src/cli/tui/protocolImage.ts'
 
 const ENV_KEYS = [
    'COMFY_TS_NO_ITERM_IMAGES',
@@ -104,11 +106,11 @@ describe('kitty escapes', () => {
       expect(chunks.length).toBe(3)
       const payloads: string[] = []
       for (const [ix, chunk] of chunks.entries()) {
-         const m = /^\u001b_G([^;]*);(.*)$/s.exec(chunk)
-         expect(m).not.toBeNull()
-         if (m == null) return
-         const ctrl = m[1] ?? ''
-         const payload = m[2] ?? ''
+         expect(chunk.startsWith('\u001b_G')).toBe(true)
+         const sep = chunk.indexOf(';')
+         expect(sep).toBeGreaterThan(0)
+         const ctrl = chunk.slice(3, sep)
+         const payload = chunk.slice(sep + 1)
          expect(payload.length).toBeLessThanOrEqual(4096)
          if (ix === 0) expect(ctrl).toBe('a=t,f=100,t=d,i=2,q=2,m=1')
          else if (ix === chunks.length - 1) expect(ctrl).toBe('m=0')
@@ -147,5 +149,50 @@ describe('fitCellBox (kitty stretches: the box must carry the aspect)', () => {
       expect(imageDims(bytes)).toEqual({ w: 1, h: 2 })
       expect(imageDims(bytes)).toBe(imageDims(bytes))
       expect(imageDims(new Uint8Array([1, 2, 3]))).toEqual({ w: 0, h: 0 })
+   })
+})
+
+describe('iterm escape (the pre-kitty behavior, pinned byte-for-byte)', () => {
+   it('emits the exact OSC 1337 paint the painter always emitted', () => {
+      const bytes = new Uint8Array([1, 2, 3])
+      const esc = itermImageEscape(bytes, 6, 40, 30, 15)
+      expect(esc).toBe(
+         `\u001b7\u001b[6;40H\u001b]1337;File=inline=1;size=3;width=30;height=15;preserveAspectRatio=1:${Buffer.from(bytes).toString('base64')}\u0007\u001b8`,
+      )
+   })
+})
+
+describe('KittyImageSlot (the painter state machine)', () => {
+   it('transmits once per bytes object, then only re-places', () => {
+      const slot = new KittyImageSlot(1)
+      const bytes = new Uint8Array([1, 2, 3])
+      const first = slot.show(bytes, 6, 40, 30, 15)
+      expect(first).toContain('a=t,f=100')
+      expect(first).toContain('a=p,i=1')
+      const second = slot.show(bytes, 6, 40, 30, 15)
+      expect(second).not.toContain('a=t')
+      expect(second).toBe(kittyPlaceEscape(1, 6, 40, 30, 15))
+   })
+
+   it('new bytes delete the old data before retransmitting', () => {
+      const slot = new KittyImageSlot(2)
+      slot.show(new Uint8Array([1]), 6, 40, 30, 15)
+      const next = slot.show(new Uint8Array([2]), 6, 40, 30, 15)
+      expect(next.startsWith(kittyDeleteEscape(2))).toBe(true)
+      expect(next).toContain('a=t,f=100')
+   })
+
+   it('drop deletes exactly once, and only after a transmit', () => {
+      const slot = new KittyImageSlot(1)
+      expect(slot.drop()).toBe('')
+      slot.show(new Uint8Array([1]), 6, 40, 30, 15)
+      expect(slot.drop()).toBe(kittyDeleteEscape(1))
+      expect(slot.drop()).toBe('')
+   })
+
+   it('a z pin rides the placement (the corner sits above the main image)', () => {
+      const slot = new KittyImageSlot(2)
+      const esc = slot.show(new Uint8Array([1]), 6, 40, 10, 5, 1)
+      expect(esc).toContain('C=1,q=2,z=1')
    })
 })

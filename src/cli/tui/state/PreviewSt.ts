@@ -3,9 +3,9 @@ import sharp from 'sharp'
 import { imageMeta } from 'image-meta'
 import { imageBufferToAnsi } from 'src/utils/ansiImage.ts'
 import { extractErrorMessage } from 'src/utils/extractErrorMessage.ts'
-import { imageProtocol, protocolCapable, protocolReadyBytes } from 'src/utils/protocolImage.ts'
+import { imageProtocol, protocolCapable, protocolReadyBytes } from 'src/cli/tui/protocolImage.ts'
 import type { PreviewDuringRun, PreviewRenderer } from 'src/cli/tui/state/SettingsSt.ts'
-import type { TuiSt } from 'src/cli/tui/state/TuiSt.ts'
+import type { TuiMode, TuiSt } from 'src/cli/tui/state/TuiSt.ts'
 
 type MenuRow = { key: 'panel' | 'renderer' | 'during-run'; label: string; value: string }
 
@@ -75,7 +75,11 @@ export class PreviewSt {
       return this.st.mode === 'overlay-loras' || this.st.mode === 'overlay-image'
    }
 
-   setOverlayImage(p: OverlayImage): void {
+   /** owner = the overlay mode the render was FOR: every writer awaits (file
+    * read, fetch, transcode) before landing here, and by then another overlay
+    * can own the slot — a stale write would overwrite its image */
+   setOverlayImage(p: OverlayImage, owner: TuiMode): void {
+      if (this.st.mode !== owner) return
       this.overlay = p
    }
 
