@@ -1,7 +1,7 @@
 // ROOT state tree of the serve web ui (app-state-tree doctrine: one root,
 // child stores hang off it, components read and call)
 import { makeAutoObservable, observableRef, observableShallow, runInAction } from 'mobx'
-import { fetchDraftValues, fetchIndex, type ModuleDescription } from 'src/cli/serve/web/api.ts'
+import { fetchDraftValues, fetchIndex, saveDraft, type ModuleDescription } from 'src/cli/serve/web/api.ts'
 import { FormSt } from 'src/cli/serve/web/state/FormSt.ts'
 import { RunSt } from 'src/cli/serve/web/state/RunSt.ts'
 
@@ -103,6 +103,7 @@ export class WebSt {
          const reply = await fetchDraftValues(p)
          runInAction(() => {
             if (token !== this.selectToken) return
+            this.form?.dispose()
             this.form = new FormSt(p.module, p.draft, mod, reply.values ?? {})
             this.persist()
          })
@@ -119,8 +120,32 @@ export class WebSt {
    }
 
    generate(): void {
+      void this.generateNow()
+   }
+
+   /** flush the autosave first: the server reads the draft it just wrote — one source of truth */
+   private async generateNow(): Promise<void> {
       const form = this.form
-      if (form == null) return
-      void this.run.generate({ module: form.moduleKey, draft: form.draft, payload: form.payload() })
+      if (form == null || this.run.isRunning) return
+      await form.save()
+      await this.run.generate({ module: form.moduleKey, draft: form.draft, payload: {} })
+   }
+
+   /** duplicate = save the current values under a new name, then switch to it */
+   async duplicateDraft(rawName: string): Promise<void> {
+      const form = this.form
+      const name = rawName.trim()
+      if (form == null || name === '') return
+      try {
+         const reply = await saveDraft({ module: form.moduleKey, draft: name, values: form.valuesJSON() })
+         runInAction(() => {
+            this.modules = this.modules.map((m) => (m.module === form.moduleKey ? { ...m, drafts: reply.drafts } : m))
+         })
+         await this.select({ module: form.moduleKey, draft: name })
+      } catch (e) {
+         runInAction(() => {
+            this.formError = e instanceof Error ? e.message : String(e)
+         })
+      }
    }
 }

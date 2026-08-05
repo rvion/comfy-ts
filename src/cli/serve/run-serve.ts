@@ -44,7 +44,7 @@ export function makeRequestListener(app: ServeApp): (req: IncomingMessage, res: 
       // local bridge, no auth by design: open CORS so browser frontends can call it
       const cors = {
          'access-control-allow-origin': '*',
-         'access-control-allow-methods': 'GET, POST, OPTIONS',
+         'access-control-allow-methods': 'GET, POST, PUT, OPTIONS',
          'access-control-allow-headers': 'content-type, accept',
       }
       const chunks: Buffer[] = []

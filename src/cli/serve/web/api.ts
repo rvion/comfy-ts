@@ -53,6 +53,29 @@ export function postGenerate(p: {
    })
 }
 
+export function saveDraft(p: {
+   module: string
+   draft: string
+   values: Record<string, unknown>
+}): Promise<{ ok: true; drafts: string[] }> {
+   return jsonFetch(`/drafts/${encodeURIComponent(p.module)}/${encodeURIComponent(p.draft)}`, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(p.values),
+   })
+}
+
+export type RunStatus = { running: boolean; status: string; percent: number | null; hasPreview: boolean }
+
+export function fetchRunStatus(p: { module: string }): Promise<RunStatus> {
+   return jsonFetch(`/run/${encodeURIComponent(p.module)}`)
+}
+
+export function runPreviewSrc(p: { module: string; tick: number }): string {
+   // tick busts the browser cache: same url, new latent every poll
+   return `/run/${encodeURIComponent(p.module)}/preview?t=${p.tick}`
+}
+
 export type LoraInfo = { name: string; displayName: string; triggerWords: string[] }
 
 export function fetchLoraInfo(p: { host: string; name: string }): Promise<LoraInfo> {

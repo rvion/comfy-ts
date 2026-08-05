@@ -1,22 +1,11 @@
-// PURE form → POST payload + value normalization. DOM-free on purpose:
-// headless-tested by tests/serve-web-payload.test.ts.
-// Rules (architecture item 12, web ui): DIRTY vars only — the draft stays the
-// base; a dirty seed posts a NUMBER (posting a bare mode would skip the
-// server's reroll branch, so the ui never does)
+// PURE value normalization for the web form. DOM-free on purpose:
+// headless-tested by tests/serve-web-payload.test.ts. The form does NOT build
+// override payloads any more: drafts are live (autosave through PUT, generate
+// posts {}) — architecture item 12, web ui
 import type { VarDescriptor } from 'src/cli/serve/describeVar.ts'
 
 export type SeedFormValue = { mode: string; value: number }
 export type SizeFormValue = { width: number; height: number }
-export type FormEntrySnapshot = { name: string; desc: VarDescriptor; value: unknown; dirty: boolean }
-
-export function buildPayload(entries: FormEntrySnapshot[]): Record<string, unknown> {
-   const out: Record<string, unknown> = {}
-   for (const e of entries) {
-      if (!e.dirty) continue
-      out[e.name] = e.desc.kind === 'seed' ? asSeedForm(e.value).value : e.value
-   }
-   return out
-}
 
 /** draft seed values come as {mode,value} (toJSON) or a legacy plain number */
 export function asSeedForm(raw: unknown): SeedFormValue {

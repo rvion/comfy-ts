@@ -1,13 +1,15 @@
-// loras: filter-as-you-type over the option list, tick to activate, model/clip
-// strengths per active lora, hover (or tap the name) fills the preview pane —
-// image + trigger words off the serve lora routes. Value shape = the POST
-// payload contract: { "<name>": [model, clip] }, replaced by copy on every edit
+// loras: the form row is a SUMMARY (active chips + browse button); the picker
+// itself is a popup — filter, the ACTIVE section pinned on top (strengths,
+// trigger words), then a preview-card gallery of every option. Names come from
+// the mirror's display names (descriptor optionLabels); payload keys stay the
+// raw enum values: { "<name>": [model, clip] }, replaced by copy on every edit
 import { observer, useLocalObservable } from 'mobx-react-lite'
+import { useEffect, type ReactNode } from 'react'
 import { fetchLoraInfo, loraPreviewSrc, type LoraInfo } from 'src/cli/serve/web/api.ts'
 import type { LoraStrength } from 'src/vars/ComfyVars.ts'
 import type { VarSt } from 'src/cli/serve/web/state/FormSt.ts'
 
-const RENDER_CAP = 100
+const CARD_CAP = 60
 
 function asRecord(raw: unknown): Partial<Record<string, LoraStrength>> {
    if (raw != null && typeof raw === 'object' && !Array.isArray(raw))
@@ -22,17 +24,28 @@ function strengthPair(st: LoraStrength | undefined): { model: number; clip: numb
    return { model: 1, clip: 1 }
 }
 
+type LocalSt = {
+   open: boolean
+   filter: string
+   info: Map<string, LoraInfo | 'loading' | 'error'>
+   previewFailed: Set<string>
+   setOpen(open: boolean): void
+   setFilter(raw: string): void
+   noteInfo(name: string, v: LoraInfo | 'loading' | 'error'): void
+   notePreviewFailed(name: string): void
+}
+
 export const LorasControl = observer(function LorasControl(p: { v: VarSt; host: string }) {
-   const local = useLocalObservable(() => ({
+   const local = useLocalObservable<LocalSt>(() => ({
+      open: false,
       filter: '',
-      hovered: null as string | null,
-      info: new Map<string, LoraInfo | 'loading' | 'error'>(),
-      previewFailed: new Set<string>(),
+      info: new Map(),
+      previewFailed: new Set(),
+      setOpen(open: boolean) {
+         this.open = open
+      },
       setFilter(raw: string) {
          this.filter = raw
-      },
-      setHovered(name: string | null) {
-         this.hovered = name
       },
       noteInfo(name: string, v: LoraInfo | 'loading' | 'error') {
          this.info.set(name, v)
@@ -41,23 +54,12 @@ export const LorasControl = observer(function LorasControl(p: { v: VarSt; host: 
          this.previewFailed.add(name)
       },
    }))
-   const hover = (name: string): void => {
-      local.setHovered(name)
-      if (!local.info.has(name)) {
-         local.noteInfo(name, 'loading')
-         fetchLoraInfo({ host: p.host, name })
-            .then((i) => local.noteInfo(name, i))
-            .catch(() => local.noteInfo(name, 'error'))
-      }
-   }
    const record = asRecord(p.v.value)
-   const isActive = (name: string): boolean => record[name] != null && record[name] !== false
    const options = p.v.desc.options ?? []
-   const needle = local.filter.toLowerCase()
-   const matches = options.filter((o) => o.toLowerCase().includes(needle))
-   // active loras stay visible above the fold, then the rest in option order
-   const shown = [...matches.filter(isActive), ...matches.filter((o) => !isActive(o))].slice(0, RENDER_CAP)
-   const activeCount = options.filter(isActive).length
+   const labels = p.v.desc.optionLabels ?? {}
+   const label = (name: string): string => labels[name] ?? name
+   const isActive = (name: string): boolean => record[name] != null && record[name] !== false
+   const activeNames = options.filter(isActive)
 
    const setEntry = (name: string, st: LoraStrength | null): void => {
       const next = { ...record }
@@ -66,94 +68,152 @@ export const LorasControl = observer(function LorasControl(p: { v: VarSt; host: 
       p.v.set(next)
    }
 
-   const hovered = local.hovered
-   const hoveredInfo = hovered != null ? local.info.get(hovered) : undefined
+   // trigger words for the active section load once per open (bounded: active loras only)
+   const open = local.open
+   const host = p.host
+   const activeKey = activeNames.join('\n')
+   useEffect(() => {
+      if (!open) return
+      for (const name of activeKey.split('\n')) {
+         if (name === '' || local.info.has(name)) continue
+         local.noteInfo(name, 'loading')
+         fetchLoraInfo({ host, name })
+            .then((i) => local.noteInfo(name, i))
+            .catch(() => local.noteInfo(name, 'error'))
+      }
+   }, [open, activeKey, host, local])
+
+   const needle = local.filter.toLowerCase()
+   const matchesFilter = (name: string): boolean =>
+      name.toLowerCase().includes(needle) || label(name).toLowerCase().includes(needle)
+   const matches = options.filter(matchesFilter)
+   const cards = matches.filter((o) => !isActive(o)).slice(0, CARD_CAP)
+
+   const thumb = (name: string): ReactNode =>
+      local.previewFailed.has(name) ? (
+         <div className="lora-thumb none">no preview</div>
+      ) : (
+         <img
+            key={name}
+            className="lora-thumb"
+            loading="lazy"
+            src={loraPreviewSrc({ host: p.host, name })}
+            alt={label(name)}
+            onError={() => local.notePreviewFailed(name)}
+         />
+      )
 
    return (
-      <div className="loras-box">
-         <div className="search">
-            <input
-               type="text"
-               placeholder={`filter ${options.length} loras — ${activeCount} active`}
-               value={local.filter}
-               onChange={(e) => local.setFilter(e.target.value)}
-            />
+      <div>
+         <div className="row-inline">
+            {activeNames.map((name) => (
+               <span key={name} className="lora-chip" title={name}>
+                  {label(name)}
+                  <button type="button" title="remove" onClick={() => setEntry(name, null)}>
+                     ✕
+                  </button>
+               </span>
+            ))}
+            <button type="button" onClick={() => local.setOpen(true)}>
+               {activeNames.length === 0 ? `choose loras… (${options.length})` : 'edit…'}
+            </button>
          </div>
-         <div className="loras-body">
-            <div className="loras-list">
-               {shown.map((name) => {
-                  const active = isActive(name)
-                  const pair = strengthPair(record[name])
-                  return (
-                     <div
-                        key={name}
-                        className={active ? 'lora-row active' : 'lora-row'}
-                        onMouseEnter={() => hover(name)}
-                     >
-                        <input
-                           type="checkbox"
-                           checked={active}
-                           onChange={(e) => setEntry(name, e.target.checked ? [1, 1] : null)}
-                        />
-                        {/* tap = the touch spelling of hover */}
-                        <button type="button" className="name" title={name} onClick={() => hover(name)}>
-                           {name}
-                        </button>
-                        {active ? (
-                           <>
-                              <span className="st-label">model</span>
-                              <input
-                                 type="number"
-                                 step={0.05}
-                                 value={pair.model}
-                                 onChange={(e) => {
-                                    const n = parseFloat(e.target.value)
-                                    if (Number.isFinite(n)) setEntry(name, [n, pair.clip])
-                                 }}
-                              />
-                              <span className="st-label">clip</span>
-                              <input
-                                 type="number"
-                                 step={0.05}
-                                 value={pair.clip}
-                                 onChange={(e) => {
-                                    const n = parseFloat(e.target.value)
-                                    if (Number.isFinite(n)) setEntry(name, [pair.model, n])
-                                 }}
-                              />
-                           </>
-                        ) : null}
-                     </div>
-                  )
-               })}
-               {matches.length > RENDER_CAP ? (
-                  <div className="loras-more">… {matches.length - RENDER_CAP} more — refine the filter</div>
-               ) : null}
-               {matches.length === 0 ? <div className="loras-more">no lora matches '{local.filter}'</div> : null}
-            </div>
-            {hovered != null ? (
-               <div className="lora-pane">
-                  {local.previewFailed.has(hovered) ? (
-                     <div className="hint">no preview on the server</div>
-                  ) : (
-                     <img
-                        // key remounts the node per lora: a reused <img> can fire the PREVIOUS
-                        // src's error after the swap and mark the wrong name failed
-                        key={hovered}
-                        src={loraPreviewSrc({ host: p.host, name: hovered })}
-                        alt={hovered}
-                        onError={() => local.notePreviewFailed(hovered)}
+
+         {local.open ? (
+            <div
+               className="modal-overlay"
+               onClick={() => local.setOpen(false)}
+               onKeyDown={(e) => {
+                  if (e.key === 'Escape') local.setOpen(false)
+               }}
+            >
+               <div className="modal" onClick={(e) => e.stopPropagation()}>
+                  <div className="modal-head">
+                     <input
+                        type="text"
+                        autoFocus
+                        placeholder={`filter ${options.length} loras`}
+                        value={local.filter}
+                        onChange={(e) => local.setFilter(e.target.value)}
                      />
-                  )}
-                  <div className="lora-pane-name" title={hovered}>
-                     {typeof hoveredInfo === 'object' ? hoveredInfo.displayName : hovered}
+                     <button type="button" title="close (esc)" onClick={() => local.setOpen(false)}>
+                        ✕
+                     </button>
                   </div>
-                  {typeof hoveredInfo === 'object' && hoveredInfo.triggerWords.length > 0 ? (
-                     <div className="hint">{hoveredInfo.triggerWords.join(', ')}</div>
-                  ) : null}
+                  <div className="modal-body">
+                     {activeNames.length > 0 ? (
+                        <div className="lora-active-section">
+                           <div className="section-title">active ({activeNames.length})</div>
+                           {activeNames.filter(matchesFilter).map((name) => {
+                              const pair = strengthPair(record[name])
+                              const info = local.info.get(name)
+                              return (
+                                 <div key={name} className="lora-active-row">
+                                    {thumb(name)}
+                                    <div className="lora-active-text">
+                                       <div className="lora-label" title={name}>
+                                          {label(name)}
+                                       </div>
+                                       {typeof info === 'object' && info.triggerWords.length > 0 ? (
+                                          <div className="hint">{info.triggerWords.join(', ')}</div>
+                                       ) : (
+                                          <div className="hint">{name}</div>
+                                       )}
+                                    </div>
+                                    <span className="st-label">model</span>
+                                    <input
+                                       type="number"
+                                       step={0.05}
+                                       value={pair.model}
+                                       onChange={(e) => {
+                                          const n = parseFloat(e.target.value)
+                                          if (Number.isFinite(n)) setEntry(name, [n, pair.clip])
+                                       }}
+                                    />
+                                    <span className="st-label">clip</span>
+                                    <input
+                                       type="number"
+                                       step={0.05}
+                                       value={pair.clip}
+                                       onChange={(e) => {
+                                          const n = parseFloat(e.target.value)
+                                          if (Number.isFinite(n)) setEntry(name, [pair.model, n])
+                                       }}
+                                    />
+                                    <button type="button" title="deactivate" onClick={() => setEntry(name, null)}>
+                                       ✕
+                                    </button>
+                                 </div>
+                              )
+                           })}
+                        </div>
+                     ) : null}
+                     <div className="section-title">all loras</div>
+                     <div className="lora-grid">
+                        {cards.map((name) => (
+                           <button
+                              key={name}
+                              type="button"
+                              className="lora-card"
+                              title={name}
+                              onClick={() => setEntry(name, [1, 1])}
+                           >
+                              {thumb(name)}
+                              <div className="lora-label">{label(name)}</div>
+                           </button>
+                        ))}
+                     </div>
+                     {matches.length - activeNames.filter(matchesFilter).length > CARD_CAP ? (
+                        <div className="loras-more">
+                           … {matches.length - activeNames.filter(matchesFilter).length - CARD_CAP} more — refine the
+                           filter
+                        </div>
+                     ) : null}
+                     {matches.length === 0 ? <div className="loras-more">no lora matches '{local.filter}'</div> : null}
+                  </div>
                </div>
-            ) : null}
-         </div>
+            </div>
+         ) : null}
       </div>
    )
 })

@@ -1,40 +1,10 @@
 import { describe, expect, it } from 'bun:test'
 import type { VarDescriptor } from 'src/cli/serve/describeVar.ts'
-import {
-   asSeedForm,
-   buildPayload,
-   normalizeInitial,
-   pruneLorasRecord,
-   type FormEntrySnapshot,
-} from 'src/cli/serve/web/state/payload.ts'
+import { asSeedForm, normalizeInitial, pruneLorasRecord } from 'src/cli/serve/web/state/payload.ts'
 
 function desc(kind: VarDescriptor['kind'], extra: Partial<VarDescriptor> = {}): VarDescriptor {
    return { kind, payload: '', default: null, ...extra }
 }
-
-function entry(name: string, kind: VarDescriptor['kind'], value: unknown, dirty: boolean): FormEntrySnapshot {
-   return { name, desc: desc(kind), value, dirty }
-}
-
-describe('web form payload', () => {
-   it('posts dirty vars only — the draft stays the base', () => {
-      const payload = buildPayload([
-         entry('prompt', 'prompt', 'a bear', true),
-         entry('steps', 'int', 20, false),
-         entry('cfg', 'float', 4.5, true),
-      ])
-      expect(payload).toEqual({ prompt: 'a bear', cfg: 4.5 })
-   })
-
-   it('a dirty seed posts a NUMBER, never a mode object (the server reroll branch needs the key absent)', () => {
-      const payload = buildPayload([entry('seed', 'seed', { mode: '?', value: 42 }, true)])
-      expect(payload).toEqual({ seed: 42 })
-   })
-
-   it('an untouched seed posts nothing, so the server seed policy applies', () => {
-      expect(buildPayload([entry('seed', 'seed', { mode: '?', value: 42 }, false)])).toEqual({})
-   })
-})
 
 describe('web form value normalization', () => {
    it('seed: {mode,value} toJSON shape, legacy plain number, and garbage all normalize', () => {
@@ -43,7 +13,7 @@ describe('web form value normalization', () => {
       expect(asSeedForm('nope')).toEqual({ mode: '=', value: 0 })
    })
 
-   it('loras: keys the host no longer offers are pruned, so one stale draft entry cannot 400 every generate', () => {
+   it('loras: keys the host no longer offers are pruned, so a stale draft entry cannot fail the build', () => {
       const options = ['a.safetensors', 'b.safetensors']
       expect(pruneLorasRecord({ 'a.safetensors': [1, 1], 'gone.safetensors': 0.8 }, options)).toEqual({
          'a.safetensors': [1, 1],

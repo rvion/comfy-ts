@@ -28,6 +28,8 @@ export type ServeExecution = {
    status: string
    images: { absPath: string | null; filename: string }[]
    data: { id: string; error?: unknown }
+   /** live global progress (ComfyExecution has it; fakes may omit) — the /run/<module> poll reads it */
+   progressGlobal?: { percent: number }
 }
 
 export type ServeStarter = (mod: ServeModule) => Promise<ServeExecution>
@@ -75,6 +77,8 @@ const USAGE = [
    'GET  /drafts/<module>/<draft> — one draft with its stored values',
    'POST /generate/<module>/<draft> with { ...vars } — run, blocking',
    'POST /generate/<draft> — unqualified, when unambiguous',
+   'PUT  /drafts/<module>/<draft> with { ...vars } — save (or duplicate to a new name) a draft',
+   'GET  /run/<module> — live run status · /run/<module>/preview — latent preview bytes',
    'POST /upload with {"name","dataBase64"} — store a browser file for an image var',
    'GET  /lora-info/<hostId>/<lora> — display name + trigger words (local mirror)',
    'GET  /lora-preview/<hostId>/<lora> — preview image bytes',
@@ -149,6 +153,9 @@ export class ServeApp {
             if (segs[0] === 'web' && segs[1] === 'app.js' && segs.length === 2) return await this.replyWebJs()
             if (segs[0] === 'drafts' && segs.length === 3 && segs[1] != null && segs[2] != null)
                return this.replyDraft(segs[1], segs[2])
+            if (segs[0] === 'run' && segs.length === 2 && segs[1] != null) return this.replyRunStatus(segs[1])
+            if (segs[0] === 'run' && segs.length === 3 && segs[1] != null && segs[2] === 'preview')
+               return this.replyRunPreview(segs[1])
             if (segs[0] === 'lora-info' && segs.length === 3 && segs[1] != null && segs[2] != null)
                return this.replyLoraInfo(segs[1], segs[2])
             if (segs[0] === 'lora-preview' && segs.length === 3 && segs[1] != null && segs[2] != null)
@@ -162,6 +169,8 @@ export class ServeApp {
             return await this.generate(target.mod, target.draft, req)
          }
          if (req.method === 'POST' && segs[0] === 'upload' && segs.length === 1) return this.replyUpload(req)
+         if (req.method === 'PUT' && segs[0] === 'drafts' && segs.length === 3 && segs[1] != null && segs[2] != null)
+            return await this.replySaveDraft(segs[1], segs[2], req)
          return json(404, { error: `no route: ${req.method} ${path}`, usage: USAGE })
       } catch (e) {
          console.error('[serve] request crashed:', e)
@@ -222,8 +231,22 @@ export class ServeApp {
 
    // #region introspection ----------------------------------------------------
    private describeModule(mod: ServeModule): Record<string, unknown> {
+      refreshLoraInfoCacheIfChanged()
+      const hostId = mod.dw.host.data.id
       const vars: Record<string, VarDescriptor> = {}
-      for (const [name, varDef] of mod.dw.entries()) vars[name] = describeVar(varDef)
+      for (const [name, varDef] of mod.dw.entries()) {
+         const desc = describeVar(varDef)
+         // the raw enum values stay the payload keys; the mirror's names are for humans
+         if (desc.kind === 'loras' && desc.options != null) {
+            const labels: Record<string, string> = {}
+            for (const option of desc.options) {
+               const label = getLoraDisplayName(option, hostId)
+               if (label !== option) labels[option] = label
+            }
+            if (Object.keys(labels).length > 0) desc.optionLabels = labels
+         }
+         vars[name] = desc
+      }
       return {
          module: mod.key,
          file: mod.file,
@@ -305,6 +328,72 @@ export class ServeApp {
       writeFileSync(abs, bytes)
       console.log(`[serve] upload → ${abs} (${bytes.length} bytes)`)
       return json(200, { ok: true, path: abs, url: this.outputUrl(abs) })
+   }
+
+   // #region drafts write (the web ui's autosave + duplicate ride this) --------
+   /** the DraftsSt name rule, verbatim — the two surfaces must accept the same names */
+   private validDraftName(raw: string): string | null {
+      const name = raw.trim()
+      return /^[\w][\w .-]*$/.test(name) ? name : null
+   }
+
+   private async replySaveDraft(modKey: string, rawDraft: string, req: ServeRequest): Promise<ServeReply> {
+      const mod = this.moduleByKey(modKey)
+      if (mod == null) return json(404, { error: `unknown module '${modKey}'` })
+      const draft = this.validDraftName(rawDraft)
+      if (draft == null)
+         return json(400, { error: `invalid draft name '${rawDraft}' — letters/digits then letters, digits, ". -_"` })
+      let parsed: unknown
+      try {
+         parsed = JSON.parse(req.body ?? '')
+      } catch (e) {
+         return json(400, { error: `body is not valid json: ${extractErrorMessage(e)}` })
+      }
+      if (parsed == null || typeof parsed !== 'object' || Array.isArray(parsed))
+         return json(400, { error: 'body must be a json object: { "<var>": value, … }' })
+      const values = parsed as Record<string, unknown>
+      const known = new Set(mod.dw.entries().map(([k]) => k))
+      const unknown = Object.keys(values).filter((k) => !known.has(k))
+      if (unknown.length > 0)
+         return json(400, { error: `unknown var(s) ${unknown.join(', ')} — vars: ${[...known].join(', ')}` })
+      // values are written VERBATIM (toJSON shapes, loadJSON re-validates on read) —
+      // under the module mutex, so a save cannot interleave a generate's draft read
+      const path = join(draftsDirForFile(mod.file), `${draft}.json`)
+      await this.exclusive(mod.key, () => {
+         mkdirSync(dirname(path), { recursive: true })
+         writeFileSync(path, JSON.stringify(values, null, 2))
+         return Promise.resolve()
+      })
+      return json(200, { ok: true, module: mod.key, draft, drafts: this.draftsFor(mod) })
+   }
+
+   // #region live run state (web ui polling: progress + latent preview) --------
+   private liveRuns = new Map<string, ServeExecution>()
+   private latentPreviews = new Map<string, { bytes: Uint8Array; mime: string }>()
+
+   private replyRunStatus(modKey: string): ServeReply {
+      const mod = this.moduleByKey(modKey)
+      if (mod == null) return json(404, { error: `unknown module '${modKey}'` })
+      const exec = this.liveRuns.get(mod.key)
+      const running = exec != null && exec.status !== 'Success' && exec.status !== 'Failure'
+      return json(200, {
+         running,
+         status: exec?.status ?? 'idle',
+         percent: running ? (exec.progressGlobal?.percent ?? null) : null,
+         hasPreview: this.latentPreviews.has(mod.key),
+      })
+   }
+
+   private replyRunPreview(modKey: string): ServeReply {
+      const mod = this.moduleByKey(modKey)
+      if (mod == null) return json(404, { error: `unknown module '${modKey}'` })
+      const preview = this.latentPreviews.get(mod.key)
+      if (preview == null) return json(404, { error: 'no latent preview yet' })
+      return {
+         status: 200,
+         contentType: preview.mime !== '' ? preview.mime : sniffImageContentType(preview.bytes),
+         body: preview.bytes,
+      }
    }
 
    // #region lora hover data ---------------------------------------------------
@@ -394,6 +483,7 @@ export class ServeApp {
       if ('error' in started) return json(started.status, { error: started.error })
 
       const execution = started.execution
+      this.liveRuns.set(mod.key, execution)
       console.log(`[serve] → ${mod.key}/${draft} (prompt ${execution.data.id})`)
       await execution.done
       const durationMs = Date.now() - t0
@@ -500,7 +590,13 @@ export class ServeApp {
          seeds[k] = seedVar.value
       }
 
-      // 5. send (build + POST /prompt); the wait for outputs happens OUTSIDE the mutex
+      // 5. send (build + POST /prompt); the wait for outputs happens OUTSIDE the mutex.
+      // latent frames feed the web ui's /run/<module>/preview poll (ExecSt's pattern);
+      // the previous run's preview must not linger over the new one
+      this.latentPreviews.delete(mod.key)
+      mod.dw.host.onLatentPreview = (p) => {
+         this.latentPreviews.set(mod.key, { bytes: p.bytes, mime: p.mime })
+      }
       try {
          return { execution: await this.starter(mod) }
       } catch (e) {

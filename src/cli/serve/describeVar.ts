@@ -22,6 +22,8 @@ export type VarDescriptor = {
    choices?: readonly string[]
    /** loras: the resolved option list */
    options?: readonly string[]
+   /** loras: human display names from the lora-manager mirror, keyed by option — entries only where the label differs (filled by ServeApp.describeModule, which knows the host) */
+   optionLabels?: Record<string, string>
    min?: number
    max?: number
    presets?: SizePreset[]

@@ -277,3 +277,77 @@ describe('http layer (makeRequestListener over a real socket)', () => {
       }
    })
 })
+
+describe('ServeApp draft save (PUT) + live run state', () => {
+   it('PUT writes the draft, lists it, and a follow-up GET serves the stored values', async () => {
+      const mod = makeModule('wf-save')
+      const app = new ServeApp([mod], { outputRoot: join(root, 'out') })
+      const put = await app.handle({
+         method: 'PUT',
+         url: '/drafts/wf-save/night%20mode',
+         body: JSON.stringify({ prompt: 'a night bear', steps: 12 }),
+      })
+      expect(put.status).toBe(200)
+      const putBody = JSON.parse(String(put.body)) as { ok: boolean; drafts: string[] }
+      expect(putBody.ok).toBe(true)
+      expect(putBody.drafts).toContain('night mode')
+      const get = await app.handle({ method: 'GET', url: '/drafts/wf-save/night%20mode' })
+      const got = JSON.parse(String(get.body)) as { values: Record<string, unknown> }
+      expect(got.values.prompt).toBe('a night bear')
+      expect(got.values.steps).toBe(12)
+   })
+
+   it('PUT rejects bad names, non-object bodies, and unknown vars — nothing written', async () => {
+      const mod = makeModule('wf-save-bad')
+      const app = new ServeApp([mod], { outputRoot: join(root, 'out') })
+      const badName = await app.handle({ method: 'PUT', url: '/drafts/wf-save-bad/..%2Fescape', body: '{}' })
+      expect(badName.status).toBe(400)
+      const badBody = await app.handle({ method: 'PUT', url: '/drafts/wf-save-bad/ok', body: '[1,2]' })
+      expect(badBody.status).toBe(400)
+      const badVar = await app.handle({
+         method: 'PUT',
+         url: '/drafts/wf-save-bad/ok',
+         body: JSON.stringify({ nope: 1 }),
+      })
+      expect(badVar.status).toBe(400)
+      expect(JSON.parse(String(badVar.body)).error).toContain('unknown var(s) nope')
+      const list = await app.handle({ method: 'GET', url: '/drafts' })
+      expect(String(list.body)).not.toContain('"ok"')
+   })
+
+   it('a generate flushed through PUT is what the run reads (autosave contract)', async () => {
+      const mod = makeModule('wf-flush')
+      const seen: Record<string, unknown>[] = []
+      const app = new ServeApp([mod], { outputRoot: join(root, 'out'), starter: snapshottingStarter(seen) })
+      await app.handle({
+         method: 'PUT',
+         url: '/drafts/wf-flush/tuned',
+         body: JSON.stringify({ prompt: 'tuned prompt', seed: { mode: '=', value: 99 } }),
+      })
+      const gen = await app.handle({ method: 'POST', url: '/generate/wf-flush/tuned', body: '{}' })
+      expect(gen.status).toBe(200)
+      expect(seen[0]?.prompt).toBe('tuned prompt')
+      expect(seen[0]?.seed).toEqual({ mode: '=', value: 99 })
+   })
+
+   it('/run/<module> reports idle before any run and running state fields after', async () => {
+      const mod = makeModule('wf-run-status')
+      const app = new ServeApp([mod], { outputRoot: join(root, 'out'), starter: snapshottingStarter([]) })
+      const idle = await app.handle({ method: 'GET', url: '/run/wf-run-status' })
+      expect(JSON.parse(String(idle.body))).toEqual({
+         running: false,
+         status: 'idle',
+         percent: null,
+         hasPreview: false,
+      })
+      await app.handle({ method: 'POST', url: '/generate/wf-run-status/default', body: '{}' })
+      const after = await app.handle({ method: 'GET', url: '/run/wf-run-status' })
+      const afterBody = JSON.parse(String(after.body)) as { running: boolean; status: string }
+      expect(afterBody.running).toBe(false)
+      expect(afterBody.status).toBe('Success')
+      const preview = await app.handle({ method: 'GET', url: '/run/wf-run-status/preview' })
+      expect(preview.status).toBe(404)
+      const unknown = await app.handle({ method: 'GET', url: '/run/nope' })
+      expect(unknown.status).toBe(404)
+   })
+})

@@ -48,9 +48,14 @@ const VarRow = observer(function VarRow(p: { v: VarSt; host: string }) {
          <div className="var-label">
             {p.v.desc.label ?? p.v.name}
             {p.v.dirty ? (
-               <span className="dirty-dot" title="edited — will override the draft value">
+               <button
+                  type="button"
+                  className="dirty-dot"
+                  title="changed this session — click to restore the loaded value (autosaves)"
+                  onClick={() => p.v.revert()}
+               >
                   ●
-               </span>
+               </button>
             ) : null}
             <span className="kind">{p.v.desc.kind}</span>
          </div>
@@ -64,11 +69,25 @@ const VarRow = observer(function VarRow(p: { v: VarSt; host: string }) {
 export const VarsForm = observer(function VarsForm(p: { st: WebSt }) {
    const form = p.st.form
    if (form == null) return null
+   const duplicate = (): void => {
+      const name = window.prompt('duplicate draft as…', `${form.draft} copy`)
+      if (name != null) void p.st.duplicateDraft(name)
+   }
    return (
       <div>
-         <h2>
-            <b>{form.moduleKey}</b> / {form.draft}
-         </h2>
+         <div className="form-head">
+            <h2>
+               <b>{form.moduleKey}</b> / {form.draft}
+            </h2>
+            <span className="hint">
+               {form.saveState === 'saving' ? 'saving…' : null}
+               {form.saveState === 'saved' ? 'autosaved' : null}
+               {form.saveState === 'error' ? `🔴 save failed: ${form.saveError}` : null}
+            </span>
+            <button type="button" className="link" title="save these values as a new draft" onClick={duplicate}>
+               duplicate…
+            </button>
+         </div>
          {form.vars.map((v) => (
             <VarRow key={v.name} v={v} host={form.host} />
          ))}
@@ -79,12 +98,16 @@ export const VarsForm = observer(function VarsForm(p: { st: WebSt }) {
                disabled={p.st.run.isRunning}
                onClick={() => p.st.generate()}
             >
-               {p.st.run.isRunning ? 'generating…' : 'generate'}
+               {p.st.run.isRunning
+                  ? p.st.run.progressPercent != null
+                     ? `generating… ${Math.round(p.st.run.progressPercent)}%`
+                     : 'generating…'
+                  : 'generate'}
             </button>
             <span className="status">
                {form.dirtyCount === 0
-                  ? 'draft values as-is'
-                  : `${form.dirtyCount} var${form.dirtyCount > 1 ? 's' : ''} edited`}
+                  ? 'draft values'
+                  : `${form.dirtyCount} var${form.dirtyCount > 1 ? 's' : ''} changed this session`}
             </span>
             {form.dirtyCount > 0 ? (
                <button type="button" className="link" onClick={() => form.revertAll()}>

@@ -38,6 +38,18 @@ export const ImageControl = observer(function ImageControl(p: { v: VarSt }) {
             <button type="button" onClick={() => fileInput.current?.click()}>
                upload…
             </button>
+            {value !== '' ? (
+               <button
+                  type="button"
+                  title="clear the image"
+                  onClick={() => {
+                     p.v.set('')
+                     p.v.setUploadedUrl(null)
+                  }}
+               >
+                  ✕
+               </button>
+            ) : null}
             <input
                ref={fileInput}
                type="file"

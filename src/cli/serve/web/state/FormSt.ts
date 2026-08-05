@@ -1,13 +1,16 @@
 // form state for ONE module+draft selection — swapped whole on WebSt when the
-// selection changes (observableRef there), per app-state-tree doctrine
-import { makeAutoObservable, observableRef } from 'mobx'
-import type { ModuleDescription } from 'src/cli/serve/web/api.ts'
+// selection changes (observableRef there, dispose() first: the autosave
+// reaction is owned here). DRAFTS ARE LIVE (the TUI model): edits autosave
+// through PUT /drafts, generate posts {} — the draft is the one source of truth
+import { makeAutoObservable, observableRef, reaction, runInAction, type IReactionDisposer } from 'mobx'
+import { saveDraft, type ModuleDescription } from 'src/cli/serve/web/api.ts'
 import type { VarDescriptor } from 'src/cli/serve/describeVar.ts'
-import { buildPayload, normalizeInitial, type FormEntrySnapshot } from 'src/cli/serve/web/state/payload.ts'
+import { normalizeInitial } from 'src/cli/serve/web/state/payload.ts'
 
-/** one var row: value in payload shape, replaced whole on every edit */
+/** one var row: value in toJSON shape, replaced whole on every edit */
 export class VarSt {
    value: unknown
+   /** changed since the draft loaded — drives the revert affordance, not the payload */
    dirty = false
    /** image vars only: a browser-visible url for the current value (upload response or http value) */
    uploadedUrl: string | null = null
@@ -36,8 +39,8 @@ export class VarSt {
       this.uploadedUrl = null
    }
 
-   snapshot(): FormEntrySnapshot {
-      return { name: this.name, desc: this.desc, value: this.value, dirty: this.dirty }
+   snapshot(): { name: string; value: unknown } {
+      return { name: this.name, value: this.value }
    }
 }
 
@@ -45,6 +48,11 @@ export class FormSt {
    vars: VarSt[]
    /** the module's host id — lora hover data routes are host-scoped */
    readonly host: string
+   saveState: 'saved' | 'saving' | 'error' = 'saved'
+   saveError: string | null = null
+   private disposers: IReactionDisposer[] = []
+   /** saves are chained so two PUTs can never land out of order */
+   private saveChain: Promise<unknown> = Promise.resolve()
 
    constructor(
       public readonly moduleKey: string,
@@ -57,14 +65,49 @@ export class FormSt {
          ([name, desc]) => new VarSt(name, desc, normalizeInitial(desc, values[name])),
       )
       makeAutoObservable(this, { vars: false, moduleKey: false, draft: false, host: false })
+      // the persistence idiom: the values json is change-detector AND payload
+      this.disposers.push(
+         reaction(
+            () => JSON.stringify(this.valuesJSON()),
+            () => void this.save(),
+            { delay: 500 },
+         ),
+      )
+   }
+
+   dispose(): void {
+      for (const d of this.disposers) d()
+      this.disposers = []
+   }
+
+   valuesJSON(): Record<string, unknown> {
+      return Object.fromEntries(this.vars.map((v) => [v.name, v.value]))
    }
 
    get dirtyCount(): number {
       return this.vars.filter((v) => v.dirty).length
    }
 
-   payload(): Record<string, unknown> {
-      return buildPayload(this.vars.map((v) => v.snapshot()))
+   /** persist the draft now; generate() awaits this so the server reads what the form shows */
+   save(): Promise<unknown> {
+      runInAction(() => {
+         this.saveState = 'saving'
+      })
+      this.saveChain = this.saveChain.then(() =>
+         saveDraft({ module: this.moduleKey, draft: this.draft, values: this.valuesJSON() }).then(
+            () =>
+               runInAction(() => {
+                  this.saveState = 'saved'
+                  this.saveError = null
+               }),
+            (e: unknown) =>
+               runInAction(() => {
+                  this.saveState = 'error'
+                  this.saveError = e instanceof Error ? e.message : String(e)
+               }),
+         ),
+      )
+      return this.saveChain
    }
 
    revertAll(): void {
