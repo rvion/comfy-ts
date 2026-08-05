@@ -137,6 +137,9 @@ export const LorasControl = observer(function LorasControl(p: { v: VarSt; host: 
                      <div className="hint">no preview on the server</div>
                   ) : (
                      <img
+                        // key remounts the node per lora: a reused <img> can fire the PREVIOUS
+                        // src's error after the swap and mark the wrong name failed
+                        key={hovered}
                         src={loraPreviewSrc({ host: p.host, name: hovered })}
                         alt={hovered}
                         onError={() => local.notePreviewFailed(hovered)}

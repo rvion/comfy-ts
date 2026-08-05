@@ -156,6 +156,9 @@ button.link { border: 0; background: none; color: var(--accent); padding: 0; }
    .var-label .kind { display: inline; margin-left: 6px; }
    input[type='text'], input[type='number'], textarea, select { font-size: 16px; }
    input[type='number'] { width: 96px; }
+   /* repeated at .lora-row specificity: the base 12px rule outranks the bare selector above,
+      and a sub-16px input makes iOS zoom the page on focus */
+   .lora-row input[type='number'] { font-size: 16px; }
    .runbar { flex-wrap: wrap; }
    .loras-body { flex-direction: column; }
    .lora-pane { width: auto; border-left: 0; border-top: 1px solid var(--border); max-height: 240px; }

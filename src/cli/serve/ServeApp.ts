@@ -328,8 +328,9 @@ export class ServeApp {
       })
    }
 
-   /** preview url resolution misses per host, so an absent lora-manager costs ONE sweep, not one per hover */
-   private previewSweeps = new Map<string, Promise<Map<string, string> | null>>()
+   /** preview url resolution misses per host, so an absent lora-manager costs ONE sweep, not one
+    * per hover. An UNREACHABLE host evicts itself: the host coming back must not stay 404 forever */
+   private previewSweeps = new Map<string, Promise<{ status: string; map: Map<string, string> | null }>>()
 
    private async replyLoraPreview(hostId: string, lora: string): Promise<ServeReply> {
       const host = this.hostById(hostId)
@@ -340,12 +341,22 @@ export class ServeApp {
          // the TUI's fallback: unsynced mirror (or a lora it never saw) → ask the live host once
          let sweep = this.previewSweeps.get(hostId)
          if (sweep == null) {
-            sweep = fetchLoraList(host).then((r) =>
-               r.status === 'absent' || r.status === 'unreachable' ? null : loraPreviewMapFrom(r.items),
-            )
+            sweep = fetchLoraList(host).then((r) => {
+               if (r.status === 'unreachable') {
+                  this.previewSweeps.delete(hostId)
+                  return { status: r.status, map: null }
+               }
+               return { status: r.status, map: r.status === 'absent' ? null : loraPreviewMapFrom(r.items) }
+            })
             this.previewSweeps.set(hostId, sweep)
          }
-         url = (await sweep)?.get(loraKey(lora)) ?? null
+         const swept = await sweep
+         url = swept.map?.get(loraKey(lora)) ?? null
+         // each miss has its OWN cause (the LorasSt rule): the wrong advice sends the user hunting
+         if (url == null && swept.status === 'unreachable')
+            return json(404, { error: `host '${hostId}' is unreachable — no preview to fetch` })
+         if (url == null && swept.status === 'absent')
+            return json(404, { error: `lora-manager extension not detected on '${hostId}'` })
       }
       if (url == null)
          return json(404, { error: `no preview known for '${lora}' (run: comfy-ts loras --id ${hostId})` })
