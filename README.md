@@ -318,8 +318,10 @@ Hand-tune a draft in the TUI, then make it callable by anything that speaks HTTP
 bunx comfy-ts serve                     # every *.cflow.ts under cwd, port 8288
 bunx comfy-ts serve ./flows             # just that folder
 bunx comfy-ts serve txt2img.cflow.ts    # one workflow (routes shorten to /generate/<draft>)
-bunx comfy-ts serve --port 9000 --bind 0.0.0.0   # pick port / expose beyond localhost
+bunx comfy-ts serve --port 9000 --host 0.0.0.0   # pick port / reach it from your phone or tailnet
 ```
+
+Bound beyond localhost, the startup print lists every URL the box answers on (LAN and tailnet), so the web UI is one tap away on another device. There is no auth: only do this on a network you trust.
 
 Discover what's being served — same info the startup print shows, as JSON:
 

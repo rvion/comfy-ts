@@ -31,7 +31,7 @@ Usage:
          host.defineWorkflow(...)); no arg scans cwd + the examples bundled
          with comfy-ts, an explicit dir/file limits to it (file preselected)
 
-   comfy-ts serve [dir | workflow-module.ts] [--port 8288] [--bind 127.0.0.1]
+   comfy-ts serve [dir | workflow-module.ts] [--port 8288] [--host 127.0.0.1]
          drafts as a local HTTP generation API: POST /generate/<module>/<draft>
          with { ...vars } overriding the draft's values (blocking; raw image
          bytes under Accept: image/*), GET /drafts self-describes every var,

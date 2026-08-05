@@ -1,7 +1,8 @@
-// `comfy-ts serve [dir | module.cflow.ts] [--port N] [--bind ADDR]`
+// `comfy-ts serve [dir | module.cflow.ts] [--port N] [--host ADDR]`
 // drafts as a local HTTP generation API — agent/architecture.md item 12
 import { statSync } from 'node:fs'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
+import { networkInterfaces } from 'node:os'
 import { pathToFileURL } from 'node:url'
 import { resolve } from 'pathe'
 import { scanCflowFiles } from 'src/cli/tui/discoverWorkflows.ts'
@@ -15,7 +16,7 @@ import { extractErrorMessage } from 'src/utils/extractErrorMessage.ts'
 const DEFAULT_PORT = 8288
 const BODY_CAP = 10_000_000
 
-function parseArgs(args: string[]): { target?: string; port: number; bind: string } | { error: string } {
+export function parseArgs(args: string[]): { target?: string; port: number; bind: string } | { error: string } {
    let target: string | undefined
    let port = DEFAULT_PORT
    let bind = '127.0.0.1'
@@ -25,9 +26,10 @@ function parseArgs(args: string[]): { target?: string; port: number; bind: strin
          const n = Number(args[++i])
          if (!Number.isInteger(n) || n <= 0 || n > 65535) return { error: `--port expects 1..65535, got '${args[i]}'` }
          port = n
-      } else if (a === '--bind') {
+      } else if (a === '--host' || a === '--bind') {
+         // --host is the spelling; --bind stays an alias so an old command line keeps working
          const b = args[++i]
-         if (b == null) return { error: '--bind expects an address' }
+         if (b == null) return { error: `${a} expects an address (0.0.0.0 to reach it from another machine)` }
          bind = b
       } else if (a != null && a.startsWith('--')) return { error: `unknown flag '${a}'` }
       else if (a != null) {
@@ -148,11 +150,41 @@ export async function runServe(args: string[]): Promise<number> {
    })
 }
 
+export type Nic = { address: string; family: string | number; internal: boolean }
+
+/** the addresses this bind actually answers on. `0.0.0.0` means every interface, so printing
+ * only that back is useless: the LAN ip and the tailnet 100.x are the urls a phone can open */
+export function reachableAddresses(bind: string, nics: Record<string, Nic[] | undefined>): string[] {
+   if (bind !== '0.0.0.0' && bind !== '::') return [bind]
+   const found: string[] = []
+   for (const list of Object.values(nics)) {
+      for (const nic of list ?? []) {
+         // node reports family as 'IPv4' or 4 depending on the version
+         if (nic.internal || (nic.family !== 'IPv4' && nic.family !== 4)) continue
+         found.push(nic.address)
+      }
+   }
+   return ['127.0.0.1', ...found]
+}
+
+/** 100.64.0.0/10 is the CGNAT range tailscale hands out — worth naming, it is the one he wants */
+function addressNote(addr: string): string {
+   const octets = addr.split('.').map(Number)
+   const second = octets[1] ?? 0
+   return octets[0] === 100 && second >= 64 && second <= 127 ? '  (tailnet)' : ''
+}
+
 function printStartup(app: ServeApp, bind: string, port: number): void {
    const base = `http://${bind}:${port}`
    console.log(`comfy-ts serve · ${app.modules.length} workflow(s) · ${base}/`)
-   if (bind !== '127.0.0.1' && bind !== 'localhost')
+   if (bind !== '127.0.0.1' && bind !== 'localhost') {
       console.log(`⚠️  bound to ${bind} — this API has NO AUTH and runs workflows on your ComfyUI host`)
+      const urls = reachableAddresses(bind, networkInterfaces())
+      if (urls.length > 1) {
+         console.log('reachable at:')
+         for (const addr of urls) console.log(`   http://${addr}:${port}/${addressNote(addr)}`)
+      }
+   }
    for (const mod of app.modules) {
       console.log(`\n${mod.key} (host: ${mod.dw.host.data.id})`)
       for (const draft of app.draftsFor(mod))
