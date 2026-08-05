@@ -1,0 +1,15 @@
+{
+   // the second dom-typed corner (examples/web is the first): this app runs in
+   // a browser. src/ elsewhere stays dom-free by machine — this dir is excluded
+   // from the root config and chained into `typecheck:lib`
+   "extends": "../../../../tsconfig.json",
+   "compilerOptions": {
+      "lib": ["ESNext", "DOM", "DOM.Iterable"],
+      "paths": {
+         "src/*": ["../../../../src/*"],
+         "comfy-ts": ["../../../../src/index.ts"]
+      },
+      "tsBuildInfoFile": "../../../../node_modules/.cache/tsbuildinfo-serve-web.json"
+   },
+   "include": [".", "../../../../src"]
+}

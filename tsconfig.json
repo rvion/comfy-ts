@@ -44,6 +44,7 @@
    // base builder is index-typed (factories possibly-undefined under
    // noUncheckedIndexedAccess). bun test executes them; oxlint/oxfmt cover them.
    "include": ["src", "scripts", "examples", ".comfy-ts/hosts/**/sdk.d.ts", "*.ts"],
-   // examples/web has its OWN config (dom lib) — chained by `bun run typecheck`
-   "exclude": ["examples/web"]
+   // dom-typed corners have their OWN configs (dom lib): examples/web chained
+   // by `bun run typecheck`, src/cli/serve/web chained by `typecheck:lib`
+   "exclude": ["examples/web", "src/cli/serve/web"]
 }
