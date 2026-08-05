@@ -6,5 +6,9 @@
    // like tests/ (see the root tsconfig). Typecheck them locally with
    // `bun run typecheck` after `bun run gen:sdk`.
    "extends": "./tsconfig.json",
+   // its OWN incremental cache: sharing the root's meant an editor typechecking with the
+   // root config (a different include set) invalidated this one mid-flight, and the gate
+   // reported a phantom error — a red gate on green code is worse than a slow one
+   "compilerOptions": { "tsBuildInfoFile": "node_modules/.cache/tsbuildinfo-lib.json" },
    "include": ["src", "scripts", "*.ts"]
 }

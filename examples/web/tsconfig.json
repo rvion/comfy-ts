@@ -9,7 +9,10 @@
          "src/*": ["../../src/*"],
          "comfy-ts": ["../../src/index.ts"],
          "comfy-ts/web": ["../../src/web.ts"]
-      }
+      },
+      // its own incremental cache: a shared one across configs with different include
+      // sets makes a typecheck fail on a symbol that exists (tests/tsconfig-buildinfo)
+      "tsBuildInfoFile": "../../node_modules/.cache/tsbuildinfo-examples-web.json"
    },
    "include": [".", "../../src"]
 }

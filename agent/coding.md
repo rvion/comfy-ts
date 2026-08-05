@@ -28,6 +28,10 @@ Runtime deps: `arktype`, `image-meta`, `nanoid`, `pathe`, `sharp`, `ws`, `ink` +
 - Known violations to burn down (documented, do NOT replicate): scattered `as any` in `ComfyNode._convertPromptExtToPrompt` / dynamic outputs wiring; `softValidate`/`bong` returning lying casts on failure (both documented at the definition); manager generated unions claimed via `.as<T>()` without membership checks (live data may legitimately contain values newer than the generated union). (`ComfyRegistry` built-in `as any` seed burned down 2026-07-30: the pseudo-plugin is seeded into byTitle/byFile BEFORE codegen so its literals are union members.)
 - params named `p`, no destructuring in params/bodies (`p.hostId`), `== null` checks, early returns, classes for stateful things.
 
+## tsconfigs: one incremental cache each (hard)
+
+Every tsconfig that is actually invoked (root, `tsconfig.lib.json`, `src/cli/serve/web`, `examples/web`) sets its OWN `tsBuildInfoFile`. Two configs with different `include` sets writing one tsbuildinfo poison each other: the gate then fails on a symbol that exists (an editor typechecking in the background with the root config is enough to trigger it), which is a red gate on green code. `tests/tsconfig-buildinfo.test.ts` is the guard. Stale cache symptom, if it ever returns: `rm node_modules/.cache/tsbuildinfo*.json`.
+
 ## Lint & format config (zero output is the contract)
 
 `bun run lint` must print NOTHING. A permanent warning stream trains everyone to ignore the one warning that matters, so a warning is either fixed or the rule is turned off ON PURPOSE in `.oxlintrc.json`. Currently off, each because the house style disagrees, not because the code is wrong:
