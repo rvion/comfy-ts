@@ -9,6 +9,7 @@ import { findDefinedWorkflow } from 'src/cli/tui/findDefinedWorkflow.ts'
 import { draftKeyForFile } from 'src/cli/tui/state/DraftsSt.ts'
 import { describeVar, renderDescriptorLine } from 'src/cli/serve/describeVar.ts'
 import { ServeApp, type ServeModule } from 'src/cli/serve/ServeApp.ts'
+import { loadOrBuildWebJs } from 'src/cli/serve/webBundle.ts'
 import { extractErrorMessage } from 'src/utils/extractErrorMessage.ts'
 
 const DEFAULT_PORT = 8288
@@ -129,7 +130,7 @@ export async function runServe(args: string[]): Promise<number> {
       return 1
    }
 
-   const app = new ServeApp(modules, { loadErrors })
+   const app = new ServeApp(modules, { loadErrors, webJs: loadOrBuildWebJs })
    printStartup(app, parsed.bind, parsed.port)
 
    const server = createServer(makeRequestListener(app))
@@ -166,4 +167,5 @@ function printStartup(app: ServeApp, bind: string, port: number): void {
          `\ntry:  curl -X POST ${base}/generate/${encodeURIComponent(firstMod.key)}/default -H 'content-type: application/json' -d '{}'`,
       )
    console.log(`docs: GET ${base}/drafts (json index of everything above)`)
+   console.log(`ui:   open ${base}/ in a browser (every var as a form control)`)
 }

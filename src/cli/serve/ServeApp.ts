@@ -53,12 +53,30 @@ function json(status: number, payload: unknown): ServeReply {
 }
 
 const USAGE = [
+   'GET  / in a browser — web control panel (every var as a form control)',
    'GET  /drafts — every served workflow, its drafts and var descriptors',
    'GET  /drafts/<module>/<draft> — one draft with its stored values',
    'POST /generate/<module>/<draft> with { ...vars } — run, blocking',
    'POST /generate/<draft> — unqualified, when unambiguous',
+   'POST /upload with {"name","dataBase64"} — store a browser file for an image var',
    'GET  /outputs/<path> — generated files',
 ]
+
+/** the html shell; the app itself is ONE bundle at /web/app.js */
+const WEB_SHELL = `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>comfy-ts serve</title>
+<style>html{background:#101217;color:#e8eaf0}</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="module" src="/web/app.js"></script>
+</body>
+</html>
+`
 
 export class ServeApp {
    private starter: ServeStarter
@@ -66,10 +84,18 @@ export class ServeApp {
    private seedState = new Map<string, number>()
    /** per-module promise chain: vars are shared mutable state, apply→send is exclusive */
    private chains = new Map<string, Promise<unknown>>()
+   /** the bundle is built at most once per process, first browser hit pays it */
+   private webJsCache: Promise<string | null> | null = null
 
    constructor(
       public modules: ServeModule[],
-      private opts: { starter?: ServeStarter; outputRoot?: string; loadErrors?: Record<string, string> } = {},
+      private opts: {
+         starter?: ServeStarter
+         outputRoot?: string
+         loadErrors?: Record<string, string>
+         /** web ui bundle provider (run-serve wires loadOrBuildWebJs); absent = api only */
+         webJs?: () => Promise<string | null>
+      } = {},
    ) {
       this.starter = opts.starter ?? realStarter
    }
@@ -92,7 +118,11 @@ export class ServeApp {
             return json(400, { error: `bad url encoding: ${path}` })
          }
          if (req.method === 'GET') {
+            // a browser lands on the control panel; every other client keeps the json index
+            if (segs.length === 0 && this.opts.webJs != null && req.accept?.includes('text/html') === true)
+               return { status: 200, contentType: 'text/html; charset=utf-8', body: WEB_SHELL }
             if (segs.length === 0 || (segs[0] === 'drafts' && segs.length === 1)) return this.replyIndex()
+            if (segs[0] === 'web' && segs[1] === 'app.js' && segs.length === 2) return await this.replyWebJs()
             if (segs[0] === 'drafts' && segs.length === 3 && segs[1] != null && segs[2] != null)
                return this.replyDraft(segs[1], segs[2])
             if (segs[0] === 'outputs') return this.replyOutput(segs.slice(1))
@@ -103,6 +133,7 @@ export class ServeApp {
             if ('error' in target) return json(target.status, { error: target.error })
             return await this.generate(target.mod, target.draft, req)
          }
+         if (req.method === 'POST' && segs[0] === 'upload' && segs.length === 1) return this.replyUpload(req)
          return json(404, { error: `no route: ${req.method} ${path}`, usage: USAGE })
       } catch (e) {
          console.error('[serve] request crashed:', e)
@@ -217,6 +248,35 @@ export class ServeApp {
          return json(404, { error: `no such output file: /${segs.join('/')}` })
       const contentType = CONTENT_TYPES[extname(abs).toLowerCase()] ?? 'application/octet-stream'
       return { status: 200, contentType, body: new Uint8Array(readFileSync(abs)) }
+   }
+
+   private async replyWebJs(): Promise<ServeReply> {
+      if (this.opts.webJs == null) return json(404, { error: 'web ui not enabled on this server' })
+      this.webJsCache ??= this.opts.webJs()
+      const js = await this.webJsCache
+      if (js == null) return json(404, { error: 'web ui bundle unavailable — see the server log' })
+      return { status: 200, contentType: 'text/javascript; charset=utf-8', body: js }
+   }
+
+   /** browser file → local file an image var can point at (downloadInput family) */
+   private replyUpload(req: ServeRequest): ServeReply {
+      let parsed: unknown
+      try {
+         parsed = JSON.parse(req.body ?? '')
+      } catch (e) {
+         return json(400, { error: `body is not valid json: ${extractErrorMessage(e)}` })
+      }
+      const o = (parsed ?? {}) as { name?: unknown; dataBase64?: unknown }
+      if (typeof o.name !== 'string' || o.name === '' || typeof o.dataBase64 !== 'string' || o.dataBase64 === '')
+         return json(400, { error: 'upload expects {"name":"<filename>","dataBase64":"<base64 bytes>"}' })
+      const bytes = Buffer.from(o.dataBase64, 'base64')
+      if (bytes.length === 0) return json(400, { error: 'dataBase64 decoded to zero bytes' })
+      const safe = basename(o.name).replace(/[^\w.-]+/g, '_') || 'upload'
+      const abs = join(this.outputRoot, 'serve-inputs', `${nanoid(6)}-${safe}`)
+      mkdirSync(dirname(abs), { recursive: true })
+      writeFileSync(abs, bytes)
+      console.log(`[serve] upload → ${abs} (${bytes.length} bytes)`)
+      return json(200, { ok: true, path: abs, url: this.outputUrl(abs) })
    }
 
    private outputUrl(absPath: string): string | null {
