@@ -38,15 +38,17 @@ export function asSizeForm(raw: unknown): SizeFormValue {
    return { width: 1024, height: 1024 }
 }
 
-/** drop record keys the host no longer offers: a stale draft entry is invisible in the
- * option-driven list and would fail the build server-side. With live drafts the pruned
- * record is what the next autosave WRITES, so stale keys heal out of the draft file —
- * deliberate: a lora the host lost is dead weight the ui cannot even display */
+/** the record the web keeps holds ON loras ONLY, so it always reads as "what is in the
+ * palette". Two things are dropped: keys the host no longer offers (dead weight the ui
+ * cannot display, and a server-side build failure), and `false` entries — LorasVar writes
+ * one for every lora ever unticked, so treating them as palette members put the WHOLE
+ * catalog in the row. Off is off: `activeLoras` skips both spellings, so nothing changes
+ * in the graph, and with live drafts the next autosave heals the file */
 export function pruneLorasRecord(raw: unknown, options: readonly string[]): Record<string, unknown> {
    if (raw == null || typeof raw !== 'object' || Array.isArray(raw)) return {}
    const known = new Set(options)
    const out: Record<string, unknown> = {}
-   for (const [k, st] of Object.entries(raw as Record<string, unknown>)) if (known.has(k)) out[k] = st
+   for (const [k, st] of Object.entries(raw as Record<string, unknown>)) if (known.has(k) && loraIsOn(st)) out[k] = st
    return out
 }
 
@@ -80,7 +82,9 @@ export function loraStrengthPair(st: unknown): LoraStrengthPair {
    return { model: 1, clip: 1 }
 }
 
-/** turn a selected lora on/off WITHOUT dropping it from the record (so the row keeps showing it) */
+/** pause/resume. A PAUSE removes the lora from the record entirely — the palette membership
+ * of a paused lora lives in the ui, not in the draft, so a draft never accumulates the
+ * off-entries that flooded the palette. Resuming writes the remembered strength back */
 export function setLoraEnabled(
    record: Record<string, unknown>,
    name: string,
@@ -88,7 +92,7 @@ export function setLoraEnabled(
    prev?: LoraStrengthPair,
 ): Record<string, unknown> {
    const next = { ...record }
-   if (!on) next[name] = false
+   if (!on) delete next[name]
    else {
       const pair = prev ?? loraStrengthPair(record[name])
       next[name] = [pair.model, pair.clip]

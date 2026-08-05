@@ -365,8 +365,9 @@ describe('seed continuation vs an edited draft value (live-draft model)', () => 
       })
       await app.handle({ method: 'POST', url: '/generate/wf-seed-edit/inc', body: '{}' })
       await app.handle({ method: 'POST', url: '/generate/wf-seed-edit/inc', body: '{}' })
-      expect((seen[0]?.seed as { value: number }).value).toBe(100)
-      expect((seen[1]?.seed as { value: number }).value).toBe(101)
+      const seedOf = (ix: number): number => (seen[ix]?.seed as { value: number } | undefined)?.value ?? -1
+      expect(seedOf(0)).toBe(100)
+      expect(seedOf(1)).toBe(101)
       // the user types 500 into the web form → autosave PUTs the new draft value
       await app.handle({
          method: 'PUT',
@@ -374,10 +375,10 @@ describe('seed continuation vs an edited draft value (live-draft model)', () => 
          body: JSON.stringify({ seed: { mode: '+', value: 500 } }),
       })
       await app.handle({ method: 'POST', url: '/generate/wf-seed-edit/inc', body: '{}' })
-      expect((seen[2]?.seed as { value: number }).value).toBe(500)
+      expect(seedOf(2)).toBe(500)
       // and the continuation resumes from there
       await app.handle({ method: 'POST', url: '/generate/wf-seed-edit/inc', body: '{}' })
-      expect((seen[3]?.seed as { value: number }).value).toBe(501)
+      expect(seedOf(3)).toBe(501)
    })
 })
 

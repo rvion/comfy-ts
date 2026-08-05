@@ -2,7 +2,6 @@ import { describe, expect, it } from 'bun:test'
 import type { VarDescriptor } from 'src/cli/serve/describeVar.ts'
 import {
    asSeedForm,
-   loraIsOn,
    loraStrengthPair,
    normalizeInitial,
    payloadSnapshot,
@@ -46,17 +45,27 @@ describe('web form value normalization', () => {
 })
 
 describe('loras record transitions (LorasVar semantics, web side)', () => {
-   it('switching OFF keeps the lora in the record (so the row keeps showing it)', () => {
-      const off = setLoraEnabled({ 'a.safetensors': [0.8, 0.6] }, 'a.safetensors', false)
-      expect(off).toEqual({ 'a.safetensors': false })
-      expect(loraIsOn(off['a.safetensors'])).toBe(false)
-      // still SELECTED: the key is present, which is what the ui lists
-      expect('a.safetensors' in off).toBe(true)
+   it('pausing REMOVES the lora from the record — palette membership is ui state, not draft state', () => {
+      const off = setLoraEnabled({ 'a.safetensors': [0.8, 0.6], 'b.safetensors': 1 }, 'a.safetensors', false)
+      expect(off).toEqual({ 'b.safetensors': 1 })
+      expect('a.safetensors' in off).toBe(false)
    })
 
-   it('switching back ON restores the remembered strength, not a bare 1', () => {
-      const on = setLoraEnabled({ 'a.safetensors': false }, 'a.safetensors', true, { model: 0.8, clip: 0.6 })
+   it('resuming restores the remembered strength, not a bare 1', () => {
+      const on = setLoraEnabled({}, 'a.safetensors', true, { model: 0.8, clip: 0.6 })
       expect(on).toEqual({ 'a.safetensors': [0.8, 0.6] })
+   })
+
+   it('his repro: a draft full of `false` leftovers must not fill the palette', () => {
+      // a real draft after ticking/unticking in the TUI: 4 keys, 1 on
+      const draft = {
+         'a.safetensors': false,
+         'b.safetensors': [0.7, 0.7],
+         'c.safetensors': false,
+         'd.safetensors': false,
+      }
+      const options = ['a.safetensors', 'b.safetensors', 'c.safetensors', 'd.safetensors']
+      expect(pruneLorasRecord(draft, options)).toEqual({ 'b.safetensors': [0.7, 0.7] })
    })
 
    it('every stored strength shape reads back as a {model, clip} pair', () => {

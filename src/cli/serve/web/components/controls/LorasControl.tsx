@@ -3,8 +3,11 @@
 // and a few without, never reopening the popup to add it back. Model/clip
 // strengths sit on the card too. The popup is the only place that lists ALL
 // loras: tap one there to add it to the palette, ✕ on a card removes it.
-// Two states per option, LorasVar's own: in the palette = key present in the
-// record · paused = value `false` (the strength returns on resume). The 🖼/🏷
+// The PALETTE is derived, never read off the draft: loras that are ON, plus the
+// ones paused in this session. Reading "every key in the record" was the bug —
+// LorasVar writes `false` for every lora ever unticked, so a real draft with 35
+// keys and 2 on showed all 35. A pause removes the key (and remembers the
+// strength), so a draft only ever lists what is actually on. The 🖼/🏷
 // toggles hide images/titles on every lora surface (NSFW screens, persisted on
 // WebSt); with both hidden the row collapses to a count. Names come from
 // descriptor optionLabels; the value keeps raw enum keys, replaced by copy
@@ -34,13 +37,17 @@ type LocalSt = {
    filter: string
    info: Map<string, LoraInfo | 'loading' | 'error'>
    previewFailed: Set<string>
-   /** strength of a lora switched OFF, so switching it back on restores it (LorasVar.prev) */
+   /** strength of a PAUSED lora, so resuming restores it (LorasVar.prev) */
    prevStrength: Map<string, LoraStrengthPair>
+   /** loras paused in THIS session: they leave the draft record but stay in the palette,
+    * which is what makes "a few images with, a few without" one click each way */
+   paused: Set<string>
    setOpen(open: boolean): void
    setFilter(raw: string): void
    noteInfo(name: string, v: LoraInfo | 'loading' | 'error'): void
    notePreviewFailed(name: string): void
    notePrevStrength(name: string, pair: LoraStrengthPair): void
+   setPaused(name: string, paused: boolean): void
 }
 
 export const LorasControl = observer(function LorasControl(p: { v: VarSt; host: string; st: WebSt }) {
@@ -50,6 +57,7 @@ export const LorasControl = observer(function LorasControl(p: { v: VarSt; host: 
       info: new Map(),
       previewFailed: new Set(),
       prevStrength: new Map(),
+      paused: new Set(),
       setOpen(open: boolean) {
          this.open = open
       },
@@ -65,20 +73,28 @@ export const LorasControl = observer(function LorasControl(p: { v: VarSt; host: 
       notePrevStrength(name: string, pair: LoraStrengthPair) {
          this.prevStrength.set(name, pair)
       },
+      setPaused(name: string, paused: boolean) {
+         if (paused) this.paused.add(name)
+         else this.paused.delete(name)
+      },
    }))
    const record = asRecord(p.v.value)
    const options = p.v.desc.options ?? []
    const labels = p.v.desc.optionLabels ?? {}
    const label = (name: string): string => labels[name] ?? name
-   // SELECTED = present in the record (a `false` entry is selected but switched off, and
-   // must keep its place in the ui); ON = actually contributing to the graph
-   const isSelected = (name: string): boolean => record[name] !== undefined
+   // the PALETTE is what the row shows: the loras that are ON, plus the ones paused in this
+   // session. It is NOT "every key in the record" — LorasVar writes `false` for every lora
+   // ever unticked, so that reading put the whole catalog in the row (his repro: a draft
+   // with 35 keys and 2 on). A paused lora leaves the record entirely and lives here instead
    const isOn = (name: string): boolean => loraIsOn(record[name])
-   const selectedNames = options.filter(isSelected)
+   const isInPalette = (name: string): boolean => isOn(name) || local.paused.has(name)
+   const selectedNames = options.filter(isInPalette)
    const showImages = p.st.showLoraImages
    const showTitles = p.st.showLoraTitles
 
+   /** add to the palette (a strength) or REMOVE from it entirely (null) */
    const setEntry = (name: string, st: LoraStrength | null): void => {
+      local.setPaused(name, false)
       const next = { ...record }
       if (st == null) delete next[name]
       else next[name] = st
@@ -86,6 +102,7 @@ export const LorasControl = observer(function LorasControl(p: { v: VarSt; host: 
    }
    const toggleOn = (name: string, on: boolean): void => {
       if (!on) local.notePrevStrength(name, loraStrengthPair(record[name]))
+      local.setPaused(name, !on)
       p.v.set(setLoraEnabled(record, name, on, on ? local.prevStrength.get(name) : undefined))
    }
    const setStrength = (name: string, pair: LoraStrengthPair): void => {
@@ -155,7 +172,7 @@ export const LorasControl = observer(function LorasControl(p: { v: VarSt; host: 
    const matchesFilter = (name: string): boolean =>
       name.toLowerCase().includes(needle) || label(name).toLowerCase().includes(needle)
    const matches = options.filter(matchesFilter)
-   const cards = matches.filter((o) => !isSelected(o)).slice(0, CARD_CAP)
+   const cards = matches.filter((o) => !isInPalette(o)).slice(0, CARD_CAP)
 
    const thumb = (name: string): ReactNode => {
       if (!showImages) return null
