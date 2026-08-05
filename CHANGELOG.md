@@ -1,5 +1,10 @@
 # comfy-ts
 
+## Unreleased (major)
+
+- **BREAKING: MobX 7 + mobx-react-lite 5.** The deps move to `mobx@^7` and `mobx-react-lite@^5` (React 18+). MobX 7 removed the annotation namespace, so the TUI store annotates with the named `observableRef` export instead of `observable.ref`. The factory forms this package uses elsewhere (`observable.map`) are unchanged.
+- Why it is a major: a consumer that pins MobX 6 cannot install this version alongside it, and two MobX copies in one tree make every observable invisible across the boundary ("There are multiple, different versions of MobX active").
+
 ## 2.4.2
 
 Three ways `comfy-ts loras` could report success while quietly losing loras. All present in 2.4.0 and 2.4.1.

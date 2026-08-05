@@ -1,4 +1,4 @@
-import { makeAutoObservable, observable, runInAction } from 'mobx'
+import { makeAutoObservable, observableRef, runInAction } from 'mobx'
 import { listWindow, type ListWindow } from 'src/cli/tui/listWindow.ts'
 import type { SeedVar, ToggleVar, AnyVar } from 'src/vars/ComfyVars.ts'
 import { ImagePickerSt } from 'src/cli/tui/imagePicker/ImagePickerSt.ts'
@@ -101,11 +101,11 @@ export class TuiSt {
       } = {},
    ) {
       this.wf = wf
-      // wf: observable.ref so switching workflows re-renders without proxying
+      // wf: observableRef so switching workflows re-renders without proxying
       // the foreign object; children manage their own observability
       makeAutoObservable(this, {
-         wf: observable.ref,
-         hostOverride: observable.ref,
+         wf: observableRef,
+         hostOverride: observableRef,
          onExit: false,
          editor: false,
          picker: false,

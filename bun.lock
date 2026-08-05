@@ -8,8 +8,8 @@
         "arktype": "^2.2.3",
         "image-meta": "^0.2.2",
         "ink": "^7.1.1",
-        "mobx": "^6.16.1",
-        "mobx-react-lite": "^4.1.1",
+        "mobx": "^7.0.0",
+        "mobx-react-lite": "^5.0.0",
         "nanoid": "^6.0.0",
         "pathe": "^2.0.3",
         "react": "^19.2.8",
@@ -387,9 +387,9 @@
 
     "mimic-fn": ["mimic-fn@2.1.0", "", {}, "sha512-OqbOk5oEQeAZ8WXWydlu9HJjz9WVdEIvamMCcXmuqUYjTknH/sqsWvhQ3vgwKFRR1HpjvNBKQ37nbJgYzGqGcg=="],
 
-    "mobx": ["mobx@6.16.1", "", {}, "sha512-syNcDdX3KT+Jq3je6eGjBhuc24Z68td2VG0zNFqRswaE433D9SNH5VRy/xrGbJsUixfppLLccXhAW9JSf6n+SQ=="],
+    "mobx": ["mobx@7.0.0", "", {}, "sha512-J+hR/wq6RdBnB4QXQRqGrWL9vOOLKaYhXh0ooxLAW4AE72av10Y5+xiaxohUYmPZiUswfpxMjQooYqpWkv+Fxg=="],
 
-    "mobx-react-lite": ["mobx-react-lite@4.1.1", "", { "dependencies": { "use-sync-external-store": "^1.4.0" }, "peerDependencies": { "mobx": "^6.9.0", "react": "^16.8.0 || ^17 || ^18 || ^19" } }, "sha512-iUxiMpsvNraCKXU+yPotsOncNNmyeS2B5DKL+TL6Tar/xm+wwNJAubJmtRSeAoYawdZqwv8Z/+5nPRHeQxTiXg=="],
+    "mobx-react-lite": ["mobx-react-lite@5.0.0", "", { "peerDependencies": { "mobx": "^7.0.0", "react": "^18 || ^19" } }, "sha512-+Kg+KhOQx/ggkFuHViUJvsOsgmAFvBUHfGb/cimNX5Csb1MfMYjbp5CcUu6kw2zr11HwB1gaD7FnqdAcCryvhg=="],
 
     "nanoid": ["nanoid@6.0.0", "", { "bin": { "nanoid": "bin/nanoid.js" } }, "sha512-mkUH+rPkwU2qPadJ0oJZOjeZ5Mxn8Q1UhevwkTRWNuUZzyia3h4rhzK39hxaHTk0o2OxB8W2SQ6A8k23ZDi1pQ=="],
 
@@ -466,8 +466,6 @@
     "unconfig-core": ["unconfig-core@7.5.0", "", { "dependencies": { "@quansync/fs": "^1.0.0", "quansync": "^1.0.0" } }, "sha512-Su3FauozOGP44ZmKdHy2oE6LPjk51M/TRRjHv2HNCWiDvfvCoxC2lno6jevMA91MYAdCdwP05QnWdWpSbncX/w=="],
 
     "undici-types": ["undici-types@8.3.0", "", {}, "sha512-j375ScV60dom+YkPFIfTLcOiPxkN/buHz5GobjLhixFuANaNs3C9l4GmrWqejgXWJ7BbJcFYpTEUkS1Ge8bpZQ=="],
-
-    "use-sync-external-store": ["use-sync-external-store@1.6.0", "", { "peerDependencies": { "react": "^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0" } }, "sha512-Pp6GSwGP/NrPIrxVFAIkOQeyw8lFenOHijQWkUTrDvrF4ALqylP2C/KCkeS9dpUM3KvYRQhna5vt7IL95+ZQ9w=="],
 
     "verkit": ["verkit@0.3.0", "", {}, "sha512-Njrh4U8UODGajoZ44QS2C/BsoEM9DTI/aCqY5swsizb+/ap0FamvnCMcZAxrR5+aoC0ZqkawEfpC/N2SBc+xeA=="],
 
