@@ -20,32 +20,8 @@
    // oxc lints + formats in-editor; formatter owns formatting, not tsserver
    "oxc.enable": true,
    "eslint.enable": false,
-   "js/ts.format.enabled": false,
-   "workbench.colorCustomizations": {
-      "activityBar.activeBackground": "#3b053b",
-      "activityBar.background": "#3b053b",
-      "activityBar.foreground": "#e7e7e7",
-      "activityBar.inactiveForeground": "#e7e7e799",
-      "activityBarBadge.background": "#585807",
-      "activityBarBadge.foreground": "#e7e7e7",
-      "activityBarTop.activeBackground": "#3b053b",
-      "activityBarTop.background": "#3b053b",
-      "activityBarTop.foreground": "#e7e7e7",
-      "activityBarTop.inactiveForeground": "#e7e7e799",
-      "commandCenter.border": "#e7e7e799",
-      "commandCenter.foreground": "#e7e7e7",
-      "sash.hoverBorder": "#3b053b",
-      "statusBar.background": "#0c010c",
-      "statusBar.debuggingBackground": "#0c010c",
-      "statusBar.debuggingForeground": "#e7e7e7",
-      "statusBar.foreground": "#e7e7e7",
-      "statusBarItem.hoverBackground": "#3b053b",
-      "statusBarItem.remoteBackground": "#585807",
-      "statusBarItem.remoteForeground": "#e7e7e7",
-      "titleBar.activeBackground": "#260426",
-      "titleBar.activeForeground": "#e7e7e7",
-      "titleBar.inactiveBackground": "#0c010c99",
-      "titleBar.inactiveForeground": "#e7e7e799"
+    "workbench.colorCustomizations": {
+      "sideBar.background":"#241c01",
    },
-   "peacock.color": "#0c010c"
+
 }
