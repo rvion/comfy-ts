@@ -1,6 +1,6 @@
 {
    "name": "comfy-ts",
-   "version": "2.5.0",
+   "version": "2.6.0",
    "description": "The complete TypeScript toolkit for ComfyUI and generative AI. Fully type-safe SDK with autocomplete on every node, companion CLI, TUI, agentic docs, and 50+ examples. Design, run and deploy creative pipelines for image, video, audio, 3d and text on any ComfyUI, local, cloud or hosted.",
    "keywords": [
       "comfyui",
@@ -93,7 +93,8 @@
       "release:dry": "bun scripts/release.ts --dry-run",
       "prepublishOnly": "bun run ci && bun run build",
       "tui": "bun src/cli/comfy-ts-cli.ts tui",
-      "serve": "bun src/cli/comfy-ts-cli.ts serve"
+      "serve": "bun src/cli/comfy-ts-cli.ts serve",
+      "serve:watch": "bun src/cli/comfy-ts-cli.ts serve"
    },
    "rvt": {
       "skip": [

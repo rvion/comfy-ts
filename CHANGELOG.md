@@ -1,5 +1,43 @@
 # comfy-ts
 
+## 2.6.0
+
+`comfy-ts serve` grows a web control panel: open the same URL in a browser and every var of every draft is a real form control, with your edits saved back into the draft the TUI reads.
+
+### Security
+
+- **Fixed: a draft name in the URL could escape the drafts folder.** `GET /drafts/<module>/<draft>` and `POST /generate/<module>/<draft>` built a file path straight from the URL segment, so a percent-encoded separator (`..%2F..%2Fsomething`) read any `.json` file the serve process could reach: the GET returned its contents, and the POST loaded it as the run's variable values. Since the API answers with permissive CORS headers, any page open in your browser could do this while `comfy-ts serve` was running. Present in every version since 1.3.0, when serve landed. All four draft routes now share one name check, and anything outside it is a 404. If you have run `comfy-ts serve` on a machine with untrusted browsing, this is the release to take.
+
+### The web panel
+
+- **Every var kind has its control**: prompt textarea (with the `//` comment and `- ` negative line hints), sliders for ranged numbers, seed mode buttons (fixed, +1, -1, random) with a dice roll, size presets plus free `W×H`, image path/URL with browser upload, preview and clear, and a lora palette (below). Cmd+Enter or Ctrl+Enter generates from anywhere.
+- **Drafts are live, like the TUI.** Edits autosave into the selected draft, so a prompt you type in the browser is there after a reload and in the TUI. Drafts duplicate from the form header. Nothing is lost when you switch drafts or close the tab mid-edit.
+- **Queue.** Every click on generate queues another prompt; the queue panel lists them and drops any pending one individually or all at once. A queued prompt keeps the values you saw when you clicked, while seeds follow the draft's own policy, so a queue of four under `random` gives four different images.
+- **Live feedback while running**: a progress bar and the latent preview, straight from the host.
+- **Loras as a palette.** The row holds the loras you picked and nothing else: click a card to pause or resume it in place, adjust model and clip strength inline, and the popup is where you browse everything as a gallery of preview images with the model names and trigger words from your lora mirror. Images and titles each have a persistent hide toggle.
+- **Results gallery**: click any image for a lightbox with copy to clipboard, open in a tab and delete; results clear individually or all at once.
+- **Works on a phone**: collapsible menu, touch-sized controls, results below the form instead of beside it.
+- The panel ships prebuilt in the package and needs no build step, no extra dependency and no network: the JSON API is unchanged and still the only thing a non-browser client sees.
+
+### Prompt refiner
+
+- **A ✨ button on every prompt var** opens a refine modal that rewrites your prompt through a thinking model on OpenRouter, streaming both the answer and the model's reasoning. Master prompts live in a named library you can add to, rename, duplicate and delete, and the one you used last is remembered per workflow; one refiner for Krea 2 ships as a starting point. Nothing touches your prompt until you press apply, and the original stays beside the rewrite for a second pass. Your OpenRouter key is stored in the browser and sent only to OpenRouter: the serve process never receives it.
+
+### New HTTP routes
+
+- `PUT /drafts/<module>/<draft>` writes a draft (the panel's autosave and duplicate ride it). `GET /run/<module>` reports the live run, `GET /run/<module>/preview` serves its latest latent frame. `POST /upload` stores a browser file for an image var. `GET /lora-info/<host>/<lora>` and `GET /lora-preview/<host>/<lora>` serve a lora's display name, trigger words and preview image from your local mirror.
+
+### TUI
+
+- **Kitty graphics protocol support in the preview panel.** Kitty and Ghostty showed half-block ANSI art because detection only knew the OSC 1337 terminals; they now get real images, with PNG transcoding where the protocol requires it. `COMFY_TS_NO_ITERM_IMAGES=1` still disables images in every terminal.
+- Fixed: an image previewed from one overlay could land in another one opened while it was still loading.
+
+### Fixes
+
+- **A seed mode no longer leaks between drafts.** After running a draft set to random, other drafts of the same workflow reported random as their default; with the web panel autosaving, that could be written into their files and silently turn a fixed seed into a rolling one.
+- **Latent previews follow the right workflow.** Two workflows generating on one host could show each other's preview image; frames are now matched to the prompt that produced them.
+- `SeedVar` exposes `defaultMode`, the mode a reset restores, so introspection reports the specification's default rather than whatever the last run left behind.
+
 ## 2.5.0
 
 - **MobX 7 + mobx-react-lite 5.** The deps move to `mobx@^7` and `mobx-react-lite@^5` (React 18+). MobX 7 removed the annotation namespace, so the TUI store annotates with the named `observableRef` export instead of `observable.ref`. The factory forms this package uses elsewhere (`observable.map`) are unchanged, and the public API is untouched.
