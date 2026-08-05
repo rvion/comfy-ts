@@ -17,6 +17,7 @@ import { fetchLoraList, fetchLoraPreviewBytes, loraKey, loraPreviewMapFrom } fro
 import type { ComfyHost } from 'src/host/ComfyHost.ts'
 import type { ImageVar, SeedVar } from 'src/vars/ComfyVars.ts'
 import type { DefinedWorkflow } from 'src/vars/DefinedWorkflow.ts'
+import { bang } from 'src/utils/bang.ts'
 import { extractErrorMessage } from 'src/utils/extractErrorMessage.ts'
 
 export type ServeModule = { key: string; file: string; dw: DefinedWorkflow }
@@ -191,8 +192,26 @@ export class ServeApp {
       return ['default', ...onDisk.filter((n) => n !== 'default')]
    }
 
+   /** THE draft-name gate, shared by every route that turns a url segment into a path.
+    * handle() decodes per segment, so `%2F` reaches here as a real `/` while the segment
+    * count still looks right — an unguarded reader would read (and RUN) any json on disk */
+   private validDraftName(raw: string): string | null {
+      const name = raw.trim()
+      // length cap: past it the fs answers ENAMETOOLONG as a raw 500
+      if (name.length > 100) return null
+      return /^[\w][\w .-]*$/.test(name) ? name : null
+   }
+
+   /** absolute path of a draft file, or null when the name is not one we accept */
+   private draftPath(mod: ServeModule, draft: string): string | null {
+      const name = this.validDraftName(draft)
+      return name == null ? null : join(draftsDirForFile(mod.file), `${name}.json`)
+   }
+
    private draftExists(mod: ServeModule, draft: string): boolean {
-      return draft === 'default' || existsSync(join(draftsDirForFile(mod.file), `${draft}.json`))
+      const path = this.draftPath(mod, draft)
+      if (path == null) return false
+      return draft === 'default' || existsSync(path)
    }
 
    private resolveDraft(segs: string[]): { mod: ServeModule; draft: string } | { error: string; status: number } {
@@ -285,8 +304,8 @@ export class ServeApp {
 
    /** stored values (toJSON shapes); 'default' without a file falls back to descriptor defaults */
    private draftValues(mod: ServeModule, draft: string): Record<string, unknown> {
-      const path = join(draftsDirForFile(mod.file), `${draft}.json`)
-      if (existsSync(path)) return JSON.parse(readFileSync(path, 'utf8')) as Record<string, unknown>
+      const path = this.draftPath(mod, draft)
+      if (path != null && existsSync(path)) return JSON.parse(readFileSync(path, 'utf8')) as Record<string, unknown>
       const out: Record<string, unknown> = {}
       for (const [name, varDef] of mod.dw.entries()) out[name] = describeVar(varDef).default
       return out
@@ -334,14 +353,6 @@ export class ServeApp {
    }
 
    // #region drafts write (the web ui's autosave + duplicate ride this) --------
-   /** the DraftsSt name rule, verbatim — the two surfaces must accept the same names */
-   private validDraftName(raw: string): string | null {
-      const name = raw.trim()
-      // length cap: past it the fs answers ENAMETOOLONG as a raw 500
-      if (name.length > 100) return null
-      return /^[\w][\w .-]*$/.test(name) ? name : null
-   }
-
    private async replySaveDraft(modKey: string, rawDraft: string, req: ServeRequest): Promise<ServeReply> {
       const mod = this.moduleByKey(modKey)
       if (mod == null) return json(404, { error: `unknown module '${modKey}'` })
@@ -363,7 +374,7 @@ export class ServeApp {
          return json(400, { error: `unknown var(s) ${unknown.join(', ')} — vars: ${[...known].join(', ')}` })
       // values are written VERBATIM (toJSON shapes, loadJSON re-validates on read) —
       // under the module mutex, so a save cannot interleave a generate's draft read
-      const path = join(draftsDirForFile(mod.file), `${draft}.json`)
+      const path = bang(this.draftPath(mod, draft), 'draft name validated just above')
       await this.exclusive(mod.key, () => {
          mkdirSync(dirname(path), { recursive: true })
          writeFileSync(path, JSON.stringify(values, null, 2))
@@ -377,6 +388,31 @@ export class ServeApp {
    /** seq counts frames so the poller refetches only on a NEW one, not every tick */
    private latentPreviews = new Map<string, { bytes: Uint8Array; mime: string; seq: number }>()
    private latentSeq = 0
+   /** promptId → module: `onLatentPreview` is ONE slot per host and two modules can share a
+    * host, so frames are routed by the prompt they belong to, never by "the last run started" */
+   private promptOwner = new Map<string, string>()
+   private latentHosts = new Set<ComfyHost>()
+
+   private runningModules(): string[] {
+      return [...this.liveRuns.entries()]
+         .filter(([, e]) => e.status !== 'Success' && e.status !== 'Failure')
+         .map(([key]) => key)
+   }
+
+   /** one dispatcher per host, installed once and left in place (idempotent) */
+   private wireLatents(host: ComfyHost): void {
+      if (this.latentHosts.has(host)) return
+      this.latentHosts.add(host)
+      host.onLatentPreview = (p) => {
+         const owner = p.promptID != null ? this.promptOwner.get(p.promptID) : undefined
+         // an unattributable frame (no promptID yet, e.g. before start() returned) is only
+         // safe to show when exactly ONE run is live; otherwise drop it rather than lie
+         const running = this.runningModules()
+         const key = owner ?? (running.length === 1 ? running[0] : undefined)
+         if (key == null) return
+         this.latentPreviews.set(key, { bytes: p.bytes, mime: p.mime, seq: ++this.latentSeq })
+      }
+   }
 
    private replyRunStatus(modKey: string): ServeReply {
       const mod = this.moduleByKey(modKey)
@@ -492,8 +528,13 @@ export class ServeApp {
 
       const execution = started.execution
       this.liveRuns.set(mod.key, execution)
+      this.promptOwner.set(execution.data.id, mod.key)
       console.log(`[serve] → ${mod.key}/${draft} (prompt ${execution.data.id})`)
-      await execution.done
+      try {
+         await execution.done
+      } finally {
+         this.promptOwner.delete(execution.data.id)
+      }
       const durationMs = Date.now() - t0
 
       if (execution.status === 'Failure') {
@@ -543,7 +584,8 @@ export class ServeApp {
    ): Promise<{ execution: ServeExecution } | { error: string; status: number }> {
       // 1. reset, then load the draft FRESH from disk (TUI edits between requests apply)
       for (const [, varDef] of mod.dw.entries()) varDef.reset()
-      const draftPath = join(draftsDirForFile(mod.file), `${draft}.json`)
+      const draftPath = this.draftPath(mod, draft)
+      if (draftPath == null) return { status: 404, error: `no draft '${draft}'` }
       if (existsSync(draftPath)) {
          try {
             const values = JSON.parse(readFileSync(draftPath, 'utf8')) as Record<string, unknown>
@@ -611,9 +653,7 @@ export class ServeApp {
       // latent frames feed the web ui's /run/<module>/preview poll (ExecSt's pattern);
       // the previous run's preview must not linger over the new one
       this.latentPreviews.delete(mod.key)
-      mod.dw.host.onLatentPreview = (p) => {
-         this.latentPreviews.set(mod.key, { bytes: p.bytes, mime: p.mime, seq: ++this.latentSeq })
-      }
+      this.wireLatents(mod.dw.host)
       try {
          return { execution: await this.starter(mod) }
       } catch (e) {

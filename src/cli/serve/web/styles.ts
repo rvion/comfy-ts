@@ -127,8 +127,24 @@ button.mode.sel { background: var(--accent-dim); border-color: var(--accent); co
 }
 .lora-chip.card .lora-thumb { height: 110px; }
 .lora-chip.card .chip-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.lora-chip.card button { align-self: flex-end; }
 .chip-title { min-width: 0; }
+.chip-controls { display: flex; gap: 4px; align-items: center; }
+.chip-controls input[type='number'] { width: 52px; padding: 1px 4px; font-size: 11px; }
+.chip-controls button { border: 0; background: none; color: inherit; padding: 0 2px; font-size: 11px; }
+.chip-controls button:hover { color: var(--red); }
+/* switched OFF: still listed, visibly not contributing */
+.lora-chip.off, .lora-active-row.off { opacity: 0.5; }
+.lora-chip.off .lora-thumb, .lora-active-row.off .lora-thumb { filter: grayscale(1); }
+
+.queue { margin-top: 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--panel); }
+.queue-head {
+   display: flex; gap: 12px; align-items: baseline; justify-content: space-between;
+   padding: 6px 10px; border-bottom: 1px solid var(--border); color: var(--dim); font-size: 12px;
+}
+.queue-row { display: flex; gap: 10px; align-items: center; padding: 4px 10px; font-size: 12px; }
+.queue-ix { color: var(--dim); width: 16px; }
+.queue-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.queue-row button { padding: 1px 8px; font-size: 11px; }
 
 .modal-overlay {
    position: fixed; inset: 0; z-index: 50; background: rgba(0, 0, 0, 0.55);

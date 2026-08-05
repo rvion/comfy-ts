@@ -57,7 +57,10 @@ export function describeVar(varDef: AnyVar): VarDescriptor {
          const v = varDef as SeedVar
          return {
             ...base,
-            default: { mode: v.mode, value: v.defaultValue },
+            // defaultMode, never the LIVE mode: serve's vars are shared mutable state, so a
+            // run under '?' would otherwise leak its mode into every fileless draft's defaults
+            // (and the web ui autosaves those defaults straight back into the draft file)
+            default: { mode: v.defaultMode, value: v.defaultValue },
             payload: 'number (fixed) or {"mode":"=|+|-|?","value":number}',
          }
       }

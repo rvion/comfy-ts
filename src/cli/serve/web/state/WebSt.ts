@@ -75,11 +75,14 @@ export class WebSt {
 
    private persist(): void {
       try {
+         // merge, never rebuild: toggling the sidebar before a draft loads must not
+         // erase the stored selection (this.form is null then)
+         const stored = readStoredSelection()
          localStorage.setItem(
             STORAGE_KEY,
             JSON.stringify({
-               module: this.form?.moduleKey,
-               draft: this.form?.draft,
+               ...stored,
+               ...(this.form != null ? { module: this.form.moduleKey, draft: this.form.draft } : {}),
                sidebar: this.sidebarOpen,
                loraImages: this.showLoraImages,
                loraTitles: this.showLoraTitles,
@@ -121,6 +124,14 @@ export class WebSt {
    async select(p: { module: string; draft: string }): Promise<void> {
       const mod = this.moduleByKey(p.module)
       if (mod == null) return
+      // re-picking the draft you are IN is a no-op, not a reload: a pending autosave would
+      // lose the race against the fetch and the typed edit would vanish from the form
+      if (this.form?.moduleKey === p.module && this.form.draft === p.draft) {
+         runInAction(() => {
+            if (isNarrowScreen()) this.sidebarOpen = false
+         })
+         return
+      }
       const token = ++this.selectToken
       runInAction(() => {
          this.formLoading = true
@@ -128,11 +139,16 @@ export class WebSt {
          // picking a draft is the drawer's exit on a phone
          if (isNarrowScreen()) this.sidebarOpen = false
       })
+      // flush the outgoing form BEFORE reading the next one, so a switch never races its own save
+      const outgoing = this.form
+      if (outgoing != null) {
+         outgoing.dispose()
+         await outgoing.save()
+      }
       try {
          const reply = await fetchDraftValues(p)
          runInAction(() => {
             if (token !== this.selectToken) return
-            this.form?.dispose()
             this.form = new FormSt(p.module, p.draft, mod, reply.values ?? {})
             this.persist()
          })
@@ -152,14 +168,17 @@ export class WebSt {
       void this.generateNow()
    }
 
-   /** flush the autosave first: the server reads the draft it just wrote — one source of truth */
+   /** flush the autosave first: the server reads the draft it just wrote — one source of truth.
+    * Every click ENQUEUES, so hitting generate n times runs n prompts; the queued payload
+    * freezes the values you saw, and seeds stay on the draft's server-side policy */
    private async generateNow(): Promise<void> {
       const form = this.form
-      if (form == null || this.run.isRunning) return
+      if (form == null) return
+      const payload = form.queuePayload()
       const saved = await form.save()
       // the header already shows the loud save error; running the stale draft would lie
       if (!saved) return
-      await this.run.generate({ module: form.moduleKey, draft: form.draft, payload: {} })
+      this.run.enqueue({ module: form.moduleKey, draft: form.draft, payload })
    }
 
    /** duplicate = save the current values under a new name, then switch to it */

@@ -212,6 +212,9 @@ export type SeedMode = '=' | '+' | '-' | '?'
 export class SeedVar extends ComfyVar<number> {
    readonly kind = 'seed' as const
    mode: SeedMode = '='
+   /** the mode a reset() restores — the SPEC default, never the live one (introspection
+    * reads this: a running mode must not masquerade as the var's default) */
+   readonly defaultMode: SeedMode = '='
    constructor(defaultValue: number = 0, label?: string) {
       super(defaultValue, label)
       // subclass-owned observable field (base makeObservable already ran in super)
@@ -241,7 +244,7 @@ export class SeedVar extends ComfyVar<number> {
    /** mode is part of the seed's state: a reset must not keep a caller's `?`/`+` alive
     * ('=' is the construction default; drafts restore their own mode via loadJSON) */
    override reset(): this {
-      this.setMode('=')
+      this.setMode(this.defaultMode)
       return super.reset()
    }
    /** parse `+` `- 12` `= 5` `?` or a bare number (=> fixed). Keeps the current number when none given */

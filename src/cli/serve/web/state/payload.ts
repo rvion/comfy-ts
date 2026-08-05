@@ -7,6 +7,16 @@ import type { VarDescriptor } from 'src/cli/serve/describeVar.ts'
 export type SeedFormValue = { mode: string; value: number }
 export type SizeFormValue = { width: number; height: number }
 
+/** what a QUEUED run carries: the values you saw when you clicked, so editing the form
+ * afterwards cannot change a prompt already in the queue. SEEDS are deliberately left out —
+ * they stay the draft's server-side policy, so a queue of 4 under `?`/`+` advances per run
+ * instead of repeating one frozen number (an explicit payload seed is fixed by definition) */
+export function payloadSnapshot(entries: { name: string; kind: string; value: unknown }[]): Record<string, unknown> {
+   const out: Record<string, unknown> = {}
+   for (const e of entries) if (e.kind !== 'seed') out[e.name] = e.value
+   return out
+}
+
 /** draft seed values come as {mode,value} (toJSON) or a legacy plain number */
 export function asSeedForm(raw: unknown): SeedFormValue {
    if (typeof raw === 'number' && Number.isFinite(raw)) return { mode: '=', value: raw }
@@ -50,4 +60,47 @@ export function normalizeInitial(desc: VarDescriptor, raw: unknown): unknown {
 
 export function randomSeed(): number {
    return Math.floor(Math.random() * 2 ** 32)
+}
+
+// ---- loras record transitions (LorasVar's semantics, mirrored for the web) ----
+// key absent = not selected · false = SELECTED but off (stays in the ui) ·
+// number | [model, clip] | true = on. LorasVar keeps the same `prev` memory so
+// off → on restores the strength instead of snapping to 1
+
+export type LoraStrengthPair = { model: number; clip: number }
+
+export function loraIsOn(st: unknown): boolean {
+   return st != null && st !== false
+}
+
+/** any stored strength shape → the {model, clip} pair the inputs edit */
+export function loraStrengthPair(st: unknown): LoraStrengthPair {
+   if (typeof st === 'number' && Number.isFinite(st)) return { model: st, clip: st }
+   if (Array.isArray(st) && typeof st[0] === 'number' && typeof st[1] === 'number') return { model: st[0], clip: st[1] }
+   return { model: 1, clip: 1 }
+}
+
+/** turn a selected lora on/off WITHOUT dropping it from the record (so the row keeps showing it) */
+export function setLoraEnabled(
+   record: Record<string, unknown>,
+   name: string,
+   on: boolean,
+   prev?: LoraStrengthPair,
+): Record<string, unknown> {
+   const next = { ...record }
+   if (!on) next[name] = false
+   else {
+      const pair = prev ?? loraStrengthPair(record[name])
+      next[name] = [pair.model, pair.clip]
+   }
+   return next
+}
+
+/** set both strengths; an OFF lora stays off (its strength is edited on re-enable) */
+export function setLoraStrength(
+   record: Record<string, unknown>,
+   name: string,
+   pair: LoraStrengthPair,
+): Record<string, unknown> {
+   return { ...record, [name]: [pair.model, pair.clip] }
 }

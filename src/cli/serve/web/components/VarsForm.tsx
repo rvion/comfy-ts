@@ -1,6 +1,7 @@
 // the var rows: each kind dispatches to its matching control (the point of the
 // web ui — architecture item 12) + the sticky run bar
 import { observer } from 'mobx-react-lite'
+import { useEffect } from 'react'
 import {
    ChoiceControl,
    NumberControl,
@@ -66,8 +67,54 @@ const VarRow = observer(function VarRow(p: { v: VarSt; host: string; st: WebSt }
    )
 })
 
+/** what is waiting on the host, and the way to drop it */
+const QueuePanel = observer(function QueuePanel(p: { st: WebSt }) {
+   const queue = p.st.run.queue
+   if (queue.length === 0) return null
+   return (
+      <div className="queue">
+         <div className="queue-head">
+            <span>
+               queue · {queue.length} prompt{queue.length === 1 ? '' : 's'}
+            </span>
+            {p.st.run.pendingCount > 0 ? (
+               <button type="button" className="link" onClick={() => p.st.run.clearQueue()}>
+                  clear {p.st.run.pendingCount} pending
+               </button>
+            ) : null}
+         </div>
+         {queue.map((e, ix) => (
+            <div key={e.id} className="queue-row">
+               <span className="queue-ix">{ix + 1}</span>
+               <span className="queue-name">
+                  {e.module}/{e.draft}
+               </span>
+               {e.sent ? (
+                  <span className="hint">on the host — past cancelling</span>
+               ) : (
+                  <button type="button" title="drop this queued prompt" onClick={() => p.st.run.removeQueued(e.id)}>
+                     ✕
+                  </button>
+               )}
+            </div>
+         ))}
+      </div>
+   )
+})
+
 export const VarsForm = observer(function VarsForm(p: { st: WebSt }) {
    const form = p.st.form
+   // ⌘⏎ / ctrl+⏎ submits from anywhere, textarea included (his ask)
+   useEffect(() => {
+      const onKey = (e: KeyboardEvent): void => {
+         if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+            e.preventDefault()
+            p.st.generate()
+         }
+      }
+      window.addEventListener('keydown', onKey)
+      return () => window.removeEventListener('keydown', onKey)
+   }, [p.st])
    if (form == null) return null
    const duplicate = (): void => {
       const name = window.prompt('duplicate draft as…', `${form.draft} copy`)
@@ -89,13 +136,15 @@ export const VarsForm = observer(function VarsForm(p: { st: WebSt }) {
             </button>
          </div>
          {form.vars.map((v) => (
-            <VarRow key={v.name} v={v} host={form.host} st={p.st} />
+            // keyed by DRAFT too: a draft switch must reset per-row ui state (lora filter,
+            // remembered strengths), not carry the other draft's over
+            <VarRow key={`${form.draft}/${v.name}`} v={v} host={form.host} st={p.st} />
          ))}
          <div className="runbar">
             <button
                type="button"
                className={p.st.run.isRunning ? 'primary pulse' : 'primary'}
-               disabled={p.st.run.isRunning}
+               title="⌘⏎ / ctrl+⏎ — click again to queue another"
                onClick={() => p.st.generate()}
             >
                {p.st.run.isRunning
@@ -116,6 +165,7 @@ export const VarsForm = observer(function VarsForm(p: { st: WebSt }) {
             ) : null}
             {p.st.run.error != null ? <span className="error">🔴 {p.st.run.error}</span> : null}
          </div>
+         <QueuePanel st={p.st} />
       </div>
    )
 })

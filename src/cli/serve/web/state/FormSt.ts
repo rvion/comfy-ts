@@ -5,7 +5,7 @@
 import { makeAutoObservable, observableRef, reaction, runInAction, type IReactionDisposer } from 'mobx'
 import { saveDraft, type ModuleDescription } from 'src/cli/serve/web/api.ts'
 import type { VarDescriptor } from 'src/cli/serve/describeVar.ts'
-import { normalizeInitial } from 'src/cli/serve/web/state/payload.ts'
+import { normalizeInitial, payloadSnapshot } from 'src/cli/serve/web/state/payload.ts'
 
 /** one var row: value in toJSON shape, replaced whole on every edit */
 export class VarSt {
@@ -66,7 +66,10 @@ export class FormSt {
       this.vars = Object.entries(mod.vars).map(
          ([name, desc]) => new VarSt(name, desc, normalizeInitial(desc, values[name])),
       )
-      this.lastSaved = JSON.stringify(this.valuesJSON())
+      // seeded from the RAW reply, not the normalized values: when normalizeInitial heals
+      // something (a stale lora key), the form is already out of sync with the file and the
+      // next save() must actually send — otherwise the server keeps building the stale record
+      this.lastSaved = JSON.stringify(Object.fromEntries(this.vars.map((v) => [v.name, values[v.name]])))
       makeAutoObservable<FormSt, 'disposers' | 'saveChain' | 'lastSaved'>(this, {
          vars: false,
          moduleKey: false,
@@ -93,19 +96,36 @@ export class FormSt {
       if (JSON.stringify(this.valuesJSON()) !== this.lastSaved) void this.save()
    }
 
-   /** tab-close/hide flush: keepalive survives page teardown, fire-and-forget by nature */
+   /** tab-close/hide flush. keepalive survives page teardown, so this one does NOT ride
+    * saveChain (chaining could delay it past unload). lastSaved is committed only when the
+    * server answers: a failed flush must stay dirty so the next save() retries it */
    flushKeepalive(): void {
       const encoded = JSON.stringify(this.valuesJSON())
       if (encoded === this.lastSaved) return
-      this.lastSaved = encoded
       void saveDraft(
          { module: this.moduleKey, draft: this.draft, values: JSON.parse(encoded) as Record<string, unknown> },
          { keepalive: true },
-      ).catch(() => {})
+      ).then(
+         () =>
+            runInAction(() => {
+               this.lastSaved = encoded
+               this.saveState = 'saved'
+            }),
+         (e: unknown) =>
+            runInAction(() => {
+               this.saveState = 'error'
+               this.saveError = e instanceof Error ? e.message : String(e)
+            }),
+      )
    }
 
    valuesJSON(): Record<string, unknown> {
       return Object.fromEntries(this.vars.map((v) => [v.name, v.value]))
+   }
+
+   /** frozen values for a QUEUED run (seeds excluded — payload.ts owns the why) */
+   queuePayload(): Record<string, unknown> {
+      return payloadSnapshot(this.vars.map((v) => ({ name: v.name, kind: v.desc.kind, value: v.value })))
    }
 
    get dirtyCount(): number {
@@ -115,7 +135,15 @@ export class FormSt {
    /** persist the draft now. Resolves FALSE on failure — generate() must not run stale inputs */
    save(): Promise<boolean> {
       const encoded = JSON.stringify(this.valuesJSON())
-      if (encoded === this.lastSaved) return this.saveChain
+      if (encoded === this.lastSaved) {
+         // nothing to write: the disk already holds these values, whatever an OLDER save did.
+         // returning the previous chain here would keep a stale false alive and dead-lock generate
+         runInAction(() => {
+            this.saveState = 'saved'
+            this.saveError = null
+         })
+         return Promise.resolve(true)
+      }
       runInAction(() => {
          this.saveState = 'saving'
       })

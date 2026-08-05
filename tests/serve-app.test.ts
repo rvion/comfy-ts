@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
-import { join } from 'pathe'
+import { dirname, join } from 'pathe'
 import { makeRequestListener } from 'src/cli/serve/run-serve.ts'
 import { ServeApp, type ServeExecution, type ServeModule, type ServeStarter } from 'src/cli/serve/ServeApp.ts'
 import { draftsDirForFile } from 'src/cli/tui/state/DraftsSt.ts'
@@ -378,5 +378,28 @@ describe('seed continuation vs an edited draft value (live-draft model)', () => 
       // and the continuation resumes from there
       await app.handle({ method: 'POST', url: '/generate/wf-seed-edit/inc', body: '{}' })
       expect((seen[3]?.seed as { value: number }).value).toBe(501)
+   })
+})
+
+describe('draft name is one gate for every route (traversal)', () => {
+   it("reviewer's repro: %2F in a draft segment must not escape the drafts dir on READ or GENERATE", async () => {
+      const mod = makeModule('wf-traversal')
+      const seen: Record<string, unknown>[] = []
+      const app = new ServeApp([mod], { outputRoot: join(root, 'out'), starter: snapshottingStarter(seen) })
+      // a json file two levels above the drafts dir, as if it were someone's config
+      const outside = join(draftsDirForFile(mod.file), '..', '..', 'secret.json')
+      mkdirSync(dirname(outside), { recursive: true })
+      writeFileSync(outside, JSON.stringify({ prompt: 'INJECTED FROM OUTSIDE' }))
+
+      const read = await app.handle({ method: 'GET', url: '/drafts/wf-traversal/..%2F..%2Fsecret' })
+      expect(read.status).toBe(404)
+      expect(String(read.body)).not.toContain('INJECTED FROM OUTSIDE')
+
+      const generate = await app.handle({ method: 'POST', url: '/generate/wf-traversal/..%2F..%2Fsecret', body: '{}' })
+      expect(generate.status).toBe(404)
+      expect(seen.length).toBe(0)
+
+      const write = await app.handle({ method: 'PUT', url: '/drafts/wf-traversal/..%2F..%2Fpwned', body: '{}' })
+      expect(write.status).toBe(400)
    })
 })

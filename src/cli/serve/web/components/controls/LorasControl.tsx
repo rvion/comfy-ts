@@ -1,30 +1,31 @@
-// loras: the form row shows the ACTIVE loras as the same preview cards as the
-// popup (image + display name + ✕); the 🖼/🏷 toggles hide images/titles on
-// EVERY lora surface (NSFW screens, persisted on WebSt) and with both hidden
-// the row collapses to a count. The popup owns editing: filter, active section
-// with strengths + trigger words, preview-card gallery (tap ACTIVATES; the
-// active section deactivates). Names come from descriptor optionLabels; the
-// value keeps raw enum keys: { "<name>": [model, clip] }, replaced by copy
+// loras. Two states per option: SELECTED (present in the record) and ON (not
+// `false`) — switching one off keeps its card in place instead of hiding it, and
+// its strength comes back when it does. The row carries the full controls
+// (on/off + model/clip), so nothing needs the popup to be adjusted; the popup
+// adds discovery: filter, the selected section with trigger words, and a
+// preview-card gallery of everything else. The 🖼/🏷 toggles hide images/titles
+// on EVERY lora surface (NSFW screens, persisted on WebSt); with both hidden the
+// row collapses to a count. Names come from descriptor optionLabels; the value
+// keeps raw enum keys: { "<name>": [model, clip] | false }, replaced by copy
 import { observer, useLocalObservable } from 'mobx-react-lite'
 import { useEffect, type ReactNode } from 'react'
 import { fetchLoraInfo, loraPreviewSrc, type LoraInfo } from 'src/cli/serve/web/api.ts'
 import type { LoraStrength } from 'src/vars/ComfyVars.ts'
 import type { VarSt } from 'src/cli/serve/web/state/FormSt.ts'
 import type { WebSt } from 'src/cli/serve/web/state/WebSt.ts'
+import {
+   loraIsOn,
+   loraStrengthPair,
+   setLoraEnabled,
+   setLoraStrength,
+   type LoraStrengthPair,
+} from 'src/cli/serve/web/state/payload.ts'
 
 const CARD_CAP = 60
 
-function asRecord(raw: unknown): Partial<Record<string, LoraStrength>> {
-   if (raw != null && typeof raw === 'object' && !Array.isArray(raw))
-      return raw as Partial<Record<string, LoraStrength>>
+function asRecord(raw: unknown): Record<string, unknown> {
+   if (raw != null && typeof raw === 'object' && !Array.isArray(raw)) return raw as Record<string, unknown>
    return {}
-}
-
-/** any stored strength shape → the {model, clip} pair the inputs edit */
-function strengthPair(st: LoraStrength | undefined): { model: number; clip: number } {
-   if (typeof st === 'number') return { model: st, clip: st }
-   if (Array.isArray(st)) return { model: st[0], clip: st[1] }
-   return { model: 1, clip: 1 }
 }
 
 type LocalSt = {
@@ -32,10 +33,13 @@ type LocalSt = {
    filter: string
    info: Map<string, LoraInfo | 'loading' | 'error'>
    previewFailed: Set<string>
+   /** strength of a lora switched OFF, so switching it back on restores it (LorasVar.prev) */
+   prevStrength: Map<string, LoraStrengthPair>
    setOpen(open: boolean): void
    setFilter(raw: string): void
    noteInfo(name: string, v: LoraInfo | 'loading' | 'error'): void
    notePreviewFailed(name: string): void
+   notePrevStrength(name: string, pair: LoraStrengthPair): void
 }
 
 export const LorasControl = observer(function LorasControl(p: { v: VarSt; host: string; st: WebSt }) {
@@ -44,6 +48,7 @@ export const LorasControl = observer(function LorasControl(p: { v: VarSt; host: 
       filter: '',
       info: new Map(),
       previewFailed: new Set(),
+      prevStrength: new Map(),
       setOpen(open: boolean) {
          this.open = open
       },
@@ -56,13 +61,19 @@ export const LorasControl = observer(function LorasControl(p: { v: VarSt; host: 
       notePreviewFailed(name: string) {
          this.previewFailed.add(name)
       },
+      notePrevStrength(name: string, pair: LoraStrengthPair) {
+         this.prevStrength.set(name, pair)
+      },
    }))
    const record = asRecord(p.v.value)
    const options = p.v.desc.options ?? []
    const labels = p.v.desc.optionLabels ?? {}
    const label = (name: string): string => labels[name] ?? name
-   const isActive = (name: string): boolean => record[name] != null && record[name] !== false
-   const activeNames = options.filter(isActive)
+   // SELECTED = present in the record (a `false` entry is selected but switched off, and
+   // must keep its place in the ui); ON = actually contributing to the graph
+   const isSelected = (name: string): boolean => record[name] !== undefined
+   const isOn = (name: string): boolean => loraIsOn(record[name])
+   const selectedNames = options.filter(isSelected)
    const showImages = p.st.showLoraImages
    const showTitles = p.st.showLoraTitles
 
@@ -72,11 +83,58 @@ export const LorasControl = observer(function LorasControl(p: { v: VarSt; host: 
       else next[name] = st
       p.v.set(next)
    }
+   const toggleOn = (name: string, on: boolean): void => {
+      if (!on) local.notePrevStrength(name, loraStrengthPair(record[name]))
+      p.v.set(setLoraEnabled(record, name, on, on ? local.prevStrength.get(name) : undefined))
+   }
+   const setStrength = (name: string, pair: LoraStrengthPair): void => {
+      if (!isOn(name)) {
+         // editing an OFF lora's strength remembers it for when it comes back on
+         local.notePrevStrength(name, pair)
+         return
+      }
+      p.v.set(setLoraStrength(record, name, pair))
+   }
+
+   /** the on/off switch + model/clip inputs, shared by the row cards and the modal */
+   const strengthControls = (name: string): ReactNode => {
+      const pair = isOn(name) ? loraStrengthPair(record[name]) : (local.prevStrength.get(name) ?? { model: 1, clip: 1 })
+      return (
+         <>
+            <input
+               type="checkbox"
+               checked={isOn(name)}
+               title={isOn(name) ? 'switch off (stays in the list)' : 'switch back on'}
+               onChange={(e) => toggleOn(name, e.target.checked)}
+            />
+            <span className="st-label">m</span>
+            <input
+               type="number"
+               step={0.05}
+               value={pair.model}
+               onChange={(e) => {
+                  const n = parseFloat(e.target.value)
+                  if (Number.isFinite(n)) setStrength(name, { model: n, clip: pair.clip })
+               }}
+            />
+            <span className="st-label">c</span>
+            <input
+               type="number"
+               step={0.05}
+               value={pair.clip}
+               onChange={(e) => {
+                  const n = parseFloat(e.target.value)
+                  if (Number.isFinite(n)) setStrength(name, { model: pair.model, clip: n })
+               }}
+            />
+         </>
+      )
+   }
 
    // trigger words for the active section load once per open (bounded: active loras only)
    const open = local.open
    const host = p.host
-   const activeKey = activeNames.join('\n')
+   const activeKey = selectedNames.join('\n')
    useEffect(() => {
       if (!open) return
       for (const name of activeKey.split('\n')) {
@@ -102,7 +160,7 @@ export const LorasControl = observer(function LorasControl(p: { v: VarSt; host: 
    const matchesFilter = (name: string): boolean =>
       name.toLowerCase().includes(needle) || label(name).toLowerCase().includes(needle)
    const matches = options.filter(matchesFilter)
-   const cards = matches.filter((o) => !isActive(o)).slice(0, CARD_CAP)
+   const cards = matches.filter((o) => !isSelected(o)).slice(0, CARD_CAP)
 
    const thumb = (name: string): ReactNode => {
       if (!showImages) return null
@@ -146,21 +204,30 @@ export const LorasControl = observer(function LorasControl(p: { v: VarSt; host: 
          <div className="row-inline">
             {!showImages && !showTitles ? (
                <span className="hint">
-                  {activeNames.length} lora{activeNames.length === 1 ? '' : 's'} selected
+                  {selectedNames.length} lora{selectedNames.length === 1 ? '' : 's'} selected
                </span>
             ) : (
-               activeNames.map((name) => (
-                  <span key={name} className={showImages ? 'lora-chip card' : 'lora-chip'} title={name}>
+               selectedNames.map((name) => (
+                  <span
+                     key={name}
+                     className={`${showImages ? 'lora-chip card' : 'lora-chip'}${isOn(name) ? '' : ' off'}`}
+                     title={name}
+                  >
                      {thumb(name)}
                      {showTitles ? <span className="chip-title">{label(name)}</span> : null}
-                     <button type="button" title="remove" onClick={() => setEntry(name, null)}>
-                        ✕
-                     </button>
+                     {/* strengths and the on/off switch live HERE: adjusting a lora must not
+                         cost a trip through the popup */}
+                     <span className="chip-controls">
+                        {strengthControls(name)}
+                        <button type="button" title="remove from the list" onClick={() => setEntry(name, null)}>
+                           ✕
+                        </button>
+                     </span>
                   </span>
                ))
             )}
             <button type="button" onClick={() => local.setOpen(true)}>
-               {activeNames.length === 0 ? `choose loras… (${options.length})` : 'edit…'}
+               {selectedNames.length === 0 ? `choose loras… (${options.length})` : 'edit…'}
             </button>
             {visibilityToggles}
          </div>
@@ -182,14 +249,13 @@ export const LorasControl = observer(function LorasControl(p: { v: VarSt; host: 
                      </button>
                   </div>
                   <div className="modal-body">
-                     {activeNames.length > 0 ? (
+                     {selectedNames.length > 0 ? (
                         <div className="lora-active-section">
-                           <div className="section-title">active ({activeNames.length})</div>
-                           {activeNames.filter(matchesFilter).map((name) => {
-                              const pair = strengthPair(record[name])
+                           <div className="section-title">selected ({selectedNames.length})</div>
+                           {selectedNames.filter(matchesFilter).map((name) => {
                               const info = local.info.get(name)
                               return (
-                                 <div key={name} className="lora-active-row">
+                                 <div key={name} className={isOn(name) ? 'lora-active-row' : 'lora-active-row off'}>
                                     {thumb(name)}
                                     <div className="lora-active-text">
                                        <div className="lora-label" title={name}>
@@ -201,27 +267,12 @@ export const LorasControl = observer(function LorasControl(p: { v: VarSt; host: 
                                           <div className="hint">{name}</div>
                                        )}
                                     </div>
-                                    <span className="st-label">model</span>
-                                    <input
-                                       type="number"
-                                       step={0.05}
-                                       value={pair.model}
-                                       onChange={(e) => {
-                                          const n = parseFloat(e.target.value)
-                                          if (Number.isFinite(n)) setEntry(name, [n, pair.clip])
-                                       }}
-                                    />
-                                    <span className="st-label">clip</span>
-                                    <input
-                                       type="number"
-                                       step={0.05}
-                                       value={pair.clip}
-                                       onChange={(e) => {
-                                          const n = parseFloat(e.target.value)
-                                          if (Number.isFinite(n)) setEntry(name, [pair.model, n])
-                                       }}
-                                    />
-                                    <button type="button" title="deactivate" onClick={() => setEntry(name, null)}>
+                                    {strengthControls(name)}
+                                    <button
+                                       type="button"
+                                       title="remove from the list"
+                                       onClick={() => setEntry(name, null)}
+                                    >
                                        ✕
                                     </button>
                                  </div>
@@ -244,9 +295,9 @@ export const LorasControl = observer(function LorasControl(p: { v: VarSt; host: 
                            </button>
                         ))}
                      </div>
-                     {matches.length - activeNames.filter(matchesFilter).length > CARD_CAP ? (
+                     {matches.length - selectedNames.filter(matchesFilter).length > CARD_CAP ? (
                         <div className="loras-more">
-                           … {matches.length - activeNames.filter(matchesFilter).length - CARD_CAP} more — refine the
+                           … {matches.length - selectedNames.filter(matchesFilter).length - CARD_CAP} more — refine the
                            filter
                         </div>
                      ) : null}
