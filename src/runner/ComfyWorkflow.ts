@@ -354,6 +354,13 @@ export class ComfyWorkflow<ID extends string = string> {
 
    /** send the workflow; returns the live execution (await `execution.done` yourself) */
    start = async (p: RunSettings = {}): Promise<ComfyExecution> => {
+      // without a ws the prompt still RUNS on the host, but its messages route to a session
+      // that is not ours, so `execution.done` never settles: a silent forever-hang, the one
+      // failure mode with no error to read. DefinedWorkflow.run() connects for you
+      if (this.host.ws == null)
+         throw new Error(
+            `🔴 host '${this.host.data.id}' was never connected — call \`await host.connect()\` before running a workflow`,
+         )
       this.resetRunState()
       // snapshot: exactly what runs, frozen at send time (the live workflow stays editable)
       const snapshot: ExecutionSnapshot = {

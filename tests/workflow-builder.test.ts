@@ -971,3 +971,15 @@ describe('export/import control-widget parity (v3 config spellings)', () => {
       expect(imported.toApiJson('use_stringified_numbers_only')).toEqual(wf.toApiJson('use_stringified_numbers_only'))
    })
 })
+
+// a prompt POSTed from an unconnected host RUNS there, but its ws messages route to a
+// session that is not ours: execution.done never settles and the caller hangs forever with
+// nothing to read. The guard turns the one silent failure mode into a sentence.
+describe('running an unconnected host', () => {
+   it('throws instead of hanging forever', async () => {
+      const wf = host.workflow({ id: 'never-connected' })
+      wf.builderBase.EmptyLatentImage({})
+      expect(host.ws).toBe(null)
+      await expect(wf.start()).rejects.toThrow(/never connected/)
+   })
+})
