@@ -29,6 +29,8 @@ export type IconName =
    | 'power'
    | 'warn'
    | 'grip'
+   | 'link'
+   | 'unlink'
    | 'refresh'
    | 'terminal'
    | 'folder'
@@ -96,6 +98,10 @@ const PATHS: Record<IconName, ReactNode> = {
    pen: <path d="M4 20h4L20 8l-4-4L4 16zM14 6l4 4" />,
    power: <path d="M12 3v9M7.5 6.5a7 7 0 109 0" />,
    warn: <path d="M12 4l9 16H3zM12 10v4M12 17h.01" />,
+   link: (
+      <path d="M10 14a4 4 0 015.7 0l2.6-2.6a4 4 0 10-5.7-5.7L11 7.3M14 10a4 4 0 01-5.7 0l-2.6 2.6a4 4 0 105.7 5.7L13 16.7" />
+   ),
+   unlink: <path d="M9 15l-1.6 1.6a4 4 0 01-5.7-5.7L3.3 9.3M15 9l1.6-1.6a4 4 0 015.7 5.7L20.7 14.7M4 4l16 16" />,
    grip: (
       <>
          <circle cx="9" cy="6" r="1.4" fill="currentColor" stroke="none" />

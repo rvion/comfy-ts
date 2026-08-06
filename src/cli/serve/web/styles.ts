@@ -165,7 +165,7 @@ button.mode.sel { background: var(--accent-dim); border-color: var(--accent); co
 /* image mode: the row chip becomes the same preview card as the popup */
 .lora-chip.card {
    flex-direction: column; align-items: stretch; border-radius: 8px; padding: 6px;
-   background: var(--panel-2); border: 1px solid var(--border); width: 132px;
+   background: var(--panel-2); border: 1px solid var(--border); width: 168px;
    /* anything that still outgrows the card is clipped IN PLACE, never painted over its
       neighbour. CLIP on x only: hidden on both axes would trap the tooltips too */
    overflow-x: clip; overflow-y: visible;
@@ -190,6 +190,16 @@ button.mode.sel { background: var(--accent-dim); border-color: var(--accent); co
 .lora-chip.card .chip-controls input[type='number'] { flex: 1 1 0; width: auto; min-width: 0; }
 .lora-chip.card .chip-controls button { flex: 0 0 auto; }
 .chip-controls input[type='number'] { width: 52px; padding: 1px 4px; font-size: 11px; }
+/* a line per strength: label, slider, number. The card widened to hold them rather than
+   shrinking the slider into something undraggable */
+.chip-controls { flex-direction: column; align-items: stretch; gap: 2px; }
+.st-line { display: flex; gap: 4px; align-items: center; }
+.st-line input[type='range'] { flex: 1; min-width: 40px; height: 14px; }
+.st-line input[type='number'] { width: 46px; flex-shrink: 0; }
+.st-lock-row { display: flex; justify-content: center; margin: -2px 0; }
+.st-lock { border: 0; background: none; padding: 0 4px; color: var(--dim); line-height: 1; }
+.st-lock.sel { color: var(--accent); }
+.st-lock:hover { color: var(--text); }
 .chip-controls button { border: 0; background: none; color: inherit; padding: 0 2px; font-size: 11px; }
 .chip-controls button:hover { color: var(--red); }
 /* PAUSED: still in the palette, visibly not contributing to the graph */

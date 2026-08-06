@@ -54,6 +54,10 @@ type LocalSt = {
    /** the lora whose details panel is open, null when none */
    details: string | null
    setDetails(name: string | null): void
+   /** model/clip tied together, per lora. Absent = follow whether they are already equal */
+   linked: Map<string, boolean>
+   isLinked(name: string, whenUnset: boolean): boolean
+   setLinked(name: string, linked: boolean): void
 }
 
 export const LorasControl = observer(function LorasControl(p: {
@@ -91,6 +95,13 @@ export const LorasControl = observer(function LorasControl(p: {
       details: null,
       setDetails(name: string | null) {
          this.details = name
+      },
+      linked: new Map(),
+      isLinked(name: string, whenUnset: boolean) {
+         return this.linked.get(name) ?? whenUnset
+      },
+      setLinked(name: string, linked: boolean) {
+         this.linked.set(name, linked)
       },
    }))
    const record = asRecord(p.v.value)
@@ -141,31 +152,53 @@ export const LorasControl = observer(function LorasControl(p: {
       p.v.set(setLoraStrength(record, name, pair))
    }
 
-   /** model/clip inputs. A PAUSED lora still edits its strengths — they are what comes back */
+   /** model/clip strengths: a line each, slider beside the number, and a LOCK that ties them.
+    * A PAUSED lora still edits its strengths — they are what comes back on resume.
+    * The lock starts ON only when the two are already equal: opening a lora tuned to 0.8/0.6
+    * and having the first drag flatten it would destroy a deliberate setting */
    const strengthInputs = (name: string): ReactNode => {
       const pair = isOn(name) ? loraStrengthPair(record[name]) : (local.prevStrength.get(name) ?? { model: 1, clip: 1 })
+      const linked = local.isLinked(name, pair.model === pair.clip)
+      const write = (which: 'model' | 'clip', raw: number): void => {
+         if (!Number.isFinite(raw)) return
+         const n = Math.round(raw * 100) / 100
+         if (linked) return setStrength(name, { model: n, clip: n })
+         setStrength(name, which === 'model' ? { model: n, clip: pair.clip } : { model: pair.model, clip: n })
+      }
+      const line = (which: 'model' | 'clip', value: number): ReactNode => (
+         <div className="st-line">
+            <span className="st-label">{which === 'model' ? 'm' : 'c'}</span>
+            <input
+               type="range"
+               min={-1}
+               max={2}
+               step={0.05}
+               value={value}
+               data-tip={`${which} strength`}
+               onChange={(e) => write(which, parseFloat(e.target.value))}
+            />
+            <input type="number" step={0.05} value={value} onChange={(e) => write(which, parseFloat(e.target.value))} />
+         </div>
+      )
       return (
          <>
-            <span className="st-label">m</span>
-            <input
-               type="number"
-               step={0.05}
-               value={pair.model}
-               onChange={(e) => {
-                  const n = parseFloat(e.target.value)
-                  if (Number.isFinite(n)) setStrength(name, { model: n, clip: pair.clip })
-               }}
-            />
-            <span className="st-label">c</span>
-            <input
-               type="number"
-               step={0.05}
-               value={pair.clip}
-               onChange={(e) => {
-                  const n = parseFloat(e.target.value)
-                  if (Number.isFinite(n)) setStrength(name, { model: pair.model, clip: n })
-               }}
-            />
+            {line('model', pair.model)}
+            <div className="st-lock-row">
+               <button
+                  type="button"
+                  className={linked ? 'st-lock sel' : 'st-lock'}
+                  data-tip={linked ? 'model and clip move together — click to unlink' : 'link model and clip'}
+                  onClick={() => {
+                     const next = !linked
+                     local.setLinked(name, next)
+                     // linking makes them equal at once, so the state you see is the state that runs
+                     if (next) setStrength(name, { model: pair.model, clip: pair.model })
+                  }}
+               >
+                  <Icon name={linked ? 'link' : 'unlink'} size={0.85} />
+               </button>
+            </div>
+            {line('clip', pair.clip)}
          </>
       )
    }
