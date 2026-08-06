@@ -1,4 +1,4 @@
-"""StreamTextGenerate — core TextGenerate, but you can watch it write.
+"""StreamTextGenerate: core TextGenerate, but you can watch it write.
 
 ComfyUI's own TextGenerate blocks for the whole generation and publishes the answer once, at
 the end. The protocol can already carry live text (PromptServer.send_progress_text, binary ws
@@ -11,7 +11,7 @@ the duration of one call gives every token as it is produced, at the cost of no 
 sampling: the real loop still runs, unmodified.
 
 Install: copy this folder into ComfyUI/custom_nodes/ and restart. Remove it by deleting the
-folder — it patches nothing at import time and leaves no trace when the node is not running.
+folder, it patches nothing at import time and leaves no trace when the node is not running.
 """
 
 from server import PromptServer
@@ -76,7 +76,7 @@ class StreamTextGenerate(io.ComfyNode):
             seen.append(type(node).__name__)
             nxt = getattr(node, node.clip, None) if isinstance(getattr(node, "clip", None), str) else None
             node = nxt if nxt is not None else getattr(node, "transformer", None)
-        print(f"[StreamTextGenerate] 🔴 no sample_token under {' → '.join(seen)} — no live text for this model")
+        print(f"[StreamTextGenerate] no sample_token under {' / '.join(seen)}, no live text for this model")
         return None
 
     @classmethod
@@ -105,7 +105,7 @@ class StreamTextGenerate(io.ComfyNode):
         node_id = cls.hidden.unique_id
 
         # walk down to whoever OWNS sample_token rather than hardcoding the depth: the chain is
-        # cond_stage_model → getattr(it, it.clip) → .transformer today (comfy/sd1_clip.py), and
+        # cond_stage_model, then getattr(it, it.clip), then .transformer today (comfy/sd1_clip.py), and
         # it has changed shape before. Searching by capability survives that; a wrong guess here
         # is silent, since a missing wrap just means no frames
         model = cls._find_sampler_owner(clip.cond_stage_model)

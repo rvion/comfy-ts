@@ -2,11 +2,11 @@
 
 Things that live outside the TypeScript library but make it more useful. Nothing here is imported by `comfy-ts`; each folder stands alone.
 
-## [`comfyui-textgen-stream/`](comfyui-textgen-stream/) — a ComfyUI custom node
+## [`comfyui-textgen-stream/`](comfyui-textgen-stream/), a ComfyUI custom node
 
 `Generate Text (streaming)`: core `TextGenerate`, except it publishes the answer as it is produced instead of once at the end. Copy the folder into `ComfyUI/custom_nodes/` and restart. The live text arrives as `execution.progressText`, which `comfy-ts serve` renders while the run is in flight.
 
-## [`scripts/fetch_text_encoder.py`](scripts/fetch_text_encoder.py) — a Hugging Face model, ready for `CLIPLoader`
+## [`scripts/fetch_text_encoder.py`](scripts/fetch_text_encoder.py), a Hugging Face model, ready for `CLIPLoader`
 
 ```
 python fetch_text_encoder.py <hf-repo-id> <output-name.safetensors> [--dest DIR]

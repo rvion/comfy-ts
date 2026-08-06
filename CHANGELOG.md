@@ -100,7 +100,7 @@
 - **Loras reorder by dragging too**, and their order rides in the draft itself (the record's key order IS the order).
 - **Fixed: pausing a lora moved it to the end of the row.** Pausing wrote the lora out of the record entirely, so it lost its slot. It keeps its place now, on and off.
 - **The lora picker respects the workflow's own filter, and says what it is.** A var declared `v.loras(/krea-?2/i)` offers only matching loras — including the manager-only ones, which previously came in unfiltered and put the whole catalogue back in a narrowed picker. The filter is printed beside the palette and in the search placeholder.
-- **Search results are grouped by folder**, split on either separator, so `krea2/styles` and `krea2/styles` read as the folders they are on disk.
+- **Search results are grouped by folder**, split on either separator, so `krea2/styles` and `krea2/characters` read as the folders they are on disk.
 - **Loras the manager knows but Comfy does not are selectable.** The picker offers the union of ComfyUI's own enum and the lora-manager mirror for that host; the extra ones carry a warning icon saying they are only known to the lora manager, not yet listed by Comfy itself. The API accepts exactly those names too, so a lora dropped on disk works before the server rescans, while a typo is still refused.
 - **A sync button re-downloads the lora metadata** from the lora manager on the current host (names, trigger words, previews), with the same refusals as `comfy-ts loras`: a partial or unreachable sweep leaves the mirror untouched rather than deleting loras that are alive on the host.
 - **The lora section links to the host's lora manager** (`http://<host>/loras`), for the host the workflow currently runs on.
