@@ -688,20 +688,18 @@ export class ServeApp {
          }
          if (action === 'refresh-loras') return await this.refreshLoraMirror(hostId, host)
          if (action === 'refresh-schema') {
-            // refetch object_info and rewrite sdk.d.ts. HONEST about the limit: the modules in
-            // THIS process keep the options they were defined with, so a var's list only widens
-            // after a serve restart, the file on disk is what a re-import and your editor read
             await host.fetchAndUpdateSchema()
+            // a lora var resolves its regex against the schema ONCE, at define time, so a
+            // refetch alone left every var on the list it was born with and the panel kept
+            // warning about a lora the host had just learned. rebinding re-runs that resolve
+            const rebound = this.rebindHostVars(hostId, host)
             const nodes = host.schema.nodes.length
             const loras = host.schema.getLoras().length
             return json(200, {
                ok: true,
                host: hostId,
                action,
-               note:
-                  `schema refetched: ${nodes} node types, ${loras} loras. ` +
-                  `this re-reads what ComfyUI REPORTS, it cannot make it rescan its models folder ` +
-                  `(restart ComfyUI for that). serve must restart to widen the var lists`,
+               note: `schema refetched: ${nodes} node types, ${loras} loras, ${rebound} lora var(s) widened. no restart needed`,
             })
          }
          if (action === 'restart') {
@@ -722,6 +720,22 @@ export class ServeApp {
    /** re-sweep ComfyUI-Lora-Manager and rewrite the mirror — what `comfy-ts loras` does, with
     * its refusals kept: a partial or unreachable sweep NEVER overwrites, because writing it
     * would delete loras from the mirror that are alive on the host */
+   /** re-resolve every host-bound lora var of every module that runs on this host. LorasVar
+    * only resolves its RegExp inside bindHost, so nothing else picks up a widened enum */
+   private rebindHostVars(hostId: string, host: ComfyHost): number {
+      let n = 0
+      for (const mod of this.modules) {
+         const target = this.runHostFor(mod) ?? mod.dw.host
+         if (target.data.id !== hostId) continue
+         for (const [, varDef] of mod.dw.entries()) {
+            if (varDef.kind !== 'loras') continue
+            ;(varDef as LorasVar<string>).bindHost(host)
+            n++
+         }
+      }
+      return n
+   }
+
    private async refreshLoraMirror(hostId: string, host: ComfyHost): Promise<ServeReply> {
       const sweep = await fetchLoraList(host)
       if (sweep.status === 'absent')
