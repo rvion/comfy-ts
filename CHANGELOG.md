@@ -7,6 +7,14 @@
 - **Text outputs come back.** `execution.texts` holds every string an output node published, in arrival order, each tagged with the node that emitted it; `execution.text` is the last one. Until now only images were collected, so a graph ending in `PreviewAny` returned nothing. This is what makes ComfyUI's core `TextGenerate` node usable from here: a chat model loads through the ordinary `CLIPLoader` path and its answer lands in `execution.text` — no api key, no second service.
 - **New example, [`07-local-llm-text-gen`](examples/rvion/07-local-llm-text-gen.cflow.ts)**: expand a short image prompt with a local model. Run it with `--sweep` and it reports which text encoders on your own host actually generate, and how fast — an encoder-only T5 or CLIP has no `generate` and fails there by design.
 
+### Security
+
+`comfy-ts serve` has always said it has no auth, and it is meant for a machine you trust. These close the gaps that let a LAN peer, or any web page you happened to open, reach further than that:
+
+- **Cross-origin requests are refused by default.** Every reply used to carry `access-control-allow-origin: *`, so any page in any browser on your network could drive the API and READ the replies: list your workflows, delete a draft, restart a host, start a generation. The panel is same-origin and never needed it. Pass `--cors` if you really do call serve from a page on another origin.
+- **Image vars enforce the file types they advertise.** A payload naming any readable path had that file uploaded to the ComfyUI host (a third party, for a cloud host); only `existsSync` stood in the way. The extension list in the descriptor is checked now, directories are refused, and neither reaches the queue.
+- **A downloaded image input is capped at 50MB and no longer reports the upstream status.** There was no size limit at all, so one URL at a large file could exhaust the process, and echoing the remote status back turned an image var into a port scanner for everything the box can reach. The status goes to the server log instead.
+
 ### The web panel
 
 - **Fixed: on a Windows host, a lora only the lora-manager knew was offered and then refused.** The picker built its names with the host's own separator while the API built the same list with `/`, and the two are compared as raw strings — so picking one answered `unknown lora(s)` on generate. Both sides call one function now.
