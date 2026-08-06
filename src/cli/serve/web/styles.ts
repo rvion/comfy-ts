@@ -236,6 +236,12 @@ div.lora-thumb.none {
    display: flex; flex-direction: column; gap: 8px; max-width: min(1100px, 100%); max-height: 100%;
 }
 .lightbox img { max-width: 100%; max-height: calc(90vh - 60px); object-fit: contain; border-radius: 8px; }
+/* wheel zoom: the viewport CLIPS, the image inside is transformed. transform-origin stays
+   centred so the pan offsets computed from the cursor are the only thing moving it */
+.zoom-view { overflow: hidden; border-radius: 8px; display: flex; justify-content: center; touch-action: none; }
+.zoom-view img { transform-origin: center center; will-change: transform; }
+.zoom-view.grabbing { cursor: grab; }
+.zoom-view.grabbing:active { cursor: grabbing; }
 .lightbox-bar {
    display: flex; gap: 12px; align-items: center; justify-content: center; flex-wrap: wrap;
    background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px;
@@ -327,6 +333,16 @@ div.lora-thumb.none {
 .lora-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
 .lora-actions button { font-size: 12px; }
 /* a lora the manager knows and comfy does not: flagged, never hidden */
+.host-note {
+   margin: 8px 0; padding: 6px 10px; font-size: 12px; color: var(--text);
+   background: var(--panel); border: 1px solid var(--accent-dim); border-radius: 6px;
+}
+/* the keywords the active loras prepend to the prompt: shown, not guessed */
+.kw-prefix { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
+.kw-chip {
+   font-size: 11px; padding: 2px 8px; border-radius: 10px;
+   background: var(--accent-dim); color: #fff;
+}
 .lora-warn { color: var(--amber); display: inline-flex; margin-left: 4px; vertical-align: -0.1em; }
 /* an anchor that must read as a button (it opens the host's own page, so it IS a link) */
 .button-link {

@@ -8,6 +8,7 @@ import {
    fetchHosts,
    fetchIndex,
    fetchSettings,
+   pingHost,
    postHostAction,
    saveDraft,
    saveSettings,
@@ -347,6 +348,39 @@ export class WebSt {
       }
    }
 
+   /** a restart takes the host down and back: this WATCHES it instead of leaving you guessing.
+    * Polls until it answers, or gives up loudly after ~2 minutes */
+   hostWatch: 'idle' | 'down' | 'back' = 'idle'
+
+   private async watchHostComeBack(): Promise<void> {
+      const host = this.form == null ? null : this.hostFor(this.form.moduleKey)
+      if (host == null || host === '') return
+      runInAction(() => {
+         this.hostWatch = 'down'
+      })
+      const deadline = Date.now() + 120_000
+      for (;;) {
+         await new Promise((r) => setTimeout(r, 2500))
+         if (Date.now() > deadline) {
+            runInAction(() => {
+               this.hostWatch = 'idle'
+               this.hostError = `${host} has not answered for 2 minutes — check the console`
+            })
+            return
+         }
+         const up = await pingHost({ host })
+            .then((r) => r.up)
+            .catch(() => false)
+         if (!up) continue
+         runInAction(() => {
+            this.hostWatch = 'back'
+            this.hostNote = `${host} is back up`
+         })
+         setTimeout(() => runInAction(() => (this.hostWatch = 'idle')), 4000)
+         return
+      }
+   }
+
    /** interrupt / clear the queue / reboot the box this workflow runs on */
    async hostAction(action: HostAction): Promise<void> {
       const host = this.form == null ? null : this.hostFor(this.form.moduleKey)
@@ -360,6 +394,8 @@ export class WebSt {
          runInAction(() => {
             this.hostNote = reply.note
          })
+         // a reboot is the one action whose result arrives LATER: watch for it
+         if (action === 'restart') void this.watchHostComeBack()
       } catch (e) {
          runInAction(() => {
             this.hostError = e instanceof Error ? e.message : String(e)

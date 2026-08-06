@@ -131,6 +131,26 @@ export class FormSt {
       return payloadSnapshot(this.vars.map((v) => ({ name: v.name, kind: v.desc.kind, value: v.value })))
    }
 
+   /** the keywords the ACTIVE loras will prepend to this prompt, in the order the loras sit in
+    * the record. Computed here rather than fetched: it must follow every toggle live, and the
+    * descriptor already carries both halves (which loras var feeds it, and each one's keyword) */
+   loraKeywordsFor(promptVar: VarSt): string[] {
+      const sourceName = promptVar.desc.keywordsFrom
+      if (sourceName == null) return []
+      const source = this.vars.find((v) => v.name === sourceName)
+      if (source == null) return []
+      const keywords = source.desc.optionKeywords ?? {}
+      const record = source.value != null && typeof source.value === 'object' ? source.value : {}
+      const out: string[] = []
+      for (const [name, st] of Object.entries(record as Record<string, unknown>)) {
+         // same rule as the graph: only loras that are ON contribute
+         if (st == null || st === false) continue
+         const kw = keywords[name]
+         if (kw != null && kw !== '' && !out.includes(kw)) out.push(kw)
+      }
+      return out
+   }
+
    get dirtyCount(): number {
       return this.vars.filter((v) => v.dirty).length
    }

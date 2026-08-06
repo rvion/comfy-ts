@@ -25,6 +25,13 @@ export type VarDescriptor = {
    options?: readonly string[]
    /** loras: human display names from the lora-manager mirror, keyed by option — entries only where the label differs (filled by ServeApp.describeModule, which knows the host) */
    optionLabels?: Record<string, string>
+   /** prompt: the name of the loras var whose ACTIVE keywords prefix this prompt
+    * (`v.prompt(…, { loraKeywordsFrom })`) — filled by ServeApp.describeModule, which is the
+    * only place that knows both vars by name. The panel previews the injection from it */
+   keywordsFrom?: string
+   /** loras: hand-assigned keyword (or trigger words) per option, entries only where one
+    * exists — what a prompt with `loraKeywordsFrom` will prepend */
+   optionKeywords?: Record<string, string>
    /** loras: names the lora-manager mirror knows and ComfyUI's enum does NOT (yet). Offered in
     * the picker with a warning, because a lora present on disk usually runs even when the
     * server has not rescanned its list — filled by ServeApp.describeModule */

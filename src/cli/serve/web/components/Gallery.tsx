@@ -16,23 +16,59 @@ type LightboxTarget = { url: string; title: string; promptId: string | null }
 type GalleryLocal = {
    copyNote: { url: string; text: string } | null
    lightbox: LightboxTarget | null
+   /** lightbox zoom: 1 = fitted. Pan is only meaningful past 1 */
+   zoom: number
+   panX: number
+   panY: number
    setCopyNote(url: string, text: string): void
    openLightbox(target: LightboxTarget): void
    closeLightbox(): void
+   zoomBy(factor: number, at: { x: number; y: number }): void
+   panBy(dx: number, dy: number): void
+   resetZoom(): void
 }
 
 function useGalleryLocal(): GalleryLocal {
    return useLocalObservable<GalleryLocal>(() => ({
       copyNote: null,
       lightbox: null,
+      zoom: 1,
+      panX: 0,
+      panY: 0,
       setCopyNote(url: string, text: string) {
          this.copyNote = { url, text }
       },
       openLightbox(target: LightboxTarget) {
          this.lightbox = target
+         this.resetZoom()
       },
       closeLightbox() {
          this.lightbox = null
+         this.resetZoom()
+      },
+      /** zoom around the CURSOR: the point under the pointer stays under it, which is what
+       * makes wheel zoom usable — a centre-anchored zoom walks the detail off screen */
+      zoomBy(factor: number, at: { x: number; y: number }) {
+         const next = Math.min(8, Math.max(1, this.zoom * factor))
+         if (next === this.zoom) return
+         const ratio = next / this.zoom
+         this.panX = at.x - (at.x - this.panX) * ratio
+         this.panY = at.y - (at.y - this.panY) * ratio
+         this.zoom = next
+         if (next === 1) {
+            this.panX = 0
+            this.panY = 0
+         }
+      },
+      panBy(dx: number, dy: number) {
+         if (this.zoom === 1) return
+         this.panX += dx
+         this.panY += dy
+      },
+      resetZoom() {
+         this.zoom = 1
+         this.panX = 0
+         this.panY = 0
       },
    }))
 }
@@ -58,11 +94,51 @@ const Lightbox = observer(function Lightbox(p: { st: WebSt; local: GalleryLocal 
    return (
       <div className="modal-overlay" onClick={() => p.local.closeLightbox()}>
          <div className="lightbox" onClick={(e) => e.stopPropagation()}>
-            <img src={box.url} alt={box.title} />
+            <div
+               className={p.local.zoom > 1 ? 'zoom-view grabbing' : 'zoom-view'}
+               onWheel={(e) => {
+                  e.preventDefault()
+                  const rect = e.currentTarget.getBoundingClientRect()
+                  // deltaY is per-line on some mice and per-pixel on others: sign only
+                  p.local.zoomBy(e.deltaY < 0 ? 1.2 : 1 / 1.2, {
+                     x: e.clientX - rect.left - rect.width / 2,
+                     y: e.clientY - rect.top - rect.height / 2,
+                  })
+               }}
+               onDoubleClick={() => p.local.resetZoom()}
+               onPointerDown={(e) => {
+                  if (p.local.zoom === 1) return
+                  e.currentTarget.setPointerCapture(e.pointerId)
+               }}
+               onPointerMove={(e) => {
+                  if (e.buttons !== 1) return
+                  p.local.panBy(e.movementX, e.movementY)
+               }}
+            >
+               <img
+                  src={box.url}
+                  alt={box.title}
+                  draggable={false}
+                  style={{
+                     transform: `translate(${p.local.panX}px, ${p.local.panY}px) scale(${p.local.zoom})`,
+                  }}
+               />
+            </div>
             <div className="lightbox-bar">
                <span className="hint" data-tip={box.title}>
                   {box.title}
                </span>
+               {p.local.zoom > 1 ? (
+                  <button
+                     type="button"
+                     data-tip="back to fit (or double click the image)"
+                     onClick={() => p.local.resetZoom()}
+                  >
+                     {p.local.zoom.toFixed(1)}× · fit
+                  </button>
+               ) : (
+                  <span className="hint">scroll to zoom</span>
+               )}
                {canCopy ? (
                   <button type="button" onClick={copy}>
                      copy

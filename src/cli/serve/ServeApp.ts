@@ -22,8 +22,9 @@ import {
    writeLoraMirror,
 } from 'src/host/loraInfoCache.ts'
 import { fetchLoraList, fetchLoraPreviewBytes, loraKey, loraPreviewMapFrom } from 'src/host/loraManagerApi.ts'
+import { getLoraKeyword } from 'src/vars/loraKeywords.ts'
 import type { ComfyHost } from 'src/host/ComfyHost.ts'
-import type { ImageVar, SeedVar } from 'src/vars/ComfyVars.ts'
+import type { ImageVar, PromptVar, SeedVar } from 'src/vars/ComfyVars.ts'
 import type { DefinedWorkflow } from 'src/vars/DefinedWorkflow.ts'
 import { bang } from 'src/utils/bang.ts'
 import { extractErrorMessage } from 'src/utils/extractErrorMessage.ts'
@@ -106,7 +107,8 @@ const USAGE = [
    'PUT  /prompt-enhancers/<name> with {"text"} — write one · DELETE /prompt-enhancers/<name> — remove it',
    'GET  /settings — { saveToDisk } · PUT /settings with {"saveToDisk"} — write outputs to disk, or keep them in memory',
    'GET  /hosts — every host this process knows · PUT /hosts/<module> with {"host"} — run that workflow elsewhere',
-   'POST /hosts/<hostId>/<interrupt|clear-queue|restart> — act on a ComfyUI host',
+   'POST /hosts/<hostId>/<interrupt|clear-queue|restart|refresh-loras|refresh-schema> — act on a ComfyUI host',
+   'GET  /hosts/<hostId>/ping — is that host answering right now (restart watch)',
    'GET  /hosts/<hostId>/logs — the last lines of that host console',
    'GET  /images/<promptId>/<ix> — an in-memory output (saving off), while the process lives',
    'GET  /outputs/<path> — generated files',
@@ -209,6 +211,8 @@ export class ServeApp {
             if (segs[0] === 'hosts' && segs.length === 1) return this.replyHosts()
             if (segs[0] === 'hosts' && segs.length === 3 && segs[1] != null && segs[2] === 'logs')
                return await this.replyHostLogs(segs[1])
+            if (segs[0] === 'hosts' && segs.length === 3 && segs[1] != null && segs[2] === 'ping')
+               return await this.replyHostPing(segs[1])
             if (segs[0] === 'images' && segs.length === 3 && segs[1] != null && segs[2] != null)
                return this.replyMemoryImage(`${segs[1]}/${segs[2]}`)
             if (segs[0] === 'outputs') return this.replyOutput(segs.slice(1))
@@ -338,8 +342,28 @@ export class ServeApp {
                   if (label !== extra) (desc.optionLabels ??= {})[extra] = label
                }
             }
+            // what a prompt with loraKeywordsFrom will PREPEND, per option: the panel shows
+            // the injection instead of leaving you to discover it in the generated image
+            const keywords: Record<string, string> = {}
+            for (const option of desc.options) {
+               const kw = getLoraKeyword(option, hostId)
+               if (kw !== '') keywords[option] = kw
+            }
+            if (Object.keys(keywords).length > 0) desc.optionKeywords = keywords
          }
          vars[name] = desc
+      }
+      // a prompt knows its lora SOURCE by identity only; naming it needs both vars, which is
+      // exactly what this loop has. Without it the panel cannot preview the keyword prefix
+      for (const [name, varDef] of mod.dw.entries()) {
+         if (varDef.kind !== 'prompt') continue
+         const source = (varDef as PromptVar).promptOpts.loraKeywordsFrom
+         if (source == null) continue
+         // identity across two unrelated faces (AnyVar vs ActiveLoraSource): compare as unknown,
+         // the LorasVar instance IS both
+         const sourceName = mod.dw.entries().find(([, other]) => (other as unknown) === (source as unknown))?.[0]
+         const desc = vars[name]
+         if (sourceName != null && desc != null) desc.keywordsFrom = sourceName
       }
       return {
          module: mod.key,
@@ -515,6 +539,20 @@ export class ServeApp {
             return json(200, { ok: true, host: hostId, action, note: 'pending prompts dropped' })
          }
          if (action === 'refresh-loras') return await this.refreshLoraMirror(hostId, host)
+         if (action === 'refresh-schema') {
+            // refetch object_info and rewrite sdk.d.ts. HONEST about the limit: the modules in
+            // THIS process keep the options they were defined with, so a var's list only widens
+            // after a serve restart — the file on disk is what a re-import and your editor read
+            await host.fetchAndUpdateSchema()
+            const nodes = host.schema.nodes.length
+            const loras = host.schema.getLoras().length
+            return json(200, {
+               ok: true,
+               host: hostId,
+               action,
+               note: `schema refetched: ${nodes} node types, ${loras} loras — restart serve to widen the var lists`,
+            })
+         }
          if (action === 'restart') {
             // the server dropping the connection mid-reboot IS the expected shape, so a
             // failure here still means "asked" — the ws reconnects when it comes back
@@ -522,7 +560,7 @@ export class ServeApp {
             return json(200, { ok: true, host: hostId, action, note: 'reboot requested — it reconnects when back' })
          }
          return json(400, {
-            error: `unknown host action '${action}' — interrupt | clear-queue | restart | refresh-loras`,
+            error: `unknown host action '${action}' — interrupt | clear-queue | restart | refresh-loras | refresh-schema`,
          })
       } catch (e) {
          return json(502, { error: `host '${hostId}' refused '${action}': ${extractErrorMessage(e)}` })
@@ -561,6 +599,19 @@ export class ServeApp {
          count: mirror.count,
          note: `${mirror.count} loras synced`,
       })
+   }
+
+   /** is the host answering RIGHT NOW: what the panel polls while a restart is in flight, so
+    * "restarting…" ends on a fact rather than on a guess */
+   private async replyHostPing(hostId: string): Promise<ServeReply> {
+      const host = comfyts.hosts.get(hostId)
+      if (host == null) return json(404, { error: `unknown host '${hostId}'` })
+      try {
+         const res = await host.fetch('/system_stats', {})
+         return json(200, { host: hostId, up: res.ok, status: res.status })
+      } catch (e) {
+         return json(200, { host: hostId, up: false, reason: extractErrorMessage(e) })
+      }
    }
 
    /** the ComfyUI console, the TUI's logs panel over http — through the SAME assembly the TUI

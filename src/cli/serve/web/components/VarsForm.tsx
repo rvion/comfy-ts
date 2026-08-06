@@ -351,6 +351,13 @@ export const VarsForm = observer(function VarsForm(p: { st: WebSt }) {
                      </button>
                      <button
                         type="button"
+                        data-tip="refetch object_info from the host and rewrite sdk.d.ts (a restart of serve widens the var lists)"
+                        onClick={() => void p.st.hostAction('refresh-schema')}
+                     >
+                        <Icon name="refresh" />
+                     </button>
+                     <button
+                        type="button"
                         className="danger"
                         data-tip="restart ComfyUI on that host (manager reboot) — it reconnects when back"
                         onClick={() => {
@@ -415,7 +422,13 @@ export const VarsForm = observer(function VarsForm(p: { st: WebSt }) {
                </div>
             </div>
          </div>
+         {/* every host action SAYS what happened: the note was computed and thrown away, which
+             is precisely why restart looked like a dead button */}
          {p.st.hostError != null ? <div className="error">🔴 {p.st.hostError}</div> : null}
+         {p.st.hostWatch === 'down' ? (
+            <div className="host-note pulse">restarting… waiting for the host to answer again</div>
+         ) : null}
+         {p.st.hostNote != null && p.st.hostWatch !== 'down' ? <div className="host-note">{p.st.hostNote}</div> : null}
          {/* the autosave state is the draft box's legend now; only a FAILURE gets a line of
              its own, because that one you must not miss */}
          {form.saveState === 'error' ? <div className="error">🔴 draft save failed: {form.saveError}</div> : null}

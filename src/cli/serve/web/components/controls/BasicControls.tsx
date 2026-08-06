@@ -8,8 +8,20 @@ import type { WebSt } from 'src/cli/serve/web/state/WebSt.ts'
 export const PromptControl = observer(function PromptControl(p: { v: VarSt; st: WebSt; module: string }) {
    const text = typeof p.v.value === 'string' ? p.v.value : ''
    const rows = Math.min(12, Math.max(4, text.split('\n').length + 1))
+   // what the ACTIVE loras will prepend at build time: invisible until now, so the prompt you
+   // read here was not the prompt that ran
+   const injected = p.st.form?.loraKeywordsFor(p.v) ?? []
    return (
       <div>
+         {injected.length > 0 ? (
+            <div className="kw-prefix" data-tip="added in front of your prompt at run time, one per active lora">
+               {injected.map((kw) => (
+                  <span key={kw} className="kw-chip">
+                     {kw}
+                  </span>
+               ))}
+            </div>
+         ) : null}
          <textarea rows={rows} value={text} onChange={(e) => p.v.set(e.target.value)} />
          <div className="row-inline">
             <span className="hint">// line = comment · "- " line = negative prompt</span>
