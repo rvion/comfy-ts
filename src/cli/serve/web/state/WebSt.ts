@@ -354,6 +354,33 @@ export class WebSt {
       this.run.enqueue({ module: form.moduleKey, draft: form.draft, payload })
    }
 
+   /** rename = write the values under the new name, switch to it, then drop the old FILE.
+    * Same shape as the enhancer presets: the name IS the identity, so there is nothing to
+    * "rename" server side. The old file is only removed once the new one is confirmed */
+   async renameDraft(rawName: string): Promise<void> {
+      const form = this.form
+      const name = rawName.trim()
+      if (form == null || name === '' || name === form.draft) return
+      const from = form.draft
+      await this.duplicateDraft(name)
+      // duplicateDraft reports its own failure; only drop the old file if the switch happened
+      if (this.form?.draft !== name) return
+      await deleteDraft({ module: form.moduleKey, draft: from }).then(
+         (reply) =>
+            runInAction(() => {
+               this.modules = this.modules.map((m) =>
+                  m.module === form.moduleKey ? { ...m, drafts: reply.drafts } : m,
+               )
+            }),
+         (e: unknown) =>
+            runInAction(() => {
+               this.formError = `renamed to '${name}', but the old draft '${from}' could not be removed: ${
+                  e instanceof Error ? e.message : String(e)
+               }`
+            }),
+      )
+   }
+
    /** delete the draft FILE, then fall back to another draft (DraftsSt.deleteDraft's rule).
     * ORDER: the form is dropped WITHOUT flushing FIRST — its autosave would otherwise
     * re-create the file the server is about to delete */

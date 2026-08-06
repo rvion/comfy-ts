@@ -73,23 +73,28 @@ const VarRow = observer(function VarRow(p: { v: VarSt; host: string; st: WebSt; 
  * a few dialogs, which reads exactly like a dead button */
 const DraftBox = observer(function DraftBox(p: { st: WebSt; form: FormSt }) {
    const local = useLocalObservable(() => ({
-      naming: false,
+      /** null = showing the picker; otherwise the pending name and what it will do */
+      mode: null as null | 'duplicate' | 'rename',
       name: '',
-      start(from: string) {
-         this.naming = true
-         this.name = `${from} copy`
+      start(mode: 'duplicate' | 'rename', from: string) {
+         this.mode = mode
+         this.name = mode === 'duplicate' ? `${from} copy` : from
       },
       set(v: string) {
          this.name = v
       },
       stop() {
-         this.naming = false
+         this.mode = null
       },
    }))
+   const drafts = p.st.moduleByKey(p.form.moduleKey)?.drafts ?? [p.form.draft]
    const confirm = (): void => {
       const name = local.name.trim()
+      const mode = local.mode
       local.stop()
-      if (name !== '') void p.st.duplicateDraft(name)
+      if (name === '' || mode == null) return
+      if (mode === 'duplicate') void p.st.duplicateDraft(name)
+      else void p.st.renameDraft(name)
    }
    return (
       <div className="head-box">
@@ -101,13 +106,13 @@ const DraftBox = observer(function DraftBox(p: { st: WebSt; form: FormSt }) {
                {p.form.saveState === 'error' ? '· NOT SAVED' : null}
             </span>
          </span>
-         {local.naming ? (
+         {local.mode != null ? (
             <input
                type="text"
                autoFocus
                className="head-input"
                value={local.name}
-               placeholder="new draft name"
+               placeholder={local.mode === 'rename' ? 'rename this draft' : 'new draft name'}
                onFocus={(e) => e.currentTarget.select()}
                onChange={(e) => local.set(e.target.value)}
                onKeyDown={(e) => {
@@ -117,13 +122,32 @@ const DraftBox = observer(function DraftBox(p: { st: WebSt; form: FormSt }) {
                onBlur={confirm}
             />
          ) : (
-            <span className="head-value draft">{p.form.draft}</span>
+            /* the name IS the picker: every draft of this workflow, switching selects it */
+            <select
+               className="head-select draft"
+               value={p.form.draft}
+               title="switch draft"
+               onChange={(e) => void p.st.select({ module: p.form.moduleKey, draft: e.target.value })}
+            >
+               {drafts.map((d) => (
+                  <option key={d} value={d}>
+                     {d}
+                  </option>
+               ))}
+            </select>
          )}
          <span className="btn-group head-group">
             <button
                type="button"
+               title="rename this draft (the file is renamed)"
+               onClick={() => (local.mode != null ? confirm() : local.start('rename', p.form.draft))}
+            >
+               <Icon name="pen" />
+            </button>
+            <button
+               type="button"
                title="save these values as a new draft"
-               onClick={() => (local.naming ? confirm() : local.start(p.form.draft))}
+               onClick={() => (local.mode != null ? confirm() : local.start('duplicate', p.form.draft))}
             >
                <Icon name="copy-plus" />
             </button>
@@ -258,9 +282,18 @@ export const VarsForm = observer(function VarsForm(p: { st: WebSt }) {
       <div>
          {/* the TUI header, on the web: labelled boxes for what you are editing and where it runs */}
          <div className="head-boxes">
+            {/* the workflow name IS the way into the menu: the sidebar already holds the
+                folder → workflow → draft tree, so a second dropdown would be a rival copy of it */}
             <div className="head-box">
                <span className="head-label">workflow</span>
-               <span className="head-value app">{form.moduleKey}</span>
+               <button
+                  type="button"
+                  className="head-value app as-link"
+                  title={p.st.sidebarOpen ? 'close the workflow menu' : 'browse every workflow'}
+                  onClick={() => p.st.toggleSidebar()}
+               >
+                  <Icon name="folder" size={1} /> {form.moduleKey}
+               </button>
             </div>
             {/* duplicate and delete act on THIS draft, so they live in the draft box */}
             <DraftBox st={p.st} form={form} />

@@ -30,6 +30,7 @@
 - **Fixed: the ✕ that removes a lora from the palette was unclickable** on every card but the last of each row — the strength inputs overflowed the card and the next card covered the button.
 - **Fixed: the newest image vanished in pinned mode**, leaving only the latent preview, as soon as a run finished.
 - **Fixed: duplicating a draft did nothing** when the browser had started suppressing dialogs. The new name is typed inline in the draft box now, no native prompt.
+- **The header navigates**: the workflow name opens the workflow menu, and the draft name is a dropdown of every draft of that workflow. A pen button renames the current draft (the file is renamed), beside duplicate and delete.
 - **The lora picker is keyboard-first**: the filter is focused with its text selected when the popup opens, and enter adds the first match.
 - Icons are SVG everywhere, so a button looks the same on a phone as on a desktop; the seed modes are one segmented control aligned with their input.
 

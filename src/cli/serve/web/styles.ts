@@ -70,6 +70,13 @@ body {
 .head-value.draft { color: var(--accent); }
 .head-value.host { color: var(--green); }
 .head-select { padding: 2px 6px; font-size: 13px; font-weight: 600; color: var(--green); max-width: 220px; }
+.head-select.draft { color: var(--accent); }
+/* a head value that acts: reads like the text beside it, behaves like a button */
+.head-value.as-link {
+   border: 0; background: none; padding: 0; font: inherit; font-weight: 600; cursor: pointer;
+   color: var(--amber); display: inline-flex; align-items: center; gap: 5px;
+}
+.head-value.as-link:hover { color: var(--accent); text-decoration: underline; }
 .head-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 12px 0 14px; }
 .head-actions button { padding: 4px 12px; font-size: 12px; }
 button.danger { color: var(--dim); }

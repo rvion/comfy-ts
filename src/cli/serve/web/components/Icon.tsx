@@ -25,6 +25,8 @@ export type IconName =
    | 'swap'
    | 'plus'
    | 'copy-plus'
+   | 'pen'
+   | 'folder'
    | 'dot'
 
 /** 24x24 viewBox paths, stroked (fill: none) unless the shape reads better solid */
@@ -86,6 +88,8 @@ const PATHS: Record<IconName, ReactNode> = {
    swap: <path d="M4 8h13l-3-3M20 16H7l3 3" />,
    plus: <path d="M12 5v14M5 12h14" />,
    'copy-plus': <path d="M9 9h10v10H9zM5 15V5h10M14 12v4M12 14h4" />,
+   pen: <path d="M4 20h4L20 8l-4-4L4 16zM14 6l4 4" />,
+   folder: <path d="M3 7h6l2 2h10v10H3z" />,
    dot: <circle cx="12" cy="12" r="5" fill="currentColor" stroke="none" />,
 }
 
