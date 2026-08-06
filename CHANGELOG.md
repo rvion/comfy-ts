@@ -1,5 +1,21 @@
 # comfy-ts
 
+## Unreleased (minor)
+
+### Run a local LLM from TypeScript
+
+- **Text outputs come back.** `execution.texts` holds every string an output node published, in arrival order, each tagged with the node that emitted it; `execution.text` is the last one. Until now only images were collected, so a graph ending in `PreviewAny` returned nothing. This is what makes ComfyUI's core `TextGenerate` node usable from here: a chat model loads through the ordinary `CLIPLoader` path and its answer lands in `execution.text` — no api key, no second service.
+- **New example, [`07-local-llm-text-gen`](examples/rvion/07-local-llm-text-gen.cflow.ts)**: expand a short image prompt with a local model. Run it with `--sweep` and it reports which text encoders on your own host actually generate, and how fast — an encoder-only T5 or CLIP has no `generate` and fails there by design.
+
+### Fixed
+
+- **Running a workflow on a host you never connected threw instead of hanging forever.** The prompt was accepted and really ran on the server, but its websocket messages routed to a session that was not yours, so the run never finished and never failed: no error, no timeout, nothing to read. It now says which call is missing. `host.defineWorkflow(…).run()` connects on your behalf and was never affected.
+
+### Dynamic combos are typed
+
+- **A `COMFY_DYNAMICCOMBO_V3` input is a discriminated union now**, one member per option, each carrying that option's own inputs as dotted keys: `sampling_mode: 'on'` unlocks `'sampling_mode.temperature'`, and a key from a branch you did not select is a compile error. Previously the whole widget typed as an opaque slot, so these inputs could not be spelled at all — including every knob of `TextGenerate` and of the partner nodes (OpenAI, Gemini, Claude, OpenRouter) in the committed cloud catalog.
+- **The branch fills itself.** The host declares those branch inputs required and defaults none of them, so a missing one is rejected with `400 required_input_missing`. Absent ones are now filled from the schema at serialization and the keys of unselected branches are dropped, which is what the ComfyUI frontend sends. `b.TextGenerate({ clip, prompt })` runs on the host's own sampler defaults.
+
 ## 2.7.1
 
 - **`comfy-ts serve` prints a readable launch screen.** Colors when the terminal has them (and never when the output is piped or `NO_COLOR` is set, so `serve > log` stays greppable), a rule between workflows instead of a wall of text, and a box at the end holding the web UI url, the JSON index, and every other address the machine answers on. Bound to localhost it also tells you the flag to open it elsewhere: `--host 0.0.0.0` (`--bind` is the same flag).
