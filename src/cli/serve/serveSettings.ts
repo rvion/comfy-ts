@@ -4,6 +4,7 @@
 // Deliberately NOT the TUI's `saveToDisk`: that one governs TUI runs, this one
 // governs the api's, so the two surfaces cannot fight over one value.
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { stringMap } from 'src/utils/stringMap.ts'
 import { validSavePrefix } from 'src/cli/serve/safeName.ts'
 import { dirname } from 'pathe'
 
@@ -18,7 +19,7 @@ export type ServeSettings = {
    savePrefix: Record<string, string>
 }
 
-export const DEFAULT_SERVE_SETTINGS: ServeSettings = { saveToDisk: true, hostOverride: {}, savePrefix: {} }
+const DEFAULT_SERVE_SETTINGS: ServeSettings = { saveToDisk: true, hostOverride: {}, savePrefix: {} }
 
 /** null when no comfyts is registered yet: a ServeApp can be constructed before the global
  * exists (tests do), and reading a setting must degrade to defaults, never throw */
@@ -50,14 +51,6 @@ function readBlob(): { blob: Record<string, unknown>; readable: boolean } {
 function filterValues(map: Record<string, string>, keep: (v: string) => boolean): Record<string, string> {
    const out: Record<string, string> = {}
    for (const [k, v] of Object.entries(map)) if (keep(v)) out[k] = v
-   return out
-}
-
-function stringMap(raw: unknown): Record<string, string> {
-   const out: Record<string, string> = {}
-   if (typeof raw === 'object' && raw !== null) {
-      for (const [k, v] of Object.entries(raw)) if (typeof v === 'string') out[k] = v
-   }
    return out
 }
 

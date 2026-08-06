@@ -15,7 +15,7 @@ export function promptEnhancersDir(): string {
    return comfyts.resolveFromPromptEnhancers('')
 }
 
-export function promptEnhancerPath(name: string): string | null {
+function promptEnhancerPath(name: string): string | null {
    const safe = validStoreName(name)
    return safe == null ? null : join(promptEnhancersDir(), `${safe}${EXT}`)
 }

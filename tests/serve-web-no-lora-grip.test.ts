@@ -8,15 +8,23 @@ const card = readFileSync('src/cli/serve/web/components/controls/LorasControl.ts
 const css = readFileSync('src/cli/serve/web/styles.ts', 'utf8')
 
 describe('lora card chrome', () => {
-   it('renders no grip', () => {
+   it('renders no grip, under any name', () => {
+      // guarding the class NAME alone let a grip come back as .chip-handle: what must not
+      // exist is a permanent element between the card edge and its picture
       expect(card).not.toContain('chip-grip')
       expect(card).not.toContain('name="grip"')
       expect(card).not.toContain("name='grip'")
       expect(css).not.toContain('chip-grip')
+      expect(card.slice(card.indexOf('lora-chip card'), card.indexOf('chip-media'))).not.toMatch(
+         /className="chip-(grip|handle|drag)/,
+      )
    })
 
-   it('still drags: the card carries draggable + the disarm', () => {
+   it('still drags: the card itself is draggable, and disarms on a control', () => {
+      expect(card).toMatch(/\n\s+draggable\n/) // the attribute, not just a handler that implies it
       expect(card).toContain('onDragStart')
-      expect(card).toContain('closest(')
+      expect(card).toContain('onMouseDown')
+      // the disarm is what keeps sliders and buttons usable inside a draggable card
+      expect(card).toMatch(/closest\('input, label, button, select, a'\)/)
    })
 })

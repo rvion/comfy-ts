@@ -164,7 +164,7 @@ export async function fetchLoraDescription(host: ComfyHost, filePath: string): P
 }
 
 /** `<p>a</p><br>b` → `a\n\nb`. Deliberately dumb: this text is DISPLAYED, never parsed */
-export function htmlToText(html: string): string {
+function htmlToText(html: string): string {
    return html
       .replaceAll(/<\s*br\s*\/?>/gi, '\n')
       .replaceAll(/<\/\s*(p|div|li|h[1-6])\s*>/gi, '\n\n')

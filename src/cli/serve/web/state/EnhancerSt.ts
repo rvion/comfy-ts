@@ -5,6 +5,7 @@
 // browser-local in a localStorage blob — keys included, so the serve process never
 // holds a credential. normalizeSettings/nextPresetName are PURE and headless-tested.
 import { makeAutoObservable, reaction, runInAction, type IReactionDisposer } from 'mobx'
+import { stringMap } from 'src/utils/stringMap.ts'
 import {
    deletePromptEnhancer,
    fetchPromptEnhancers,
@@ -53,29 +54,21 @@ function isEffort(raw: unknown): raw is ReasoningEffort {
    return raw === 'off' || raw === 'low' || raw === 'medium' || raw === 'high'
 }
 
-function strMap(raw: unknown): Record<string, string> {
-   const out: Record<string, string> = {}
-   if (typeof raw === 'object' && raw !== null) {
-      for (const [k, v] of Object.entries(raw)) if (typeof v === 'string') out[k] = v
-   }
-   return out
-}
-
 /** stored blob → usable settings. A hand-edited or half-written localStorage entry must
  * degrade to defaults, never break the modal (same wire tolerance as every stored blob) */
 export function normalizeSettings(raw: unknown): EnhancerSettings {
    const o = typeof raw === 'object' && raw !== null ? (raw as Record<string, unknown>) : {}
-   const models = strMap(o.modelByProvider)
-   const bases = strMap(o.baseUrlByProvider)
+   const models = stringMap(o.modelByProvider)
+   const bases = stringMap(o.baseUrlByProvider)
    return {
       provider: isProvider(o.provider) ? o.provider : 'openrouter',
-      keyByProvider: strMap(o.keyByProvider),
+      keyByProvider: stringMap(o.keyByProvider),
       baseUrlByProvider: { openrouter: defaultBaseUrl('openrouter'), openwebui: defaultBaseUrl('openwebui'), ...bases },
       modelByProvider: { ...DEFAULT_MODEL, ...models },
       effort: isEffort(o.effort) ? o.effort : 'medium',
       thinkingOnly: o.thinkingOnly !== false,
       presetName: typeof o.presetName === 'string' ? o.presetName : '',
-      presetByModule: strMap(o.presetByModule),
+      presetByModule: stringMap(o.presetByModule),
    }
 }
 

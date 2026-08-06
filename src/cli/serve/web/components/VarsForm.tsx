@@ -446,7 +446,7 @@ export const VarsForm = observer(function VarsForm(p: { st: WebSt }) {
                   </div>
                </div>
                {/* its own box beside host: on a phone, scrolling between the knobs and the image
-                is the whole friction, so 📌 pins the newest one over the bottom */}
+                is the whole friction, so the corner placement floats the newest one */}
                <div className="head-box">
                   <span className="head-label">preview</span>
                   {/* first line: WHERE the results sit. second: what shows up while it runs */}

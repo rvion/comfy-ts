@@ -36,7 +36,7 @@ export type LoraMirror = {
    loras: Record<string, LmLoraItem>
 }
 
-export function loraMirrorPath(hostId: string): AbsolutePath {
+function loraMirrorPath(hostId: string): AbsolutePath {
    return comfyts.resolveFromHosts(join(hostId, 'loras.json'))
 }
 

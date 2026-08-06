@@ -491,7 +491,7 @@ export const LorasControl = observer(function LorasControl(p: {
                   </div>
                   <div className="modal-body">
                      {selectedNames.length > 0 ? (
-                        <div className="lora-active-section">
+                        <div>
                            <div className="section-title">your palette ({selectedNames.length})</div>
                            {selectedNames.filter(matchesFilter).map((name) => {
                               const info = local.info.get(name)
