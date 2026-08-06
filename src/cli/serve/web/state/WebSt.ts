@@ -69,7 +69,12 @@ type StoredSelection = {
 /** varOrder is the one stored field a reader INDEXES rather than merely reads, so a blob of
  * the wrong shape (hand-edited, or written by an older version) crashed the whole panel to a
  * blank page inside render. Every entry is shape-checked here, once */
-export const DEFAULT_LORA_CAP = 60
+export const DEFAULT_LORA_CAP = 200
+/** the previous default. It was persisted whether or not anyone chose it, so a stored 60
+ * cannot be told apart from a deliberate one: it is read ONCE as "never chosen", so a browser
+ * that simply carried the old default picks up the new one. Someone who really wanted 60 sets
+ * it again, and from then on it sticks, because it is no longer the default */
+const LEGACY_LORA_CAP = 60
 /** an upper bound, not a policy: 2000 cards is 2000 image requests, and a number typed by
  * hand (or restored from an older blob) must not be able to hang the page */
 export function clampLoraCap(raw: unknown): number {
@@ -170,7 +175,7 @@ export class WebSt {
       this.showLoraImages = stored.loraImages ?? true
       this.showLoraTitles = stored.loraTitles ?? true
       this.loraFill = stored.loraFill ?? true
-      this.loraCap = clampLoraCap(stored.loraCap ?? DEFAULT_LORA_CAP)
+      this.loraCap = clampLoraCap(stored.loraCap === LEGACY_LORA_CAP ? DEFAULT_LORA_CAP : stored.loraCap)
       this.showLatent = stored.latent ?? true
       this.varOrder = stored.varOrder ?? {}
       // logs start CLOSED whatever was stored: a panel that polls must be asked for

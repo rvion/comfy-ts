@@ -25,4 +25,8 @@ describe('lora card cap', () => {
    it('a fractional value is floored, never left to slice()', () => {
       expect(clampLoraCap(120.9)).toBe(120)
    })
+
+   it('the default is 200: a picker that stops at 60 hides most of a real collection', () => {
+      expect(DEFAULT_LORA_CAP).toBe(200)
+   })
 })
