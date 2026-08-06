@@ -383,26 +383,29 @@ export const LorasControl = observer(function LorasControl(p: {
                            p.v.set(reorderLoras({ record, displayed: selectedNames, from, to: ix }))
                      }}
                   >
-                     {/* ✕ rides the PICTURE's top right corner: an overlay, so it costs the
-                         card no width, and big enough to hit with a thumb */}
-                     <button
-                        type="button"
-                        className="chip-remove"
-                        data-tip="remove from the palette (the popup adds it back)"
-                        onClick={() => setEntry(name, null)}
-                     >
-                        <Icon name="close" size={1.05} />
-                     </button>
-                     {/* the CARD opens what this lora is; only the switch turns it on and off,
-                         so reading about a lora can never change what the graph runs */}
-                     <button
-                        type="button"
-                        className="lora-toggle"
-                        data-tip={`${name}\nclick for its details`}
-                        onClick={() => local.setDetails(name)}
-                     >
-                        {thumb(name)}
-                     </button>
+                     {/* the ✕ is a child of the PICTURE's own box, never of the card: its
+                         containing block is then this wrapper whatever else is positioned
+                         around it, so it cannot take a row of flow nor escape the card */}
+                     <span className="chip-media">
+                        {/* the CARD opens what this lora is; only the switch turns it on and off,
+                            so reading about a lora can never change what the graph runs */}
+                        <button
+                           type="button"
+                           className="lora-toggle"
+                           data-tip={`${name}\nclick for its details`}
+                           onClick={() => local.setDetails(name)}
+                        >
+                           {thumb(name)}
+                        </button>
+                        <button
+                           type="button"
+                           className="chip-remove"
+                           data-tip="remove from the palette (the popup adds it back)"
+                           onClick={() => setEntry(name, null)}
+                        >
+                           <Icon name="close" size={1.05} />
+                        </button>
+                     </span>
                      {/* the switch sits WITH the title: state and name read as one line */}
                      <span className="chip-head">
                         <label className="switch" data-tip={isOn(name) ? 'pause this lora' : 'resume this lora'}>

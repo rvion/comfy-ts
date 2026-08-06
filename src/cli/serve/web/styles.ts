@@ -174,7 +174,7 @@ button.mode.sel { background: var(--accent-dim); border-color: var(--accent); co
       neighbour. CLIP on x only: hidden on both axes would trap the tooltips too */
    overflow-x: clip; overflow-y: visible;
 }
-.lora-chip.card .lora-thumb { height: 110px; }
+.lora-chip.card .lora-thumb { height: 130px; }
 .lora-chip.card .chip-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .chip-title { min-width: 0; }
 /* the whole card is the pause/resume target — the palette gesture */
@@ -222,22 +222,22 @@ button.mode.sel { background: var(--accent-dim); border-color: var(--accent); co
 }
 .chip-title.as-text:hover { color: var(--accent); }
 
+/* the picture's own box: the ✕ is positioned against THIS, so it never depends on which
+   ancestor happens to be positioned, and the image keeps the whole height */
+.chip-media { position: relative; display: block; isolation: isolate; }
+.chip-media .lora-toggle { display: block; width: 100%; }
 /* ✕ is ALWAYS a corner overlay, on the card and in the popup row: it costs zero layout
-   width, and it is never hover-gated — a phone has no hover, so a hidden ✕ is no ✕ */
-.chip-remove {
-   position: absolute; top: 4px; right: 4px; z-index: 2; display: inline-flex; align-items: center;
-   border: 0; border-radius: 6px; padding: 2px; color: var(--text); cursor: pointer;
-   background: rgba(16, 18, 23, 0.72); opacity: 0.7; transition: opacity 0.12s, color 0.12s;
+   width, and it is never hover-gated — a phone has no hover, so a hidden ✕ is no ✕.
+   The selector carries TWO classes on purpose: the .lora-chip button rule above is 0-1-1 and would
+   otherwise win, stripping the padding and the backdrop off this one.
+   width:auto because a stretch parent would otherwise pull it across the whole card */
+.chip-media .chip-remove, .lora-active-row .chip-remove {
+   position: absolute; top: 4px; right: 4px; z-index: 1; width: auto; height: auto;
+   display: inline-flex; align-items: center; justify-content: center;
+   border: 0; border-radius: 6px; padding: 4px; line-height: 0; color: #fff; cursor: pointer;
+   background: rgba(16, 18, 23, 0.72); opacity: 0.85; transition: opacity 0.12s, color 0.12s;
 }
-.chip-remove:hover, .chip-remove:focus-visible { opacity: 1; color: var(--red); }
-/* on a CARD it rides the picture itself: the card pads by 6px, so 6/6 lands exactly on the
-   thumb's corner. Bigger there because it is a touch target over an image, not a chip button,
-   and rounded only on the outer corner so it reads as part of the frame */
-.lora-chip.card .chip-remove {
-   top: 6px; right: 6px; padding: 5px; border-radius: 0 6px 0 8px;
-   background: rgba(16, 18, 23, 0.62); backdrop-filter: blur(2px);
-}
-.lora-chip.card .chip-remove:hover { background: rgba(16, 18, 23, 0.85); }
+.chip-media .chip-remove:hover, .lora-active-row .chip-remove:hover { opacity: 1; color: var(--red); }
 
 /* PAUSED: still in the palette, visibly not contributing to the graph */
 .lora-chip.off, .lora-active-row.off { opacity: 0.55; }
