@@ -11,5 +11,9 @@
       },
       "tsBuildInfoFile": "../../../../node_modules/.cache/tsbuildinfo-serve-web.json"
    },
+   // MUST override the root's exclude: it lists this very directory (so the dom-free
+   // rule holds there), and `extends` would otherwise make this config exclude the only
+   // files it exists to check — the app went unchecked until tests/tsconfig-covers.test.ts
+   "exclude": ["../../../../examples/web"],
    "include": [".", "../../../../src"]
 }

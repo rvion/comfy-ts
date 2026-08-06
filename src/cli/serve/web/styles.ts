@@ -69,6 +69,7 @@ body {
 .head-value.app { color: var(--amber); }
 .head-value.draft { color: var(--accent); }
 .head-value.host { color: var(--green); }
+.head-select { padding: 2px 6px; font-size: 13px; font-weight: 600; color: var(--green); max-width: 220px; }
 .head-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 12px 0 14px; }
 .head-actions button { padding: 4px 12px; font-size: 12px; }
 button.danger { color: var(--dim); }
@@ -254,13 +255,40 @@ div.lora-thumb.none {
 .center { display: flex; height: 100%; align-items: center; justify-content: center; color: var(--dim); }
 .center .error { color: var(--red); max-width: 640px; white-space: pre-wrap; }
 
-/* results right of the form on wide screens ("bottom or right": right ≥1100px, bottom below) */
+/* results right of the form on wide screens ("bottom or right": right ≥1100px, bottom below).
+   AUTO only: an explicit layout button wins at every width */
 @media (min-width: 1100px) {
-   .work { display: flex; gap: 18px; align-items: flex-start; }
-   .form-col { flex: 1; min-width: 0; }
-   .results-col { width: 380px; flex-shrink: 0; }
-   .results-col .gallery { margin-top: 0; }
+   .work.layout-auto { display: flex; gap: 18px; align-items: flex-start; }
+   .work.layout-auto .form-col { flex: 1; min-width: 0; }
+   .work.layout-auto .results-col { width: 380px; flex-shrink: 0; }
+   .work.layout-auto .results-col .gallery { margin-top: 0; }
 }
+/* chosen placements */
+.work.layout-side { display: flex; gap: 18px; align-items: flex-start; }
+.work.layout-side .form-col { flex: 1; min-width: 0; }
+.work.layout-side .results-col { width: min(380px, 45vw); flex-shrink: 0; }
+.work.layout-side .results-col .gallery { margin-top: 0; }
+/* PINNED: the newest result floats over the bottom, the form scrolls under it — the phone
+   answer to "I always have to scroll between them". Sticky, so it never covers the runbar */
+.work.layout-pinned .results-col {
+   position: sticky; bottom: 0; z-index: 15; max-height: 42vh; overflow-y: auto;
+   background: var(--bg); border-top: 1px solid var(--border);
+   box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.45); margin-top: 10px; padding-top: 6px;
+}
+.work.layout-pinned .results-col .gallery { margin-top: 0; }
+.work.layout-pinned .run-card img { max-height: 26vh; }
+/* segmented control: ONE group, no gaps, only the outer corners rounded */
+.btn-group { display: inline-flex; }
+.btn-group button {
+   padding: 3px 10px; font-size: 13px; line-height: 1.3; border-radius: 0; margin: 0;
+   border-right-width: 0; background: var(--panel-2);
+}
+.btn-group button:first-child { border-top-left-radius: 6px; border-bottom-left-radius: 6px; }
+.btn-group button:last-child { border-right-width: 1px; border-top-right-radius: 6px; border-bottom-right-radius: 6px; }
+.btn-group button.sel { background: var(--accent-dim); border-color: var(--accent); color: #fff; }
+/* the selected segment owns the divider on both sides, else its highlight looks clipped */
+.btn-group button.sel + button { border-left-color: var(--accent); }
+.btn-group button:hover { background: var(--panel); }
 
 /* the sidebar becomes a fixed drawer over a backdrop */
 @media (max-width: 800px) {

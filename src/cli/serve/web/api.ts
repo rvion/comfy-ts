@@ -97,6 +97,45 @@ export function loraPreviewSrc(p: { host: string; name: string }): string {
    return `/lora-preview/${encodeURIComponent(p.host)}/${encodeURIComponent(p.name)}`
 }
 
+/** server-side settings the panel can flip (saving is one switch for every client) */
+export type ServeSettings = { saveToDisk: boolean }
+
+export function fetchSettings(): Promise<ServeSettings> {
+   return jsonFetch('/settings')
+}
+
+export function saveSettings(p: ServeSettings): Promise<ServeSettings> {
+   return jsonFetch('/settings', {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(p),
+   })
+}
+
+/** every host the serve process knows, and where each module currently runs */
+export type HostsPayload = {
+   hosts: { id: string; url: string; modules: string[] }[]
+   defaults: Record<string, string>
+   overrides: Record<string, string>
+}
+
+export function fetchHosts(): Promise<HostsPayload> {
+   return jsonFetch('/hosts')
+}
+
+export function setModuleHost(p: { module: string; host: string | null }): Promise<{
+   ok: true
+   module: string
+   host: string
+   overrides: Record<string, string>
+}> {
+   return jsonFetch(`/hosts/${encodeURIComponent(p.module)}`, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ host: p.host }),
+   })
+}
+
 /** master prompts of the enhancer, files under `.comfy-ts/prompt-enhancers/` (server-owned) */
 export type PromptEnhancer = { name: string; text: string }
 

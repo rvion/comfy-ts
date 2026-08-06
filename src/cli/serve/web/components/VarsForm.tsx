@@ -14,7 +14,7 @@ import { LorasControl } from 'src/cli/serve/web/components/controls/LorasControl
 import { SeedControl } from 'src/cli/serve/web/components/controls/SeedControl.tsx'
 import { SizeControl } from 'src/cli/serve/web/components/controls/SizeControl.tsx'
 import type { VarSt } from 'src/cli/serve/web/state/FormSt.ts'
-import type { WebSt } from 'src/cli/serve/web/state/WebSt.ts'
+import { LAYOUTS, type WebSt } from 'src/cli/serve/web/state/WebSt.ts'
 
 const VarControl = observer(function VarControl(p: { v: VarSt; host: string; st: WebSt; module: string }) {
    switch (p.v.desc.kind) {
@@ -136,9 +136,54 @@ export const VarsForm = observer(function VarsForm(p: { st: WebSt }) {
             </div>
             <div className="head-box">
                <span className="head-label">host</span>
-               <span className="head-value host">{form.host}</span>
+               {/* pick where this workflow RUNS (the TUI's host override), remembered per module */}
+               {p.st.hosts.hosts.length > 1 ? (
+                  <select
+                     className="head-select"
+                     value={p.st.hostFor(form.moduleKey)}
+                     title="run this workflow on another host"
+                     onChange={(e) => void p.st.setModuleHost({ module: form.moduleKey, host: e.target.value })}
+                  >
+                     {p.st.hosts.hosts.map((h) => (
+                        <option key={h.id} value={h.id}>
+                           {h.id === (p.st.hosts.defaults[form.moduleKey] ?? '') ? `${h.id} (its own)` : h.id}
+                        </option>
+                     ))}
+                  </select>
+               ) : (
+                  <span className="head-value host">{p.st.hostFor(form.moduleKey) || form.host}</span>
+               )}
+               {p.st.isHostOverridden(form.moduleKey) ? (
+                  <button
+                     type="button"
+                     className="link"
+                     title={`runs on an override — back to ${p.st.hosts.defaults[form.moduleKey] ?? 'its own host'}`}
+                     onClick={() => void p.st.setModuleHost({ module: form.moduleKey, host: null })}
+                  >
+                     ⇄ reset
+                  </button>
+               ) : null}
+            </div>
+            {/* its own box beside host: on a phone, scrolling between the knobs and the image
+                is the whole friction, so 📌 pins the newest one over the bottom */}
+            <div className="head-box">
+               <span className="head-label">preview</span>
+               <span className="btn-group">
+                  {LAYOUTS.map((l) => (
+                     <button
+                        key={l.id}
+                        type="button"
+                        className={p.st.layout === l.id ? 'sel' : ''}
+                        title={`${l.title}${p.st.layout === l.id ? ' — click again for the automatic placement' : ''}`}
+                        onClick={() => p.st.setLayout(l.id)}
+                     >
+                        {l.label}
+                     </button>
+                  ))}
+               </span>
             </div>
          </div>
+         {p.st.hostError != null ? <div className="error">🔴 {p.st.hostError}</div> : null}
          <div className="head-actions">
             <button type="button" title="save these values as a new draft" onClick={duplicate}>
                duplicate…
@@ -154,10 +199,24 @@ export const VarsForm = observer(function VarsForm(p: { st: WebSt }) {
             >
                delete
             </button>
+            {/* where the OUTPUTS go: a server setting, so curl and the TUI see the same choice */}
+            <button
+               type="button"
+               className={p.st.saveToDisk ? 'mode sel' : 'mode'}
+               title={
+                  p.st.saveToDisk
+                     ? 'outputs are written under .comfy-ts/outputs/ — click to keep them in memory only'
+                     : 'outputs stay in memory and are lost when the server restarts — click to save them to disk'
+               }
+               onClick={() => void p.st.toggleSaveToDisk()}
+            >
+               {p.st.saveToDisk ? '💾 saving to disk' : '🕶 memory only'}
+            </button>
             <span className="hint">
                {form.saveState === 'saving' ? 'saving…' : null}
                {form.saveState === 'saved' ? 'autosaved' : null}
                {form.saveState === 'error' ? `🔴 save failed: ${form.saveError}` : null}
+               {p.st.savingError != null ? ` 🔴 ${p.st.savingError}` : null}
             </span>
          </div>
          {form.vars.map((v) => (

@@ -1,7 +1,18 @@
 // ROOT state tree of the serve web ui (app-state-tree doctrine: one root,
 // child stores hang off it, components read and call)
 import { makeAutoObservable, observableRef, observableShallow, runInAction } from 'mobx'
-import { deleteDraft, fetchDraftValues, fetchIndex, saveDraft, type ModuleDescription } from 'src/cli/serve/web/api.ts'
+import {
+   deleteDraft,
+   fetchDraftValues,
+   fetchHosts,
+   fetchIndex,
+   fetchSettings,
+   saveDraft,
+   saveSettings,
+   setModuleHost,
+   type HostsPayload,
+   type ModuleDescription,
+} from 'src/cli/serve/web/api.ts'
 import { EnhancerSt } from 'src/cli/serve/web/state/EnhancerSt.ts'
 import { FormSt } from 'src/cli/serve/web/state/FormSt.ts'
 import { RunSt } from 'src/cli/serve/web/state/RunSt.ts'
@@ -9,12 +20,29 @@ import { RunSt } from 'src/cli/serve/web/state/RunSt.ts'
 /** selection + drawer survive a reload (his standing default: hand-tuned state persists and restores) */
 const STORAGE_KEY = 'comfy-ts-serve-ui'
 
+/** where the results live. 'auto' keeps the width rule (side ≥1100px, bottom under it);
+ * 'pinned' floats the newest image over the bottom of the screen, so a phone shows the
+ * knobs and what they produced without scrolling between them */
+export type ResultsLayout = 'auto' | 'off' | 'bottom' | 'side' | 'pinned'
+
+export const LAYOUTS: { id: ResultsLayout; label: string; title: string }[] = [
+   { id: 'off', label: '🚫', title: 'no preview: the form only' },
+   { id: 'bottom', label: '⬇', title: 'results below the form' },
+   { id: 'side', label: '➡', title: 'results beside the form' },
+   { id: 'pinned', label: '📌', title: 'newest image pinned over the bottom, form scrolls under it' },
+]
+
+function isLayout(raw: unknown): raw is ResultsLayout {
+   return raw === 'auto' || raw === 'off' || raw === 'bottom' || raw === 'side' || raw === 'pinned'
+}
+
 type StoredSelection = {
    module?: string
    draft?: string
    sidebar?: boolean
    loraImages?: boolean
    loraTitles?: boolean
+   layout?: string
 }
 
 function readStoredSelection(): StoredSelection {
@@ -45,11 +73,21 @@ export class WebSt {
    run: RunSt
    /** prompt refiner: own store, own localStorage blob (the openrouter key never leaves the browser) */
    enhancer: EnhancerSt
+   /** SERVER setting, not a browser one: it decides whether a generation writes files at all,
+    * so it is shared by every client and read back from GET /settings */
+   saveToDisk = true
+   savingError: string | null = null
+   /** where the results go — hand-tuned, so it persists and restores */
+   layout: ResultsLayout
+   /** hosts this process knows + where each module runs (server-owned, like the drafts) */
+   hosts: HostsPayload = { hosts: [], defaults: {}, overrides: {} }
+   hostError: string | null = null
 
    constructor() {
       this.run = new RunSt()
       this.enhancer = new EnhancerSt()
       const stored = readStoredSelection()
+      this.layout = isLayout(stored.layout) ? stored.layout : 'auto'
       this.sidebarOpen = stored.sidebar ?? !isNarrowScreen()
       this.showLoraImages = stored.loraImages ?? true
       this.showLoraTitles = stored.loraTitles ?? true
@@ -90,6 +128,7 @@ export class WebSt {
                sidebar: this.sidebarOpen,
                loraImages: this.showLoraImages,
                loraTitles: this.showLoraTitles,
+               layout: this.layout,
             }),
          )
       } catch {
@@ -109,6 +148,8 @@ export class WebSt {
             this.loadErrors = index.loadErrors ?? {}
             this.phase = 'ready'
          })
+         void this.loadSettings()
+         void this.loadHosts()
          const stored = readStoredSelection()
          const mod = (stored.module != null ? this.moduleByKey(stored.module) : null) ?? this.modules[0]
          if (mod == null) return
@@ -167,6 +208,80 @@ export class WebSt {
       } finally {
          runInAction(() => {
             if (token === this.selectToken) this.formLoading = false
+         })
+      }
+   }
+
+   setLayout(next: ResultsLayout): void {
+      // clicking the mode you are in returns to the width rule, so 'auto' stays reachable
+      this.layout = this.layout === next ? 'auto' : next
+      this.persist()
+   }
+
+   /** the host a module's runs go to right now (override if any, else the module's own) */
+   hostFor(moduleKey: string): string {
+      return this.hosts.overrides[moduleKey] ?? this.hosts.defaults[moduleKey] ?? ''
+   }
+
+   isHostOverridden(moduleKey: string): boolean {
+      return this.hosts.overrides[moduleKey] != null
+   }
+
+   private async loadHosts(): Promise<void> {
+      try {
+         const hosts = await fetchHosts()
+         runInAction(() => {
+            this.hosts = hosts
+         })
+      } catch {
+         // an older server has no /hosts route: the header just shows the module's own host
+      }
+   }
+
+   /** run this workflow somewhere else (the TUI's host override). null resets to its own host */
+   async setModuleHost(p: { module: string; host: string | null }): Promise<void> {
+      runInAction(() => {
+         this.hostError = null
+      })
+      try {
+         const reply = await setModuleHost(p)
+         runInAction(() => {
+            this.hosts = { ...this.hosts, overrides: reply.overrides }
+         })
+      } catch (e) {
+         runInAction(() => {
+            this.hostError = e instanceof Error ? e.message : String(e)
+         })
+      }
+   }
+
+   private async loadSettings(): Promise<void> {
+      try {
+         const s = await fetchSettings()
+         runInAction(() => {
+            this.saveToDisk = s.saveToDisk
+         })
+      } catch {
+         // an older server has no /settings route: it always saves, which is what the default says
+      }
+   }
+
+   /** flip where outputs go. Optimistic, then reconciled with what the server confirms */
+   async toggleSaveToDisk(): Promise<void> {
+      const next = !this.saveToDisk
+      runInAction(() => {
+         this.saveToDisk = next
+         this.savingError = null
+      })
+      try {
+         const s = await saveSettings({ saveToDisk: next })
+         runInAction(() => {
+            this.saveToDisk = s.saveToDisk
+         })
+      } catch (e) {
+         runInAction(() => {
+            this.saveToDisk = !next
+            this.savingError = e instanceof Error ? e.message : String(e)
          })
       }
    }

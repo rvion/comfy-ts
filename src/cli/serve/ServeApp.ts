@@ -8,6 +8,7 @@ import { applyVarPayload } from 'src/cli/serve/applyVarPayload.ts'
 import { describeVar, type VarDescriptor } from 'src/cli/serve/describeVar.ts'
 import { deletePromptEnhancer, listPromptEnhancers, writePromptEnhancer } from 'src/cli/serve/promptEnhancers.ts'
 import { validStoreName } from 'src/cli/serve/safeName.ts'
+import { readServeSettings, writeServeSettings, type ServeSettings } from 'src/cli/serve/serveSettings.ts'
 import { draftsDirForFile, listDraftsForFile } from 'src/cli/tui/state/DraftsSt.ts'
 import {
    getLoraDisplayName,
@@ -29,13 +30,18 @@ export type ServeModule = { key: string; file: string; dw: DefinedWorkflow }
 export type ServeExecution = {
    done: Promise<unknown>
    status: string
-   images: { absPath: string | null; filename: string }[]
+   /** buffer is the ONLY copy for an in-memory image (saving off); reading it on a
+    * SAVED image would hit the disk, so it is only touched when absPath is null */
+   images: { absPath: string | null; filename: string; buffer?: Uint8Array }[]
    data: { id: string; error?: unknown }
    /** live global progress (ComfyExecution has it; fakes may omit) — the /run/<module> poll reads it */
    progressGlobal?: { percent: number }
 }
 
-export type ServeStarter = (mod: ServeModule) => Promise<ServeExecution>
+export type ServeStarter = (
+   mod: ServeModule,
+   opts: { saveToDisk: boolean; host?: ComfyHost },
+) => Promise<ServeExecution>
 
 export type ServeRequest = { method: string; url: string; accept?: string; body?: string }
 export type ServeReply = { status: number; contentType: string; body: string | Uint8Array }
@@ -43,10 +49,15 @@ export type ServeReply = { status: number; contentType: string; body: string | U
 /** connect + fresh graph from current var values + send; done is awaited OUTSIDE the module mutex.
  * serve OPTS INTO local saving (library default is memory-only, architecture.md
  * item 14): the /outputs/ routes serve files, grouped per module */
-const realStarter: ServeStarter = async (mod) => {
-   await mod.dw.host.connect()
-   const wf = await mod.dw.build({ advance: true })
-   return await wf.start({ save: { prefix: mod.key } })
+const realStarter: ServeStarter = async (mod, opts) => {
+   // the override substitutes the host the graph is BUILT against too (DefinedWorkflow.build's
+   // own rule): a node missing there must surface as a workflow problem, not a silent run
+   const host = opts.host ?? mod.dw.host
+   await host.connect()
+   const wf = await mod.dw.build({ advance: true, host })
+   // saving is a SETTING now (GET/PUT /settings): off keeps outputs in memory and the
+   // reply points at /images/<promptId>/<ix> instead of a file url
+   return await wf.start({ save: opts.saveToDisk ? { prefix: mod.key } : false })
 }
 
 const CONTENT_TYPES: Record<string, string> = {
@@ -88,6 +99,9 @@ const USAGE = [
    'GET  /lora-preview/<hostId>/<lora> — preview image bytes',
    'GET  /prompt-enhancers — the web ui master prompts (.comfy-ts/prompt-enhancers/*.md)',
    'PUT  /prompt-enhancers/<name> with {"text"} — write one · DELETE /prompt-enhancers/<name> — remove it',
+   'GET  /settings — { saveToDisk } · PUT /settings with {"saveToDisk"} — write outputs to disk, or keep them in memory',
+   'GET  /hosts — every host this process knows · PUT /hosts/<module> with {"host"} — run that workflow elsewhere',
+   'GET  /images/<promptId>/<ix> — an in-memory output (saving off), while the process lives',
    'GET  /outputs/<path> — generated files',
 ]
 
@@ -118,6 +132,20 @@ export class ServeApp {
    private chains = new Map<string, Promise<unknown>>()
    /** the bundle is built at most once per process, first browser hit pays it */
    private webJsCache: Promise<string | null> | null = null
+   /** saving + host overrides are live settings (the web ui flips them). LAZY: a ServeApp can
+    * be constructed before a comfyts instance is registered, and reading the file then would
+    * throw at construction time */
+   private settingsCache: ServeSettings | null = null
+   private get settings(): ServeSettings {
+      this.settingsCache ??= readServeSettings()
+      return this.settingsCache
+   }
+   private set settings(next: ServeSettings) {
+      this.settingsCache = next
+   }
+   /** in-memory outputs of runs made with saving OFF: the ONLY copy, so the gallery has
+    * something to show. Capped and FIFO — a long session must not grow without bound */
+   private memoryImages = new Map<string, { bytes: Uint8Array; contentType: string }>()
 
    constructor(
       public modules: ServeModule[],
@@ -170,6 +198,10 @@ export class ServeApp {
             if (segs[0] === 'lora-preview' && segs.length === 3 && segs[1] != null && segs[2] != null)
                return await this.replyLoraPreview(segs[1], segs[2])
             if (segs[0] === 'prompt-enhancers' && segs.length === 1) return this.replyPromptEnhancers()
+            if (segs[0] === 'settings' && segs.length === 1) return json(200, this.settings)
+            if (segs[0] === 'hosts' && segs.length === 1) return this.replyHosts()
+            if (segs[0] === 'images' && segs.length === 3 && segs[1] != null && segs[2] != null)
+               return this.replyMemoryImage(`${segs[1]}/${segs[2]}`)
             if (segs[0] === 'outputs') return this.replyOutput(segs.slice(1))
             return json(404, { error: `no route: GET ${path}`, usage: USAGE })
          }
@@ -183,6 +215,9 @@ export class ServeApp {
             return await this.replySaveDraft(segs[1], segs[2], req)
          if (req.method === 'DELETE' && segs[0] === 'drafts' && segs.length === 3 && segs[1] != null && segs[2] != null)
             return await this.replyDeleteDraft(segs[1], segs[2])
+         if (req.method === 'PUT' && segs[0] === 'settings' && segs.length === 1) return this.replySaveSettings(req)
+         if (req.method === 'PUT' && segs[0] === 'hosts' && segs.length === 2 && segs[1] != null)
+            return this.replySetHost(segs[1], req)
          if (req.method === 'PUT' && segs[0] === 'prompt-enhancers' && segs.length === 2 && segs[1] != null)
             return this.replySavePromptEnhancer(segs[1], req)
          if (req.method === 'DELETE' && segs[0] === 'prompt-enhancers' && segs.length === 2 && segs[1] != null)
@@ -407,6 +442,112 @@ export class ServeApp {
       return json(200, { ok: true, module: mod.key, draft: rawDraft.trim(), drafts: this.draftsFor(mod) })
    }
 
+   // #region hosts (run a workflow somewhere else, the TUI's host override) ----
+   /** every host this process registered: the modules' own, plus anything they created */
+   private knownHosts(): { id: string; url: string; modules: string[] }[] {
+      const byId = new Map<string, { id: string; url: string; modules: string[] }>()
+      for (const [id, host] of comfyts.hosts)
+         byId.set(id, { id, url: `${host.base.host}:${host.base.port}`, modules: [] })
+      for (const mod of this.modules) {
+         const entry = byId.get(mod.dw.host.data.id)
+         if (entry != null) entry.modules.push(mod.key)
+      }
+      return [...byId.values()].sort((a, b) => a.id.localeCompare(b.id))
+   }
+
+   /** the host a run goes to: the override if it still exists, else the module's own.
+    * A stale override (a host id that is gone) must never silently swallow the run */
+   private runHostFor(mod: ServeModule): ComfyHost | null {
+      const wanted = this.settings.hostOverride[mod.key]
+      if (wanted == null || wanted === mod.dw.host.data.id) return null
+      return comfyts.hosts.get(wanted) ?? null
+   }
+
+   private replyHosts(): ServeReply {
+      return json(200, {
+         hosts: this.knownHosts(),
+         defaults: Object.fromEntries(this.modules.map((m) => [m.key, m.dw.host.data.id])),
+         overrides: this.settings.hostOverride,
+      })
+   }
+
+   private replySetHost(modKey: string, req: ServeRequest): ServeReply {
+      const mod = this.moduleByKey(modKey)
+      if (mod == null) return json(404, { error: `unknown module '${modKey}'` })
+      let parsed: unknown
+      try {
+         parsed = JSON.parse(req.body ?? '')
+      } catch (e) {
+         return json(400, { error: `body is not valid json: ${extractErrorMessage(e)}` })
+      }
+      const wanted = parsed != null && typeof parsed === 'object' ? (parsed as { host?: unknown }).host : null
+      if (wanted != null && typeof wanted !== 'string')
+         return json(400, { error: 'body must be { "host": "<host id>" } or { "host": null } to reset' })
+      const next = { ...this.settings.hostOverride }
+      if (wanted == null || wanted === mod.dw.host.data.id) delete next[mod.key]
+      else {
+         if (!comfyts.hosts.has(wanted))
+            return json(400, {
+               error: `unknown host '${wanted}' — known: ${[...comfyts.hosts.keys()].join(', ')}`,
+            })
+         next[mod.key] = wanted
+      }
+      this.settings = { ...this.settings, hostOverride: next }
+      try {
+         writeServeSettings(this.settings)
+      } catch (e) {
+         return json(500, { error: `host applied for this session but not saved: ${extractErrorMessage(e)}` })
+      }
+      const target = next[mod.key] ?? mod.dw.host.data.id
+      console.log(`[serve] ${mod.key} runs on ${target}${next[mod.key] != null ? ' (override)' : ''}`)
+      return json(200, { ok: true, module: mod.key, host: target, overrides: this.settings.hostOverride })
+   }
+
+   // #region settings + in-memory outputs --------------------------------------
+   /** the last N in-memory outputs stay reachable; older ones are dropped, because with
+    * saving off these buffers are the only copy and nothing else will free them */
+   private readonly MEMORY_IMAGE_CAP = 60
+
+   private rememberMemoryImage(key: string, bytes: Uint8Array, filename: string): void {
+      const contentType = CONTENT_TYPES[extname(filename).toLowerCase()] ?? sniffImageContentType(bytes)
+      this.memoryImages.set(key, { bytes, contentType })
+      while (this.memoryImages.size > this.MEMORY_IMAGE_CAP) {
+         const oldest = this.memoryImages.keys().next()
+         if (oldest.done === true) break
+         this.memoryImages.delete(oldest.value)
+      }
+   }
+
+   private replyMemoryImage(key: string): ServeReply {
+      const hit = this.memoryImages.get(key)
+      if (hit == null)
+         return json(404, {
+            error: `no in-memory image '${key}' — it expired (only the last ${this.MEMORY_IMAGE_CAP} are kept) or the server restarted. Turn saving on to keep outputs.`,
+         })
+      return { status: 200, contentType: hit.contentType, body: hit.bytes }
+   }
+
+   private replySaveSettings(req: ServeRequest): ServeReply {
+      let parsed: unknown
+      try {
+         parsed = JSON.parse(req.body ?? '')
+      } catch (e) {
+         return json(400, { error: `body is not valid json: ${extractErrorMessage(e)}` })
+      }
+      const saveToDisk =
+         parsed != null && typeof parsed === 'object' ? (parsed as { saveToDisk?: unknown }).saveToDisk : null
+      if (typeof saveToDisk !== 'boolean') return json(400, { error: 'body must be { "saveToDisk": true | false }' })
+      this.settings = { ...this.settings, saveToDisk }
+      try {
+         writeServeSettings(this.settings)
+      } catch (e) {
+         // the live setting still applies; say the persistence failed rather than lying
+         return json(500, { error: `setting applied for this session but not saved: ${extractErrorMessage(e)}` })
+      }
+      console.log(`[serve] outputs ${saveToDisk ? 'SAVE to disk' : 'stay in MEMORY'}`)
+      return json(200, this.settings)
+   }
+
    // #region prompt enhancers (the web ui's master prompts, as .md files) ------
    /** the folder is seeded on the first read, so `refine-krea2-prompt.md` exists to be edited */
    private replyPromptEnhancers(): ServeReply {
@@ -621,11 +762,25 @@ export class ServeApp {
          `[serve] 🟢 ${mod.key}/${draft} done in ${(durationMs / 1000).toFixed(1)}s · ${execution.images.length} image(s)`,
       )
 
+      // saving off → the buffer is the only copy: keep it addressable so the gallery (and
+      // curl) still get an image instead of a null url
+      const memoryKeys = new Map<number, string>()
+      for (const [ix, img] of execution.images.entries()) {
+         if (img.absPath != null || img.buffer == null) continue
+         const key = `${encodeURIComponent(execution.data.id)}/${ix}`
+         this.rememberMemoryImage(key, img.buffer, img.filename)
+         memoryKeys.set(ix, key)
+      }
+
       // Accept: image/* → first image's bytes directly (curl -o, <img src>)
       const first = execution.images[0]
-      if (req.accept?.includes('image/') && first?.absPath != null) {
-         const contentType = CONTENT_TYPES[extname(first.absPath).toLowerCase()] ?? 'application/octet-stream'
-         return { status: 200, contentType, body: new Uint8Array(readFileSync(first.absPath)) }
+      if (req.accept?.includes('image/') && first != null) {
+         if (first.absPath != null) {
+            const contentType = CONTENT_TYPES[extname(first.absPath).toLowerCase()] ?? 'application/octet-stream'
+            return { status: 200, contentType, body: new Uint8Array(readFileSync(first.absPath)) }
+         }
+         const inMemory = this.memoryImages.get(memoryKeys.get(0) ?? '')
+         if (inMemory != null) return { status: 200, contentType: inMemory.contentType, body: inMemory.bytes }
       }
 
       return json(200, {
@@ -635,9 +790,15 @@ export class ServeApp {
          promptId: execution.data.id,
          durationMs,
          seeds,
-         images: execution.images.map((img) => ({
+         savedToDisk: this.settings.saveToDisk,
+         images: execution.images.map((img, ix) => ({
             filename: img.filename,
-            url: img.absPath != null ? this.outputUrl(img.absPath) : null,
+            url:
+               img.absPath != null
+                  ? this.outputUrl(img.absPath)
+                  : memoryKeys.has(ix)
+                    ? `/images/${memoryKeys.get(ix) ?? ''}`
+                    : null,
             absPath: img.absPath,
          })),
       })
@@ -723,7 +884,12 @@ export class ServeApp {
       this.latentPreviews.delete(mod.key)
       this.wireLatents(mod.dw.host)
       try {
-         return { execution: await this.starter(mod) }
+         return {
+            execution: await this.starter(mod, {
+               saveToDisk: this.settings.saveToDisk,
+               host: this.runHostFor(mod) ?? undefined,
+            }),
+         }
       } catch (e) {
          // name, not instanceof: same two-copies problem as the var classes
          if (e instanceof Error && e.name === 'ImageVarEmptyError') return { status: 400, error: e.message }
