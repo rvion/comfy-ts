@@ -15,6 +15,10 @@
 - **Image vars enforce the file types they advertise.** A payload naming any readable path had that file uploaded to the ComfyUI host (a third party, for a cloud host); only `existsSync` stood in the way. The extension list in the descriptor is checked now, directories are refused, and neither reaches the queue.
 - **A downloaded image input is capped at 50MB and no longer reports the upstream status.** There was no size limit at all, so one URL at a large file could exhaust the process, and echoing the remote status back turned an image var into a port scanner for everything the box can reach. The status goes to the server log instead.
 
+### Vars
+
+- **A workflow can declare the seed MODE it runs in**: `v.seed(517, { mode: '+' })`. It is the SPEC default, so a draft with no seed of its own starts there and `reset()` comes back to it, unlike `setMode()` which only changes the live value. The old `v.seed(n, 'label')` form still works. `examples/rvion/04-krea2-turbo-t2i` uses it: a tuning session wants each run to be a new image.
+
 ### The web panel
 
 - **Results can sit LEFT of the form too**, a fifth placement in the button group. The corner placement got an icon from the same family (a filled corner inside the same frame) instead of a pin, which said "sticky" while every sibling said where.

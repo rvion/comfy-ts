@@ -68,6 +68,28 @@ describe('vars', () => {
       expect(on.value).toBe(true)
    })
 
+   it('a workflow can declare the seed MODE it wants, and reset comes back to it', () => {
+      const seed = v.seed(517, { mode: '+' })
+      expect(seed.mode).toBe('+')
+      expect(seed.defaultMode).toBe('+') // the SPEC default: a draft with no file starts here
+      expect(seed.toJSON()).toEqual({ mode: '+', value: 517 })
+      seed.advance()
+      expect(seed.value).toBe(518)
+      // a mode picked at runtime is not the default: reset restores what the workflow declared
+      seed.setMode('?')
+      seed.reset()
+      expect(seed.mode).toBe('+')
+      expect(seed.value).toBe(517)
+   })
+
+   it("seed's old label-string argument still works", () => {
+      // it was the whole second parameter before the mode could be declared; a published
+      // consumer passing one must keep compiling
+      const seed = v.seed(42, 'the seed')
+      expect(seed.label).toBe('the seed')
+      expect(seed.mode).toBe('=')
+   })
+
    it('loras: toggle remembers strength, adjust clamps at 0, display lists actives', () => {
       const loras = v.loras(['a', 'b', 'c', 'd'], { a: 0.65, b: true, c: [0.8, 0.6] })
       expect(loras.display()).toBe('(3/4) a, b, c')

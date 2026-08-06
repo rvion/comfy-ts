@@ -210,7 +210,7 @@ await txt2img.run({ log: true }) // fresh graph, fresh image
 
 | var kind                | superpower                                                                        |
 | ----------------------- | --------------------------------------------------------------------------------- |
-| `v.seed`                | mode + number (`+ N` `- N` `= N` `? N`), advances itself: queued runs differ      |
+| `v.seed`                | mode + number (`+ N` `- N` `= N` `? N`), advances itself: queued runs differ. `v.seed(42, { mode: '+' })` declares the mode |
 | `v.prompt`              | structured text: `//` comments stripped, `- ` lines become the negative prompt     |
 | `v.loras`               | RegExp resolved against the host's REAL lora list, fully typed, multi-select       |
 | `v.image`               | local image path, TUI picker attached; `exampleImagePath('bear_1024x1024.jpg')` defaults to a bundled sample |

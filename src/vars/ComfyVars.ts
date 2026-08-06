@@ -211,12 +211,17 @@ export type SeedMode = '=' | '+' | '-' | '?'
  */
 export class SeedVar extends ComfyVar<number> {
    readonly kind = 'seed' as const
-   mode: SeedMode = '='
+   mode: SeedMode
    /** the mode a reset() restores — the SPEC default, never the live one (introspection
     * reads this: a running mode must not masquerade as the var's default) */
-   readonly defaultMode: SeedMode = '='
-   constructor(defaultValue: number = 0, label?: string) {
-      super(defaultValue, label)
+   readonly defaultMode: SeedMode
+   /** `opts` is the modern shape; a bare label string stays accepted, since that was the
+    * signature before a workflow could declare the mode it wants to run in */
+   constructor(defaultValue: number = 0, opts: string | { label?: string; mode?: SeedMode } = {}) {
+      const o = typeof opts === 'string' ? { label: opts } : opts
+      super(defaultValue, o.label)
+      this.mode = o.mode ?? '='
+      this.defaultMode = this.mode
       // subclass-owned observable field (base makeObservable already ran in super)
       makeObservable(this, { mode: observable, setMode: action, randomize: action, advance: action })
    }
@@ -612,7 +617,10 @@ export const v = {
       new IntVar(defaultValue, opts),
    float: (defaultValue: number, opts: { min?: number; max?: number; label?: string } = {}): FloatVar =>
       new FloatVar(defaultValue, opts),
-   seed: (defaultValue: number = 0, label?: string): SeedVar => new SeedVar(defaultValue, label),
+   /** `mode` is the SPEC default the workflow runs in: `'+'` makes every run step the seed,
+    * which is what a tuning session wants, and reset()/revert come back to it */
+   seed: (defaultValue: number = 0, opts: string | { label?: string; mode?: SeedMode } = {}): SeedVar =>
+      new SeedVar(defaultValue, opts),
    toggle: (defaultValue: boolean, label?: string): ToggleVar => new ToggleVar(defaultValue, label),
    choice: <const T extends string>(choices: readonly T[], defaultValue: T, label?: string): ChoiceVar<T> =>
       new ChoiceVar(choices, defaultValue, label),

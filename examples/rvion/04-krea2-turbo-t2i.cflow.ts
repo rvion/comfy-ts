@@ -27,7 +27,9 @@ export const t2i = host.defineWorkflow({
          // and the ACTIVE loras' keywords prefix .positive (assigned via ⌃K
          // in the TUI loras overlay, stored in .comfy-ts/lora-keywords.json)
          prompt: v.prompt('top-down, game sprite, spherical sheep', { loraKeywordsFrom: loras }),
-         seed: v.seed(517),
+         // '+' by default: a tuning session wants every run to be a new image, and the
+         // number still says exactly which one you are on
+         seed: v.seed(517, { mode: '+' }),
          steps: v.int(8, { min: 1, max: 40 }),
          size: v.size({ width: 1024, height: 1024 }),
          removeBg: v.toggle(true, 'remove bg'),
