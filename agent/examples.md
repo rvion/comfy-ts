@@ -14,6 +14,7 @@ examples/
       05-comfy-cloud.cflow.ts    cloud intro = the zoo's sd15/t2i row (reference impl)
       06-qwen-image-edit.cflow.ts   local edit model on windows-1 (edit 2511)
       07-local-llm-text-gen.cflow.ts  core TextGenerate: a local LLM, no image. `--sweep` probes every text encoder on the box
+                                    the `streaming` toggle swaps in extra/comfyui-textgen-stream's node when the host has it (feature-detected), so the answer is watched as it is written
    comfy-cloud/
       sdk.d.ts                   committed cloud catalog (gen:sdk:cloud)
       cloudHost.ts               shared host helper — NOT .cflow, invisible to the TUI

@@ -207,6 +207,16 @@ button.mode.sel { background: var(--accent-dim); border-color: var(--accent); co
    max-height: 40vh; overflow-y: auto;
 }
 .run-thinking { color: var(--dim); font-size: 12px; margin-bottom: 6px; }
+
+/* the stream: pinned to its newest line, capped so a long answer never pushes the page around */
+.run-live { margin-top: 6px; }
+.run-live-body {
+   margin: 0; white-space: pre-wrap; overflow-wrap: anywhere;
+   font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; line-height: 1.5;
+   background: var(--panel-2); border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px;
+   max-height: 30vh; overflow-y: auto;
+}
+.run-live-body.dim { color: var(--dim); }
 .progress-track { height: 6px; background: var(--panel-2); border-radius: 3px; overflow: hidden; margin-bottom: 8px; }
 .progress-fill { height: 100%; background: var(--accent); border-radius: 3px; transition: width 0.4s ease; }
 

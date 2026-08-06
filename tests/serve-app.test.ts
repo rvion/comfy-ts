@@ -413,6 +413,7 @@ describe('ServeApp draft save (PUT) + live run state', () => {
          // the executing node and its own counter: null while nothing runs
          node: null,
          nodeProgress: null,
+         progressText: null,
          hasPreview: false,
          previewSeq: null,
       })

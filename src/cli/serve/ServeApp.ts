@@ -63,7 +63,12 @@ export type ServeExecution = {
    progressGlobal?: { percent: number }
    /** the executing node and ITS counter, in its own unit (sampler steps, generated tokens).
     * The only live signal a text node has: ComfyUI sends no partial text */
-   progress?: { nodeName: string | null; nodeProgress: { value: number; max: number } | null }
+   progress?: {
+      nodeName: string | null
+      nodeProgress: { value: number; max: number } | null
+      /** a node's live display text while it runs — a streaming generator's partial answer */
+      progressText?: string | null
+   }
 }
 
 export type ServeStarter = (
@@ -920,6 +925,9 @@ export class ServeApp {
             running && exec.progress?.nodeProgress != null
                ? { value: exec.progress.nodeProgress.value, max: exec.progress.nodeProgress.max }
                : null,
+         // live text a node publishes WHILE it runs (send_progress_text): the only channel
+         // on which a generator's partial answer can reach a client at all
+         progressText: running ? (exec.progress?.progressText ?? null) : null,
          hasPreview: this.latentPreviews.has(mod.key),
          previewSeq: this.latentPreviews.get(mod.key)?.seq ?? null,
       })

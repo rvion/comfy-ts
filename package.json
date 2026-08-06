@@ -19,7 +19,7 @@
       "cli",
       "tui"
    ],
-   "author": "Rémi Vion <vion.remi@gmail.com>",
+   "author": "R\u00e9mi Vion <vion.remi@gmail.com>",
    "license": "MIT",
    "funding": "https://github.com/sponsors/rvion",
    "repository": {
@@ -60,6 +60,7 @@
       "dist",
       "src",
       "examples",
+      "extra",
       "README.md",
       "guide-for-agents.md",
       "LICENSE"

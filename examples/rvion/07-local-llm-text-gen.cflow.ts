@@ -46,7 +46,19 @@ type TextGenParams = {
    repetitionPenalty: number
    seed: number
    thinking: boolean
+   streaming: boolean
 }
+
+/** core `TextGenerate` hands back the answer once, at the end. `StreamTextGenerate` publishes
+ * it every few tokens instead, so you WATCH it write — the protocol always could (a node
+ * publishes live text on binary ws frame type 3), core just never calls it. Ships in
+ * extra/comfyui-textgen-stream/, copy that folder into ComfyUI/custom_nodes/ to get it.
+ * Feature-detected, never assumed: on a host without it the graph falls back to core */
+const STREAMING_NODE = 'StreamTextGenerate'
+/** the builder key of a custom node is qualified by its python module, so it follows the
+ * FOLDER you installed it under (`comfyui-textgen-stream` → `textgen-stream.`) */
+const STREAMING_NODE_KEY = 'textgen-stream.StreamTextGenerate'
+const hasStreamingNode = host.schema.nodes.some((n) => n.nameInComfy === STREAMING_NODE)
 
 /** the whole graph, shared by the tweakable workflow below and the --sweep probe */
 const buildTextGen = (b: Comfy.Windows1.Builder, p: TextGenParams): void => {
@@ -57,7 +69,7 @@ const buildTextGen = (b: Comfy.Windows1.Builder, p: TextGenParams): void => {
       type: 'stable_diffusion',
       device: 'default',
    })
-   const generated = b.TextGenerate({
+   const shared = {
       clip,
       prompt: `${p.instruction}\n\n${p.subject}`,
       max_length: p.maxLength,
@@ -68,7 +80,8 @@ const buildTextGen = (b: Comfy.Windows1.Builder, p: TextGenParams): void => {
       'sampling_mode.temperature': p.temperature,
       'sampling_mode.repetition_penalty': p.repetitionPenalty,
       'sampling_mode.seed': p.seed,
-   })
+   } as const
+   const generated = p.streaming ? b[STREAMING_NODE_KEY]({ ...shared, stream_every: 4 }) : b.TextGenerate({ ...shared })
    b.PreviewAny({ source: generated._STRING })
 }
 
@@ -95,8 +108,11 @@ export const localLlmTextGen = host.defineWorkflow({
       // qwen3 reasons whatever this says (the flag only binds when the model's template
       // exposes the toggle) — answerOf() below drops the <think> block either way
       thinking: v.toggle(false, 'reason before answering'),
+      // defaults to ON where the host has the node, so it needs no explanation when it works
+      // and tells the truth when the node is absent
+      streaming: v.toggle(hasStreamingNode, 'watch it write (needs the streaming node)'),
    },
-   build: (b, vars) => buildTextGen(b, vars),
+   build: (b, vars) => buildTextGen(b, { ...vars, streaming: vars.streaming && hasStreamingNode }),
 })
 
 export default localLlmTextGen
@@ -141,6 +157,7 @@ if (import.meta.main) {
             maxLength: vars.maxLength.value,
             temperature: vars.temperature.value,
             repetitionPenalty: vars.repetitionPenalty.value,
+            streaming: false,
             seed: vars.seed.value,
             thinking: vars.thinking.value,
          })

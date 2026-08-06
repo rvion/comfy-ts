@@ -51,6 +51,9 @@ export type ExecutionProgress = ProgressReport & {
     * tokens on a text node. Null between nodes. The global percent normalizes this away,
     * and the unit is the only live detail worth reading on a long node */
    nodeProgress: { value: number; max: number } | null
+   /** the executing node's live display text, when it publishes one. A streaming generator
+    * puts its partial answer here every few tokens */
+   progressText: string | null
 }
 
 export class ComfyExecution {
@@ -108,6 +111,7 @@ export class ComfyExecution {
          nodeName: this.workflow.currentExecutingNode?.$schema.nameInComfy ?? null,
          elapsedMs: Date.now() - this.startedAt,
          nodeProgress: this.workflow.currentExecutingNode?.progress ?? null,
+         progressText: this.progressText,
       }
    }
 
@@ -120,14 +124,18 @@ export class ComfyExecution {
       const filled = Math.round((p.percent / 100) * width)
       const bar = '█'.repeat(filled) + '░'.repeat(width - filled)
       const node = p.nodeName ? ` · ${p.nodeName}` : ''
-      // the node's own counter, the one number that MOVES on a long node (sampler steps,
-      // generated tokens); a text node emits no partial text, so this is all there is to watch
+      // the node's own counter: sampler steps, or generated tokens. Core TextGenerate
+      // publishes no partial text, so on it this is the only thing that moves
       const count = p.nodeProgress ? ` ${p.nodeProgress.value}/${p.nodeProgress.max}` : ''
       const line = `▶ [${bar}] ${p.percent.toFixed(0).padStart(3)}%${node}${count} · ${(p.elapsedMs / 1000).toFixed(0)}s`
-      if (line === this._lastLoggedLine) return
-      this._lastLoggedLine = line
-      if (globalThis.process?.stdout?.isTTY) process.stdout.write(`\r\x1b[2K${line}`)
-      else console.log(line)
+      // a streaming node's newest words, on the same line: the run stays ONE line, and what
+      // the model is writing is the thing worth watching on it
+      const tail = p.progressText?.replaceAll('\n', ' ').trimEnd().slice(-60)
+      const full = tail == null || tail === '' ? line : `${line} · …${tail}`
+      if (full === this._lastLoggedLine) return
+      this._lastLoggedLine = full
+      if (globalThis.process?.stdout?.isTTY) process.stdout.write(`\r\x1b[2K${full}`)
+      else console.log(full)
    }
 
    private finishProgressLine(): void {
@@ -401,6 +409,21 @@ export class ComfyExecution {
 
    /** text outputs emitted for this execution, in arrival order (final once `done` resolves) */
    texts: ComfyTextOutput[] = []
+
+   /** live display text per node WHILE it runs, newest wins (`send_progress_text` is a
+    * replacement, not a delta). This is the only channel carrying text DURING a node: a
+    * generator that streams its tokens shows up here, and nowhere in the final outputs */
+   progressTexts: Map<string, string> = new Map()
+
+   /** the node that most recently published live text — what "watch it work" means */
+   progressText: string | null = null
+
+   /** @internal a live-text frame for one node */
+   onProgressText(p: { nodeId: string; text: string }): void {
+      this.progressTexts.set(p.nodeId, p.text)
+      this.progressText = p.text
+      this.emitProgress()
+   }
 
    /** the last text output, the one a single-generator workflow means by "the result" */
    get text(): string | null {

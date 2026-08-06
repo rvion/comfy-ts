@@ -29,6 +29,8 @@ export class RunSt {
     * A text graph has no latent preview and no image, so this is all there is to watch */
    progressNode: string | null = null
    progressCount: { value: number; max: number } | null = null
+   /** what a streaming node has produced SO FAR — replacement semantics, newest wins */
+   progressText: string | null = null
    hasPreview = false
    /** the server's frame seq — the <img> cache-buster, changes only on a NEW frame */
    previewTick = 0
@@ -91,6 +93,7 @@ export class RunSt {
                this.progressPercent = null
                this.progressNode = null
                this.progressCount = null
+               this.progressText = null
                this.hasPreview = false
             })
             const gen = ++this.pollGen
@@ -115,6 +118,7 @@ export class RunSt {
                   this.progressPercent = null
                   this.progressNode = null
                   this.progressCount = null
+                  this.progressText = null
                   this.hasPreview = false
                })
             }
@@ -135,6 +139,7 @@ export class RunSt {
                this.progressPercent = status.percent
                this.progressNode = status.node ?? null
                this.progressCount = status.nodeProgress ?? null
+               this.progressText = status.progressText ?? null
                this.hasPreview = status.hasPreview
                this.previewTick = status.previewSeq ?? 0
             })

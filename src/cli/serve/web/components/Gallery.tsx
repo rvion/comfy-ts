@@ -4,7 +4,7 @@
 // the button hides where the clipboard api is absent
 import { Icon } from 'src/cli/serve/web/components/Icon.tsx'
 import { observer, useLocalObservable } from 'mobx-react-lite'
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { runPreviewSrc } from 'src/cli/serve/web/api.ts'
 import { lightboxView, type LightboxTarget } from 'src/cli/serve/web/state/lightbox.ts'
 import { copyImageToClipboard } from 'src/cli/serve/web/clipboard.ts'
@@ -246,6 +246,28 @@ const TextResult = observer(function TextResult(p: { entry: { nodeKey: string | 
    )
 })
 
+/** text arriving DURING the node. It pins to the bottom because a stream grows downward and
+ * the newest words are the ones you are reading */
+const LiveText = observer(function LiveText(p: { text: string }) {
+   const { thinking, answer } = splitThinking(p.text)
+   const ref = useRef<HTMLPreElement>(null)
+   useEffect(() => {
+      const el = ref.current
+      if (el != null) el.scrollTop = el.scrollHeight
+   })
+   // mid-stream the answer is usually still empty and the thinking IS the story, so whichever
+   // one is live gets shown rather than a blank box under a "thinking" label
+   const live = answer !== '' ? answer : (thinking ?? '')
+   return (
+      <div className="run-live">
+         {answer === '' && thinking != null ? <span className="hint">thinking…</span> : null}
+         <pre ref={ref} className={answer === '' ? 'run-live-body dim' : 'run-live-body'}>
+            {live}
+         </pre>
+      </div>
+   )
+})
+
 /** live card while a run is in flight: progress bar + the latest latent frame */
 const RunningCard = observer(function RunningCard(p: { st: WebSt; local: GalleryLocal }) {
    // the RUNNING module, never the selection: switching modules mid-run must not retarget the card
@@ -257,6 +279,7 @@ const RunningCard = observer(function RunningCard(p: { st: WebSt; local: Gallery
    // A text graph has no latent frame and no image, so without this its card is a bare bar
    const node = p.st.run.progressNode
    const count = p.st.run.progressCount
+   const liveText = p.st.run.progressText
    return (
       <div className="run-card running">
          <div className="meta">
@@ -269,6 +292,9 @@ const RunningCard = observer(function RunningCard(p: { st: WebSt; local: Gallery
                {count != null ? ` ${count.value}/${count.max}` : ''}
             </div>
          ) : null}
+         {/* a node streaming its text as it produces it: the answer builds up here before the
+             run ends. Same fold as a finished result, so watching and reading look alike */}
+         {liveText != null && liveText !== '' ? <LiveText text={liveText} /> : null}
          <div className="progress-track">
             <div className="progress-fill" style={{ width: `${percent ?? 0}%` }} />
          </div>

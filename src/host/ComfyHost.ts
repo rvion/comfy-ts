@@ -773,6 +773,9 @@ export class ComfyHost<ID extends string = string> {
    /** byte-level latent-preview hook (e.g. TUI live preview panel) */
    onLatentPreview: Maybe<(p: { bytes: Uint8Array; mime: string; promptID: Maybe<PromptID> }) => void> = null
 
+   /** a node's live display text, as it produces it (`PromptServer.send_progress_text`) */
+   onProgressText: Maybe<(p: { nodeId: string; text: string; promptID: Maybe<PromptID> }) => void> = null
+
    /** fires on every ws 'status' message (queue length lives there) */
    onStatus: Maybe<(p: { queueRemaining: number }) => void> = null
 
@@ -840,8 +843,16 @@ export class ComfyHost<ID extends string = string> {
             this._unknownBinaryFrameTypes.add(frame.eventType)
             console.error(`🔴 unknown binary ws frame type ${frame.eventType} from host ${this.data.id} — ignored`)
          }
-         // frame.kind === 'text' (node progress text) is dropped: the json
-         // 'progress' messages already carry everything we surface
+         if (frame.kind === 'text') {
+            // a node's live display text (`PromptServer.send_progress_text`), REPLACEMENT
+            // semantics per node: each frame is that node's current text, not a delta. This is
+            // the only channel on which text arrives DURING a node, so a streaming generator
+            // reaches us here and nowhere else. An early frame lost to the pre-registration
+            // window needs no buffering (unlike an output image): the next frame replaces it
+            const exec = this.activePromptID != null ? this.executions.get(this.activePromptID) : null
+            exec?.onProgressText({ nodeId: frame.nodeId, text: frame.text })
+            this.onProgressText?.({ nodeId: frame.nodeId, text: frame.text, promptID: this.activePromptID })
+         }
          return
       }
 

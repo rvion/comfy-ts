@@ -82,6 +82,8 @@ export type RunStatus = {
     * on a KSampler. The only live signal a text graph has */
    node?: string | null
    nodeProgress?: { value: number; max: number } | null
+   /** a node's live display text while it runs — a streaming generator's partial answer */
+   progressText?: string | null
    hasPreview: boolean
    previewSeq: number | null
 }
