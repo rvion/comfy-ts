@@ -23,12 +23,15 @@ import {
    writeLoraMirror,
 } from 'src/host/loraInfoCache.ts'
 import {
+   fetchLoraDescription,
+   fetchLoraExampleImages,
    fetchLoraList,
    fetchLoraPreviewBytes,
    lmBaseModel,
    lmCivitai,
    lmFilePath,
    lmFileSize,
+   lmSha256,
    lmFolder,
    lmNotes,
    lmTags,
@@ -116,6 +119,7 @@ const USAGE = [
    'POST /upload with {"name","dataBase64"} — store a browser file for an image var',
    'GET  /lora-info/<hostId>/<lora> — display name + trigger words (local mirror)',
    'GET  /lora-preview/<hostId>/<lora> — preview image bytes',
+   'GET  /lora-about/<hostId>/<lora> — civitai description + example images (live from the extension)',
    'GET  /prompt-enhancers — the web ui master prompts (.comfy-ts/prompt-enhancers/*.md)',
    'PUT  /prompt-enhancers/<name> with {"text"} — write one · DELETE /prompt-enhancers/<name> — remove it',
    'GET  /settings — { saveToDisk } · PUT /settings with {"saveToDisk"} — write outputs to disk, or keep them in memory',
@@ -219,6 +223,8 @@ export class ServeApp {
                return this.replyLoraInfo(segs[1], segs[2])
             if (segs[0] === 'lora-preview' && segs.length === 3 && segs[1] != null && segs[2] != null)
                return await this.replyLoraPreview(segs[1], segs[2])
+            if (segs[0] === 'lora-about' && segs.length === 3 && segs[1] != null && segs[2] != null)
+               return await this.replyLoraAbout(segs[1], segs[2])
             if (segs[0] === 'prompt-enhancers' && segs.length === 1) return this.replyPromptEnhancers()
             if (segs[0] === 'settings' && segs.length === 1) return this.replySettings()
             if (segs[0] === 'hosts' && segs.length === 1) return this.replyHosts()
@@ -919,6 +925,29 @@ export class ServeApp {
          notes: item == null ? '' : lmNotes(item),
          civitaiUrl: civitai?.modelId == null ? null : `https://civitai.com/models/${civitai.modelId}`,
          civitaiVersion: civitai?.name ?? null,
+      })
+   }
+
+   /** what the mirror does NOT hold: civitai's description and the example images, both live
+    * from the extension. A SEPARATE route from /lora-info on purpose — that one is mirror-only
+    * and instant, this one talks to the host and is fetched when a details panel opens */
+   private async replyLoraAbout(hostId: string, lora: string): Promise<ServeReply> {
+      const host = this.hostById(hostId)
+      if (host == null) return json(404, { error: `unknown host '${hostId}' — hosts: ${this.hostIds()}` })
+      refreshLoraInfoCacheIfChanged()
+      const item = getLoraInfo(lora, hostId)
+      if (item == null) return json(200, { known: false, description: null, examples: [], examplesReason: null })
+      const filePath = lmFilePath(item)
+      const sha = lmSha256(item)
+      const [description, examples] = await Promise.all([
+         filePath == null ? Promise.resolve(null) : fetchLoraDescription(host, filePath),
+         sha == null ? Promise.resolve({ files: [], reason: null }) : fetchLoraExampleImages(host, sha),
+      ])
+      return json(200, {
+         known: true,
+         description,
+         examples: examples.files,
+         examplesReason: examples.reason,
       })
    }
 

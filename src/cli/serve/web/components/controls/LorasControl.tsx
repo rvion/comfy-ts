@@ -14,7 +14,7 @@
 import { Icon } from 'src/cli/serve/web/components/Icon.tsx'
 import { observer, useLocalObservable } from 'mobx-react-lite'
 import { useEffect, useRef, type ReactNode } from 'react'
-import { fetchLoraInfo, loraPreviewSrc, type LoraInfo } from 'src/cli/serve/web/api.ts'
+import { fetchLoraAbout, fetchLoraInfo, loraPreviewSrc, type LoraAbout, type LoraInfo } from 'src/cli/serve/web/api.ts'
 import type { LoraStrength } from 'src/vars/ComfyVars.ts'
 import type { VarSt } from 'src/cli/serve/web/state/FormSt.ts'
 import type { WebSt } from 'src/cli/serve/web/state/WebSt.ts'
@@ -513,19 +513,31 @@ const LoraDetails = observer(function LoraDetails(p: {
 }) {
    const local = useLocalObservable<{
       info: LoraInfo | 'loading' | 'error'
+      about: LoraAbout | null
       set(v: LoraInfo | 'loading' | 'error'): void
+      setAbout(v: LoraAbout | null): void
    }>(() => ({
       info: 'loading',
+      about: null,
       set(v) {
          this.info = v
+      },
+      setAbout(v) {
+         this.about = v
       },
    }))
    const { name, host } = p
    useEffect(() => {
       local.set('loading')
+      local.setAbout(null)
       fetchLoraInfo({ host, name })
          .then((i) => local.set(i))
          .catch(() => local.set('error'))
+      // the LIVE half (civitai description + example images) arrives second: the mirror data
+      // must not wait on a host round trip to render
+      fetchLoraAbout({ host, name })
+         .then((a) => local.setAbout(a))
+         .catch(() => local.setAbout(null))
    }, [host, name, local])
    useEffect(() => {
       const onKey = (e: KeyboardEvent): void => {
@@ -575,6 +587,9 @@ const LoraDetails = observer(function LoraDetails(p: {
                         {row('notes', info.notes)}
                         {row('size', info.fileSize == null ? null : `${(info.fileSize / 1e9).toFixed(2)} GB`)}
                         {row('path', info.filePath)}
+                        {local.about?.description == null ? null : (
+                           <div className="detail-desc">{local.about.description}</div>
+                        )}
                         {row(
                            'civitai',
                            info.civitaiUrl == null ? null : (
@@ -582,6 +597,19 @@ const LoraDetails = observer(function LoraDetails(p: {
                                  {info.civitaiVersion ?? 'model page'} ↗
                               </a>
                            ),
+                        )}
+                        {local.about != null && local.about.examples.length > 0 ? (
+                           <div>
+                              <div className="section-title">examples ({local.about.examples.length})</div>
+                              <div className="detail-examples">
+                                 {local.about.examples.slice(0, 8).map((src) => (
+                                    <img key={src} src={src} alt="" loading="lazy" />
+                                 ))}
+                              </div>
+                           </div>
+                        ) : null}
+                        {local.about?.examplesReason == null ? null : (
+                           <div className="hint">no example images: {local.about.examplesReason}</div>
                         )}
                         {p.hostUrl == null ? null : (
                            <a className="button-link" href={`${p.hostUrl}/loras`} target="_blank" rel="noreferrer">

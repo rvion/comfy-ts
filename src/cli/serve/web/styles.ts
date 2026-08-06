@@ -376,6 +376,15 @@ div.lora-thumb.none {
 .detail-key { color: var(--dim); }
 .detail-val { overflow-wrap: anywhere; }
 .detail-val a { color: var(--accent); text-decoration: none; }
+/* civitai's own words about the model. PLAIN TEXT: the extension answers html, and third
+   party html is never injected into this page — the seam strips it to text */
+.detail-desc {
+   white-space: pre-wrap; font-size: 12px; line-height: 1.5; color: var(--text);
+   background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+   padding: 8px 10px; max-height: 220px; overflow-y: auto;
+}
+.detail-examples { display: flex; gap: 8px; flex-wrap: wrap; }
+.detail-examples img { width: 96px; height: 96px; object-fit: cover; border-radius: 6px; }
 
 .lora-warn { color: var(--amber); display: inline-flex; margin-left: 4px; vertical-align: -0.1em; }
 /* an anchor that must read as a button (it opens the host's own page, so it IS a link) */

@@ -53,6 +53,11 @@ export function lmPreviewUrl(item: LmLoraItem): string | null {
    return readString(item, 'preview_url')
 }
 /** the file's size in bytes, when the extension reports it */
+/** the file's content hash: what the extension keys its example images by */
+export function lmSha256(item: LmLoraItem): string | null {
+   return readString(item, 'sha256')
+}
+
 export function lmFileSize(item: LmLoraItem): number | null {
    const raw = item['file_size']
    return typeof raw === 'number' && Number.isFinite(raw) ? raw : null
@@ -134,6 +139,66 @@ export type LoraSweep =
    | { status: 'absent' }
    /** the host itself could not be reached (down, refused, auth) */
    | { status: 'unreachable'; reason: string }
+
+/** civitai's model description for ONE lora, as PLAIN TEXT. The extension answers html, and
+ * html from a third party is never rendered: tags are stripped here, at the seam.
+ * null = the extension has no description for it (or does not expose the route) */
+export async function fetchLoraDescription(host: ComfyHost, filePath: string): Promise<string | null> {
+   try {
+      const res = await host.fetch(`/lm/loras/model-description?file_path=${encodeURIComponent(filePath)}`, {})
+      if (!res.ok) return null
+      const raw: unknown = await res.json()
+      const description = isRecord(raw) ? raw['description'] : null
+      if (typeof description !== 'string' || description === '') return null
+      return htmlToText(description)
+   } catch {
+      return null
+   }
+}
+
+/** `<p>a</p><br>b` → `a\n\nb`. Deliberately dumb: this text is DISPLAYED, never parsed */
+export function htmlToText(html: string): string {
+   return html
+      .replaceAll(/<\s*br\s*\/?>/gi, '\n')
+      .replaceAll(/<\/\s*(p|div|li|h[1-6])\s*>/gi, '\n\n')
+      .replaceAll(/<\s*li[^>]*>/gi, '· ')
+      .replaceAll(/<[^>]+>/g, '')
+      .replaceAll('&nbsp;', ' ')
+      .replaceAll('&amp;', '&')
+      .replaceAll('&lt;', '<')
+      .replaceAll('&gt;', '>')
+      .replaceAll('&quot;', '"')
+      .replaceAll('&#39;', "'")
+      .replaceAll(/\n{3,}/g, '\n\n')
+      .trim()
+}
+
+/** the example images lora-manager keeps for a lora. `reason` explains an empty list rather
+ * than pretending the lora has none — "no example images path configured" is a SETTING */
+export async function fetchLoraExampleImages(
+   host: ComfyHost,
+   sha256: string,
+): Promise<{ files: string[]; reason: string | null }> {
+   try {
+      const res = await host.fetch(`/lm/example-image-files?model_hash=${encodeURIComponent(sha256)}`, {})
+      const raw: unknown = await res.json()
+      if (!isRecord(raw)) return { files: [], reason: `unexpected reply (http ${res.status})` }
+      if (raw['success'] !== true) {
+         const err = raw['error']
+         return { files: [], reason: typeof err === 'string' ? err : `http ${res.status}` }
+      }
+      const files = raw['files']
+      if (!Array.isArray(files)) return { files: [], reason: null }
+      const out: string[] = []
+      for (const f of files) {
+         if (typeof f === 'string') out.push(f)
+         else if (isRecord(f) && typeof f['path'] === 'string') out.push(f['path'])
+      }
+      return { files: out, reason: null }
+   } catch (e) {
+      return { files: [], reason: e instanceof Error ? e.message : String(e) }
+   }
+}
 
 /**
  * every lora lora-manager knows, RAW, in one paged sweep.

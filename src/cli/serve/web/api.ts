@@ -107,6 +107,19 @@ export function fetchLoraInfo(p: { host: string; name: string }): Promise<LoraIn
    return jsonFetch(`/lora-info/${encodeURIComponent(p.host)}/${encodeURIComponent(p.name)}`)
 }
 
+/** the live half of a lora's story: civitai's description and the example images the
+ * extension keeps. Separate from fetchLoraInfo because this one talks to the host */
+export type LoraAbout = {
+   known: boolean
+   description: string | null
+   examples: string[]
+   examplesReason: string | null
+}
+
+export function fetchLoraAbout(p: { host: string; name: string }): Promise<LoraAbout> {
+   return jsonFetch(`/lora-about/${encodeURIComponent(p.host)}/${encodeURIComponent(p.name)}`)
+}
+
 export function loraPreviewSrc(p: { host: string; name: string }): string {
    return `/lora-preview/${encodeURIComponent(p.host)}/${encodeURIComponent(p.name)}`
 }
