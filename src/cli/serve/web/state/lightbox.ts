@@ -7,7 +7,10 @@ import { runPreviewSrc } from 'src/cli/serve/web/api.ts'
  * happened to click, through every later frame and past the end of the run */
 export type LightboxTarget =
    | { kind: 'image'; url: string; title: string; promptId: string | null }
-   | { kind: 'latent'; module: string }
+   /** `after` is how many results that module already had when the latent was opened: the run
+    * being watched is the one that ADDS to it. Without it, a run that fails promotes the
+    * lightbox to the PREVIOUS run's image, as if the one you watched had produced it */
+   | { kind: 'latent'; module: string; after: number }
 
 export type LightboxRun = {
    module: string
@@ -29,7 +32,9 @@ export function lightboxView(p: {
 }): LightboxView {
    if (p.target.kind === 'image') return { url: p.target.url, title: p.target.title, promptId: p.target.promptId }
    const module = p.target.module
-   const finished = p.results.find((r) => r.module === module)
+   const done = p.results.filter((r) => r.module === module)
+   // only a NEW result counts as "the run you were watching finished"
+   const finished = done.length > p.target.after ? done[0] : undefined
    // an image with no url is one this run could not serve: stay on the latent rather than
    // blank the lightbox at the very moment the run pays off
    const image = finished?.images.find((i) => i.url != null)

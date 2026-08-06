@@ -91,6 +91,25 @@ const Lightbox = observer(function Lightbox(p: { st: WebSt; local: GalleryLocal 
       window.addEventListener('keydown', onKey)
       return () => window.removeEventListener('keydown', onKey)
    }, [target, p.local])
+   // wheel is registered BY HAND, non-passive. React attaches wheel at the root as passive, so
+   // its onWheel cannot preventDefault: zooming also scrolled the results column behind the
+   // lightbox, and every tick logged a console error
+   const zoomRef = useRef<HTMLDivElement>(null)
+   useEffect(() => {
+      const el = zoomRef.current
+      if (el == null) return
+      const onWheel = (e: WheelEvent): void => {
+         e.preventDefault()
+         const rect = el.getBoundingClientRect()
+         // deltaY is per-line on some mice and per-pixel on others: sign only
+         p.local.zoomBy(e.deltaY < 0 ? 1.2 : 1 / 1.2, {
+            x: e.clientX - rect.left - rect.width / 2,
+            y: e.clientY - rect.top - rect.height / 2,
+         })
+      }
+      el.addEventListener('wheel', onWheel, { passive: false })
+      return () => el.removeEventListener('wheel', onWheel)
+   }, [target, p.local])
    if (box == null) return null
    const copy = (): void => {
       copyImageToClipboard(box.url)
@@ -103,16 +122,8 @@ const Lightbox = observer(function Lightbox(p: { st: WebSt; local: GalleryLocal 
       <div className="modal-overlay" onClick={() => p.local.closeLightbox()}>
          <div className="lightbox" onClick={(e) => e.stopPropagation()}>
             <div
+               ref={zoomRef}
                className={p.local.zoom > 1 ? 'zoom-view grabbing' : 'zoom-view'}
-               onWheel={(e) => {
-                  e.preventDefault()
-                  const rect = e.currentTarget.getBoundingClientRect()
-                  // deltaY is per-line on some mice and per-pixel on others: sign only
-                  p.local.zoomBy(e.deltaY < 0 ? 1.2 : 1 / 1.2, {
-                     x: e.clientX - rect.left - rect.width / 2,
-                     y: e.clientY - rect.top - rect.height / 2,
-                  })
-               }}
                onDoubleClick={() => p.local.resetZoom()}
                onPointerDown={(e) => {
                   if (p.local.zoom === 1) return
@@ -303,7 +314,13 @@ const RunningCard = observer(function RunningCard(p: { st: WebSt; local: Gallery
                <button
                   type="button"
                   className="img-button"
-                  onClick={() => p.local.openLightbox({ kind: 'latent', module: moduleKey })}
+                  onClick={() =>
+                     p.local.openLightbox({
+                        kind: 'latent',
+                        module: moduleKey,
+                        after: p.st.run.results.filter((r) => r.module === moduleKey).length,
+                     })
+                  }
                >
                   <img src={previewUrl} alt="latent preview" />
                </button>

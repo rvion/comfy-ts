@@ -13,14 +13,15 @@ const RESULT: LightboxRun = {
 describe('lightbox target', () => {
    it('a latent follows the live frame: the url moves with the tick', () => {
       const view = (previewTick: number): string =>
-         lightboxView({ target: { kind: 'latent', module: 'wf' }, isRunning: true, previewTick, results: [] }).url
+         lightboxView({ target: { kind: 'latent', module: 'wf', after: 0 }, isRunning: true, previewTick, results: [] })
+            .url
       expect(view(3)).not.toBe(view(4))
       expect(view(4)).toContain('/run/wf/preview')
    })
 
    it('when the run ends it PROMOTES itself to the image that run produced', () => {
       const view = lightboxView({
-         target: { kind: 'latent', module: 'wf' },
+         target: { kind: 'latent', module: 'wf', after: 0 },
          isRunning: false,
          previewTick: 9,
          results: [RESULT],
@@ -32,7 +33,7 @@ describe('lightbox target', () => {
 
    it('another module finishing does not hijack it', () => {
       const view = lightboxView({
-         target: { kind: 'latent', module: 'wf' },
+         target: { kind: 'latent', module: 'wf', after: 0 },
          isRunning: false,
          previewTick: 2,
          results: [{ ...RESULT, module: 'other' }],
@@ -42,10 +43,22 @@ describe('lightbox target', () => {
 
    it('an unservable image keeps the latent rather than blanking the view', () => {
       const view = lightboxView({
-         target: { kind: 'latent', module: 'wf' },
+         target: { kind: 'latent', module: 'wf', after: 0 },
          isRunning: false,
          previewTick: 2,
          results: [{ ...RESULT, images: [{ url: null, filename: 'out.png' }] }],
+      })
+      expect(view.title).toBe('latent preview')
+   })
+
+   it("a FAILED run does not promote to a previous run's image", () => {
+      // the run being watched is the one that ADDS a result: `after` is what the module had
+      // when the latent was opened, so a run that dies leaves the lightbox on the latent
+      const view = lightboxView({
+         target: { kind: 'latent', module: 'wf', after: 1 },
+         isRunning: false,
+         previewTick: 4,
+         results: [RESULT], // the SAME one result that already existed
       })
       expect(view.title).toBe('latent preview')
    })

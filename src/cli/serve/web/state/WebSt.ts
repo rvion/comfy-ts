@@ -64,6 +64,8 @@ type StoredSelection = {
    loraFill?: boolean
    /** how many lora cards the popup draws before it stops */
    loraCap?: number
+   /** the one-shot 60 → 200 default bump already happened for this browser */
+   loraCapMigrated?: boolean
    layout?: string
    latent?: boolean
    logs?: boolean
@@ -182,7 +184,11 @@ export class WebSt {
       this.showLoraImages = stored.loraImages ?? true
       this.showLoraTitles = stored.loraTitles ?? true
       this.loraFill = stored.loraFill ?? true
-      this.loraCap = clampLoraCap(stored.loraCap === LEGACY_LORA_CAP ? DEFAULT_LORA_CAP : stored.loraCap)
+      // migrated ONCE, marked in the blob: without the marker this ran on every boot, so a cap
+      // someone deliberately set back to the old default could never stick
+      this.loraCap = clampLoraCap(
+         stored.loraCapMigrated !== true && stored.loraCap === LEGACY_LORA_CAP ? DEFAULT_LORA_CAP : stored.loraCap,
+      )
       this.showLatent = stored.latent ?? true
       this.varOrder = stored.varOrder ?? {}
       // logs start CLOSED whatever was stored: a panel that polls must be asked for
@@ -208,10 +214,12 @@ export class WebSt {
 
    toggleLoraTitles(): void {
       this.showLoraTitles = !this.showLoraTitles
+      this.persist()
    }
 
    toggleLoraFill(): void {
       this.loraFill = !this.loraFill
+      this.persist()
    }
 
    setLoraCap(next: number): void {
@@ -253,6 +261,7 @@ export class WebSt {
                loraTitles: this.showLoraTitles,
                loraFill: this.loraFill,
                loraCap: this.loraCap,
+               loraCapMigrated: true,
                layout: this.layout,
                latent: this.showLatent,
                varOrder: this.varOrder,
@@ -323,6 +332,12 @@ export class WebSt {
       const outgoing = this.form
       if (outgoing != null) {
          outgoing.dispose()
+         // OFF SCREEN before the round trip: its autosave reaction is already disposed, so
+         // leaving it rendered meant every keystroke during the fetch went nowhere, silently.
+         // App shows "loading draft…" while form is null
+         runInAction(() => {
+            this.form = null
+         })
          await outgoing.save()
       }
       try {

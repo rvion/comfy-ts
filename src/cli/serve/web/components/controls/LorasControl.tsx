@@ -29,6 +29,9 @@ import {
    type LoraStrengthPair,
 } from 'src/cli/serve/web/state/payload.ts'
 
+/** our own drag payload type: a foreign drag cannot forge it */
+const CARD_DRAG_TYPE = 'application/x-comfy-lora'
+
 function asRecord(raw: unknown): Record<string, unknown> {
    if (raw != null && typeof raw === 'object' && !Array.isArray(raw)) return raw as Record<string, unknown>
    return {}
@@ -385,12 +388,19 @@ export const LorasControl = observer(function LorasControl(p: {
                      onDragStart={(e) => {
                         e.dataTransfer.effectAllowed = 'move'
                         // the index travels in the drag itself: no drag state to leak or reset
-                        e.dataTransfer.setData('text/plain', String(ix))
+                        e.dataTransfer.setData(CARD_DRAG_TYPE, String(ix))
                      }}
-                     onDragOver={(e) => e.preventDefault()}
+                     // only OUR drag: a file from the desktop, a selected word or a var row
+                     // carries no card index, and Number('') is 0 — every foreign drop used to
+                     // reorder the palette from slot 0, which is an order the run then uses
+                     onDragOver={(e) => {
+                        if (e.dataTransfer.types.includes(CARD_DRAG_TYPE)) e.preventDefault()
+                     }}
                      onDrop={(e) => {
+                        const raw = e.dataTransfer.getData(CARD_DRAG_TYPE)
+                        if (raw === '') return
                         e.preventDefault()
-                        const from = Number(e.dataTransfer.getData('text/plain'))
+                        const from = Number(raw)
                         if (Number.isInteger(from) && from !== ix)
                            p.v.set(reorderLoras({ record, displayed: selectedNames, from, to: ix }))
                      }}
@@ -553,7 +563,12 @@ export const LorasControl = observer(function LorasControl(p: {
                               max={2000}
                               value={cardCap}
                               data-tip="how many cards this popup draws — each one is an image request, so the right number depends on your collection and your box. Kept in this browser"
-                              onChange={(e) => p.st.setLoraCap(parseInt(e.target.value, 10))}
+                              // an empty box is mid-edit, not a request for the default: without
+                              // this, clearing the field snapped the value to 200 as you typed
+                              onChange={(e) => {
+                                 const n = parseInt(e.target.value, 10)
+                                 if (Number.isFinite(n)) p.st.setLoraCap(n)
+                              }}
                            />
                            at once
                         </div>
