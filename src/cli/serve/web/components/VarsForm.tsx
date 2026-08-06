@@ -44,10 +44,44 @@ const VarControl = observer(function VarControl(p: { v: VarSt; host: string; st:
    }
 })
 
-const VarRow = observer(function VarRow(p: { v: VarSt; host: string; st: WebSt; module: string }) {
+const VarRow = observer(function VarRow(p: {
+   v: VarSt
+   host: string
+   st: WebSt
+   module: string
+   index: number
+   names: readonly string[]
+}) {
    return (
-      <div className="var-row">
+      <div
+         className="var-row"
+         onDragOver={(e) => {
+            // only a row drag: a file dropped on an image var must still reach its own handler
+            if (e.dataTransfer.types.includes('application/x-comfy-var')) e.preventDefault()
+         }}
+         onDrop={(e) => {
+            const raw = e.dataTransfer.getData('application/x-comfy-var')
+            if (raw === '') return
+            e.preventDefault()
+            const from = Number(raw)
+            if (Number.isInteger(from) && from !== p.index)
+               p.st.moveVar({ module: p.module, names: p.names, from, to: p.index })
+         }}
+      >
          <div className="var-label">
+            {/* the handle appears on hover: a permanent grip on every row is noise, and the
+                rest of the label must stay selectable text */}
+            <span
+               className="drag-handle"
+               draggable
+               data-tip="drag to reorder this field"
+               onDragStart={(e) => {
+                  e.dataTransfer.effectAllowed = 'move'
+                  e.dataTransfer.setData('application/x-comfy-var', String(p.index))
+               }}
+            >
+               <Icon name="grip" size={0.9} />
+            </span>
             {p.v.desc.label ?? p.v.name}
             {p.v.dirty ? (
                <button
@@ -278,6 +312,12 @@ export const VarsForm = observer(function VarsForm(p: { st: WebSt }) {
       return () => window.removeEventListener('keydown', onKey)
    }, [p.st])
    if (form == null) return null
+   // YOUR order (drag), falling back to the workflow's own declaration order
+   const orderedNames = p.st.orderedVars(
+      form.moduleKey,
+      form.vars.map((v) => v.name),
+   )
+   const orderedVars = orderedNames.map((n) => form.vars.find((v) => v.name === n)).filter((v) => v != null)
    return (
       <div>
          {/* the TUI header, on the web: labelled boxes for what you are editing and where it runs */}
@@ -432,10 +472,18 @@ export const VarsForm = observer(function VarsForm(p: { st: WebSt }) {
          {/* the autosave state is the draft box's legend now; only a FAILURE gets a line of
              its own, because that one you must not miss */}
          {form.saveState === 'error' ? <div className="error">🔴 draft save failed: {form.saveError}</div> : null}
-         {form.vars.map((v) => (
+         {orderedVars.map((v, ix) => (
             // keyed by DRAFT too: a draft switch must reset per-row ui state (lora filter,
             // remembered strengths), not carry the other draft's over
-            <VarRow key={`${form.draft}/${v.name}`} v={v} host={form.host} st={p.st} module={form.moduleKey} />
+            <VarRow
+               key={`${form.draft}/${v.name}`}
+               v={v}
+               host={form.host}
+               st={p.st}
+               module={form.moduleKey}
+               index={ix}
+               names={orderedNames}
+            />
          ))}
          {/* the OUTPUT is a knob like the others: a row, not a lone button in the header */}
          <SaveRow st={p.st} module={form.moduleKey} />

@@ -92,6 +92,14 @@ button.danger:hover { color: var(--red); border-color: var(--red); }
    padding: 8px 0; border-bottom: 1px solid var(--border);
 }
 .var-label { padding-top: 5px; overflow-wrap: break-word; }
+/* the grip appears on hover: a permanent one on every row is noise */
+.drag-handle {
+   display: inline-flex; vertical-align: -0.15em; margin-right: 4px; cursor: grab;
+   color: var(--dim); opacity: 0; transition: opacity 0.12s;
+}
+.var-row:hover .drag-handle, .drag-handle:focus-visible { opacity: 1; }
+.drag-handle:active { cursor: grabbing; }
+.lora-chip[draggable='true'] { cursor: grab; }
 .var-label .kind { color: var(--dim); font-size: 11px; display: block; }
 .var-label .dirty-dot { color: var(--amber); margin-left: 4px; background: none; border: 0; padding: 0; cursor: pointer; font: inherit; }
 .var-label .dirty-dot:hover { color: var(--red); }

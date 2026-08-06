@@ -20,6 +20,8 @@ import type { VarSt } from 'src/cli/serve/web/state/FormSt.ts'
 import type { WebSt } from 'src/cli/serve/web/state/WebSt.ts'
 import {
    loraIsOn,
+   paletteOrder,
+   reorderLoras,
    loraStrengthPair,
    setLoraEnabled,
    setLoraStrength,
@@ -96,12 +98,7 @@ export const LorasControl = observer(function LorasControl(p: {
    const isInPalette = (name: string): boolean => isOn(name) || local.paused.has(name)
    // NEWEST FIRST: the record keeps insertion order, so the lora you just added is the last
    // key — reversed, it lands where you are looking instead of at the end of the row
-   const selectedNames = (() => {
-      const known = new Set(options)
-      const inRecord = Object.keys(record).filter((n) => known.has(n) && isInPalette(n))
-      const pausedOnly = [...local.paused].filter((n) => known.has(n) && !inRecord.includes(n))
-      return [...inRecord, ...pausedOnly].reverse()
-   })()
+   const selectedNames = paletteOrder({ record, options, paused: local.paused })
    /** known to the lora manager, absent from ComfyUI's own enum: usually still runs, since the
     * file is on disk and only the server's list is stale — so it is offered, not hidden */
    const managerOnly = new Set(p.v.desc.managerOnlyOptions ?? [])
@@ -327,10 +324,23 @@ export const LorasControl = observer(function LorasControl(p: {
                   {selectedNames.length} lora{selectedNames.length === 1 ? '' : 's'} in the palette
                </span>
             ) : (
-               selectedNames.map((name) => (
+               selectedNames.map((name, ix) => (
                   <span
                      key={name}
                      className={`${showImages ? 'lora-chip card' : 'lora-chip'}${isOn(name) ? '' : ' off'}`}
+                     draggable
+                     onDragStart={(e) => {
+                        e.dataTransfer.effectAllowed = 'move'
+                        // the index travels in the drag itself: no drag state to leak or reset
+                        e.dataTransfer.setData('text/plain', String(ix))
+                     }}
+                     onDragOver={(e) => e.preventDefault()}
+                     onDrop={(e) => {
+                        e.preventDefault()
+                        const from = Number(e.dataTransfer.getData('text/plain'))
+                        if (Number.isInteger(from) && from !== ix)
+                           p.v.set(reorderLoras({ record, displayed: selectedNames, from, to: ix }))
+                     }}
                   >
                      {/* THE palette gesture: the card itself pauses and resumes, so trying a
                          few images with a lora and a few without never opens the popup */}

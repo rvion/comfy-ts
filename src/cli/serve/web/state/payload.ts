@@ -92,12 +92,54 @@ export function setLoraEnabled(
    prev?: LoraStrengthPair,
 ): Record<string, unknown> {
    const next = { ...record }
-   if (!on) delete next[name]
+   // PAUSE KEEPS THE KEY (as `false`): deleting it dropped the lora out of the record's
+   // insertion order, so pausing a card sent it to the end of the row. `false` is the same
+   // "selected but off" spelling LorasVar uses, every reader ignores it, and normalizeInitial
+   // prunes it on load — so nothing accumulates in the draft file
+   if (!on) next[name] = false
    else {
       const pair = prev ?? loraStrengthPair(record[name])
       next[name] = [pair.model, pair.clip]
    }
    return next
+}
+
+/**
+ * the palette, IN ORDER: the record's own key order (newest last on disk, shown newest FIRST),
+ * plus loras paused in this session that already left the record. Pure, because the order is
+ * the thing a drag rewrites and a pause must not touch.
+ */
+export function paletteOrder(p: {
+   record: Record<string, unknown>
+   options: readonly string[]
+   /** paused in this session — kept in the palette even when the record no longer lists them */
+   paused: ReadonlySet<string>
+}): string[] {
+   const known = new Set(p.options)
+   const inRecord = Object.keys(p.record).filter((n) => known.has(n) && (loraIsOn(p.record[n]) || p.paused.has(n)))
+   const pausedOnly = [...p.paused].filter((n) => known.has(n) && !inRecord.includes(n))
+   return [...inRecord, ...pausedOnly].reverse()
+}
+
+/** move a lora to a new slot in the PALETTE (what the row shows, newest first) and give back the
+ * record rewritten in that order — the record's key order IS the stored order */
+export function reorderLoras(p: {
+   record: Record<string, unknown>
+   /** palette order, as displayed */
+   displayed: readonly string[]
+   from: number
+   to: number
+}): Record<string, unknown> {
+   const next = [...p.displayed]
+   const [moved] = next.splice(p.from, 1)
+   if (moved == null) return p.record
+   next.splice(p.to, 0, moved)
+   const out: Record<string, unknown> = {}
+   // displayed is newest-first; the record stores the opposite, so it is written back reversed
+   for (const name of [...next].reverse()) if (name in p.record) out[name] = p.record[name]
+   // anything the palette does not show (a key pruned from view) keeps its entry
+   for (const [k, v] of Object.entries(p.record)) if (!(k in out)) out[k] = v
+   return out
 }
 
 /** set both strengths; an OFF lora stays off (its strength is edited on re-enable) */

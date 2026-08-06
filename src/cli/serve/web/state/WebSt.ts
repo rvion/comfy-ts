@@ -55,6 +55,8 @@ type StoredSelection = {
    layout?: string
    latent?: boolean
    logs?: boolean
+   /** module key → the var names in the order you dragged them into */
+   varOrder?: Record<string, string[]>
 }
 
 function readStoredSelection(): StoredSelection {
@@ -98,6 +100,29 @@ export class WebSt {
    }
    /** where the results go — hand-tuned, so it persists and restores */
    layout: ResultsLayout
+   /** var row order per module. A UI preference, so it lives in the browser blob: the draft
+    * file is the var VALUES contract shared with the TUI, and a layout key there would have to
+    * be filtered out by every reader of it */
+   varOrder: Record<string, string[]> = {}
+
+   /** the form's vars in YOUR order, with anything unknown (a new var) kept at the end */
+   orderedVars(moduleKey: string, names: readonly string[]): string[] {
+      const wanted = this.varOrder[moduleKey]
+      if (wanted == null) return [...names]
+      const known = new Set(names)
+      const ordered = wanted.filter((n) => known.has(n))
+      return [...ordered, ...names.filter((n) => !ordered.includes(n))]
+   }
+
+   moveVar(p: { module: string; names: readonly string[]; from: number; to: number }): void {
+      const order = this.orderedVars(p.module, p.names)
+      const [moved] = order.splice(p.from, 1)
+      if (moved == null) return
+      order.splice(p.to, 0, moved)
+      this.varOrder = { ...this.varOrder, [p.module]: order }
+      this.persist()
+   }
+
    /** hosts this process knows + where each module runs (server-owned, like the drafts) */
    hosts: HostsPayload = { hosts: [], defaults: {}, overrides: {} }
    hostError: string | null = null
@@ -111,6 +136,7 @@ export class WebSt {
       this.showLoraImages = stored.loraImages ?? true
       this.showLoraTitles = stored.loraTitles ?? true
       this.showLatent = stored.latent ?? true
+      this.varOrder = stored.varOrder ?? {}
       // logs start CLOSED whatever was stored: a panel that polls must be asked for
       this.showLogs = false
       makeAutoObservable(this, { run: false, enhancer: false, form: observableRef, modules: observableShallow })
@@ -152,6 +178,7 @@ export class WebSt {
                loraTitles: this.showLoraTitles,
                layout: this.layout,
                latent: this.showLatent,
+               varOrder: this.varOrder,
             }),
          )
       } catch {
