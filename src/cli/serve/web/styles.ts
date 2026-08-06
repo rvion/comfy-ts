@@ -164,6 +164,7 @@ button.mode.sel { background: var(--accent-dim); border-color: var(--accent); co
 .lora-chip button:hover { color: var(--red); }
 /* image mode: the row chip becomes the same preview card as the popup */
 .lora-chip.card {
+   position: relative;
    flex-direction: column; align-items: stretch; border-radius: 8px; padding: 6px;
    background: var(--panel-2); border: 1px solid var(--border); width: 168px;
    /* anything that still outgrows the card is clipped IN PLACE, never painted over its
@@ -180,28 +181,55 @@ button.mode.sel { background: var(--accent-dim); border-color: var(--accent); co
 }
 .lora-chip:not(.card) .lora-toggle { flex-direction: row; align-items: center; gap: 6px; }
 .lora-toggle:hover .chip-title { color: var(--accent); }
-.chip-state { font-size: 10px; color: var(--green); letter-spacing: 0.04em; }
-.lora-chip.off .chip-state { color: var(--amber); }
-.chip-controls { display: flex; gap: 4px; align-items: center; }
-/* the card is a FIXED width: its controls must divide that width, never overflow it.
-   Two 52px inputs plus the ✕ were wider than the card, so the ✕ spilled under the next
-   card and only the last one of a row stayed clickable */
-.lora-chip.card .chip-controls { width: 100%; min-width: 0; }
-.lora-chip.card .chip-controls input[type='number'] { flex: 1 1 0; width: auto; min-width: 0; }
-.lora-chip.card .chip-controls button { flex: 0 0 auto; }
-.chip-controls input[type='number'] { width: 52px; padding: 1px 4px; font-size: 11px; }
-/* a line per strength: label, slider, number. The card widened to hold them rather than
-   shrinking the slider into something undraggable */
-.chip-controls { flex-direction: column; align-items: stretch; gap: 2px; }
-.st-line { display: flex; gap: 4px; align-items: center; }
-.st-line input[type='range'] { flex: 1; min-width: 40px; height: 14px; }
-.st-line input[type='number'] { width: 46px; flex-shrink: 0; }
-.st-lock-row { display: flex; justify-content: center; margin: -2px 0; }
-.st-lock { border: 0; background: none; padding: 0 4px; color: var(--dim); line-height: 1; }
-.st-lock.sel { color: var(--accent); }
-.st-lock:hover { color: var(--text); }
-.chip-controls button { border: 0; background: none; color: inherit; padding: 0 2px; font-size: 11px; }
-.chip-controls button:hover { color: var(--red); }
+.chip-controls { display: flex; flex-direction: column; gap: 3px; }
+/* a line: label button, slider, number. The label toggles m+c ↔ m / c */
+.st-line { display: flex; gap: 5px; align-items: center; }
+.st-line .st-label {
+   border: 0; background: none; padding: 0; cursor: pointer; font-size: 10px; letter-spacing: 0.03em;
+   color: var(--dim); width: 24px; text-align: left; flex-shrink: 0;
+}
+.st-line .st-label:hover { color: var(--accent); }
+.st-line input[type='number'] { width: 44px; flex-shrink: 0; padding: 1px 4px; font-size: 11px; }
+
+/* the sliders, drawn rather than left to the browser's default chrome */
+.st-line input[type='range'] {
+   flex: 1; min-width: 40px; height: 14px; margin: 0; padding: 0;
+   appearance: none; background: none; cursor: pointer;
+}
+.st-line input[type='range']::-webkit-slider-runnable-track {
+   height: 3px; border-radius: 2px; background: var(--border);
+}
+.st-line input[type='range']::-webkit-slider-thumb {
+   appearance: none; width: 11px; height: 11px; border-radius: 50%; margin-top: -4px;
+   background: var(--accent); border: 0;
+}
+.st-line input[type='range']::-moz-range-track { height: 3px; border-radius: 2px; background: var(--border); }
+.st-line input[type='range']::-moz-range-thumb {
+   width: 11px; height: 11px; border: 0; border-radius: 50%; background: var(--accent);
+}
+.lora-chip.off .st-line input[type='range']::-webkit-slider-thumb { background: var(--dim); }
+.lora-chip.off .st-line input[type='range']::-moz-range-thumb { background: var(--dim); }
+
+/* the head line: switch, then the name */
+.chip-head { display: flex; gap: 6px; align-items: center; min-width: 0; }
+.chip-title.as-text {
+   border: 0; background: none; padding: 0; color: inherit; font: inherit; cursor: pointer;
+   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; min-width: 0;
+}
+.chip-title.as-text:hover { color: var(--accent); }
+
+/* corner affordances over the preview */
+.chip-remove, .chip-grip {
+   position: absolute; top: 4px; z-index: 2; display: inline-flex; align-items: center;
+   border: 0; border-radius: 6px; padding: 2px; color: var(--text);
+   background: rgba(16, 18, 23, 0.72); opacity: 0; transition: opacity 0.12s;
+}
+.chip-remove { right: 4px; cursor: pointer; }
+.chip-grip { left: 4px; cursor: grab; }
+.chip-grip:active { cursor: grabbing; }
+.lora-chip:hover .chip-remove, .lora-chip:hover .chip-grip { opacity: 1; }
+.chip-remove:hover { color: var(--red); }
+
 /* PAUSED: still in the palette, visibly not contributing to the graph */
 .lora-chip.off, .lora-active-row.off { opacity: 0.55; }
 .lora-chip.off { border-style: dashed; }
@@ -241,7 +269,8 @@ button.mode.sel { background: var(--accent-dim); border-color: var(--accent); co
    background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; min-width: 0;
 }
 .lora-card:hover { border-color: var(--accent); }
-.lora-thumb { width: 100%; height: 110px; object-fit: cover; border-radius: 6px; display: block; }
+/* CONTAIN, never cover: a cropped preview hides exactly what the lora looks like */
+.lora-thumb { width: 100%; height: 110px; object-fit: contain; border-radius: 6px; display: block; background: var(--bg); }
 .lora-active-row .lora-thumb { width: 48px; height: 48px; flex-shrink: 0; }
 div.lora-thumb.none {
    display: flex; align-items: center; justify-content: center;
@@ -375,8 +404,6 @@ div.lora-thumb.none {
 .switch input:checked + .track { background: var(--accent-dim); border-color: var(--accent); }
 .switch input:checked + .track::after { transform: translateX(12px); background: var(--accent); }
 .switch input:focus-visible + .track { outline: 2px solid var(--accent); outline-offset: 2px; }
-.chip-state { display: flex; gap: 5px; align-items: center; }
-.state-text { font-size: 10px; color: var(--dim); letter-spacing: 0.04em; }
 
 /* the lora details sheet */
 .lora-details { display: flex; gap: 14px; flex-wrap: wrap; }

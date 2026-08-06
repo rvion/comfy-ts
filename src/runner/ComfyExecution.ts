@@ -47,6 +47,10 @@ export type ExecutionProgress = ProgressReport & {
    promptId: PromptID
    nodeName: string | null
    elapsedMs: number
+   /** the executing node's OWN counter, in its own unit: sampler steps, or generated
+    * tokens on a text node. Null between nodes. The global percent normalizes this away,
+    * and the unit is the only live detail worth reading on a long node */
+   nodeProgress: { value: number; max: number } | null
 }
 
 export class ComfyExecution {
@@ -103,6 +107,7 @@ export class ComfyExecution {
          promptId: this.data.id,
          nodeName: this.workflow.currentExecutingNode?.$schema.nameInComfy ?? null,
          elapsedMs: Date.now() - this.startedAt,
+         nodeProgress: this.workflow.currentExecutingNode?.progress ?? null,
       }
    }
 
@@ -115,7 +120,10 @@ export class ComfyExecution {
       const filled = Math.round((p.percent / 100) * width)
       const bar = '█'.repeat(filled) + '░'.repeat(width - filled)
       const node = p.nodeName ? ` · ${p.nodeName}` : ''
-      const line = `▶ [${bar}] ${p.percent.toFixed(0).padStart(3)}%${node} · ${(p.elapsedMs / 1000).toFixed(0)}s`
+      // the node's own counter, the one number that MOVES on a long node (sampler steps,
+      // generated tokens); a text node emits no partial text, so this is all there is to watch
+      const count = p.nodeProgress ? ` ${p.nodeProgress.value}/${p.nodeProgress.max}` : ''
+      const line = `▶ [${bar}] ${p.percent.toFixed(0).padStart(3)}%${node}${count} · ${(p.elapsedMs / 1000).toFixed(0)}s`
       if (line === this._lastLoggedLine) return
       this._lastLoggedLine = line
       if (globalThis.process?.stdout?.isTTY) process.stdout.write(`\r\x1b[2K${line}`)

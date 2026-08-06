@@ -54,10 +54,10 @@ type LocalSt = {
    /** the lora whose details panel is open, null when none */
    details: string | null
    setDetails(name: string | null): void
-   /** model/clip tied together, per lora. Absent = follow whether they are already equal */
-   linked: Map<string, boolean>
-   isLinked(name: string, whenUnset: boolean): boolean
-   setLinked(name: string, linked: boolean): void
+   /** model and clip shown APART, per lora. Absent = follow whether they already differ */
+   split: Map<string, boolean>
+   isSplit(name: string, whenUnset: boolean): boolean
+   setSplit(name: string, split: boolean): void
 }
 
 export const LorasControl = observer(function LorasControl(p: {
@@ -96,12 +96,12 @@ export const LorasControl = observer(function LorasControl(p: {
       setDetails(name: string | null) {
          this.details = name
       },
-      linked: new Map(),
-      isLinked(name: string, whenUnset: boolean) {
-         return this.linked.get(name) ?? whenUnset
+      split: new Map(),
+      isSplit(name: string, whenUnset: boolean) {
+         return this.split.get(name) ?? whenUnset
       },
-      setLinked(name: string, linked: boolean) {
-         this.linked.set(name, linked)
+      setSplit(name: string, split: boolean) {
+         this.split.set(name, split)
       },
    }))
    const record = asRecord(p.v.value)
@@ -152,53 +152,39 @@ export const LorasControl = observer(function LorasControl(p: {
       p.v.set(setLoraStrength(record, name, pair))
    }
 
-   /** model/clip strengths: a line each, slider beside the number, and a LOCK that ties them.
-    * A PAUSED lora still edits its strengths — they are what comes back on resume.
-    * The lock starts ON only when the two are already equal: opening a lora tuned to 0.8/0.6
-    * and having the first drag flatten it would destroy a deliberate setting */
+   /** ONE slider by default, labelled `m+c`: model and clip are the same number in almost every
+    * lora, and two sliders for one decision is noise. Clicking the label splits them, and a lora
+    * whose values already differ opens split — its setting is someone's work, not a default */
    const strengthInputs = (name: string): ReactNode => {
       const pair = isOn(name) ? loraStrengthPair(record[name]) : (local.prevStrength.get(name) ?? { model: 1, clip: 1 })
-      const linked = local.isLinked(name, pair.model === pair.clip)
-      const write = (which: 'model' | 'clip', raw: number): void => {
+      const split = local.isSplit(name, pair.model !== pair.clip)
+      const write = (which: 'model' | 'clip' | 'both', raw: number): void => {
          if (!Number.isFinite(raw)) return
          const n = Math.round(raw * 100) / 100
-         if (linked) return setStrength(name, { model: n, clip: n })
+         if (which === 'both') return setStrength(name, { model: n, clip: n })
          setStrength(name, which === 'model' ? { model: n, clip: pair.clip } : { model: pair.model, clip: n })
       }
-      const line = (which: 'model' | 'clip', value: number): ReactNode => (
+      const line = (which: 'model' | 'clip' | 'both', value: number, text: string, tip: string): ReactNode => (
          <div className="st-line">
-            <span className="st-label">{which === 'model' ? 'm' : 'c'}</span>
+            <button type="button" className="st-label" data-tip={tip} onClick={() => local.setSplit(name, !split)}>
+               {text}
+            </button>
             <input
                type="range"
                min={-1}
                max={2}
                step={0.05}
                value={value}
-               data-tip={`${which} strength`}
                onChange={(e) => write(which, parseFloat(e.target.value))}
             />
             <input type="number" step={0.05} value={value} onChange={(e) => write(which, parseFloat(e.target.value))} />
          </div>
       )
+      if (!split) return line('both', pair.model, 'm+c', 'model and clip together — click to set them apart')
       return (
          <>
-            {line('model', pair.model)}
-            <div className="st-lock-row">
-               <button
-                  type="button"
-                  className={linked ? 'st-lock sel' : 'st-lock'}
-                  data-tip={linked ? 'model and clip move together — click to unlink' : 'link model and clip'}
-                  onClick={() => {
-                     const next = !linked
-                     local.setLinked(name, next)
-                     // linking makes them equal at once, so the state you see is the state that runs
-                     if (next) setStrength(name, { model: pair.model, clip: pair.model })
-                  }}
-               >
-                  <Icon name={linked ? 'link' : 'unlink'} size={0.85} />
-               </button>
-            </div>
-            {line('clip', pair.clip)}
+            {line('model', pair.model, 'm', 'model strength — click to tie them back together')}
+            {line('clip', pair.clip, 'c', 'clip strength — click to tie them back together')}
          </>
       )
    }
@@ -368,12 +354,6 @@ export const LorasControl = observer(function LorasControl(p: {
                   <span
                      key={name}
                      className={`${showImages ? 'lora-chip card' : 'lora-chip'}${isOn(name) ? '' : ' off'}`}
-                     draggable
-                     onDragStart={(e) => {
-                        e.dataTransfer.effectAllowed = 'move'
-                        // the index travels in the drag itself: no drag state to leak or reset
-                        e.dataTransfer.setData('text/plain', String(ix))
-                     }}
                      onDragOver={(e) => e.preventDefault()}
                      onDrop={(e) => {
                         e.preventDefault()
@@ -382,6 +362,30 @@ export const LorasControl = observer(function LorasControl(p: {
                            p.v.set(reorderLoras({ record, displayed: selectedNames, from, to: ix }))
                      }}
                   >
+                     {/* the card drags from its GRIP only: a draggable card swallows the pointer
+                         before a slider ever sees it, so the strengths were unusable */}
+                     <span
+                        className="chip-grip"
+                        draggable
+                        data-tip="drag to reorder"
+                        onDragStart={(e) => {
+                           e.dataTransfer.effectAllowed = 'move'
+                           // the index travels in the drag itself: no drag state to leak or reset
+                           e.dataTransfer.setData('text/plain', String(ix))
+                        }}
+                     >
+                        <Icon name="grip" size={0.8} />
+                     </span>
+                     {/* ✕ lives in the CORNER, over the preview: it is the card's own affordance,
+                         not another item in the strength row */}
+                     <button
+                        type="button"
+                        className="chip-remove"
+                        data-tip="remove from the palette (the popup adds it back)"
+                        onClick={() => setEntry(name, null)}
+                     >
+                        <Icon name="close" size={0.9} />
+                     </button>
                      {/* the CARD opens what this lora is; only the switch turns it on and off,
                          so reading about a lora can never change what the graph runs */}
                      <button
@@ -391,9 +395,9 @@ export const LorasControl = observer(function LorasControl(p: {
                         onClick={() => local.setDetails(name)}
                      >
                         {thumb(name)}
-                        {showTitles ? <span className="chip-title">{label(name)}</span> : null}
                      </button>
-                     <span className="chip-state">
+                     {/* the switch sits WITH the title: state and name read as one line */}
+                     <span className="chip-head">
                         <label className="switch" data-tip={isOn(name) ? 'pause this lora' : 'resume this lora'}>
                            <input
                               type="checkbox"
@@ -402,19 +406,19 @@ export const LorasControl = observer(function LorasControl(p: {
                            />
                            <span className="track" />
                         </label>
-                        <span className="state-text">{isOn(name) ? 'on' : 'paused'}</span>
+                        {showTitles ? (
+                           <button
+                              type="button"
+                              className="chip-title as-text"
+                              data-tip={`${name}\nclick for its details`}
+                              onClick={() => local.setDetails(name)}
+                           >
+                              {label(name)}
+                           </button>
+                        ) : null}
                         {warnBadge(name)}
                      </span>
-                     <span className="chip-controls">
-                        {strengthInputs(name)}
-                        <button
-                           type="button"
-                           data-tip="remove from the palette (the popup adds it back)"
-                           onClick={() => setEntry(name, null)}
-                        >
-                           <Icon name="close" />
-                        </button>
-                     </span>
+                     <span className="chip-controls">{strengthInputs(name)}</span>
                   </span>
                ))
             )}
