@@ -273,8 +273,10 @@ div.lora-thumb.none {
    It HUGS its content: fit-content width + auto height, so an empty run or a tall portrait
    never leaves a band of dead space around the image */
 .work.layout-pinned .results-col {
+   /* bottom RIGHT corner: it hugs the image, so anchoring it to a corner keeps the form's
+      left edge readable instead of splitting the page down the middle */
    position: sticky; bottom: 0; z-index: 15; margin-top: 10px;
-   width: fit-content; max-width: 100%; margin-left: auto; margin-right: auto;
+   width: fit-content; max-width: 100%; margin-left: auto; margin-right: 0;
    max-height: 46vh; overflow-y: auto;
    background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
    box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.45); padding: 6px;
@@ -287,7 +289,7 @@ div.lora-thumb.none {
 .work.layout-pinned .run-card img { max-height: 34vh; width: auto; }
 .work.layout-pinned .run-card:not(:first-of-type) { display: none; }
 .results-run { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
-.work.layout-pinned .results-run { margin-bottom: 6px; justify-content: center; }
+.work.layout-pinned .results-run { margin-bottom: 6px; justify-content: flex-end; }
 /* segmented control: ONE group, no gaps, only the outer corners rounded */
 .btn-group { display: inline-flex; }
 .btn-group button {
