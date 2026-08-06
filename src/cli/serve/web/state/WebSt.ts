@@ -164,7 +164,9 @@ export class WebSt {
       this.enhancer = new EnhancerSt()
       const stored = readStoredSelection()
       this.layout = isLayout(stored.layout) ? stored.layout : 'auto'
-      this.sidebarOpen = stored.sidebar ?? !isNarrowScreen()
+      // CLOSED by default, on every width: the panel is a form, and a workflow tree taking a
+      // column of it before you have asked for one is chrome. It reopens from the workflow box
+      this.sidebarOpen = stored.sidebar ?? false
       this.showLoraImages = stored.loraImages ?? true
       this.showLoraTitles = stored.loraTitles ?? true
       this.loraFill = stored.loraFill ?? true

@@ -30,6 +30,14 @@ body {
    width: 240px; flex-shrink: 0; overflow-y: auto;
    border-right: 1px solid var(--border); background: var(--panel); padding: 6px 0;
 }
+/* the way OUT, from inside: the drawer opens from the workflow head box, which nothing
+   advertises, so a visible close is what teaches where it lives */
+.side-head {
+   display: flex; align-items: center; justify-content: space-between; gap: 8px;
+   padding: 2px 8px 8px 12px; margin-bottom: 4px; border-bottom: 1px solid var(--border);
+   color: var(--dim); font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase;
+}
+.side-head button { padding: 2px 6px; }
 .side-module { padding: 6px 12px 2px; }
 .side-module .name { font-weight: 600; }
 .side-module .host { color: var(--dim); font-size: 11px; margin-left: 6px; }
