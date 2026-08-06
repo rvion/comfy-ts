@@ -30,7 +30,6 @@
 - **The workflow tree starts closed**, on every width: the panel is a form, and a tree taking a column of it before you asked for one is chrome. It has its own close button and a header naming it now, so the way out is visible from inside — which is also how you learn that the workflow name is the way back in. Your last choice is still remembered.
 - **The panel's URL is shareable.** The selected workflow and draft ride the address bar (`?workflow=04-krea2-turbo-t2i&draft=sheep%20fun%202`) and follow every switch, rename and duplicate, so the link on screen always opens what you are looking at. Someone opening it lands on that exact draft: the URL wins over whatever their browser last had, which is the point of sending one. A link naming a workflow or a draft the server no longer has falls back instead of failing, and params the panel does not own are left alone.
 
-
 - **The results panel defaults to the right, and every placement is a button now.** There was an `auto` mode meaning "right on a wide screen, bottom on a narrow one": no button could show it as selected, so the panel sat in a placement nobody could name — and clicking the lit button fell back into it. It is gone. A click sets a mode, the selected button always says where the panel is, and a side column stacks under the form on a phone without changing which mode you are in.
 - **Results can sit LEFT of the form too**, a fifth placement in the button group. The corner placement got an icon from the same family (a filled corner inside the same frame) instead of a pin, which said "sticky" while every sibling said where.
 - **The head boxes lay out in 4, 2 or 1 column**, and they measure the form column rather than the window — a results panel on the side halves the space they have while the viewport is unchanged, so a width media query would answer the wrong question. Even splits only: wrapping used to be able to leave three boxes on one line and one alone below. The form also gets some air under them, instead of the first var sitting flush against the boxes.
@@ -62,7 +61,6 @@
 - **A lora card drags from anywhere on it**, and carries no grip at all. It disarms itself for one gesture when you press on a control, so the strength slider, its number, the switch and the ✕ all still work; the picture and the card's own padding are what starts a reorder.
 - **The strength value has room** — a signed two-decimal value like `-0.55` was clipped.
 - **The kind tag moved into a tooltip.** `int`, `seed`, `loras` were printed under every label, on their own line and out of alignment with the control beside them. Hover the label when you want it.
-- **The seed row no longer restates the mode it is on.** `+1` already says it increments; each mode button keeps its own hint.
 
 ### Fixed
 
@@ -74,17 +72,16 @@
 - **A `COMFY_DYNAMICCOMBO_V3` input is a discriminated union now**, one member per option, each carrying that option's own inputs as dotted keys: `sampling_mode: 'on'` unlocks `'sampling_mode.temperature'`, and a key from a branch you did not select is a compile error. Previously the whole widget typed as an opaque slot, so these inputs could not be spelled at all — including every knob of `TextGenerate` and of the partner nodes (OpenAI, Gemini, Claude, OpenRouter) in the committed cloud catalog.
 - **The branch fills itself.** The host declares those branch inputs required and defaults none of them, so a missing one is rejected with `400 required_input_missing`. Absent ones are now filled from the schema at serialization and the keys of unselected branches are dropped, which is what the ComfyUI frontend sends. `b.TextGenerate({ clip, prompt })` runs on the host's own sampler defaults.
 
-## 2.7.1
+### The serve launch screen
 
 - **`comfy-ts serve` prints a readable launch screen.** Colors when the terminal has them (and never when the output is piped or `NO_COLOR` is set, so `serve > log` stays greppable), a rule between workflows instead of a wall of text, and a box at the end holding the web UI url, the JSON index, and every other address the machine answers on. Bound to localhost it also tells you the flag to open it elsewhere: `--host 0.0.0.0` (`--bind` is the same flag).
-
-### The web panel
+### The web panel, first pass
 
 - **The sidebar is a tree again.** Workflows were listed flat with their folder dropped, so six workflows from one directory looked like six unrelated entries. Folder, then its workflows, then their drafts.
 - **The header follows the TUI**: a labelled box each for workflow, draft and host, with the draft's own actions inside the draft box and the autosave state as its legend instead of a line of its own.
 - **Choose where a workflow runs.** The host box is a picker when the process knows more than one host, remembered per workflow, with a reset to the workflow's own host. Same override the TUI has.
 - **Saving is a knob, not a mystery.** The last row of the form turns writing to disk on or off, and names the folder under `.comfy-ts/outputs/` this workflow writes to. With saving off, images stay in memory and are still shown (and still returned by `curl -H 'accept: image/*'`) instead of coming back as blanks.
-- **Results placement is yours**: four buttons — none, below, beside, pinned. Pinned keeps the newest image in the bottom right corner with the generate button, so the knobs and what they produce are on screen together on a phone.
+- **Results placement is yours**: none, below, left, right, or pinned to the corner. Pinned keeps the newest image in the bottom right corner with the generate button, so the knobs and what they produce are on screen together on a phone.
 - **Fixed: the ✕ that removes a lora from the palette was unclickable** on every card but the last of each row — the strength inputs overflowed the card and the next card covered the button.
 - **Fixed: the newest image vanished in pinned mode**, leaving only the latent preview, as soon as a run finished.
 - **Fixed: duplicating a draft did nothing** when the browser had started suppressing dialogs. The new name is typed inline in the draft box now, no native prompt.
@@ -93,10 +90,10 @@
 - **Refetch the schema from the panel**: a button in the host box re-downloads `object_info` and rewrites `sdk.d.ts`. Already-loaded workflows keep the options they were defined with until serve restarts, and the message says so.
 - **The lightbox zooms.** Scroll to zoom around the cursor, drag to pan, double click to fit.
 - **Tooltips are instant.** Every button explains itself the moment you hover, through a tiny CSS tooltip instead of the native one that waits a second and cannot be styled. It opens under the button's left edge, so a tip on the leftmost button never runs off the screen.
-- **The lora card, redrawn**: uncropped preview, remove button back in its corner, the on/off switch beside the name, and ONE slider labelled `m+c` — click that label to set model and clip apart, click again to tie them. A lora whose two values already differ opens split. The sliders are drawn rather than left to the browser's default chrome. The whole card is the drag handle, with no permanent grip taking up room: a press that starts on a control works the control instead of starting a reorder. The ✕ that removes a lora is an always-visible overlay inside the picture's own box, top right, so it costs the card no layout at all and the preview keeps the full height. It used to be positioned against whatever ancestor happened to be positioned, and the generic chip-button rule outranked it and stripped its padding and backdrop.
+- **The lora card, redrawn**: uncropped preview, remove button back in its corner, the on/off switch beside the name, and ONE slider labelled `m+c` — click that label to set model and clip apart, click again to tie them. A lora whose two values already differ opens split. The sliders are drawn rather than left to the browser's default chrome, and the ✕ is an always-visible overlay inside the picture's own box.
 - **The lora sheet carries civitai's own description** and the example images the lora manager keeps, fetched live from the extension when you open a card. The description is rendered as text, never as html. When the manager has no example-images path configured, it says that instead of showing nothing.
 - **Clicking a lora tells you what it is** — display name, base model, trigger words, the keyword it injects, tags, notes, size, path and its civitai page, from the lora-manager mirror. Clicking a card no longer toggles it: an explicit switch does that, and it is a real switch rather than a word.
-- **Fields reorder by dragging.** A grip appears on hover at the start of each var label; the order is remembered per workflow.
+- **Fields reorder by dragging.** Drag a var's label to move its row; the order is remembered per workflow.
 - **Loras reorder by dragging too**, and their order rides in the draft itself (the record's key order IS the order).
 - **Fixed: pausing a lora moved it to the end of the row.** Pausing wrote the lora out of the record entirely, so it lost its slot. It keeps its place now, on and off.
 - **The lora picker respects the workflow's own filter, and says what it is.** A var declared `v.loras(/krea-?2/i)` offers only matching loras — including the manager-only ones, which previously came in unfiltered and put the whole catalogue back in a narrowed picker. The filter is printed beside the palette and in the search placeholder.
