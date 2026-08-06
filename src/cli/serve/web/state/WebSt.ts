@@ -21,6 +21,7 @@ import {
 import { EnhancerSt } from 'src/cli/serve/web/state/EnhancerSt.ts'
 import { FormSt } from 'src/cli/serve/web/state/FormSt.ts'
 import { logWebError } from 'src/cli/serve/web/logWeb.ts'
+import { asSeedForm } from 'src/cli/serve/web/state/payload.ts'
 import { readUrlSelection, resolveSelection, writeUrlSelection } from 'src/cli/serve/web/state/urlSelection.ts'
 import { RunSt } from 'src/cli/serve/web/state/RunSt.ts'
 
@@ -173,6 +174,9 @@ export class WebSt {
 
    constructor() {
       this.run = new RunSt()
+      // a finished run reports the seed it used; the form shows it, and the autosave carries it
+      // into the draft — which is also what the server continues from, so `+` keeps stepping
+      this.run.onSeeds = (seeds): void => this.applyRunSeeds(seeds)
       this.enhancer = new EnhancerSt()
       const stored = readStoredSelection()
       // a stored 'auto' from before the mode was removed resolves to what it MEANT on a
@@ -225,6 +229,24 @@ export class WebSt {
    setLoraCap(next: number): void {
       this.loraCap = clampLoraCap(next)
       this.persist()
+   }
+
+   /** put the seeds a run used back on the form, VALUE only: the mode is the draft's policy and
+    * a run never changes it. Writing the USED value (not the next one) is deliberate — the
+    * server restarts its continuation from the draft, so writing the next value would skip one */
+   private applyRunSeeds(seeds: Record<string, number>): void {
+      const form = this.form
+      if (form == null) return
+      runInAction(() => {
+         for (const varSt of form.vars) {
+            if (varSt.desc.kind !== 'seed') continue
+            const used = seeds[varSt.name]
+            if (typeof used !== 'number' || !Number.isFinite(used)) continue
+            const current = asSeedForm(varSt.value)
+            if (current.value === used) continue
+            varSt.set({ mode: current.mode, value: used })
+         }
+      })
    }
 
    /** the address bar follows the selection, so the url on screen is always the one to share.

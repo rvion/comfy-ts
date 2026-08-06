@@ -39,6 +39,10 @@ export class RunSt {
    /** staleness guard for the poll loop (mobx-mechanics: counters, not flags) */
    private pollGen = 0
 
+   /** what a finished run's seeds should do to the form. Set by WebSt: RunSt owns the queue,
+    * not the draft */
+   onSeeds: ((seeds: Record<string, number>) => void) | null = null
+
    constructor() {
       makeAutoObservable(this, { queue: observableShallow, results: observableShallow })
    }
@@ -104,6 +108,10 @@ export class RunSt {
                   // capped: full-size <img>s per run would eat the tab
                   this.results = [{ ...result, at: new Date().toLocaleTimeString() }, ...this.results].slice(0, 20)
                })
+               // the seed the run ACTUALLY used goes back on the form. The server keeps its own
+               // continuation in memory and the draft file never moved, so under `+` the field
+               // sat on the first value forever while every image really was different
+               this.onSeeds?.(result.seeds)
             } catch (e) {
                runInAction(() => {
                   this.error = e instanceof Error ? e.message : String(e)

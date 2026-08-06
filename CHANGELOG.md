@@ -27,6 +27,8 @@
 
 ### The web panel
 
+- **Fixed: under `+` the seed field never moved.** Every image really was different — the server keeps its own continuation and the draft file was never rewritten — but the number on screen sat on its first value, so the panel looked stuck. A finished run now reports the seed it used and the form takes it, which the autosave carries into the draft; the server continues from there, so nothing is skipped.
+
 - **The workflow tree starts closed**, on every width: the panel is a form, and a tree taking a column of it before you asked for one is chrome. It has its own close button and a header naming it now, so the way out is visible from inside — which is also how you learn that the workflow name is the way back in. Your last choice is still remembered.
 - **The panel's URL is shareable.** The selected workflow and draft ride the address bar (`?workflow=04-krea2-turbo-t2i&draft=sheep%20fun%202`) and follow every switch, rename and duplicate, so the link on screen always opens what you are looking at. Someone opening it lands on that exact draft: the URL wins over whatever their browser last had, which is the point of sending one. A link naming a workflow or a draft the server no longer has falls back instead of failing, and params the panel does not own are left alone.
 
