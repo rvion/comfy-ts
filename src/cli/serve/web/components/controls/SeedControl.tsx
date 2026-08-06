@@ -1,6 +1,7 @@
 // seed: mode buttons + value + 🎲. Drafts are live, so the mode configures the
 // SERVER's per-draft seed policy (generate posts no seed key; step 4 applies
-// the draft's {mode, value})
+// the draft's {mode, value}). The mode labels say what they do, so each one's
+// hint stays on its own button and no line restates the selected one
 import { Icon } from 'src/cli/serve/web/components/Icon.tsx'
 import { observer } from 'mobx-react-lite'
 import type { VarSt } from 'src/cli/serve/web/state/FormSt.ts'
@@ -47,7 +48,6 @@ export const SeedControl = observer(function SeedControl(p: { v: VarSt }) {
                <Icon name="dice" />
             </button>
          </div>
-         <div className="hint">{MODES.find((m) => m.mode === seed.mode)?.hint ?? seed.mode}</div>
       </div>
    )
 })

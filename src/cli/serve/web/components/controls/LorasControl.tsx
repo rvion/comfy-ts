@@ -354,6 +354,25 @@ export const LorasControl = observer(function LorasControl(p: {
                   <span
                      key={name}
                      className={`${showImages ? 'lora-chip card' : 'lora-chip'}${isOn(name) ? '' : ' off'}`}
+                     draggable
+                     onMouseDown={(e) => {
+                        // the WHOLE card drags, so the browser hands it the pointer before any
+                        // control below sees it, and a slider drag would only reorder the card.
+                        // Disarm for this gesture when it starts on an input: recomputed on every
+                        // mousedown, so there is no armed/disarmed state to leak
+                        const from = e.target as HTMLElement
+                        e.currentTarget.draggable = from.closest('input, label') == null
+                     }}
+                     // re-arm once the gesture is over, so the grab cursor comes back the
+                     // moment you leave the slider
+                     onMouseUp={(e) => {
+                        e.currentTarget.draggable = true
+                     }}
+                     onDragStart={(e) => {
+                        e.dataTransfer.effectAllowed = 'move'
+                        // the index travels in the drag itself: no drag state to leak or reset
+                        e.dataTransfer.setData('text/plain', String(ix))
+                     }}
                      onDragOver={(e) => e.preventDefault()}
                      onDrop={(e) => {
                         e.preventDefault()
@@ -362,18 +381,9 @@ export const LorasControl = observer(function LorasControl(p: {
                            p.v.set(reorderLoras({ record, displayed: selectedNames, from, to: ix }))
                      }}
                   >
-                     {/* the card drags from its GRIP only: a draggable card swallows the pointer
-                         before a slider ever sees it, so the strengths were unusable */}
-                     <span
-                        className="chip-grip"
-                        draggable
-                        data-tip="drag to reorder"
-                        onDragStart={(e) => {
-                           e.dataTransfer.effectAllowed = 'move'
-                           // the index travels in the drag itself: no drag state to leak or reset
-                           e.dataTransfer.setData('text/plain', String(ix))
-                        }}
-                     >
+                     {/* the grip is now a HINT, not the drag source: it says the card reorders,
+                         which nothing else on a card announces */}
+                     <span className="chip-grip" data-tip="drag the card to reorder">
                         <Icon name="grip" size={0.8} />
                      </span>
                      {/* ✕ lives in the CORNER, over the preview: it is the card's own affordance,

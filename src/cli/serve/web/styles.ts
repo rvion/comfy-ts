@@ -100,7 +100,9 @@ button.danger:hover { color: var(--red); border-color: var(--red); }
 .var-row:hover .drag-handle, .drag-handle:focus-visible { opacity: 1; }
 .drag-handle:active { cursor: grabbing; }
 .lora-chip[draggable='true'] { cursor: grab; }
-.var-label .kind { color: var(--dim); font-size: 11px; display: block; }
+/* the card drags from anywhere, so its own controls must keep their cursor */
+.lora-chip input, .lora-chip label, .lora-chip button { cursor: pointer; }
+.lora-chip input[type='number'] { cursor: text; }
 .var-label .dirty-dot { color: var(--amber); margin-left: 4px; background: none; border: 0; padding: 0; cursor: pointer; font: inherit; }
 .var-label .dirty-dot:hover { color: var(--red); }
 .var-control { min-width: 0; }
@@ -189,7 +191,8 @@ button.mode.sel { background: var(--accent-dim); border-color: var(--accent); co
    color: var(--dim); width: 24px; text-align: left; flex-shrink: 0;
 }
 .st-line .st-label:hover { color: var(--accent); }
-.st-line input[type='number'] { width: 44px; flex-shrink: 0; padding: 1px 4px; font-size: 11px; }
+/* wide enough for a signed two-decimal value plus the spinner: -0.55 was clipping */
+.st-line input[type='number'] { width: 58px; flex-shrink: 0; padding: 1px 5px; font-size: 11px; }
 
 /* the sliders, drawn rather than left to the browser's default chrome */
 .st-line input[type='range'] {
@@ -480,7 +483,6 @@ button .icon + * { margin-left: 4px; }
    .main { padding: 12px 12px 60px; }
    .var-row { grid-template-columns: 1fr; gap: 4px; }
    .var-label { padding-top: 0; }
-   .var-label .kind { display: inline; margin-left: 6px; }
    input[type='text'], input[type='number'], textarea, select { font-size: 16px; }
    input[type='number'] { width: 96px; }
    /* repeated at row specificity: the base 12px rule outranks the bare selector above,

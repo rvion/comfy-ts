@@ -82,7 +82,9 @@ const VarRow = observer(function VarRow(p: {
             >
                <Icon name="grip" size={0.9} />
             </span>
-            {p.v.desc.label ?? p.v.name}
+            {/* the kind is a TOOLTIP, not a second line: printed under every label it was a
+                column of noise you read past, and it only ever answers a question you ask once */}
+            <span data-tip={p.v.desc.kind}>{p.v.desc.label ?? p.v.name}</span>
             {p.v.dirty ? (
                <button
                   type="button"
@@ -93,7 +95,6 @@ const VarRow = observer(function VarRow(p: {
                   ●
                </button>
             ) : null}
-            <span className="kind">{p.v.desc.kind}</span>
          </div>
          <div className="var-control">
             <VarControl v={p.v} host={p.host} st={p.st} module={p.module} />
@@ -227,8 +228,7 @@ const SaveRow = observer(function SaveRow(p: { st: WebSt; module: string }) {
    return (
       <div className="var-row">
          <div className="var-label">
-            output
-            <span className="kind">save</span>
+            <span data-tip="save — where this workflow's images go">output</span>
          </div>
          <div className="var-control">
             <div className="row-inline">
