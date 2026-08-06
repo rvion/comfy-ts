@@ -660,6 +660,7 @@ describe('tui queued runs', () => {
                      promptId: id,
                      nodeName: 'KSampler',
                      elapsedMs: 1000,
+                     nodeProgress: null,
                   }),
             })
          })

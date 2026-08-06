@@ -76,3 +76,28 @@ describe('text outputs', () => {
       expect(execution.text).toBe(null)
    })
 })
+
+// a text node emits NO partial text (probed on ComfyUI 0.27.0: 90 `progress` messages
+// carrying only value/max, then ONE `executed` with the whole string). That counter is the
+// only thing that moves during a long generation, and the global percent normalizes it away.
+describe('the executing node own counter', () => {
+   it('rides ExecutionProgress in the node unit, and clears between nodes', () => {
+      const wf = host.workflow({ id: 'node-progress' })
+      const node = wf.builderBase.EmptyLatentImage({})
+      const execution = executionOver(wf)
+
+      expect(execution.progress.nodeProgress).toBe(null)
+
+      execution.onPromptRelatedMessage({
+         type: 'executing',
+         data: { node: node.uid, prompt_id: PROMPT_ID },
+      } as never)
+      execution.onPromptRelatedMessage({
+         type: 'progress',
+         data: { value: 137, max: 1024 },
+      } as never)
+
+      expect(execution.progress.nodeProgress).toEqual({ value: 137, max: 1024 })
+      expect(execution.progress.nodeName).toBe('EmptyLatentImage')
+   })
+})
