@@ -86,9 +86,9 @@ export class ComfyManager {
    /**
     * reboot the ComfyUI process (ComfyUI-Manager).
     *
-    * the server dies mid-request, so a DROPPED CONNECTION is the success shape and the only
+    * The server dies mid-request, so a DROPPED CONNECTION is the success shape and the only
     * one most callers ever see. A 404 is not: the route is POST from Manager V3 on (verified
-    * against V3.41), and a GET there answers 404 while the process keeps running, a caller
+    * against V3.41), and a GET there answers 404 while the process keeps running — a caller
     * that treats every failure as "expected mid-reboot disconnect" then reports a reboot that
     * never happened. Both verbs are tried so an old and a new Manager both work, and anything
     * that is neither a disconnect nor a 404 throws with what the host actually said.
