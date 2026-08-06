@@ -549,7 +549,10 @@ export class SizeVar extends ComfyVar<SizeValue> {
 export type ImageVarOpts = {
    /** where the TUI picker starts browsing AND what relative values resolve against (absPath) */
    folder?: string
-   /** picker listing filter, lowercase without dots; never affects the value */
+   /** picker listing filter, lowercase without dots; never affects the value. NOT a security
+    * boundary: `comfy-ts serve` keeps its own floor of image types it will read off the disk
+    * and upload, which this list may NARROW but never widen (emptying it changes the picker,
+    * not what the api accepts) */
    extensions?: readonly string[]
    label?: string
 }

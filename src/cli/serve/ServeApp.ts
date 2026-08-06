@@ -1,7 +1,7 @@
 // `comfy-ts serve` request handling, transport-free: run-serve owns node:http,
 // tests call handle() directly with an injected starter. Full contract:
 // agent/architecture.md item 12.
-import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { nanoid } from 'nanoid'
 import { basename, dirname, extname, join, resolve } from 'pathe'
 import { applyVarPayload } from 'src/cli/serve/applyVarPayload.ts'
@@ -40,6 +40,7 @@ import {
 } from 'src/host/loraManagerApi.ts'
 import { getLoraKeyword } from 'src/vars/loraKeywords.ts'
 import type { ComfyHost } from 'src/host/ComfyHost.ts'
+import { DEFAULT_IMAGE_EXTENSIONS } from 'src/vars/ComfyVars.ts'
 import type { ImageVar, LorasVar, PromptVar, SeedVar } from 'src/vars/ComfyVars.ts'
 import type { DefinedWorkflow } from 'src/vars/DefinedWorkflow.ts'
 import { bang } from 'src/utils/bang.ts'
@@ -83,6 +84,19 @@ export type ServeReply = {
    body: string | Uint8Array
    /** extra response headers, lowercase keys — the transport writes them verbatim */
    headers?: Record<string, string>
+}
+
+/** what `POST /generate` will read off this machine and upload to a ComfyUI host. A var's own
+ * `extensions` is documented as a PICKER filter that never affects the value, so it cannot be
+ * the gate: a workflow author narrowing (or emptying) it for listing reasons must not be able
+ * to widen what an unauthenticated request can make the server read. The var may narrow this
+ * floor, never leave it. */
+function serveAcceptsImageExt(declared: readonly string[], ext: string): boolean {
+   if (ext === '') return false
+   const floor = new Set(DEFAULT_IMAGE_EXTENSIONS.map((e) => e.toLowerCase()))
+   if (!floor.has(ext)) return false
+   const narrowed = declared.map((e) => e.toLowerCase().replace(/^\./, '')).filter((e) => floor.has(e))
+   return narrowed.length === 0 || narrowed.includes(ext)
 }
 
 /** an image var pointing at a url downloads it: capped, because the inbound BODY cap does not
@@ -1209,14 +1223,20 @@ export class ServeApp {
          if (!img.isSet()) continue
          const abs = img.absPath()
          if (!existsSync(abs)) return { status: 400, error: `image var '${k}': file not found: ${abs}` }
-         if (!statSync(abs).isFile()) return { status: 400, error: `image var '${k}': not a file: ${abs}` }
-         // ImageVar declares them WITHOUT a dot ('png'), extname gives one ('.png')
-         const allowed = img.extensions.map((e) => e.toLowerCase().replace(/^\./, ''))
-         const ext = extname(abs).toLowerCase().replace(/^\./, '')
-         if (allowed.length > 0 && !allowed.includes(ext))
+         // the REAL path: statSync follows symlinks, so `pic.png -> id_rsa` passed a check made
+         // on the link's name. Resolving first means the gate judges the file being read
+         let real: string
+         try {
+            real = realpathSync(abs)
+         } catch (e) {
+            return { status: 400, error: `image var '${k}': cannot resolve ${abs}: ${extractErrorMessage(e)}` }
+         }
+         if (!statSync(real).isFile()) return { status: 400, error: `image var '${k}': not a file: ${abs}` }
+         const ext = extname(real).toLowerCase().replace(/^\./, '')
+         if (!serveAcceptsImageExt(img.extensions, ext))
             return {
                status: 400,
-               error: `image var '${k}': '${ext || 'no extension'}' is not one of ${allowed.join(', ')}`,
+               error: `image var '${k}': '${ext || 'no extension'}' is not an image type this bridge reads`,
             }
       }
 
@@ -1244,13 +1264,17 @@ export class ServeApp {
       // latent frames feed the web ui's /run/<module>/preview poll (ExecSt's pattern);
       // the previous run's preview must not linger over the new one
       this.latentPreviews.delete(mod.key)
-      this.wireLatents(mod.dw.host)
+      // the host the run ACTUALLY goes to: onLatentPreview is one slot per ComfyHost, so
+      // wiring the defining host while running on an override left the override host with no
+      // dispatcher — the panel simply never saw a frame, with nothing to say why
+      const runHost = this.runHostFor(mod)
+      this.wireLatents(runHost ?? mod.dw.host)
       try {
          return {
             execution: await this.starter(mod, {
                saveToDisk: this.settings.saveToDisk,
                savePrefix: this.savePrefixFor(mod.key),
-               host: this.runHostFor(mod) ?? undefined,
+               host: runHost ?? undefined,
             }),
          }
       } catch (e) {

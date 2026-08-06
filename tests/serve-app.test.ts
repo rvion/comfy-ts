@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
-import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'pathe'
@@ -269,7 +269,7 @@ describe('image vars are a file gate, not a file reader', () => {
          body: JSON.stringify({ source: secret }),
       })
       expect(reply.status).toBe(400)
-      expect(JSON.parse(String(reply.body)).error).toContain('is not one of')
+      expect(JSON.parse(String(reply.body)).error).toContain('is not an image type')
       expect(seen).toHaveLength(0) // nothing was queued, so nothing was uploaded
    })
 
@@ -282,6 +282,49 @@ describe('image vars are a file gate, not a file reader', () => {
       })
       expect(reply.status).toBe(400)
       expect(JSON.parse(String(reply.body)).error).toContain('not a file')
+   })
+
+   it('an EMPTY extension list does not open the gate — it is a picker filter, not a policy', async () => {
+      const secret = join(root, 'id_rsa_open')
+      writeFileSync(secret, 'PRIVATE KEY')
+      const host = comfy.host({ id: `serve-test-host`, host: '127.0.0.1', port: 65500 })
+      const dw = host.defineWorkflow({
+         id: 'wf-img-empty',
+         vars: { source: v.image('', { extensions: [] }) },
+         build: () => {},
+      })
+      const seen: Record<string, unknown>[] = []
+      const app = new ServeApp([{ key: 'wf-img-empty', file: '/fake/x.cflow.ts', dw }], {
+         outputRoot: join(root, 'out'),
+         starter: snapshottingStarter(seen),
+      })
+      const reply = await app.handle({
+         method: 'POST',
+         url: '/generate/wf-img-empty/default',
+         body: JSON.stringify({ source: secret }),
+      })
+      expect(reply.status).toBe(400)
+      expect(seen).toHaveLength(0)
+   })
+
+   it('a symlink cannot disguise a file as an image', async () => {
+      const secret = join(root, 'id_rsa_target')
+      writeFileSync(secret, 'PRIVATE KEY')
+      const link = join(root, 'looks-like.png')
+      if (!existsSync(link)) symlinkSync(secret, link)
+      const seen: Record<string, unknown>[] = []
+      const app = new ServeApp([makeModule('wf-img-link')], {
+         outputRoot: join(root, 'out'),
+         starter: snapshottingStarter(seen),
+      })
+      const reply = await app.handle({
+         method: 'POST',
+         url: '/generate/wf-img-link/default',
+         body: JSON.stringify({ source: link }),
+      })
+      // the check follows the link: the REAL file is what gets read and uploaded
+      expect(reply.status).toBe(400)
+      expect(seen).toHaveLength(0)
    })
 
    it('an advertised extension still passes', async () => {
