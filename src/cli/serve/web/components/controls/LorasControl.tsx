@@ -361,7 +361,9 @@ export const LorasControl = observer(function LorasControl(p: {
                         // Disarm for this gesture when it starts on an input: recomputed on every
                         // mousedown, so there is no armed/disarmed state to leak
                         const from = e.target as HTMLElement
-                        e.currentTarget.draggable = from.closest('input, label') == null
+                        // buttons too (✕, the m+c label): a press that drifts a pixel would
+                        // otherwise start a reorder instead of firing the click
+                        e.currentTarget.draggable = from.closest('input, label, button, select, a') == null
                      }}
                      // re-arm once the gesture is over, so the grab cursor comes back the
                      // moment you leave the slider
