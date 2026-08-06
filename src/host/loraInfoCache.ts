@@ -3,6 +3,9 @@ import { getComfyStorage } from 'src/storage/ComfyStorage.ts'
 import {
    type LmLoraItem,
    lmBaseModel,
+   lmFileName,
+   lmFilePath,
+   lmFolder,
    lmItemKey,
    lmModelName,
    lmPreviewUrl,
@@ -197,11 +200,35 @@ export function getLoraPreviewUrl(name: string, hostId?: string): string | null 
 }
 
 /** the lora's NAMES: the file, and the model name a human would call it by */
-/** every lora key the mirror knows for a host, sorted. `[]` when it was never synced —
- * the caller decides what an empty mirror means (serve unions it with ComfyUI's enum) */
-export function loraMirrorNames(hostId: string): string[] {
+/**
+ * every lora the mirror knows for a host: its normalized KEY (comparable with `loraKey(option)`,
+ * never with a raw enum value — those keep their case, extension and windows separators) and the
+ * NAME a ComfyUI graph would load it by, rebuilt from the manager's folder + real filename.
+ * `[]` when the host was never synced.
+ */
+export function loraMirrorEntries(
+   hostId: string,
+   p: { separator?: '/' | '\\' } = {},
+): {
+   key: string
+   serverName: string
+}[] {
    ensureLoaded()
-   return [...(byHost.get(hostId)?.keys() ?? [])].sort()
+   const sep = p.separator ?? '/'
+   const out: { key: string; serverName: string }[] = []
+   for (const [key, item] of byHost.get(hostId) ?? []) {
+      // file_path carries the extension the enum value needs; file_name may not
+      const filePath = lmFilePath(item)
+      const base = filePath == null ? null : (filePath.split(/[/\\]/).pop() ?? null)
+      const file = base ?? lmFileName(item)
+      if (file == null) continue
+      const folder = lmFolder(item)
+      // the manager's own `folder` can be a NESTED path with its own separators, so the whole
+      // name is normalized to the host's style, never just the join (8 of 119 came out mixed)
+      const joined = folder === '' ? file : `${folder}/${file}`
+      out.push({ key, serverName: joined.replaceAll(/[\\/]/g, sep) })
+   }
+   return out.sort((a, b) => a.serverName.localeCompare(b.serverName))
 }
 
 export function loraSearchNames(name: string, hostId?: string): string[] {

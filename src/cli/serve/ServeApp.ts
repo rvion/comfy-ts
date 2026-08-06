@@ -16,7 +16,7 @@ import {
    getLoraDisplayName,
    getLoraPreviewUrl,
    getLoraTriggerWords,
-   loraMirrorNames,
+   loraMirrorEntries,
    refreshLoraInfoCacheIfChanged,
    reloadLoraInfoCache,
    writeLoraMirror,
@@ -322,8 +322,14 @@ export class ServeApp {
             if (Object.keys(labels).length > 0) desc.optionLabels = labels
             // the UNION: a lora the manager mirror knows but ComfyUI's enum does not. It is on
             // disk, so it usually runs — the picker offers it, flagged, rather than hiding it
-            const known = new Set(desc.options)
-            const extras = loraMirrorNames(hostId).filter((n) => !known.has(n))
+            // compare on the NORMALIZED key: an enum value keeps its case, extension and
+            // windows separators, so `krea2\\x.safetensors` and the mirror's `krea2/x` are the
+            // same lora. Comparing raw strings marked 200 of 281 loras as new
+            const known = new Set(desc.options.map((o) => loraKey(o)))
+            const separator = desc.options.some((o) => o.includes('\\')) ? '\\' : '/'
+            const extras = loraMirrorEntries(hostId, { separator })
+               .filter((e) => !known.has(e.key))
+               .map((e) => e.serverName)
             if (extras.length > 0) {
                desc.managerOnlyOptions = extras
                desc.options = [...desc.options, ...extras]
@@ -1013,7 +1019,8 @@ export class ServeApp {
          // a lora the mirror knows but the enum does not is a legal choice here too, else the
          // picker would offer something the api then refuses
          const err = applyVarPayload(varDef, value, {
-            extraLoraOptions: varDef.kind === 'loras' ? loraMirrorNames(mod.dw.host.data.id) : undefined,
+            extraLoraOptions:
+               varDef.kind === 'loras' ? loraMirrorEntries(mod.dw.host.data.id).map((e) => e.serverName) : undefined,
          })
          if (err != null) return { status: 400, error: err }
       }
