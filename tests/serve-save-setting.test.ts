@@ -169,3 +169,16 @@ describe('host actions and logs', () => {
       expect(String(reply.body)).toContain('refused')
    })
 })
+
+describe('settings file safety', () => {
+   it('a save prefix that could climb out is dropped on READ, not only on write', async () => {
+      const { validSavePrefix } = await import('src/cli/serve/safeName.ts')
+      expect(validSavePrefix('runs/today')).toBe('runs/today')
+      expect(validSavePrefix('')).toBe('')
+      // these become an output DIRECTORY, so a hand-written settings file must not smuggle one
+      expect(validSavePrefix('../../..')).toBeNull()
+      expect(validSavePrefix('/etc')).toBeNull()
+      expect(validSavePrefix('a/../b')).toBeNull()
+      expect(validSavePrefix('.hidden')).toBeNull()
+   })
+})

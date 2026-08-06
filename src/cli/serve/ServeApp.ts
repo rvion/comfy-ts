@@ -8,7 +8,7 @@ import { applyVarPayload } from 'src/cli/serve/applyVarPayload.ts'
 import { describeVar, type VarDescriptor } from 'src/cli/serve/describeVar.ts'
 import { deletePromptEnhancer, listPromptEnhancers, writePromptEnhancer } from 'src/cli/serve/promptEnhancers.ts'
 import { managerOnlyLoraOptions } from 'src/cli/serve/managerOnlyLoras.ts'
-import { validStoreName } from 'src/cli/serve/safeName.ts'
+import { validSavePrefix, validStoreName } from 'src/cli/serve/safeName.ts'
 import { readServeSettings, writeServeSettings, type ServeSettings } from 'src/cli/serve/serveSettings.ts'
 import { assembleLogChunks } from 'src/cli/tui/state/LogsSt.ts'
 import { draftsDirForFile, listDraftsForFile } from 'src/cli/tui/state/DraftsSt.ts'
@@ -102,6 +102,39 @@ function serveAcceptsImageExt(declared: readonly string[], ext: string): boolean
 /** an image var pointing at a url downloads it: capped, because the inbound BODY cap does not
  * apply to what serve fetches on your behalf, and one url at a big file would OOM the process */
 const INPUT_DOWNLOAD_CAP = 50_000_000
+const INPUT_DOWNLOAD_TIMEOUT_MS = 60_000
+
+/** read a reply STREAMING, aborting the moment it passes the cap. `arrayBuffer()` buffers the
+ * whole body first, so a chunked reply with no content-length could exhaust the process before
+ * anything checked its size — the cap then reported a number nobody survived to read. */
+export async function readCapped(res: Response, cap: number, what: string): Promise<Uint8Array> {
+   const body = res.body
+   if (body == null) return new Uint8Array(0)
+   const reader = body.getReader()
+   const chunks: Uint8Array[] = []
+   let total = 0
+   try {
+      for (;;) {
+         const step = await reader.read()
+         if (step.done) break
+         total += step.value.length
+         if (total > cap) {
+            await reader.cancel()
+            throw new Error(`download too large (over ${cap} bytes): ${what}`)
+         }
+         chunks.push(step.value)
+      }
+   } finally {
+      reader.releaseLock()
+   }
+   const out = new Uint8Array(total)
+   let at = 0
+   for (const c of chunks) {
+      out.set(c, at)
+      at += c.length
+   }
+   return out
+}
 
 /** the panel is REBUILT per serve process, so a cached copy is always the wrong one. With no
  * cache header at all a browser applies heuristic freshness and reuses app.js across reloads,
@@ -782,15 +815,6 @@ export class ServeApp {
       return stored === '' ? modKey : stored
    }
 
-   /** a prefix becomes a PATH under outputs/: segments are name-gated, so it cannot climb out */
-   private validSavePrefix(raw: string): string | null {
-      const clean = raw.trim().replaceAll('\\', '/')
-      if (clean === '') return ''
-      const segments = clean.split('/').filter((s) => s !== '')
-      if (segments.length === 0 || segments.some((s) => validStoreName(s) == null)) return null
-      return segments.join('/')
-   }
-
    private replySaveSettings(req: ServeRequest): ServeReply {
       let parsed: unknown
       try {
@@ -815,7 +839,7 @@ export class ServeApp {
          for (const [modKey, raw] of Object.entries(wanted.savePrefix as Record<string, unknown>)) {
             if (this.moduleByKey(modKey) == null) return json(404, { error: `unknown module '${modKey}'` })
             if (typeof raw !== 'string') return json(400, { error: `prefix for '${modKey}' must be a string` })
-            const clean = this.validSavePrefix(raw)
+            const clean = validSavePrefix(raw)
             if (clean == null)
                return json(400, {
                   error: `invalid prefix '${raw}' — folder names only, "a/b" allowed, no ".." and no absolute path`,
@@ -1301,7 +1325,9 @@ export class ServeApp {
 
    /** payload image urls land as local files under outputs/serve-inputs/ */
    private async downloadInput(url: string): Promise<string> {
-      const res = await fetch(url, { redirect: 'follow' })
+      // a timeout, because this runs INSIDE the module mutex: a url that accepts the connection
+      // and then trickles would wedge that workflow's queue for as long as it liked
+      const res = await fetch(url, { redirect: 'follow', signal: AbortSignal.timeout(INPUT_DOWNLOAD_TIMEOUT_MS) })
       // the upstream STATUS is not reported back: reflecting it turns an image var into a port
       // and route scanner for everything this box can reach (loopback, tailnet, metadata
       // endpoints). The caller learns the fetch failed, not what answered
@@ -1311,9 +1337,7 @@ export class ServeApp {
       }
       const declared = Number(res.headers.get('content-length') ?? '0')
       if (declared > INPUT_DOWNLOAD_CAP) throw new Error(`download too large (${declared} bytes): ${url}`)
-      const bytes = new Uint8Array(await res.arrayBuffer())
-      // checked AGAIN after reading: content-length is a claim, and a chunked reply has none
-      if (bytes.length > INPUT_DOWNLOAD_CAP) throw new Error(`download too large (${bytes.length} bytes): ${url}`)
+      const bytes = await readCapped(res, INPUT_DOWNLOAD_CAP, url)
       const name = basename(new URL(url).pathname) || 'input'
       const abs = join(this.outputRoot, 'serve-inputs', `${nanoid(6)}-${name}`)
       mkdirSync(dirname(abs), { recursive: true })
