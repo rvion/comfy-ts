@@ -142,6 +142,15 @@ const USAGE = [
    'GET  /outputs/<path> — generated files',
 ]
 
+/** content hash of the bundle, so the script URL CHANGES whenever the code does. no-store
+ * alone cannot save a browser that already cached app.js under the old url from an earlier
+ * run, and a panel running last week's javascript is indistinguishable from a broken fix */
+function buildId(js: string): string {
+   let h = 5381
+   for (let i = 0; i < js.length; i++) h = ((h << 5) + h + js.charCodeAt(i)) | 0
+   return (h >>> 0).toString(36)
+}
+
 /** the html shell; the app itself is ONE bundle at /web/app.js */
 const WEB_SHELL = `<!doctype html>
 <html lang="en">
@@ -153,7 +162,7 @@ const WEB_SHELL = `<!doctype html>
 </head>
 <body>
 <div id="root"></div>
-<script type="module" src="/web/app.js"></script>
+<script type="module" src="/web/app.js?v=__BUILD__"></script>
 </body>
 </html>
 `
@@ -220,8 +229,14 @@ export class ServeApp {
             // a blank dark page, the json index is a usable answer
             if (segs.length === 0 && this.opts.webJs != null && req.accept?.includes('text/html') === true) {
                this.webJsCache ??= this.opts.webJs()
-               if ((await this.webJsCache) != null)
-                  return { status: 200, contentType: 'text/html; charset=utf-8', body: WEB_SHELL, headers: NO_STORE }
+               const js = await this.webJsCache
+               if (js != null)
+                  return {
+                     status: 200,
+                     contentType: 'text/html; charset=utf-8',
+                     body: WEB_SHELL.replace('__BUILD__', buildId(js)),
+                     headers: NO_STORE,
+                  }
             }
             if (segs.length === 0 || (segs[0] === 'drafts' && segs.length === 1)) return this.replyIndex()
             if (segs[0] === 'web' && segs[1] === 'app.js' && segs.length === 2) return await this.replyWebJs()

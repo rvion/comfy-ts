@@ -53,8 +53,12 @@ export class FormSt {
    private disposers: IReactionDisposer[] = []
    /** saves are chained so two PUTs can never land out of order */
    private saveChain: Promise<boolean> = Promise.resolve(true)
-   /** the values json the server last confirmed — save() no-ops when nothing changed */
+   /** the values json the server last CONFIRMED — what is really on disk */
    private lastSaved: string
+   /** the values json last HANDED to the chain, confirmed or still in flight. save() no-ops
+    * against this one, never against lastSaved: while a PUT is open the disk does not hold
+    * lastSaved any more, so editing back to it wrote nothing and the in-flight value won */
+   private lastQueued: string
 
    constructor(
       public readonly moduleKey: string,
@@ -70,7 +74,8 @@ export class FormSt {
       // something (a stale lora key), the form is already out of sync with the file and the
       // next save() must actually send — otherwise the server keeps building the stale record
       this.lastSaved = JSON.stringify(Object.fromEntries(this.vars.map((v) => [v.name, values[v.name]])))
-      makeAutoObservable<FormSt, 'disposers' | 'saveChain' | 'lastSaved'>(this, {
+      this.lastQueued = this.lastSaved
+      makeAutoObservable<FormSt, 'disposers' | 'saveChain' | 'lastSaved' | 'lastQueued'>(this, {
          vars: false,
          moduleKey: false,
          draft: false,
@@ -78,6 +83,7 @@ export class FormSt {
          disposers: false,
          saveChain: false,
          lastSaved: false,
+         lastQueued: false,
       })
       // the persistence idiom: the values json is change-detector AND payload
       this.disposers.push(
@@ -112,6 +118,7 @@ export class FormSt {
          () =>
             runInAction(() => {
                this.lastSaved = encoded
+               this.lastQueued = encoded
                this.saveState = 'saved'
             }),
          (e: unknown) =>
@@ -158,15 +165,13 @@ export class FormSt {
    /** persist the draft now. Resolves FALSE on failure — generate() must not run stale inputs */
    save(): Promise<boolean> {
       const encoded = JSON.stringify(this.valuesJSON())
-      if (encoded === this.lastSaved) {
-         // nothing to write: the disk already holds these values, whatever an OLDER save did.
-         // returning the previous chain here would keep a stale false alive and dead-lock generate
-         runInAction(() => {
-            this.saveState = 'saved'
-            this.saveError = null
-         })
-         return Promise.resolve(true)
+      if (encoded === this.lastQueued) {
+         // already on its way (or landed): riding the chain resolves when that write does, so
+         // generate() cannot run ahead of it. A FAILED write rolls lastQueued back, so this
+         // branch never hands back a stale false
+         return this.saveChain
       }
+      this.lastQueued = encoded
       runInAction(() => {
          this.saveState = 'saving'
       })
@@ -185,6 +190,8 @@ export class FormSt {
             return true
          } catch (e) {
             runInAction(() => {
+               // roll back: this content is NOT on its way any more, the next save must re-send
+               this.lastQueued = this.lastSaved
                this.saveState = 'error'
                this.saveError = e instanceof Error ? e.message : String(e)
             })

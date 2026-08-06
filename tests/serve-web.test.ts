@@ -18,13 +18,34 @@ describe('serve web ui routes', () => {
       const reply = await app.handle({ method: 'GET', url: '/', accept: 'text/html,application/xhtml+xml' })
       expect(reply.status).toBe(200)
       expect(reply.contentType).toContain('text/html')
-      expect(String(reply.body)).toContain('/web/app.js')
+      expect(String(reply.body)).toContain('/web/app.js?v=')
       expect(String(reply.body)).toContain('id="root"')
    })
 
-   // the bundle is rebuilt per serve process, so a cached copy is ALWAYS the wrong one. With
-   // no cache header a browser applies heuristic freshness and reuses app.js across reloads:
-   // every fix then looks like it never landed, which is worse than a slow load
+   // no-store cannot save a browser that already cached app.js under the plain url in an
+   // earlier run: the CONTENT HASH in the src is what guarantees a changed bundle is fetched
+   it('the script url carries a build id that follows the bundle content', async () => {
+      const shellFor = async (js: string): Promise<string> => {
+         const app = makeApp({ webJs: () => Promise.resolve(js) })
+         return String((await app.handle({ method: 'GET', url: '/', accept: 'text/html' })).body)
+      }
+      const a = await shellFor('console.log(1)')
+      const b = await shellFor('console.log(2)')
+      const again = await shellFor('console.log(1)')
+      expect(a).not.toBe(b)
+      expect(a).toBe(again) // same bundle, same url: an unchanged panel still caches
+      expect(a).toMatch(/\/web\/app\.js\?v=[a-z0-9]+"/)
+   })
+
+   it('a versioned request still reaches the bundle route', async () => {
+      const app = makeApp({ webJs: () => Promise.resolve('js!') })
+      const reply = await app.handle({ method: 'GET', url: '/web/app.js?v=abc123' })
+      expect(reply.status).toBe(200)
+      expect(String(reply.body)).toBe('js!')
+   })
+
+   // the bundle is rebuilt per serve process, so a cached copy is ALWAYS the wrong one: with
+   // no cache header a browser applies heuristic freshness and reuses app.js across reloads
    it('the shell and the bundle are uncacheable', async () => {
       const app = makeApp({ webJs: () => Promise.resolve('js!') })
       const shell = await app.handle({ method: 'GET', url: '/', accept: 'text/html' })
