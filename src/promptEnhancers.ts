@@ -3,9 +3,12 @@
 // markdown, not json: these are hand-edited paragraphs, and a json string field
 // would be one escaped line. The FILENAME is the identity (a rename is a write
 // plus a delete); validStoreName is the same gate the draft routes use.
+// NODE-ONLY (fs): the web entry never touches this folder, and a workflow reads
+// it through promptEnhancerPresets() to offer the same texts as var presets.
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'pathe'
-import { validStoreName } from 'src/cli/serve/safeName.ts'
+import { validStoreName } from 'src/utils/safeName.ts'
+import type { VarPresetSpec } from 'src/vars/presets.ts'
 
 const EXT = '.md'
 
@@ -42,10 +45,17 @@ Answer with the rewritten prompt and nothing else: no preamble, no explanation.
 `,
 }
 
-/** seeds ONCE, on an absent folder. A folder he emptied on purpose stays empty */
+/** seeds ONCE, on an absent folder, then lists. An emptied folder stays empty: the seed is a
+ * starting point, not a file the store keeps restoring */
 export function listPromptEnhancers(): PromptEnhancer[] {
+   if (!existsSync(promptEnhancersDir())) writePromptEnhancer(SEED.name, SEED.text)
+   return readPromptEnhancers()
+}
+
+/** the PURE read: no seeding, no writing. What a workflow calls at define time, since importing
+ * a module must never create files in someone's project */
+export function readPromptEnhancers(): PromptEnhancer[] {
    const dir = promptEnhancersDir()
-   if (!existsSync(dir)) writePromptEnhancer(SEED.name, SEED.text)
    if (!existsSync(dir)) return []
    const out: PromptEnhancer[] = []
    for (const file of readdirSync(dir).sort()) {
@@ -60,6 +70,18 @@ export function listPromptEnhancers(): PromptEnhancer[] {
          console.error(`[serve] prompt enhancer '${name}' unreadable, skipped:`, e)
       }
    }
+   return out
+}
+
+/**
+ * the same master prompts, shaped for `v.text(x, { presets })` / `v.prompt`: file name → text.
+ * The point is that ONE library of texts serves the ✨ enhancer and every var that wants them,
+ * so a paragraph you tuned in the panel is offered by the workflow too, with no copy.
+ * Empty when the folder is absent, so a var keeps whatever presets it declares inline.
+ */
+export function promptEnhancerPresets(): VarPresetSpec {
+   const out: VarPresetSpec = {}
+   for (const e of readPromptEnhancers()) out[e.name] = e.text
    return out
 }
 

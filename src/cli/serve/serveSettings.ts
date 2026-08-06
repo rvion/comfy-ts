@@ -5,7 +5,7 @@
 // governs the api's, so the two surfaces cannot fight over one value.
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { stringMap } from 'src/utils/stringMap.ts'
-import { validSavePrefix } from 'src/cli/serve/safeName.ts'
+import { validSavePrefix } from 'src/utils/safeName.ts'
 import { dirname } from 'pathe'
 
 export type ServeSettings = {

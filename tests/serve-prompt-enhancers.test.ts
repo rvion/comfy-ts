@@ -1,9 +1,14 @@
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'pathe'
-import { listPromptEnhancers, promptEnhancersDir } from 'src/cli/serve/promptEnhancers.ts'
-import { validStoreName } from 'src/cli/serve/safeName.ts'
+import {
+   listPromptEnhancers,
+   promptEnhancerPresets,
+   promptEnhancersDir,
+   readPromptEnhancers,
+} from 'src/promptEnhancers.ts'
+import { validStoreName } from 'src/utils/safeName.ts'
 import { ServeApp, type ServeModule } from 'src/cli/serve/ServeApp.ts'
 import { ComfyTS } from 'src/state.ts'
 import { v } from 'src/vars/ComfyVars.ts'
@@ -57,6 +62,31 @@ describe('prompt enhancers live in .comfy-ts/prompt-enhancers/', () => {
    it('a file edited on disk is what the next read returns (the disk is the source of truth)', () => {
       writeFileSync(join(promptEnhancersDir(), 'refine-krea2-prompt.md'), 'edited by hand')
       expect(listPromptEnhancers()[0]?.text).toBe('edited by hand')
+   })
+
+   it('the same library is offered as var presets, and reading it writes nothing', () => {
+      writeFileSync(join(promptEnhancersDir(), 'terse.md'), 'reply with one sentence')
+      const presets = promptEnhancerPresets()
+      // file name → text, so a paragraph tuned in the panel is the SAME text the var offers
+      expect(presets.terse).toBe('reply with one sentence')
+      expect(Object.keys(presets)).toContain('refine-krea2-prompt')
+
+      rmSync(join(promptEnhancersDir(), 'terse.md'))
+   })
+
+   it('the PURE read never seeds: importing a workflow must not create files in a project', () => {
+      // a fresh root, so the folder genuinely does not exist yet
+      const mine = globalHack.comfyts
+      Reflect.deleteProperty(globalThis, 'comfyts')
+      const fresh = ComfyTS.create({ rootPath: mkdtempSync(join(tmpdir(), 'comfy-ts-enh-empty-')) })
+      try {
+         expect(readPromptEnhancers()).toEqual([])
+         expect(promptEnhancerPresets()).toEqual({})
+         expect(existsSync(fresh.resolveFromPromptEnhancers(''))).toBe(false)
+      } finally {
+         if (mine != null) globalHack.comfyts = mine
+         else Reflect.deleteProperty(globalThis, 'comfyts')
+      }
    })
 
    it('GET lists them, PUT writes a real .md file, DELETE removes it', async () => {

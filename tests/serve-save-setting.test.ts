@@ -172,7 +172,7 @@ describe('host actions and logs', () => {
 
 describe('settings file safety', () => {
    it('a save prefix that could climb out is dropped on READ, not only on write', async () => {
-      const { validSavePrefix } = await import('src/cli/serve/safeName.ts')
+      const { validSavePrefix } = await import('src/utils/safeName.ts')
       expect(validSavePrefix('runs/today')).toBe('runs/today')
       expect(validSavePrefix('')).toBe('')
       // these become an output DIRECTORY, so a hand-written settings file must not smuggle one

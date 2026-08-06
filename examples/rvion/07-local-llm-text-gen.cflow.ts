@@ -10,7 +10,7 @@
 //
 // run directly:  bun examples/rvion/07-local-llm-text-gen.cflow.ts ["a cat on a roof"]
 // probe the box: bun examples/rvion/07-local-llm-text-gen.cflow.ts --sweep
-import { ComfyTS, v } from 'comfy-ts'
+import { ComfyTS, promptEnhancerPresets, v } from 'comfy-ts'
 
 const comfy = ComfyTS.create()
 const host = comfy.host({ id: 'windows-1', host: 'desktop-im18794', port: 8085 })
@@ -121,7 +121,10 @@ export const localLlmTextGen = host.defineWorkflow({
          label: 'instruction',
          // a system prompt is a paragraph you rewrite, not a value you type once
          multiline: true,
-         presets: INSTRUCTIONS,
+         // the six above, plus every master prompt in `.comfy-ts/prompt-enhancers/` — the same
+         // library the web panel's ✨ button uses. One place to tune a paragraph, two surfaces
+         // offering it. The folder is empty in a fresh checkout, and the inline six still stand
+         presets: { ...INSTRUCTIONS, ...promptEnhancerPresets() },
       }),
       subject: v.text('a cat on a roof', {
          label: 'subject',

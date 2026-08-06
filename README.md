@@ -215,7 +215,7 @@ await txt2img.run({ log: true }) // fresh graph, fresh image
 | `v.loras`               | RegExp resolved against the host's REAL lora list, fully typed, multi-select       |
 | `v.image`               | local image path, TUI picker attached; `exampleImagePath('bear_1024x1024.jpg')` defaults to a bundled sample |
 | `v.text` `v.int` `v.float` `v.toggle` `v.choice` `v.size` | the everyday knobs, ranges included          |
-| `presets` on `v.text` / `v.prompt` | named starting texts (`{ 'terse tags': '…' }`): a presets button in the web panel, `P` in the TUI. Picking one replaces the field |
+| `presets` on `v.text` / `v.prompt` | named starting texts (`{ 'terse tags': '…' }`): a presets button in the web panel, `P` in the TUI. Picking one replaces the field. `promptEnhancerPresets()` offers your `.comfy-ts/prompt-enhancers/*.md` library as presets too |
 
 `vars` can be a lambda receiving `v` so vars reference each other: `v.prompt('a cozy house', { loraKeywordsFrom: loras })` prefixes the active loras' trigger keywords. Name the file `*.cflow.ts` and the TUI finds it.
 

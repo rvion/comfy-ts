@@ -31,7 +31,14 @@ CLAUDE.local.md
 # path: a deny-list only covers what exists today, so the next feature to write
 # there would be tracked by default. Negate a single path here if one ever needs
 # to be committed.
-.comfy-ts/
+.comfy-ts/*
+# the ONE negation that rule provides for. Prompt-enhancer master prompts are authored PROSE,
+# not machine state: the same paragraph feeds the panel's ✨ button and any var that offers
+# them as presets (promptEnhancerPresets()), and it is worth reading in a diff. Only *.md is
+# re-included, so nothing else that lands in that folder becomes tracked by accident.
+!.comfy-ts/prompt-enhancers/
+.comfy-ts/prompt-enhancers/*
+!.comfy-ts/prompt-enhancers/*.md
 # a captured model-manager page describes ONE machine's collection (absolute
 # disk paths, content ratings, remote ids, the full inventory): never committed,
 # from anywhere in the tree. Fixtures under tests/ are SYNTHETIC and stay that
