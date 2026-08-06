@@ -43,7 +43,13 @@ body {
 .side-errors .file { color: var(--dim); word-break: break-all; }
 .side-errors .msg { color: var(--red); }
 
-.main { flex: 1; overflow-y: auto; padding: 12px 14px 48px; }
+/* the ONE scrolling element. --main-pad-y is its own top+bottom padding, published so the
+   sticky results column can subtract exactly that: a column sized to the full VIEWPORT inside
+   a padded scrollport is always taller than the room it has, which is a scrollbar on a page
+   that fits. The bottom padding is small on purpose — everything that floats here (the run
+   bar, the pinned preview) is position:sticky, so it occupies flow space and needs no
+   clearance; the old 48px was left from a fixed bar and was pure phantom scroll height */
+.main { --main-pad-y: 26px; flex: 1; min-height: 0; overflow-y: auto; padding: 12px 14px 14px; }
 .main h2 { font-size: 14px; margin: 0; color: var(--dim); font-weight: 500; }
 .main h2 b { color: var(--text); }
 
@@ -353,7 +359,7 @@ div.lora-thumb.none {
       page scroll. Same rule as layout-side, see the note there */
    .work.layout-auto .results-col {
       position: sticky; top: 0; align-self: flex-start;
-      max-height: calc(100vh - 24px); overflow-y: auto; overscroll-behavior: contain;
+      max-height: calc(100dvh - var(--main-pad-y, 26px)); min-height: 0; overflow-y: auto; overscroll-behavior: contain;
    }
 }
 /* chosen placements */
@@ -369,7 +375,7 @@ div.lora-thumb.none {
 .work.layout-left .results-col .gallery { margin-top: 0; }
 .work.layout-left .results-col {
    position: sticky; top: 0; align-self: flex-start;
-   max-height: calc(100vh - 24px); overflow-y: auto; overscroll-behavior: contain;
+   max-height: calc(100dvh - var(--main-pad-y, 26px)); min-height: 0; overflow-y: auto; overscroll-behavior: contain;
 }
 
 /* A COLUMN OF RESULTS IS NEVER TALLER THAN THE PAGE. Left to itself it grows with the run
@@ -378,7 +384,7 @@ div.lora-thumb.none {
    so the form column stays where it is however many runs pile up */
 .work.layout-side .results-col {
    position: sticky; top: 0; align-self: flex-start;
-   max-height: calc(100vh - 24px); overflow-y: auto; overscroll-behavior: contain;
+   max-height: calc(100dvh - var(--main-pad-y, 26px)); min-height: 0; overflow-y: auto; overscroll-behavior: contain;
 }
 /* PINNED: the newest result floats over the bottom, the form scrolls under it — the phone
    answer to "I always have to scroll between them". Sticky, so it never covers the runbar.
@@ -528,7 +534,7 @@ button .icon + * { margin-left: 4px; }
 
 /* phone: label over control, 16px inputs (below that iOS zooms the page on focus) */
 @media (max-width: 640px) {
-   .main { padding: 10px 10px 48px; }
+   .main { --main-pad-y: 22px; padding: 10px 10px 12px; }
    /* labels stay BESIDE their control on a phone too: stacking them doubled the height of
       every row and read as a wall. The column just gets narrower. A row that needs the whole
       width (loras) opts out with .wide */
