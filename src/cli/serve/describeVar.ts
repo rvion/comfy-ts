@@ -1,5 +1,6 @@
 // PURE var → descriptor: ONE introspection pass feeds GET /drafts (json) AND
 // the startup print (renderDescriptorLine)
+import { ansi } from 'src/utils/ansi.ts'
 import type {
    AnyVar,
    ChoiceVar,
@@ -97,10 +98,13 @@ export function describeVar(varDef: AnyVar): VarDescriptor {
    }
 }
 
-/** one aligned console line per var (startup print) */
-export function renderDescriptorLine(name: string, d: VarDescriptor, nameWidth: number): string {
+/** one aligned console line per var (startup print). Padding happens on the PLAIN text: colors are wrapped around the
+ * already-padded cells, so a colored and an uncolored print line up identically */
+export function renderDescriptorLine(name: string, d: VarDescriptor, nameWidth: number, color = false): string {
    const def = typeof d.default === 'string' ? JSON.stringify(truncate(d.default, 40)) : JSON.stringify(d.default)
-   return `   ${name.padEnd(nameWidth)} ${d.kind.padEnd(6)} ${d.payload}  ·  default: ${truncate(def ?? 'null', 60)}`
+   const cells = { name: name.padEnd(nameWidth), kind: d.kind.padEnd(6), value: truncate(def ?? 'null', 60) }
+   if (!color) return `   ${cells.name} ${cells.kind} ${d.payload}  ·  default: ${cells.value}`
+   return `   ${ansi.bold(cells.name)} ${ansi.yellow(cells.kind)} ${ansi.gray(d.payload)}  ${ansi.gray('·  default:')} ${cells.value}`
 }
 
 function truncate(s: string, n: number): string {

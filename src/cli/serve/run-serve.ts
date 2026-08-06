@@ -10,7 +10,9 @@ import { findDefinedWorkflow } from 'src/cli/tui/findDefinedWorkflow.ts'
 import { draftKeyForFile } from 'src/cli/tui/state/DraftsSt.ts'
 import { describeVar, renderDescriptorLine } from 'src/cli/serve/describeVar.ts'
 import { ServeApp, type ServeModule } from 'src/cli/serve/ServeApp.ts'
+import { renderStartupLines } from 'src/cli/serve/startupPrint.ts'
 import { loadOrBuildWebJs } from 'src/cli/serve/webBundle.ts'
+import { colorsAvailable } from 'src/utils/ansi.ts'
 import { extractErrorMessage } from 'src/utils/extractErrorMessage.ts'
 
 const DEFAULT_PORT = 8288
@@ -167,37 +169,28 @@ export function reachableAddresses(bind: string, nics: Record<string, Nic[] | un
    return ['127.0.0.1', ...found]
 }
 
-/** 100.64.0.0/10 is the CGNAT range tailscale hands out — worth naming, it is the one he wants */
-function addressNote(addr: string): string {
-   const octets = addr.split('.').map(Number)
-   const second = octets[1] ?? 0
-   return octets[0] === 100 && second >= 64 && second <= 127 ? '  (tailnet)' : ''
-}
-
 function printStartup(app: ServeApp, bind: string, port: number): void {
    const base = `http://${bind}:${port}`
-   console.log(`comfy-ts serve · ${app.modules.length} workflow(s) · ${base}/`)
-   if (bind !== '127.0.0.1' && bind !== 'localhost') {
-      console.log(`⚠️  bound to ${bind} — this API has NO AUTH and runs workflows on your ComfyUI host`)
-      const urls = reachableAddresses(bind, networkInterfaces())
-      if (urls.length > 1) {
-         console.log('reachable at:')
-         for (const addr of urls) console.log(`   http://${addr}:${port}/${addressNote(addr)}`)
-      }
-   }
-   for (const mod of app.modules) {
-      console.log(`\n${mod.key} (host: ${mod.dw.host.data.id})`)
-      for (const draft of app.draftsFor(mod))
-         console.log(`   POST ${base}/generate/${encodeURIComponent(mod.key)}/${encodeURIComponent(draft)}`)
-      const entries = mod.dw.entries()
-      const nameWidth = Math.max(...entries.map(([n]) => n.length), 4)
-      for (const [name, varDef] of entries) console.log(renderDescriptorLine(name, describeVar(varDef), nameWidth))
-   }
-   const firstMod = app.modules[0]
-   if (firstMod != null)
-      console.log(
-         `\ntry:  curl -X POST ${base}/generate/${encodeURIComponent(firstMod.key)}/default -H 'content-type: application/json' -d '{}'`,
-      )
-   console.log(`docs: GET ${base}/drafts (json index of everything above)`)
-   console.log(`ui:   open ${base}/ in a browser (every var as a form control)`)
+   const color = colorsAvailable()
+   const lines = renderStartupLines({
+      bind,
+      port,
+      urls: reachableAddresses(bind, networkInterfaces()),
+      color,
+      modules: app.modules.map((mod) => {
+         const entries = mod.dw.entries()
+         const nameWidth = Math.max(...entries.map(([n]) => n.length), 4)
+         return {
+            key: mod.key,
+            hostId: mod.dw.host.data.id,
+            routes: app
+               .draftsFor(mod)
+               .map((d) => `${base}/generate/${encodeURIComponent(mod.key)}/${encodeURIComponent(d)}`),
+            varLines: entries.map(([name, varDef]) =>
+               renderDescriptorLine(name, describeVar(varDef), nameWidth, color),
+            ),
+         }
+      }),
+   })
+   for (const line of lines) console.log(line)
 }

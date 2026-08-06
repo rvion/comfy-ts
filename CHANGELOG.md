@@ -1,5 +1,9 @@
 # comfy-ts
 
+## 2.7.1
+
+- **`comfy-ts serve` prints a readable launch screen.** Colors when the terminal has them (and never when the output is piped or `NO_COLOR` is set, so `serve > log` stays greppable), a rule between workflows instead of a wall of text, and a box at the end holding the web UI url, the JSON index, and every other address the machine answers on. Bound to localhost it also tells you the flag to open it elsewhere: `--host 0.0.0.0` (`--bind` is the same flag).
+
 ## 2.7.0
 
 ### The prompt refiner runs on a local model too

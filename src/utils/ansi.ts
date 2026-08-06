@@ -1,11 +1,14 @@
 // tiny chalk-compatible terminal styler (chainable), keeps chalk out of the deps
 const codes = {
    bold: [1, 22],
+   dim: [2, 22],
    underline: [4, 24],
    red: [31, 39],
    green: [32, 39],
    yellow: [33, 39],
    blue: [34, 39],
+   cyan: [36, 39],
+   gray: [90, 39],
    greenBright: [92, 39],
 } as const
 
@@ -30,4 +33,14 @@ const ANSI_RE = /\x1b\[[0-9;?]*[A-Za-z]|\x1b[A-Za-z]/g
 
 export function stripAnsi(s: string): string {
    return s.replace(ANSI_RE, '')
+}
+
+/** colors only where they can be seen: a real terminal, NO_COLOR unset, TERM not 'dumb'.
+ * A piped or redirected stdout gets plain text, so `serve > log` stays greppable */
+export function colorsAvailable(): boolean {
+   const env = globalThis.process?.env ?? {}
+   if (env.NO_COLOR != null && env.NO_COLOR !== '') return false
+   if (env.TERM === 'dumb') return false
+   if (env.FORCE_COLOR != null && env.FORCE_COLOR !== '' && env.FORCE_COLOR !== '0') return true
+   return globalThis.process?.stdout?.isTTY === true
 }
