@@ -4,6 +4,8 @@ import type { ComfyNodeSchema } from 'src/sdk-generator/ComfyNodeSchema.ts'
 import type { ComfyApiNodeJson } from 'src/sdk-generator/comfy-api-json.ts'
 import type { NodeInputExt, NodeOutputExt } from 'src/sdk-generator/comfyui-types.ts'
 import { ComfyDefaultNodeWhenUnknown_Name } from 'src/sdk-generator/Primitives.ts'
+import { classifySchemaInput, defaultValueForWidget } from 'src/sdk-generator/inputWidgetKind.ts'
+import type { DynamicComboOption } from 'src/sdk-generator/inputWidgetKind.ts'
 import type { Maybe } from 'src/types/index.ts'
 import { comfyColors } from 'src/utils/ComfyColors.ts'
 import { auto_ } from 'src/graph/autoValue.ts'
@@ -12,6 +14,9 @@ import { ComfyNodeOutput } from 'src/graph/ComfyNodeOutput.ts'
 import { NodeSlotSize, NodeTitleHeight, nodeLineHeight } from 'src/graph/NodeSlotSize.ts'
 
 type NodeExecutionStatus = 'executing' | 'done' | 'error' | 'waiting' | 'cached' | null
+
+const isScalarValue = (x: unknown): x is string | number | boolean =>
+   typeof x === 'string' || typeof x === 'number' || typeof x === 'boolean'
 
 export type NodePort = {
    id: string
@@ -176,8 +181,22 @@ export class ComfyNode<
    _convertPromptExtToPrompt(promptExt: ComfyApiNodeJson): ComfyApiNodeJson {
       const inputs: { [inputName: string]: any } = {}
       const _done = new Set<string>()
+      /** every dotted key of every branch: the selected ones are written here, the rest are dropped */
+      const _comboBranchKeys = new Set<string>()
       for (const i of this.$schema.inputs) {
          _done.add(i.nameInComfy)
+         const kind = classifySchemaInput(i)
+         if (kind.kind === 'dynamic-combo') {
+            this._writeDynamicCombo({
+               name: i.nameInComfy,
+               options: kind.options,
+               defaultKey: kind.defaultKey,
+               provided: promptExt.inputs,
+               out: inputs,
+               claimed: _comboBranchKeys,
+            })
+            continue
+         }
          const value = this.serializeValue(i.nameInComfy, promptExt.inputs[i.nameInComfy])
          // absent optionals (autogrow containers included) stay OUT of the
          // prompt: an `undefined` value would already be dropped by JSON
@@ -185,11 +204,49 @@ export class ComfyNode<
          if (value !== undefined) inputs[i.nameInComfy] = value
       }
       for (const [nameInComfy, rawVal] of Object.entries(promptExt.inputs)) {
-         if (_done.has(nameInComfy)) continue
+         if (_done.has(nameInComfy) || _comboBranchKeys.has(nameInComfy)) continue
          const value = this.serializeValue(nameInComfy, rawVal)
          inputs[nameInComfy] = value
       }
       return { class_type: this.$schema.nameInComfy, inputs }
+   }
+
+   /** dynamic combo → the key plus ONLY the selected branch's dotted inputs, absent ones
+    * filled from the schema (agent/architecture.md, dynamic-combo fill). The host declares
+    * those branch inputs required and default-fills none of them */
+   private _writeDynamicCombo(p: {
+      name: string
+      options: DynamicComboOption[]
+      defaultKey: string
+      provided: { [k: string]: unknown }
+      out: { [k: string]: any }
+      claimed: Set<string>
+   }): void {
+      for (const opt of p.options) for (const e of opt.inputs) p.claimed.add(`${p.name}.${e.name}`)
+      const raw = p.provided[p.name]
+      const key = typeof raw === 'string' ? raw : p.defaultKey
+      const branch = p.options.find((o) => o.key === key)
+      if (branch == null) {
+         const known = p.options.map((o) => o.key).join(', ')
+         console.error(`🔴 unknown "${p.name}" option ${JSON.stringify(key)} (known: ${known})`)
+         this.graph.recordProblem(
+            `🔴 unknown "${p.name}" option ${JSON.stringify(key)} on ${this.$schema.nodeKey}#${this.uid} (known: ${known})`,
+         )
+         return
+      }
+      p.out[p.name] = key
+      for (const e of branch.inputs) {
+         const dotted = `${p.name}.${e.name}`
+         const given = p.provided[dotted]
+         p.out[dotted] =
+            given === undefined
+               ? defaultValueForWidget({
+                    type: typeof e.type === 'string' ? e.type : 'COMBO',
+                    opts: e.opts,
+                    enumValues: Array.isArray(e.type) ? e.type.filter(isScalarValue) : undefined,
+                 })
+               : this.serializeValue(dotted, given)
+      }
    }
 
    /** return the list of nodes piped into this node */

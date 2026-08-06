@@ -238,12 +238,23 @@ export class ComfySchema {
             // (instances are `<name>.<inst>` link slots) — never required, and
             // its template sub-input slot type registers like any slot so
             // codegen can type the dotted instance keys (agent/sdk-codegen.md)
-            const isAutogrowContainer =
-               typeof slotType === 'string' &&
-               classifyWidgetInput({ name: ipt.name, type: slotType, opts: slotOpts }).kind === 'dynamic-container'
+            const widgetKind =
+               typeof slotType === 'string'
+                  ? classifyWidgetInput({ name: ipt.name, type: slotType, opts: slotOpts })
+                  : null
+            const isAutogrowContainer = widgetKind?.kind === 'dynamic-container'
             if (isAutogrowContainer) {
                const instType = containerInstanceSlotType(slotOpts)
                if (instType != null) this.knownSlotTypes.add(asComfyNodeSlotTypeName(instType))
+            }
+            // dynamic combo: a branch input is typed by its dotted prompt key,
+            // so its slot type must register like any slot (agent/sdk-codegen.md)
+            if (widgetKind?.kind === 'dynamic-combo') {
+               for (const opt of widgetKind.options) {
+                  for (const entry of opt.inputs) {
+                     if (typeof entry.type === 'string') this.knownSlotTypes.add(asComfyNodeSlotTypeName(entry.type))
+                  }
+               }
             }
 
             node.inputs.push({

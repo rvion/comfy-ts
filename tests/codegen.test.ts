@@ -83,3 +83,29 @@ describe('autogrow containers in codegen', () => {
       expect(dts).toContain(`"FLOAT,INT,BOOLEAN":`)
    })
 })
+
+describe('dynamic combos in codegen', () => {
+   const spec = JSON.parse(readFileSync('tests/fixtures/object_info-v3-widgets.json', 'utf-8'))
+   const dts = new ComfySchema({ spec, embeddings: [] }).codegenDTS({ hostId: 'test-host-v3' })
+
+   it('emits one union member per branch, keyed by the option', () => {
+      expect(dts).toContain(`{ resize_type: "scale dimensions";`)
+      expect(dts).toContain(`{ resize_type: "scale total pixels";`)
+      expect(dts).toContain(`{ resize_type: "match size";`)
+      // the key has no schema default and is required → never optional
+      expect(dts).not.toContain(`resize_type?:`)
+   })
+
+   it('types branch inputs as dotted optional keys, combos as literals', () => {
+      expect(dts).toContain(`"resize_type.width"?: Accepts["INT"]`)
+      expect(dts).toContain(`"resize_type.megapixels"?: Accepts["FLOAT"]`)
+      expect(dts).toContain(`"resize_type.crop"?: "disabled" | "center"`)
+      // a branch SLOT input registers into Accepts like any slot
+      expect(dts).toContain(`"resize_type.match"?: Accepts["IMAGE,MASK"]`)
+      expect(dts).toContain(`"IMAGE,MASK":`)
+   })
+
+   it('never leaves the opaque widget type as the input face', () => {
+      expect(dts).not.toContain(`resize_type: Accepts["COMFY_DYNAMICCOMBO_V3"]`)
+   })
+})

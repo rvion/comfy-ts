@@ -4,7 +4,46 @@ import { escapeJSKey } from 'src/utils/escapeJSKey.ts'
 import type { ComfySchema } from 'src/sdk-generator/ComfySchema.ts'
 
 import { type ComfyNodeSchema, wrapQuote } from 'src/sdk-generator/ComfyNodeSchema.ts'
-import { classifySchemaInput, containerInstanceSlotType } from 'src/sdk-generator/inputWidgetKind.ts'
+import {
+   classifySchemaInput,
+   containerInstanceSlotType,
+   isRecord,
+   type DynamicComboOption,
+   type RawInputSpecEntry,
+} from 'src/sdk-generator/inputWidgetKind.ts'
+
+const isScalar = (x: unknown): x is string | number | boolean =>
+   typeof x === 'string' || typeof x === 'number' || typeof x === 'boolean'
+
+/** a dynamic-combo branch input, typed the way its dotted prompt key is filled: inline enums
+ * and COMBO option lists become literal unions, everything else stays a named slot */
+const branchInputType = (entry: RawInputSpecEntry): string => {
+   const opts = isRecord(entry.opts) ? entry.opts : null
+   const literals = Array.isArray(entry.type) ? entry.type : Array.isArray(opts?.['options']) ? opts['options'] : []
+   const scalars = literals.filter(isScalar)
+   if (scalars.length > 0) return scalars.map((o) => JSON.stringify(o)).join(' | ')
+   if (typeof entry.type === 'string') return `Accepts[${JSON.stringify(entry.type)}]`
+   return 'string | number | boolean'
+}
+
+/** `& ({key:'a'; 'name.x'?: …} | {key:'b'})` — one member per branch, so a key from a branch
+ * you did not select is a type error. Branch fields are optional: ComfyNode fills them
+ * from the schema at serialization (agent/architecture.md, dynamic-combo fill) */
+const dynamicComboUnion = (p: {
+   name: string
+   nameEscaped: string
+   options: DynamicComboOption[]
+   keyOptional: boolean
+}): string => {
+   const members = p.options.map((opt) => {
+      const fields = opt.inputs.map(
+         (e) => `${escapeJSKey(`${p.name}.${e.name}`)}?: ${branchInputType(e)}`, //
+      )
+      const key = `${p.nameEscaped}${p.keyOptional ? '?' : ''}: ${JSON.stringify(opt.key)}`
+      return `{ ${[key, ...fields].join('; ')} }`
+   })
+   return ` & (${members.join(' | ')})`
+}
 
 /**
  * convert a host id to the namespace name it gets inside the global `Comfy` namespace
@@ -76,6 +115,9 @@ export function codegenSDK(this: ComfySchema, opts: CodegenOptions): string {
    b.indent()
    for (const n of nodes) {
       p(`${escapeJSKey(n.nodeKey)}: {`)
+      // dynamic combos leave the flat body and come back as an intersected
+      // union suffix, one member per branch (agent/sdk-codegen.md)
+      const comboSuffixes: string[] = []
       for (const i of n.inputs) {
          // autogrow container: emit dotted instance keys, never the container
          // decl itself — the backend prompt input is `<name>.<inst>`, the
@@ -89,6 +131,18 @@ export function codegenSDK(this: ComfySchema, opts: CodegenOptions): string {
                   p(`    ${escapeJSKey(`${i.nameInComfy}.${instName}`)}${opt}: Accepts[${JSON.stringify(instType)}]`)
                })
             }
+            continue
+         }
+         if (kind.kind === 'dynamic-combo') {
+            const optsDyn = typeof i.opts === 'string' ? null : i.opts
+            comboSuffixes.push(
+               dynamicComboUnion({
+                  name: i.nameInComfy,
+                  nameEscaped: i.nameInComfyEscaped,
+                  options: kind.options,
+                  keyOptional: optsDyn?.default !== undefined || !i.required,
+               }),
+            )
             continue
          }
          const opts_ = typeof i.opts === 'string' ? null : i.opts
@@ -122,7 +176,7 @@ export function codegenSDK(this: ComfySchema, opts: CodegenOptions): string {
          const canBeOmmited = opts_?.default !== undefined || !i.required
          p(`    ${i.nameInComfyEscaped}${canBeOmmited ? '?' : ''}: ${type}`)
       }
-      p(`},`)
+      p(`}${comboSuffixes.join('')},`)
    }
    b.deindent()
    p('}')
