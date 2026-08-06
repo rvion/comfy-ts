@@ -13,7 +13,7 @@
 // descriptor optionLabels; the value keeps raw enum keys, replaced by copy
 import { Icon } from 'src/cli/serve/web/components/Icon.tsx'
 import { observer, useLocalObservable } from 'mobx-react-lite'
-import { useEffect, type ReactNode } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
 import { fetchLoraInfo, loraPreviewSrc, type LoraInfo } from 'src/cli/serve/web/api.ts'
 import type { LoraStrength } from 'src/vars/ComfyVars.ts'
 import type { VarSt } from 'src/cli/serve/web/state/FormSt.ts'
@@ -175,6 +175,28 @@ export const LorasControl = observer(function LorasControl(p: { v: VarSt; host: 
    const matches = options.filter(matchesFilter)
    const cards = matches.filter((o) => !isInPalette(o)).slice(0, CARD_CAP)
 
+   // opening the popup puts you IN the filter with the previous needle SELECTED, so typing
+   // replaces it instead of appending to it (the field keeps its text between opens)
+   const filterRef = useRef<HTMLInputElement>(null)
+   useEffect(() => {
+      if (!open) return
+      const input = filterRef.current
+      if (input == null) return
+      input.focus()
+      input.select()
+   }, [open])
+
+   /** enter takes the FIRST card, the one the eye lands on. The popup stays open with the
+    * needle reselected, so adding three loras is type-enter-type-enter, and the new entry
+    * is visible at once in the palette section above */
+   const addFirstMatch = (): void => {
+      const first = cards[0]
+      if (first == null) return
+      // the SAME call the card's own click makes, so enter and a tap cannot drift apart
+      setEntry(first, [1, 1])
+      filterRef.current?.select()
+   }
+
    const thumb = (name: string): ReactNode => {
       if (!showImages) return null
       return local.previewFailed.has(name) ? (
@@ -263,11 +285,16 @@ export const LorasControl = observer(function LorasControl(p: { v: VarSt; host: 
                <div className="modal" onClick={(e) => e.stopPropagation()}>
                   <div className="modal-head">
                      <input
+                        ref={filterRef}
                         type="text"
-                        autoFocus
-                        placeholder={`filter ${options.length} loras`}
+                        placeholder={`filter ${options.length} loras — enter adds the first match`}
                         value={local.filter}
                         onChange={(e) => local.setFilter(e.target.value)}
+                        onKeyDown={(e) => {
+                           if (e.key !== 'Enter') return
+                           e.preventDefault()
+                           addFirstMatch()
+                        }}
                      />
                      {visibilityToggles}
                      <button type="button" title="close (esc)" onClick={() => local.setOpen(false)}>
