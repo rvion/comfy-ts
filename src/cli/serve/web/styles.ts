@@ -351,15 +351,14 @@ div.lora-thumb.none {
 [data-tip] { position: relative; }
 [data-tip]:hover::after, [data-tip]:focus-visible::after {
    content: attr(data-tip);
-   position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%);
-   z-index: 60; pointer-events: none; white-space: pre; max-width: 60vw;
+   /* anchored to the button's bottom LEFT, never centred: a centred tip on the leftmost
+      button hangs off the screen, and one below never covers the row you are reading */
+   position: absolute; top: calc(100% + 5px); left: 0;
+   z-index: 60; pointer-events: none; white-space: normal; max-width: 220px; width: max-content;
+   opacity: 0.8;
    background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
    border-radius: 6px; padding: 4px 8px; font-size: 11px; font-weight: 400; line-height: 1.3;
    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
-}
-/* a tip on the top row would be cut off by the viewport: those flip below their button */
-.topbar [data-tip]:hover::after, .head-boxes [data-tip]:hover::after {
-   bottom: auto; top: calc(100% + 6px);
 }
 /* the pointer never crosses a tooltip, so hover cannot flicker between the two */
 @media (hover: none) { [data-tip]:hover::after { display: none; } }
