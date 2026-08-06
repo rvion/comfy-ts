@@ -2,6 +2,7 @@
 // included) opens the LIGHTBOX (esc/backdrop closes; copy / open / delete
 // inside). copy needs a secure context (localhost is one, LAN http is not) —
 // the button hides where the clipboard api is absent
+import { Icon } from 'src/cli/serve/web/components/Icon.tsx'
 import { observer, useLocalObservable } from 'mobx-react-lite'
 import { useEffect } from 'react'
 import { runPreviewSrc } from 'src/cli/serve/web/api.ts'
@@ -84,7 +85,7 @@ const Lightbox = observer(function Lightbox(p: { st: WebSt; local: GalleryLocal 
                ) : null}
                {p.local.copyNote?.url === box.url ? <span className="hint">{p.local.copyNote.text}</span> : null}
                <button type="button" title="close (esc)" onClick={() => p.local.closeLightbox()}>
-                  ✕
+                  <Icon name="close" />
                </button>
             </div>
          </div>
@@ -152,7 +153,7 @@ export const Gallery = observer(function Gallery(p: { st: WebSt }) {
                      title="remove this result"
                      onClick={() => p.st.run.remove(r.promptId)}
                   >
-                     ✕
+                     <Icon name="trash" />
                   </button>
                </div>
                <div className="imgs">

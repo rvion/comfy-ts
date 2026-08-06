@@ -12,9 +12,12 @@ export type ServeSettings = {
    /** module key → host id the runs go to, when it is not the one the module defined
     * (the TUI's host override, per module because serve holds many workflows at once) */
    hostOverride: Record<string, string>
+   /** module key → subfolder under outputs/ its images land in. Empty/absent = the module key,
+    * which is what serve always used before it was choosable */
+   savePrefix: Record<string, string>
 }
 
-export const DEFAULT_SERVE_SETTINGS: ServeSettings = { saveToDisk: true, hostOverride: {} }
+export const DEFAULT_SERVE_SETTINGS: ServeSettings = { saveToDisk: true, hostOverride: {}, savePrefix: {} }
 
 /** null when no comfyts is registered yet: a ServeApp can be constructed before the global
  * exists (tests do), and reading a setting must degrade to defaults, never throw */
@@ -39,16 +42,21 @@ function readBlob(): Record<string, unknown> {
    }
 }
 
+function stringMap(raw: unknown): Record<string, string> {
+   const out: Record<string, string> = {}
+   if (typeof raw === 'object' && raw !== null) {
+      for (const [k, v] of Object.entries(raw)) if (typeof v === 'string') out[k] = v
+   }
+   return out
+}
+
 export function readServeSettings(): ServeSettings {
    const serve = readBlob().serve
    const o = typeof serve === 'object' && serve !== null ? (serve as Record<string, unknown>) : {}
-   const overrides: Record<string, string> = {}
-   if (typeof o.hostOverride === 'object' && o.hostOverride !== null) {
-      for (const [k, val] of Object.entries(o.hostOverride)) if (typeof val === 'string') overrides[k] = val
-   }
    return {
       saveToDisk: typeof o.saveToDisk === 'boolean' ? o.saveToDisk : DEFAULT_SERVE_SETTINGS.saveToDisk,
-      hostOverride: overrides,
+      hostOverride: stringMap(o.hostOverride),
+      savePrefix: stringMap(o.savePrefix),
    }
 }
 

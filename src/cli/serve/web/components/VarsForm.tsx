@@ -9,6 +9,7 @@ import {
    TextControl,
    ToggleControl,
 } from 'src/cli/serve/web/components/controls/BasicControls.tsx'
+import { Icon } from 'src/cli/serve/web/components/Icon.tsx'
 import { ImageControl } from 'src/cli/serve/web/components/controls/ImageControl.tsx'
 import { LorasControl } from 'src/cli/serve/web/components/controls/LorasControl.tsx'
 import { SeedControl } from 'src/cli/serve/web/components/controls/SeedControl.tsx'
@@ -62,6 +63,66 @@ const VarRow = observer(function VarRow(p: { v: VarSt; host: string; st: WebSt; 
          </div>
          <div className="var-control">
             <VarControl v={p.v} host={p.host} st={p.st} module={p.module} />
+         </div>
+      </div>
+   )
+})
+
+/** the run button, rendered either in the form's runbar or inside the results panel */
+export const GenerateButton = observer(function GenerateButton(p: { st: WebSt }) {
+   return (
+      <button
+         type="button"
+         className={p.st.run.isRunning ? 'primary pulse' : 'primary'}
+         title="⌘⏎ / ctrl+⏎ — click again to queue another"
+         onClick={() => p.st.generate()}
+      >
+         <Icon name="play" size={0.9} />{' '}
+         {p.st.run.isRunning
+            ? p.st.run.progressPercent != null
+               ? `generating… ${Math.round(p.st.run.progressPercent)}%`
+               : 'generating…'
+            : 'generate'}
+      </button>
+   )
+})
+
+/** where the generated images go: the same row shape as a var, because it is one more knob
+ * of the run. The toggle and the folder are SERVER settings, so curl sees the same choice */
+const SaveRow = observer(function SaveRow(p: { st: WebSt; module: string }) {
+   const on = p.st.saveToDisk
+   return (
+      <div className="var-row">
+         <div className="var-label">
+            output
+            <span className="kind">save</span>
+         </div>
+         <div className="var-control">
+            <div className="row-inline">
+               <label className="row-inline" style={{ cursor: 'pointer' }}>
+                  <input type="checkbox" checked={on} onChange={() => void p.st.toggleSaveToDisk()} />
+                  <span className="hint">
+                     <Icon name={on ? 'save' : 'ghost'} size={1} /> {on ? 'write to disk' : 'memory only'}
+                  </span>
+               </label>
+               {on ? (
+                  <>
+                     <span className="hint">.comfy-ts/outputs/</span>
+                     <input
+                        type="text"
+                        style={{ flex: 1, minWidth: 120 }}
+                        placeholder={p.module}
+                        value={p.st.savePrefixDraft(p.module)}
+                        title="subfolder the images land in — folder names only, a/b allowed"
+                        onChange={(e) => p.st.setSavePrefix(p.module, e.target.value)}
+                     />
+                     <span className="hint">/…png</span>
+                  </>
+               ) : (
+                  <span className="hint">kept in memory and shown here, lost when the server restarts</span>
+               )}
+            </div>
+            {p.st.savingError != null ? <div className="error">🔴 {p.st.savingError}</div> : null}
          </div>
       </div>
    )
@@ -130,9 +191,26 @@ export const VarsForm = observer(function VarsForm(p: { st: WebSt }) {
                <span className="head-label">workflow</span>
                <span className="head-value app">{form.moduleKey}</span>
             </div>
+            {/* duplicate and delete act on THIS draft, so they live in the draft box */}
             <div className="head-box">
                <span className="head-label">draft</span>
                <span className="head-value draft">{form.draft}</span>
+               <span className="btn-group head-group">
+                  <button type="button" title="save these values as a new draft" onClick={duplicate}>
+                     <Icon name="copy-plus" />
+                  </button>
+                  <button
+                     type="button"
+                     className="danger"
+                     title="delete this draft's file (default resets to the workflow's own values)"
+                     onClick={() => {
+                        if (window.confirm(`delete draft '${form.draft}' of ${form.moduleKey}? the file is removed.`))
+                           void p.st.deleteDraft({ module: form.moduleKey, draft: form.draft })
+                     }}
+                  >
+                     <Icon name="trash" />
+                  </button>
+               </span>
             </div>
             <div className="head-box">
                <span className="head-label">host</span>
@@ -160,7 +238,7 @@ export const VarsForm = observer(function VarsForm(p: { st: WebSt }) {
                      title={`runs on an override — back to ${p.st.hosts.defaults[form.moduleKey] ?? 'its own host'}`}
                      onClick={() => void p.st.setModuleHost({ module: form.moduleKey, host: null })}
                   >
-                     ⇄ reset
+                     <Icon name="swap" /> reset
                   </button>
                ) : null}
             </div>
@@ -177,7 +255,7 @@ export const VarsForm = observer(function VarsForm(p: { st: WebSt }) {
                         title={`${l.title}${p.st.layout === l.id ? ' — click again for the automatic placement' : ''}`}
                         onClick={() => p.st.setLayout(l.id)}
                      >
-                        {l.label}
+                        <Icon name={l.icon} />
                      </button>
                   ))}
                </span>
@@ -185,38 +263,10 @@ export const VarsForm = observer(function VarsForm(p: { st: WebSt }) {
          </div>
          {p.st.hostError != null ? <div className="error">🔴 {p.st.hostError}</div> : null}
          <div className="head-actions">
-            <button type="button" title="save these values as a new draft" onClick={duplicate}>
-               duplicate…
-            </button>
-            <button
-               type="button"
-               className="danger"
-               title="delete this draft's file (default resets to the workflow's own values)"
-               onClick={() => {
-                  if (window.confirm(`delete draft '${form.draft}' of ${form.moduleKey}? the file is removed.`))
-                     void p.st.deleteDraft({ module: form.moduleKey, draft: form.draft })
-               }}
-            >
-               delete
-            </button>
-            {/* where the OUTPUTS go: a server setting, so curl and the TUI see the same choice */}
-            <button
-               type="button"
-               className={p.st.saveToDisk ? 'mode sel' : 'mode'}
-               title={
-                  p.st.saveToDisk
-                     ? 'outputs are written under .comfy-ts/outputs/ — click to keep them in memory only'
-                     : 'outputs stay in memory and are lost when the server restarts — click to save them to disk'
-               }
-               onClick={() => void p.st.toggleSaveToDisk()}
-            >
-               {p.st.saveToDisk ? '💾 saving to disk' : '🕶 memory only'}
-            </button>
             <span className="hint">
-               {form.saveState === 'saving' ? 'saving…' : null}
-               {form.saveState === 'saved' ? 'autosaved' : null}
-               {form.saveState === 'error' ? `🔴 save failed: ${form.saveError}` : null}
-               {p.st.savingError != null ? ` 🔴 ${p.st.savingError}` : null}
+               {form.saveState === 'saving' ? 'saving the draft…' : null}
+               {form.saveState === 'saved' ? 'draft autosaved' : null}
+               {form.saveState === 'error' ? `🔴 draft save failed: ${form.saveError}` : null}
             </span>
          </div>
          {form.vars.map((v) => (
@@ -224,19 +274,12 @@ export const VarsForm = observer(function VarsForm(p: { st: WebSt }) {
             // remembered strengths), not carry the other draft's over
             <VarRow key={`${form.draft}/${v.name}`} v={v} host={form.host} st={p.st} module={form.moduleKey} />
          ))}
+         {/* the OUTPUT is a knob like the others: a row, not a lone button in the header */}
+         <SaveRow st={p.st} module={form.moduleKey} />
          <div className="runbar">
-            <button
-               type="button"
-               className={p.st.run.isRunning ? 'primary pulse' : 'primary'}
-               title="⌘⏎ / ctrl+⏎ — click again to queue another"
-               onClick={() => p.st.generate()}
-            >
-               {p.st.run.isRunning
-                  ? p.st.run.progressPercent != null
-                     ? `generating… ${Math.round(p.st.run.progressPercent)}%`
-                     : 'generating…'
-                  : 'generate'}
-            </button>
+            {/* side and pinned put generate INSIDE the results panel (it sits next to what it
+                produces, and on a phone it stays on screen); the form keeps it otherwise */}
+            {p.st.generateInResults ? null : <GenerateButton st={p.st} />}
             <span className="status">
                {form.dirtyCount === 0
                   ? 'draft values'

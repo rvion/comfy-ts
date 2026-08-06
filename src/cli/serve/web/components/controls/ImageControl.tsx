@@ -1,6 +1,7 @@
 // image: a path/url input the api already accepts, plus a browser upload
 // (POST /upload → local file under outputs/serve-inputs/) and a preview when
 // the value is browser-reachable
+import { Icon } from 'src/cli/serve/web/components/Icon.tsx'
 import { observer } from 'mobx-react-lite'
 import { useRef } from 'react'
 import { uploadFile } from 'src/cli/serve/web/api.ts'
@@ -47,7 +48,7 @@ export const ImageControl = observer(function ImageControl(p: { v: VarSt }) {
                      p.v.setUploadedUrl(null)
                   }}
                >
-                  ✕
+                  <Icon name="close" />
                </button>
             ) : null}
             <input

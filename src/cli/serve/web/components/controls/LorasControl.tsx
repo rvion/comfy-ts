@@ -11,6 +11,7 @@
 // toggles hide images/titles on every lora surface (NSFW screens, persisted on
 // WebSt); with both hidden the row collapses to a count. Names come from
 // descriptor optionLabels; the value keeps raw enum keys, replaced by copy
+import { Icon } from 'src/cli/serve/web/components/Icon.tsx'
 import { observer, useLocalObservable } from 'mobx-react-lite'
 import { useEffect, type ReactNode } from 'react'
 import { fetchLoraInfo, loraPreviewSrc, type LoraInfo } from 'src/cli/serve/web/api.ts'
@@ -198,7 +199,7 @@ export const LorasControl = observer(function LorasControl(p: { v: VarSt; host: 
             title={showImages ? 'hide lora images' : 'show lora images'}
             onClick={() => p.st.toggleLoraImages()}
          >
-            🖼
+            <Icon name="image" />
          </button>
          <button
             type="button"
@@ -206,7 +207,7 @@ export const LorasControl = observer(function LorasControl(p: { v: VarSt; host: 
             title={showTitles ? 'hide lora titles' : 'show lora titles'}
             onClick={() => p.st.toggleLoraTitles()}
          >
-            🏷
+            <Icon name="tag" />
          </button>
       </>
    )
@@ -234,7 +235,9 @@ export const LorasControl = observer(function LorasControl(p: { v: VarSt; host: 
                      >
                         {thumb(name)}
                         {showTitles ? <span className="chip-title">{label(name)}</span> : null}
-                        <span className="chip-state">{isOn(name) ? '● on' : '⏸ paused'}</span>
+                        <span className="chip-state">
+                           <Icon name={isOn(name) ? 'dot' : 'pause'} size={0.85} /> {isOn(name) ? 'on' : 'paused'}
+                        </span>
                      </button>
                      <span className="chip-controls">
                         {strengthInputs(name)}
@@ -243,7 +246,7 @@ export const LorasControl = observer(function LorasControl(p: { v: VarSt; host: 
                            title="remove from the palette (the popup adds it back)"
                            onClick={() => setEntry(name, null)}
                         >
-                           ✕
+                           <Icon name="close" />
                         </button>
                      </span>
                   </span>
@@ -268,7 +271,7 @@ export const LorasControl = observer(function LorasControl(p: { v: VarSt; host: 
                      />
                      {visibilityToggles}
                      <button type="button" title="close (esc)" onClick={() => local.setOpen(false)}>
-                        ✕
+                        <Icon name="close" />
                      </button>
                   </div>
                   <div className="modal-body">
@@ -302,7 +305,7 @@ export const LorasControl = observer(function LorasControl(p: { v: VarSt; host: 
                                        title="remove from the list"
                                        onClick={() => setEntry(name, null)}
                                     >
-                                       ✕
+                                       <Icon name="close" />
                                     </button>
                                  </div>
                               )

@@ -1,9 +1,10 @@
 // layout root: topbar (burger toggles the sidebar), sidebar drawer, form
 // column + results column (right on wide screens, below on narrow ones)
+import { Icon } from 'src/cli/serve/web/components/Icon.tsx'
 import { observer } from 'mobx-react-lite'
 import { Gallery } from 'src/cli/serve/web/components/Gallery.tsx'
 import { Sidebar } from 'src/cli/serve/web/components/Sidebar.tsx'
-import { VarsForm } from 'src/cli/serve/web/components/VarsForm.tsx'
+import { GenerateButton, VarsForm } from 'src/cli/serve/web/components/VarsForm.tsx'
 import type { WebSt } from 'src/cli/serve/web/state/WebSt.ts'
 
 export const App = observer(function App(p: { st: WebSt }) {
@@ -23,7 +24,7 @@ export const App = observer(function App(p: { st: WebSt }) {
                title="toggle the workflow menu"
                onClick={() => p.st.toggleSidebar()}
             >
-               ☰
+               <Icon name="menu" />
             </button>
             <h1>comfy-ts serve</h1>
             <span className="dim">
@@ -46,6 +47,12 @@ export const App = observer(function App(p: { st: WebSt }) {
                   </div>
                   {p.st.layout === 'off' ? null : (
                      <div className="results-col">
+                        {p.st.generateInResults ? (
+                           <div className="results-run">
+                              <GenerateButton st={p.st} />
+                              {p.st.run.error != null ? <span className="error">🔴 {p.st.run.error}</span> : null}
+                           </div>
+                        ) : null}
                         <Gallery st={p.st} />
                      </div>
                   )}

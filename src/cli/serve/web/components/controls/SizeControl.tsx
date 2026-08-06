@@ -1,4 +1,5 @@
 // size: preset select + free WxH inputs + ⇄ swap
+import { Icon } from 'src/cli/serve/web/components/Icon.tsx'
 import { observer } from 'mobx-react-lite'
 import type { VarSt } from 'src/cli/serve/web/state/FormSt.ts'
 import { asSizeForm } from 'src/cli/serve/web/state/payload.ts'
@@ -42,7 +43,7 @@ export const SizeControl = observer(function SizeControl(p: { v: VarSt }) {
             title="swap width and height"
             onClick={() => p.v.set({ width: size.height, height: size.width })}
          >
-            ⇄
+            <Icon name="swap" />
          </button>
       </div>
    )

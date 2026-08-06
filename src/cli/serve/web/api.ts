@@ -97,14 +97,20 @@ export function loraPreviewSrc(p: { host: string; name: string }): string {
    return `/lora-preview/${encodeURIComponent(p.host)}/${encodeURIComponent(p.name)}`
 }
 
-/** server-side settings the panel can flip (saving is one switch for every client) */
-export type ServeSettings = { saveToDisk: boolean }
+/** server-side settings the panel can flip (they apply to every client, curl included).
+ * effectivePrefix is derived server-side: the stored folder, or the module key by default */
+export type ServeSettings = {
+   saveToDisk: boolean
+   hostOverride: Record<string, string>
+   savePrefix: Record<string, string>
+   effectivePrefix: Record<string, string>
+}
 
 export function fetchSettings(): Promise<ServeSettings> {
    return jsonFetch('/settings')
 }
 
-export function saveSettings(p: ServeSettings): Promise<ServeSettings> {
+export function saveSettings(p: { saveToDisk?: boolean; savePrefix?: Record<string, string> }): Promise<ServeSettings> {
    return jsonFetch('/settings', {
       method: 'PUT',
       headers: { 'content-type': 'application/json' },

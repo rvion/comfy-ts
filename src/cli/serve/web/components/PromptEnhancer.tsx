@@ -1,5 +1,6 @@
 // ✨ on a prompt row → the refine modal: openrouter key + thinking model +
 // a library of named master prompts. Nothing touches the var until APPLY.
+import { Icon } from 'src/cli/serve/web/components/Icon.tsx'
 import { observer } from 'mobx-react-lite'
 import { useEffect } from 'react'
 import type { ProviderId, ReasoningEffort } from 'src/cli/serve/web/llm.ts'
@@ -147,7 +148,7 @@ const MasterPrompt = observer(function MasterPrompt(p: { e: EnhancerSt }) {
                rename
             </button>
             <button type="button" onClick={remove} title="delete this master prompt file">
-               ✕
+               <Icon name="close" />
             </button>
             <span className="hint">
                {p.e.saveState === 'saving' ? 'saving…' : null}
@@ -179,9 +180,11 @@ const Modal = observer(function Modal(p: { e: EnhancerSt }) {
       <div className="modal-overlay" onClick={() => e.close()}>
          <div className="modal" onClick={(ev) => ev.stopPropagation()}>
             <div className="modal-head">
-               <b style={{ flex: 1 }}>✨ enhance prompt</b>
+               <b style={{ flex: 1 }}>
+                  <Icon name="sparkle" /> enhance prompt
+               </b>
                <button type="button" onClick={() => e.close()}>
-                  ✕
+                  <Icon name="close" />
                </button>
             </div>
             <div className="modal-body">
@@ -246,7 +249,7 @@ export const PromptEnhancer = observer(function PromptEnhancer(p: { v: VarSt; st
             title="rewrite this prompt with an llm"
             onClick={() => e.openFor({ v: p.v, module: p.module })}
          >
-            ✨ enhance
+            <Icon name="sparkle" /> enhance
          </button>
          {e.target === p.v ? <Modal e={e} /> : null}
       </>

@@ -40,7 +40,7 @@ export type ServeExecution = {
 
 export type ServeStarter = (
    mod: ServeModule,
-   opts: { saveToDisk: boolean; host?: ComfyHost },
+   opts: { saveToDisk: boolean; savePrefix: string; host?: ComfyHost },
 ) => Promise<ServeExecution>
 
 export type ServeRequest = { method: string; url: string; accept?: string; body?: string }
@@ -57,7 +57,7 @@ const realStarter: ServeStarter = async (mod, opts) => {
    const wf = await mod.dw.build({ advance: true, host })
    // saving is a SETTING now (GET/PUT /settings): off keeps outputs in memory and the
    // reply points at /images/<promptId>/<ix> instead of a file url
-   return await wf.start({ save: opts.saveToDisk ? { prefix: mod.key } : false })
+   return await wf.start({ save: opts.saveToDisk ? { prefix: opts.savePrefix } : false })
 }
 
 const CONTENT_TYPES: Record<string, string> = {
@@ -198,7 +198,7 @@ export class ServeApp {
             if (segs[0] === 'lora-preview' && segs.length === 3 && segs[1] != null && segs[2] != null)
                return await this.replyLoraPreview(segs[1], segs[2])
             if (segs[0] === 'prompt-enhancers' && segs.length === 1) return this.replyPromptEnhancers()
-            if (segs[0] === 'settings' && segs.length === 1) return json(200, this.settings)
+            if (segs[0] === 'settings' && segs.length === 1) return this.replySettings()
             if (segs[0] === 'hosts' && segs.length === 1) return this.replyHosts()
             if (segs[0] === 'images' && segs.length === 3 && segs[1] != null && segs[2] != null)
                return this.replyMemoryImage(`${segs[1]}/${segs[2]}`)
@@ -527,6 +527,22 @@ export class ServeApp {
       return { status: 200, contentType: hit.contentType, body: hit.bytes }
    }
 
+   /** the subfolder under outputs/ a module's images land in. Falls back to the module key,
+    * which is what every serve run used before the prefix was choosable */
+   private savePrefixFor(modKey: string): string {
+      const stored = this.settings.savePrefix[modKey]?.trim() ?? ''
+      return stored === '' ? modKey : stored
+   }
+
+   /** a prefix becomes a PATH under outputs/: segments are name-gated, so it cannot climb out */
+   private validSavePrefix(raw: string): string | null {
+      const clean = raw.trim().replaceAll('\\', '/')
+      if (clean === '') return ''
+      const segments = clean.split('/').filter((s) => s !== '')
+      if (segments.length === 0 || segments.some((s) => validStoreName(s) == null)) return null
+      return segments.join('/')
+   }
+
    private replySaveSettings(req: ServeRequest): ServeReply {
       let parsed: unknown
       try {
@@ -534,10 +550,36 @@ export class ServeApp {
       } catch (e) {
          return json(400, { error: `body is not valid json: ${extractErrorMessage(e)}` })
       }
-      const saveToDisk =
-         parsed != null && typeof parsed === 'object' ? (parsed as { saveToDisk?: unknown }).saveToDisk : null
-      if (typeof saveToDisk !== 'boolean') return json(400, { error: 'body must be { "saveToDisk": true | false }' })
-      this.settings = { ...this.settings, saveToDisk }
+      if (parsed == null || typeof parsed !== 'object' || Array.isArray(parsed))
+         return json(400, {
+            error: 'body must be { "saveToDisk"?: true | false, "savePrefix"?: { "<module>": "path" } }',
+         })
+      const wanted = parsed as { saveToDisk?: unknown; savePrefix?: unknown }
+      let next = this.settings
+      if (wanted.saveToDisk != null) {
+         if (typeof wanted.saveToDisk !== 'boolean') return json(400, { error: '"saveToDisk" must be true or false' })
+         next = { ...next, saveToDisk: wanted.saveToDisk }
+      }
+      if (wanted.savePrefix != null) {
+         if (typeof wanted.savePrefix !== 'object' || Array.isArray(wanted.savePrefix))
+            return json(400, { error: '"savePrefix" must be { "<module>": "path" }' })
+         const prefixes = { ...next.savePrefix }
+         for (const [modKey, raw] of Object.entries(wanted.savePrefix as Record<string, unknown>)) {
+            if (this.moduleByKey(modKey) == null) return json(404, { error: `unknown module '${modKey}'` })
+            if (typeof raw !== 'string') return json(400, { error: `prefix for '${modKey}' must be a string` })
+            const clean = this.validSavePrefix(raw)
+            if (clean == null)
+               return json(400, {
+                  error: `invalid prefix '${raw}' — folder names only, "a/b" allowed, no ".." and no absolute path`,
+               })
+            // empty means "back to the default", so the stored map keeps only real choices
+            if (clean === '') delete prefixes[modKey]
+            else prefixes[modKey] = clean
+         }
+         next = { ...next, savePrefix: prefixes }
+      }
+      const saveToDisk = next.saveToDisk
+      this.settings = next
       try {
          writeServeSettings(this.settings)
       } catch (e) {
@@ -545,7 +587,16 @@ export class ServeApp {
          return json(500, { error: `setting applied for this session but not saved: ${extractErrorMessage(e)}` })
       }
       console.log(`[serve] outputs ${saveToDisk ? 'SAVE to disk' : 'stay in MEMORY'}`)
-      return json(200, this.settings)
+      return this.replySettings()
+   }
+
+   /** the stored settings PLUS the prefix each module actually uses, so the ui can show the
+    * effective folder without re-deriving the fallback rule */
+   private replySettings(): ServeReply {
+      return json(200, {
+         ...this.settings,
+         effectivePrefix: Object.fromEntries(this.modules.map((m) => [m.key, this.savePrefixFor(m.key)])),
+      })
    }
 
    // #region prompt enhancers (the web ui's master prompts, as .md files) ------
@@ -887,6 +938,7 @@ export class ServeApp {
          return {
             execution: await this.starter(mod, {
                saveToDisk: this.settings.saveToDisk,
+               savePrefix: this.savePrefixFor(mod.key),
                host: this.runHostFor(mod) ?? undefined,
             }),
          }

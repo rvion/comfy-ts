@@ -269,14 +269,25 @@ div.lora-thumb.none {
 .work.layout-side .results-col { width: min(380px, 45vw); flex-shrink: 0; }
 .work.layout-side .results-col .gallery { margin-top: 0; }
 /* PINNED: the newest result floats over the bottom, the form scrolls under it — the phone
-   answer to "I always have to scroll between them". Sticky, so it never covers the runbar */
+   answer to "I always have to scroll between them". Sticky, so it never covers the runbar.
+   It HUGS its content: fit-content width + auto height, so an empty run or a tall portrait
+   never leaves a band of dead space around the image */
 .work.layout-pinned .results-col {
-   position: sticky; bottom: 0; z-index: 15; max-height: 42vh; overflow-y: auto;
-   background: var(--bg); border-top: 1px solid var(--border);
-   box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.45); margin-top: 10px; padding-top: 6px;
+   position: sticky; bottom: 0; z-index: 15; margin-top: 10px;
+   width: fit-content; max-width: 100%; margin-left: auto; margin-right: auto;
+   max-height: 46vh; overflow-y: auto;
+   background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+   box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.45); padding: 6px;
 }
-.work.layout-pinned .results-col .gallery { margin-top: 0; }
-.work.layout-pinned .run-card img { max-height: 26vh; }
+.work.layout-pinned .results-col .gallery { margin-top: 0; gap: 6px; }
+/* the pinned card is the IMAGE plus its controls, nothing else: no meta line, no padding walls */
+.work.layout-pinned .run-card { padding: 0; border: 0; background: none; }
+.work.layout-pinned .run-card .meta { margin-bottom: 2px; font-size: 11px; }
+.work.layout-pinned .gallery-head { display: none; }
+.work.layout-pinned .run-card img { max-height: 34vh; width: auto; }
+.work.layout-pinned .run-card:not(:first-of-type) { display: none; }
+.results-run { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
+.work.layout-pinned .results-run { margin-bottom: 6px; justify-content: center; }
 /* segmented control: ONE group, no gaps, only the outer corners rounded */
 .btn-group { display: inline-flex; }
 .btn-group button {
@@ -289,6 +300,13 @@ div.lora-thumb.none {
 /* the selected segment owns the divider on both sides, else its highlight looks clipped */
 .btn-group button.sel + button { border-left-color: var(--accent); }
 .btn-group button:hover { background: var(--panel); }
+/* a group living inside a header box sits beside the value, not under it */
+.head-group { margin-left: 8px; vertical-align: middle; }
+.head-group button { padding: 2px 7px; }
+
+/* icons inherit the text they sit in, so a button never jumps when one is swapped in */
+.icon { display: inline-block; vertical-align: -0.16em; flex-shrink: 0; }
+button .icon + * { margin-left: 4px; }
 
 /* the sidebar becomes a fixed drawer over a backdrop */
 @media (max-width: 800px) {

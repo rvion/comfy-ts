@@ -12,6 +12,7 @@ import {
    setModuleHost,
    type HostsPayload,
    type ModuleDescription,
+   type ServeSettings,
 } from 'src/cli/serve/web/api.ts'
 import { EnhancerSt } from 'src/cli/serve/web/state/EnhancerSt.ts'
 import { FormSt } from 'src/cli/serve/web/state/FormSt.ts'
@@ -25,11 +26,16 @@ const STORAGE_KEY = 'comfy-ts-serve-ui'
  * knobs and what they produced without scrolling between them */
 export type ResultsLayout = 'auto' | 'off' | 'bottom' | 'side' | 'pinned'
 
-export const LAYOUTS: { id: ResultsLayout; label: string; title: string }[] = [
-   { id: 'off', label: '🚫', title: 'no preview: the form only' },
-   { id: 'bottom', label: '⬇', title: 'results below the form' },
-   { id: 'side', label: '➡', title: 'results beside the form' },
-   { id: 'pinned', label: '📌', title: 'newest image pinned over the bottom, form scrolls under it' },
+/** icon names live in Icon.tsx; this list stays a plain description of the modes */
+export const LAYOUTS: {
+   id: ResultsLayout
+   icon: 'panel-off' | 'panel-bottom' | 'panel-side' | 'pin'
+   title: string
+}[] = [
+   { id: 'off', icon: 'panel-off', title: 'no preview: the form only' },
+   { id: 'bottom', icon: 'panel-bottom', title: 'results below the form' },
+   { id: 'side', icon: 'panel-side', title: 'results beside the form' },
+   { id: 'pinned', icon: 'pin', title: 'newest image pinned over the bottom, form scrolls under it' },
 ]
 
 function isLayout(raw: unknown): raw is ResultsLayout {
@@ -73,10 +79,17 @@ export class WebSt {
    run: RunSt
    /** prompt refiner: own store, own localStorage blob (the openrouter key never leaves the browser) */
    enhancer: EnhancerSt
-   /** SERVER setting, not a browser one: it decides whether a generation writes files at all,
-    * so it is shared by every client and read back from GET /settings */
-   saveToDisk = true
+   /** SERVER settings, not browser ones: they decide whether a generation writes files at all
+    * and where, so they are shared by every client and read back from GET /settings */
+   settings: ServeSettings = { saveToDisk: true, hostOverride: {}, savePrefix: {}, effectivePrefix: {} }
    savingError: string | null = null
+   /** what you are typing in a prefix field, before the debounced write lands */
+   private prefixEdits: Record<string, string> = {}
+   private prefixTimers = new Map<string, ReturnType<typeof setTimeout>>()
+
+   get saveToDisk(): boolean {
+      return this.settings.saveToDisk
+   }
    /** where the results go — hand-tuned, so it persists and restores */
    layout: ResultsLayout
    /** hosts this process knows + where each module runs (server-owned, like the drafts) */
@@ -212,6 +225,12 @@ export class WebSt {
       }
    }
 
+   /** side and pinned show the results next to (or over) the form, so the run button belongs
+    * there: in pinned it stays on screen while the form scrolls */
+   get generateInResults(): boolean {
+      return this.layout === 'side' || this.layout === 'pinned'
+   }
+
    setLayout(next: ResultsLayout): void {
       // clicking the mode you are in returns to the width rule, so 'auto' stays reachable
       this.layout = this.layout === next ? 'auto' : next
@@ -259,31 +278,63 @@ export class WebSt {
       try {
          const s = await fetchSettings()
          runInAction(() => {
-            this.saveToDisk = s.saveToDisk
+            this.settings = s
          })
       } catch {
          // an older server has no /settings route: it always saves, which is what the default says
       }
    }
 
+   /** what the prefix input shows: the typed value while editing, else the effective folder */
+   savePrefixDraft(moduleKey: string): string {
+      return this.prefixEdits[moduleKey] ?? this.settings.savePrefix[moduleKey] ?? ''
+   }
+
+   /** typing is local and instant; the write is debounced, the live-drafts idiom. An invalid
+    * folder is rejected by the server and shown, the field keeps what you typed */
+   setSavePrefix(moduleKey: string, value: string): void {
+      this.prefixEdits[moduleKey] = value
+      this.savingError = null
+      const timer = this.prefixTimers.get(moduleKey)
+      if (timer != null) clearTimeout(timer)
+      this.prefixTimers.set(
+         moduleKey,
+         setTimeout(() => {
+            void this.pushSettings({ savePrefix: { [moduleKey]: value } })
+         }, 500),
+      )
+   }
+
+   private async pushSettings(patch: { saveToDisk?: boolean; savePrefix?: Record<string, string> }): Promise<boolean> {
+      try {
+         const next = await saveSettings(patch)
+         runInAction(() => {
+            this.settings = next
+            this.savingError = null
+         })
+         return true
+      } catch (e) {
+         runInAction(() => {
+            this.savingError = e instanceof Error ? e.message : String(e)
+         })
+         return false
+      }
+   }
+
    /** flip where outputs go. Optimistic, then reconciled with what the server confirms */
    async toggleSaveToDisk(): Promise<void> {
       const next = !this.saveToDisk
+      const before = this.settings
       runInAction(() => {
-         this.saveToDisk = next
+         this.settings = { ...this.settings, saveToDisk: next }
          this.savingError = null
       })
-      try {
-         const s = await saveSettings({ saveToDisk: next })
+      // pushSettings reports the failure; roll the optimistic flip back so the switch
+      // never shows a state the server refused
+      if (!(await this.pushSettings({ saveToDisk: next })))
          runInAction(() => {
-            this.saveToDisk = s.saveToDisk
+            this.settings = before
          })
-      } catch (e) {
-         runInAction(() => {
-            this.saveToDisk = !next
-            this.savingError = e instanceof Error ? e.message : String(e)
-         })
-      }
    }
 
    generate(): void {

@@ -1,6 +1,7 @@
 // seed: mode buttons + value + 🎲. Drafts are live, so the mode configures the
 // SERVER's per-draft seed policy (generate posts no seed key; step 4 applies
 // the draft's {mode, value})
+import { Icon } from 'src/cli/serve/web/components/Icon.tsx'
 import { observer } from 'mobx-react-lite'
 import type { VarSt } from 'src/cli/serve/web/state/FormSt.ts'
 import { asSeedForm, randomSeed } from 'src/cli/serve/web/state/payload.ts'
@@ -34,7 +35,7 @@ export const SeedControl = observer(function SeedControl(p: { v: VarSt }) {
             ))}
             <input type="number" min={0} value={seed.value} onChange={(e) => setValue(parseInt(e.target.value, 10))} />
             <button type="button" title="roll a random seed now" onClick={() => setValue(randomSeed())}>
-               🎲
+               <Icon name="dice" />
             </button>
          </div>
          <div className="hint">{MODES.find((m) => m.mode === seed.mode)?.hint ?? seed.mode}</div>
