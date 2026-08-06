@@ -4,6 +4,10 @@
 
 ### Run a local LLM from TypeScript
 
+- **An llm run is visible in the web panel.** A workflow whose whole product is text used to report `no image outputs` and nothing else: the run reply only carried `images`. It carries `texts` now, and the results panel renders them — the answer as selectable monospace with a copy button, and a reasoning model's `<think>` block folded behind a toggle rather than dropped, since it is the only explanation of a bad answer.
+- **You can watch it work.** While a run is in flight the card shows the executing node and its own counter — `TextGenerate 427/1024` tokens, `KSampler 12/20` steps. Worth knowing what this is not: ComfyUI publishes no partial text (verified on the raw socket — progress messages carrying only value/max, then one message with the entire string), so a text node cannot be streamed token by token by anyone. The counter is the live signal, and a text graph has no latent preview to fall back on.
+- **`v.text` takes options: `v.text(x, { multiline: true })`** renders a growing box instead of a one-line field, for text that is a paragraph by nature — an llm instruction, a system prompt. `v.text(x, 'label')` still works.
+
 - **Text outputs come back.** `execution.texts` holds every string an output node published, in arrival order, each tagged with the node that emitted it; `execution.text` is the last one. Until now only images were collected, so a graph ending in `PreviewAny` returned nothing. This is what makes ComfyUI's core `TextGenerate` node usable from here: a chat model loads through the ordinary `CLIPLoader` path and its answer lands in `execution.text` — no api key, no second service.
 - **New example, [`07-local-llm-text-gen`](examples/rvion/07-local-llm-text-gen.cflow.ts)**: expand a short image prompt with a local model. Run it with `--sweep` and it reports which text encoders on your own host actually generate, and how fast — an encoder-only T5 or CLIP has no `generate` and fails there by design.
 
