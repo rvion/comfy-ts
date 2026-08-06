@@ -137,7 +137,9 @@ button.mode.sel { background: var(--accent-dim); border-color: var(--accent); co
    background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
    padding: 8px 12px; margin-top: 10px;
 }
-.runbar .status { color: var(--dim); font-size: 12px; }
+/* the changed-vars broom lives in the draft head box; amber says there is something to revert */
+.head-group button.dirty { color: var(--amber); }
+.head-group button.dirty:hover { color: var(--red); border-color: var(--red); }
 .runbar .error { color: var(--red); font-size: 12px; white-space: pre-wrap; }
 .pulse { animation: pulse 1.2s ease-in-out infinite; }
 @keyframes pulse { 50% { opacity: 0.45; } }

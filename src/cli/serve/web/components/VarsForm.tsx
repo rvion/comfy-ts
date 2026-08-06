@@ -172,6 +172,18 @@ const DraftBox = observer(function DraftBox(p: { st: WebSt; form: FormSt }) {
             </select>
          )}
          <span className="btn-group head-group">
+            {/* the session's changed-vars count was a line of prose in the run bar; it is a
+                button here, and only while there is something to revert */}
+            {p.form.dirtyCount > 0 ? (
+               <button
+                  type="button"
+                  className="dirty"
+                  data-tip={`${p.form.dirtyCount} var${p.form.dirtyCount > 1 ? 's' : ''} changed this session — revert to the values this draft loaded with`}
+                  onClick={() => p.form.revertAll()}
+               >
+                  <Icon name="broom" />
+               </button>
+            ) : null}
             <button
                type="button"
                data-tip="rename this draft (the file is renamed)"
@@ -495,16 +507,6 @@ export const VarsForm = observer(function VarsForm(p: { st: WebSt }) {
             {/* side and pinned put generate INSIDE the results panel (it sits next to what it
                 produces, and on a phone it stays on screen); the form keeps it otherwise */}
             {p.st.generateInResults ? null : <GenerateButton st={p.st} />}
-            <span className="status">
-               {form.dirtyCount === 0
-                  ? 'draft values'
-                  : `${form.dirtyCount} var${form.dirtyCount > 1 ? 's' : ''} changed this session`}
-            </span>
-            {form.dirtyCount > 0 ? (
-               <button type="button" className="link" onClick={() => form.revertAll()}>
-                  revert all
-               </button>
-            ) : null}
             {p.st.run.error != null ? <span className="error">🔴 {p.st.run.error}</span> : null}
          </div>
          <QueuePanel st={p.st} />
