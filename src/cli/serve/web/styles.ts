@@ -46,7 +46,6 @@ body {
 .main { flex: 1; overflow-y: auto; padding: 12px 14px 48px; }
 .main h2 { font-size: 14px; margin: 0; color: var(--dim); font-weight: 500; }
 .main h2 b { color: var(--text); }
-.form-head { display: flex; gap: 10px; align-items: baseline; margin-bottom: 8px; flex-wrap: wrap; }
 
 /* the TUI header on the web: one labelled box per thing you are editing, actions below */
 .head-boxes { display: flex; gap: 8px; flex-wrap: wrap; margin: 4px 0 0; }
@@ -70,8 +69,6 @@ body {
    color: var(--amber); display: inline-flex; align-items: center; gap: 5px;
 }
 .head-value.as-link:hover { color: var(--accent); text-decoration: underline; }
-.head-actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin: 8px 0 10px; }
-.head-actions button { padding: 4px 12px; font-size: 12px; }
 button.danger { color: var(--dim); }
 button.danger:hover { color: var(--red); border-color: var(--red); }
 
@@ -156,10 +153,6 @@ button.mode.sel { background: var(--accent-dim); border-color: var(--accent); co
 .run-card.running { border-color: var(--accent-dim); }
 .progress-track { height: 6px; background: var(--panel-2); border-radius: 3px; overflow: hidden; margin-bottom: 8px; }
 .progress-fill { height: 100%; background: var(--accent); border-radius: 3px; transition: width 0.4s ease; }
-.img-cell { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-.img-actions { display: flex; gap: 10px; align-items: baseline; font-size: 12px; }
-.img-actions a { color: var(--accent); text-decoration: none; }
-.img-actions button { padding: 2px 8px; font-size: 12px; }
 
 .lora-chip {
    display: inline-flex; gap: 6px; align-items: center; max-width: 100%;

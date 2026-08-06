@@ -17,6 +17,7 @@
 
 ### The web panel
 
+- **Dead CSS removed** (`.form-head`, `.head-actions`, `.img-cell`, `.img-actions`): rules no element had used since the header was redrawn.
 - **Fixed: an edit made while a save was in flight could be lost.** The panel only remembered what the server had CONFIRMED, so undoing a change back to that value during an open request wrote nothing and the value you had just undone landed on disk, under a "saved" label.
 - **Fixed: the lora keywords listed above a prompt were in the wrong order.** They followed the order you dragged the cards into, while the run injects them in the var's option order, so the preview and the prompt disagreed the moment you reordered.
 - **Fixed: a draft that fails to load no longer leaves the previous one on screen.** It stayed editable with its autosave already stopped, so edits silently went nowhere while the header still read "saved".

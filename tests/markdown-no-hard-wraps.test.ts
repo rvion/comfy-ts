@@ -82,7 +82,7 @@ export function findHardWraps(markdown: string): number[] {
    return hits
 }
 
-describe('markdown carries no hard wraps (his rule 2026-07-31)', () => {
+describe('markdown carries no hard wraps', () => {
    it('detects a sentence cut for line width, and leaves real structure alone', () => {
       expect(findHardWraps('a sentence cut\nfor width here\n')).toEqual([2])
       expect(findHardWraps('- a bullet cut\n  for width\n')).toEqual([2])
