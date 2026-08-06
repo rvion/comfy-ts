@@ -457,7 +457,7 @@ export const VarsForm = observer(function VarsForm(p: { st: WebSt }) {
                               key={l.id}
                               type="button"
                               className={p.st.layout === l.id ? 'sel' : ''}
-                              data-tip={`${l.title}${p.st.layout === l.id ? ' — click again for the automatic placement' : ''}`}
+                              data-tip={l.title}
                               onClick={() => p.st.setLayout(l.id)}
                            >
                               <Icon name={l.icon} />

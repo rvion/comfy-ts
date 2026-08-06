@@ -356,22 +356,8 @@ div.lora-thumb.none {
 .center { display: flex; height: 100%; align-items: center; justify-content: center; color: var(--dim); }
 .center .error { color: var(--red); max-width: 640px; white-space: pre-wrap; }
 
-/* results right of the form on wide screens ("bottom or right": right ≥1100px, bottom below).
-   AUTO only: an explicit layout button wins at every width */
-@media (min-width: 1100px) {
-   .work.layout-auto { display: flex; gap: 18px; align-items: flex-start; }
-   .work.layout-auto .form-col { flex: 1; min-width: 0; }
-   .work.layout-auto .results-col { width: 380px; flex-shrink: 0; }
-   .work.layout-auto .results-col .gallery { margin-top: 0; }
-   /* inside the query on purpose: below 1100px auto stacks the results UNDER the form, and
-      capping the height there would trap the gallery in a 100vh box instead of letting the
-      page scroll. Same rule as layout-side, see the note there */
-   .work.layout-auto .results-col {
-      position: sticky; top: 0; align-self: flex-start;
-      max-height: calc(100dvh - var(--main-pad-y, 26px)); min-height: 0; overflow-y: auto; overscroll-behavior: contain;
-   }
-}
-/* chosen placements */
+/* the placements. Each one is a BUTTON and nothing else: there is no width rule that quietly
+   moves the panel somewhere no button is showing */
 .work.layout-side { display: flex; gap: 18px; align-items: flex-start; }
 .work.layout-side .form-col { flex: 1; min-width: 0; }
 .work.layout-side .results-col { width: min(380px, 45vw); flex-shrink: 0; }
@@ -385,6 +371,16 @@ div.lora-thumb.none {
 .work.layout-left .results-col {
    position: sticky; top: 0; align-self: flex-start;
    max-height: calc(100dvh - var(--main-pad-y, 26px)); min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+}
+
+/* a 380px column beside a form does not fit a phone: BOTH side placements stack there. This
+   is the chosen mode adapting, not a different mode — the button stays lit and still says
+   where the panel goes the moment there is room for it */
+@media (max-width: 760px) {
+   .work.layout-side, .work.layout-left { display: block; }
+   .work.layout-side .results-col, .work.layout-left .results-col {
+      position: static; width: auto; max-height: none; overflow-y: visible; margin-top: 12px;
+   }
 }
 
 /* A COLUMN OF RESULTS IS NEVER TALLER THAN THE PAGE. Left to itself it grows with the run

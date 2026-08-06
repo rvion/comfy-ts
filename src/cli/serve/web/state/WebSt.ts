@@ -27,10 +27,15 @@ import { RunSt } from 'src/cli/serve/web/state/RunSt.ts'
 /** selection + drawer survive a reload: hand-tuned state persists and restores */
 const STORAGE_KEY = 'comfy-ts-serve-ui'
 
-/** where the results live. 'auto' keeps the width rule (side ≥1100px, bottom under it);
- * 'pinned' floats the newest image over the bottom of the screen, so a phone shows the
- * knobs and what they produced without scrolling between them */
-export type ResultsLayout = 'auto' | 'off' | 'bottom' | 'left' | 'side' | 'pinned'
+/** where the results live. EVERY value is one of the buttons: there used to be an 'auto' that
+ * meant "right on a wide screen, bottom on a narrow one", which is a placement no button could
+ * show as selected and which nobody could name while looking at it. A mode you cannot point
+ * at is not a mode. 'pinned' floats the newest image over the bottom of the screen, so a phone
+ * shows the knobs and what they produced without scrolling between them */
+export type ResultsLayout = 'off' | 'bottom' | 'left' | 'side' | 'pinned'
+
+/** results on the RIGHT: the wide-screen shape, and the one a first visit opens in */
+export const DEFAULT_LAYOUT: ResultsLayout = 'side'
 
 /** icon names live in Icon.tsx; this list stays a plain description of the modes */
 export const LAYOUTS: {
@@ -46,7 +51,7 @@ export const LAYOUTS: {
 ]
 
 function isLayout(raw: unknown): raw is ResultsLayout {
-   return raw === 'auto' || raw === 'off' || raw === 'bottom' || raw === 'left' || raw === 'side' || raw === 'pinned'
+   return raw === 'off' || raw === 'bottom' || raw === 'left' || raw === 'side' || raw === 'pinned'
 }
 
 type StoredSelection = {
@@ -168,7 +173,9 @@ export class WebSt {
       this.run = new RunSt()
       this.enhancer = new EnhancerSt()
       const stored = readStoredSelection()
-      this.layout = isLayout(stored.layout) ? stored.layout : 'auto'
+      // a stored 'auto' from before the mode was removed resolves to what it MEANT on a
+      // wide screen, which is where it spent most of its life
+      this.layout = isLayout(stored.layout) ? stored.layout : DEFAULT_LAYOUT
       // CLOSED by default, on every width: the panel is a form, and a workflow tree taking a
       // column of it before you have asked for one is chrome. It reopens from the workflow box
       this.sidebarOpen = stored.sidebar ?? false
@@ -349,8 +356,9 @@ export class WebSt {
    }
 
    setLayout(next: ResultsLayout): void {
-      // clicking the mode you are in returns to the width rule, so 'auto' stays reachable
-      this.layout = this.layout === next ? 'auto' : next
+      // a click SETS the mode, it does not cycle: clicking the selected one used to fall back
+      // to the width rule, which is how you ended up in a placement no button was showing
+      this.layout = next
       this.persist()
    }
 

@@ -52,8 +52,8 @@ export const App = observer(function App(p: { st: WebSt }) {
                {p.st.formError != null ? <div className="center error">🔴 {p.st.formError}</div> : null}
                {p.st.formLoading && p.st.form == null ? <div className="center">loading draft…</div> : null}
                {p.st.modules.length === 0 ? <div className="center">no workflow modules loaded</div> : null}
-               {/* the layout buttons drive ONE class; the width media query only applies
-                   under layout-auto, so a chosen placement wins on every screen */}
+               {/* the layout buttons drive ONE class, and it is the whole truth: the selected
+                   button always names where the panel is */}
                <div className={`work layout-${p.st.layout}`}>
                   <div className="form-col">
                      <VarsForm st={p.st} />
