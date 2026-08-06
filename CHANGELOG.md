@@ -7,8 +7,16 @@
 - **Text outputs come back.** `execution.texts` holds every string an output node published, in arrival order, each tagged with the node that emitted it; `execution.text` is the last one. Until now only images were collected, so a graph ending in `PreviewAny` returned nothing. This is what makes ComfyUI's core `TextGenerate` node usable from here: a chat model loads through the ordinary `CLIPLoader` path and its answer lands in `execution.text` — no api key, no second service.
 - **New example, [`07-local-llm-text-gen`](examples/rvion/07-local-llm-text-gen.cflow.ts)**: expand a short image prompt with a local model. Run it with `--sweep` and it reports which text encoders on your own host actually generate, and how fast — an encoder-only T5 or CLIP has no `generate` and fails there by design.
 
+### The web panel
+
+- **A lora card drags from anywhere on it**, not just from the grip in its corner. It disarms itself for one gesture when you press on a control, so the strength slider and its number still work; the grip stays as the hint that cards reorder at all.
+- **The strength value has room** — a signed two-decimal value like `-0.55` was clipped.
+- **The kind tag moved into a tooltip.** `int`, `seed`, `loras` were printed under every label, on their own line and out of alignment with the control beside them. Hover the label when you want it.
+- **The seed row no longer restates the mode it is on.** `+1` already says it increments; each mode button keeps its own hint.
+
 ### Fixed
 
+- **The progress line shows the executing node's own counter** in its own unit — `TextGenerate 427/1024` tokens, `KSampler 12/20` steps — instead of only a global percent. Note that ComfyUI sends no partial text during generation, so a text node cannot be streamed: the counter is the live signal, and the string arrives whole at the end.
 - **Running a workflow on a host you never connected threw instead of hanging forever.** The prompt was accepted and really ran on the server, but its websocket messages routed to a session that was not yours, so the run never finished and never failed: no error, no timeout, nothing to read. It now says which call is missing. `host.defineWorkflow(…).run()` connects on your behalf and was never affected.
 
 ### Dynamic combos are typed
