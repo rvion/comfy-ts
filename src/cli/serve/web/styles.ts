@@ -478,7 +478,9 @@ button .icon + * { margin-left: 4px; }
 
 /* phone: label over control, 16px inputs (below that iOS zooms the page on focus) */
 @media (max-width: 640px) {
-   .main { padding: 12px 12px 60px; }
+   .main { padding: 10px 10px 48px; }
+   /* the row stops being a subgrid here: label OVER control, one column across both
+      parent tracks (it still spans them via grid-column) */
    .var-row { grid-template-columns: 1fr; gap: 4px; }
    .var-label { padding-top: 0; }
    input[type='text'], input[type='number'], textarea, select { font-size: 16px; }
