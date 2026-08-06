@@ -28,6 +28,11 @@
 - **Your prompt-enhancer library IS a preset source**: `promptEnhancerPresets()` returns every `.comfy-ts/prompt-enhancers/*.md` as `{ file name: text }`, so a paragraph you tuned behind the panel's ✨ button is offered by the workflow too, with no copy. Spread it beside whatever the workflow declares: `presets: { ...INLINE, ...promptEnhancerPresets() }`. The read is pure, so importing a workflow never creates that folder; only the panel seeds it. The store moved to `src/promptEnhancers.ts` (it is library-level now, not a serve detail) and the name gate to `src/utils/safeName.ts`.
 - **A workflow can declare the seed MODE it runs in**: `v.seed(517, { mode: '+' })`. It is the SPEC default, so a draft with no seed of its own starts there and `reset()` comes back to it, unlike `setMode()` which only changes the live value. The old `v.seed(n, 'label')` form still works. `examples/rvion/04-krea2-turbo-t2i` uses it: a tuning session wants each run to be a new image.
 
+### Fixed
+
+- **A prompt the host refuses now says why.** ComfyUI answers a rejection with a non-200, its own message and per-node details, and no `prompt_id`. The reply was validated as if it were a success, so the console showed `prompt_id must be a string (was missing)` twice and threw away the sentence naming the node and the value. It now reads: `ComfyUI refused the prompt: Prompt outputs failed validation · node 12: Value not in list — lora_name: '…' not in (list of length 200)`.
+- **A lora only the lora-manager knows is honestly labelled.** It is still offered, but ComfyUI validates against the enum it has CACHED, so picking one is refused until that host rescans. The ⚠ tooltip says exactly that, and what to do: restart the host, or hit refresh in the HOST box.
+
 ### The web panel
 
 - **Fixed: the ComfyUI console toggle forgot itself on reload.** It was the one view setting deliberately reset at boot; it now rides the same localStorage blob as the preview placement, the latent toggle and the lora view switches. A test pins that every one of them is both written and read back, so a toggle cannot silently stop persisting again.

@@ -1,4 +1,5 @@
 import { nanoid } from 'nanoid'
+import { describePromptRejection } from 'src/runner/describePromptRejection.ts'
 import { join } from 'pathe'
 import { InvalidPromptError } from 'src/errors/InvalidPromptError.ts'
 import type { ComfyHost } from 'src/host/ComfyHost.ts'
@@ -394,12 +395,18 @@ export class ComfyWorkflow<ID extends string = string> {
          headers: { 'Content-Type': 'application/json' },
          body: JSON.stringify(out),
       })
-      const promptInfoJson = await res.json()
-      const promptInfo: PromptInfo = softValidate(PromptInfo_ark, promptInfoJson)
-
+      const promptInfoJson: unknown = await res.json()
+      // a REJECTED prompt is not a malformed success: ComfyUI answers non-200 with its own
+      // reason and no prompt_id, so validating first reported "prompt_id must be a string"
+      // and threw away the sentence that says which node and which value it refused
       if (res.status !== 200) {
-         throw new InvalidPromptError('ComfyUI /prompt request failed', snapshot, promptInfo)
+         throw new InvalidPromptError(
+            `ComfyUI refused the prompt: ${describePromptRejection(promptInfoJson)}`,
+            snapshot,
+            promptInfoJson,
+         )
       }
+      const promptInfo: PromptInfo = softValidate(PromptInfo_ark, promptInfoJson)
       // settings + snapshot go through the constructor: the ctor flushes ws
       // messages that raced ahead, and those handlers need the settings
       const execution = new ComfyExecution(

@@ -119,10 +119,12 @@ export const LorasControl = observer(function LorasControl(p: {
    // NEWEST FIRST: the record keeps insertion order, so the lora you just added is the last
    // key, reversed, it lands where you are looking instead of at the end of the row
    const selectedNames = paletteOrder({ record, options, paused: local.paused })
-   /** known to the lora manager, absent from ComfyUI's own enum: usually still runs, since the
-    * file is on disk and only the server's list is stale, so it is offered, not hidden */
+   /** known to the lora manager, absent from ComfyUI's own enum. it is offered rather than
+    * hidden, but ComfyUI validates a prompt against the enum it has CACHED, so picking one
+    * fails at send time until that host rescans its models */
    const managerOnly = new Set(p.v.desc.managerOnlyOptions ?? [])
-   const MANAGER_ONLY_TIP = 'only according to the lora manager, not yet listed by comfy itself'
+   const MANAGER_ONLY_TIP =
+      'the lora manager sees this one, ComfyUI does not yet. it will refuse the prompt until it rescans: restart the host, or hit refresh in the HOST box'
    const warnBadge = (name: string): ReactNode =>
       managerOnly.has(name) ? (
          <span className="lora-warn" data-tip={MANAGER_ONLY_TIP}>
