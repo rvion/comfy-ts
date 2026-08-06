@@ -492,10 +492,11 @@ export const LorasControl = observer(function LorasControl(p: {
                                     {strengthInputs(name)}
                                     <button
                                        type="button"
+                                       className="chip-remove"
                                        data-tip="remove from the list"
                                        onClick={() => setEntry(name, null)}
                                     >
-                                       <Icon name="close" />
+                                       <Icon name="close" size={0.9} />
                                     </button>
                                  </div>
                               )

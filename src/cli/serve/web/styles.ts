@@ -221,14 +221,14 @@ button.mode.sel { background: var(--accent-dim); border-color: var(--accent); co
 }
 .chip-title.as-text:hover { color: var(--accent); }
 
-/* corner affordance over the preview. no grip: the whole card is the drag source */
+/* ✕ is ALWAYS a corner overlay, on the card and in the popup row: it costs zero layout
+   width, and it is never hover-gated — a phone has no hover, so a hidden ✕ is no ✕ */
 .chip-remove {
    position: absolute; top: 4px; right: 4px; z-index: 2; display: inline-flex; align-items: center;
    border: 0; border-radius: 6px; padding: 2px; color: var(--text); cursor: pointer;
-   background: rgba(16, 18, 23, 0.72); opacity: 0; transition: opacity 0.12s;
+   background: rgba(16, 18, 23, 0.72); opacity: 0.7; transition: opacity 0.12s, color 0.12s;
 }
-.lora-chip:hover .chip-remove { opacity: 1; }
-.chip-remove:hover { color: var(--red); }
+.chip-remove:hover, .chip-remove:focus-visible { opacity: 1; color: var(--red); }
 
 /* PAUSED: still in the palette, visibly not contributing to the graph */
 .lora-chip.off, .lora-active-row.off { opacity: 0.55; }
@@ -258,7 +258,7 @@ button.mode.sel { background: var(--accent-dim); border-color: var(--accent); co
 .modal-body { overflow-y: auto; padding: 10px; }
 .section-title { color: var(--dim); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; margin: 8px 0 6px; }
 
-.lora-active-row { display: flex; gap: 10px; align-items: center; padding: 4px 0; border-bottom: 1px solid var(--border); }
+.lora-active-row { position: relative; display: flex; gap: 10px; align-items: center; padding: 4px 22px 4px 0; border-bottom: 1px solid var(--border); }
 .lora-active-text { flex: 1; min-width: 0; }
 .lora-active-row input[type='number'] { width: 64px; padding: 2px 6px; font-size: 12px; }
 .lora-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
