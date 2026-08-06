@@ -1,6 +1,6 @@
 // the var rows: each kind dispatches to its matching control (the point of the
 // web ui — architecture item 12) + the sticky run bar
-import { observer } from 'mobx-react-lite'
+import { observer, useLocalObservable } from 'mobx-react-lite'
 import { useEffect } from 'react'
 import {
    ChoiceControl,
@@ -14,7 +14,7 @@ import { ImageControl } from 'src/cli/serve/web/components/controls/ImageControl
 import { LorasControl } from 'src/cli/serve/web/components/controls/LorasControl.tsx'
 import { SeedControl } from 'src/cli/serve/web/components/controls/SeedControl.tsx'
 import { SizeControl } from 'src/cli/serve/web/components/controls/SizeControl.tsx'
-import type { VarSt } from 'src/cli/serve/web/state/FormSt.ts'
+import type { FormSt, VarSt } from 'src/cli/serve/web/state/FormSt.ts'
 import { LAYOUTS, type WebSt } from 'src/cli/serve/web/state/WebSt.ts'
 
 const VarControl = observer(function VarControl(p: { v: VarSt; host: string; st: WebSt; module: string }) {
@@ -64,6 +64,81 @@ const VarRow = observer(function VarRow(p: { v: VarSt; host: string; st: WebSt; 
          <div className="var-control">
             <VarControl v={p.v} host={p.host} st={p.st} module={p.module} />
          </div>
+      </div>
+   )
+})
+
+/** the draft box: name, autosave state as its legend, and the two actions that own this draft.
+ * Duplicate asks for the name INLINE — window.prompt is silently suppressed by browsers after
+ * a few dialogs, which reads exactly like a dead button */
+const DraftBox = observer(function DraftBox(p: { st: WebSt; form: FormSt }) {
+   const local = useLocalObservable(() => ({
+      naming: false,
+      name: '',
+      start(from: string) {
+         this.naming = true
+         this.name = `${from} copy`
+      },
+      set(v: string) {
+         this.name = v
+      },
+      stop() {
+         this.naming = false
+      },
+   }))
+   const confirm = (): void => {
+      const name = local.name.trim()
+      local.stop()
+      if (name !== '') void p.st.duplicateDraft(name)
+   }
+   return (
+      <div className="head-box">
+         <span className="head-label">
+            draft
+            <span className={p.form.saveState === 'error' ? 'save-state error' : 'save-state'}>
+               {p.form.saveState === 'saving' ? '· saving' : null}
+               {p.form.saveState === 'saved' ? '· saved' : null}
+               {p.form.saveState === 'error' ? '· NOT SAVED' : null}
+            </span>
+         </span>
+         {local.naming ? (
+            <input
+               type="text"
+               autoFocus
+               className="head-input"
+               value={local.name}
+               placeholder="new draft name"
+               onFocus={(e) => e.currentTarget.select()}
+               onChange={(e) => local.set(e.target.value)}
+               onKeyDown={(e) => {
+                  if (e.key === 'Enter') confirm()
+                  if (e.key === 'Escape') local.stop()
+               }}
+               onBlur={confirm}
+            />
+         ) : (
+            <span className="head-value draft">{p.form.draft}</span>
+         )}
+         <span className="btn-group head-group">
+            <button
+               type="button"
+               title="save these values as a new draft"
+               onClick={() => (local.naming ? confirm() : local.start(p.form.draft))}
+            >
+               <Icon name="copy-plus" />
+            </button>
+            <button
+               type="button"
+               className="danger"
+               title="delete this draft's file (default resets to the workflow's own values)"
+               onClick={() => {
+                  if (window.confirm(`delete draft '${p.form.draft}' of ${p.form.moduleKey}? the file is removed.`))
+                     void p.st.deleteDraft({ module: p.form.moduleKey, draft: p.form.draft })
+               }}
+            >
+               <Icon name="trash" />
+            </button>
+         </span>
       </div>
    )
 })
@@ -179,10 +254,6 @@ export const VarsForm = observer(function VarsForm(p: { st: WebSt }) {
       return () => window.removeEventListener('keydown', onKey)
    }, [p.st])
    if (form == null) return null
-   const duplicate = (): void => {
-      const name = window.prompt('duplicate draft as…', `${form.draft} copy`)
-      if (name != null) void p.st.duplicateDraft(name)
-   }
    return (
       <div>
          {/* the TUI header, on the web: labelled boxes for what you are editing and where it runs */}
@@ -192,26 +263,7 @@ export const VarsForm = observer(function VarsForm(p: { st: WebSt }) {
                <span className="head-value app">{form.moduleKey}</span>
             </div>
             {/* duplicate and delete act on THIS draft, so they live in the draft box */}
-            <div className="head-box">
-               <span className="head-label">draft</span>
-               <span className="head-value draft">{form.draft}</span>
-               <span className="btn-group head-group">
-                  <button type="button" title="save these values as a new draft" onClick={duplicate}>
-                     <Icon name="copy-plus" />
-                  </button>
-                  <button
-                     type="button"
-                     className="danger"
-                     title="delete this draft's file (default resets to the workflow's own values)"
-                     onClick={() => {
-                        if (window.confirm(`delete draft '${form.draft}' of ${form.moduleKey}? the file is removed.`))
-                           void p.st.deleteDraft({ module: form.moduleKey, draft: form.draft })
-                     }}
-                  >
-                     <Icon name="trash" />
-                  </button>
-               </span>
-            </div>
+            <DraftBox st={p.st} form={form} />
             <div className="head-box">
                <span className="head-label">host</span>
                {/* pick where this workflow RUNS (the TUI's host override), remembered per module */}
@@ -262,13 +314,9 @@ export const VarsForm = observer(function VarsForm(p: { st: WebSt }) {
             </div>
          </div>
          {p.st.hostError != null ? <div className="error">🔴 {p.st.hostError}</div> : null}
-         <div className="head-actions">
-            <span className="hint">
-               {form.saveState === 'saving' ? 'saving the draft…' : null}
-               {form.saveState === 'saved' ? 'draft autosaved' : null}
-               {form.saveState === 'error' ? `🔴 draft save failed: ${form.saveError}` : null}
-            </span>
-         </div>
+         {/* the autosave state is the draft box's legend now; only a FAILURE gets a line of
+             its own, because that one you must not miss */}
+         {form.saveState === 'error' ? <div className="error">🔴 draft save failed: {form.saveError}</div> : null}
          {form.vars.map((v) => (
             // keyed by DRAFT too: a draft switch must reset per-row ui state (lora filter,
             // remembered strengths), not carry the other draft's over

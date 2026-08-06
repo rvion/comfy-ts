@@ -285,15 +285,13 @@ div.lora-thumb.none {
 /* the pinned card is the IMAGE plus its controls, nothing else: no meta line, no padding walls */
 .work.layout-pinned .run-card { padding: 0; border: 0; background: none; }
 .work.layout-pinned .run-card .meta { margin-bottom: 2px; font-size: 11px; }
-.work.layout-pinned .gallery-head { display: none; }
 .work.layout-pinned .run-card img { max-height: 34vh; width: auto; }
-.work.layout-pinned .run-card:not(:first-of-type) { display: none; }
 .results-run { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
 .work.layout-pinned .results-run { margin-bottom: 6px; justify-content: flex-end; }
 /* segmented control: ONE group, no gaps, only the outer corners rounded */
 .btn-group { display: inline-flex; }
 .btn-group button {
-   padding: 3px 10px; font-size: 13px; line-height: 1.3; border-radius: 0; margin: 0;
+   padding: 2px 6px; font-size: 13px; line-height: 1.3; border-radius: 0; margin: 0;
    border-right-width: 0; background: var(--panel-2);
 }
 .btn-group button:first-child { border-top-left-radius: 6px; border-bottom-left-radius: 6px; }
@@ -304,7 +302,14 @@ div.lora-thumb.none {
 .btn-group button:hover { background: var(--panel); }
 /* a group living inside a header box sits beside the value, not under it */
 .head-group { margin-left: 8px; vertical-align: middle; }
-.head-group button { padding: 2px 7px; }
+.head-group button { padding: 2px 5px; }
+/* rows that mix buttons and inputs: one height for both, so nothing steps over the line.
+   32px is what an input with 6px padding and a 1px border measures at this font size */
+.field-height, .field-height button { height: 32px; }
+.field-height button { display: inline-flex; align-items: center; }
+.head-input { padding: 2px 6px; font-size: 13px; font-weight: 600; color: var(--accent); max-width: 180px; }
+.head-label .save-state { color: var(--dim); font-weight: 400; margin-left: 4px; }
+.head-label .save-state.error { color: var(--red); }
 
 /* icons inherit the text they sit in, so a button never jumps when one is swapped in */
 .icon { display: inline-block; vertical-align: -0.16em; flex-shrink: 0; }

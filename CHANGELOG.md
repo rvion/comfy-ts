@@ -4,6 +4,19 @@
 
 - **`comfy-ts serve` prints a readable launch screen.** Colors when the terminal has them (and never when the output is piped or `NO_COLOR` is set, so `serve > log` stays greppable), a rule between workflows instead of a wall of text, and a box at the end holding the web UI url, the JSON index, and every other address the machine answers on. Bound to localhost it also tells you the flag to open it elsewhere: `--host 0.0.0.0` (`--bind` is the same flag).
 
+### The web panel
+
+- **The sidebar is a tree again.** Workflows were listed flat with their folder dropped, so six workflows from one directory looked like six unrelated entries. Folder, then its workflows, then their drafts.
+- **The header follows the TUI**: a labelled box each for workflow, draft and host, with the draft's own actions inside the draft box and the autosave state as its legend instead of a line of its own.
+- **Choose where a workflow runs.** The host box is a picker when the process knows more than one host, remembered per workflow, with a reset to the workflow's own host. Same override the TUI has.
+- **Saving is a knob, not a mystery.** The last row of the form turns writing to disk on or off, and names the folder under `.comfy-ts/outputs/` this workflow writes to. With saving off, images stay in memory and are still shown (and still returned by `curl -H 'accept: image/*'`) instead of coming back as blanks.
+- **Results placement is yours**: four buttons — none, below, beside, pinned. Pinned keeps the newest image in the bottom right corner with the generate button, so the knobs and what they produce are on screen together on a phone.
+- **Fixed: the ✕ that removes a lora from the palette was unclickable** on every card but the last of each row — the strength inputs overflowed the card and the next card covered the button.
+- **Fixed: the newest image vanished in pinned mode**, leaving only the latent preview, as soon as a run finished.
+- **Fixed: duplicating a draft did nothing** when the browser had started suppressing dialogs. The new name is typed inline in the draft box now, no native prompt.
+- **The lora picker is keyboard-first**: the filter is focused with its text selected when the popup opens, and enter adds the first match.
+- Icons are SVG everywhere, so a button looks the same on a phone as on a desktop; the seed modes are one segmented control aligned with their input.
+
 ## 2.7.0
 
 ### The prompt refiner runs on a local model too

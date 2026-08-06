@@ -53,7 +53,7 @@ export const App = observer(function App(p: { st: WebSt }) {
                               {p.st.run.error != null ? <span className="error">🔴 {p.st.run.error}</span> : null}
                            </div>
                         ) : null}
-                        <Gallery st={p.st} />
+                        <Gallery st={p.st} compact={p.st.layout === 'pinned'} />
                      </div>
                   )}
                </div>

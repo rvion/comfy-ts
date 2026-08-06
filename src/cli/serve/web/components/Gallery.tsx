@@ -124,13 +124,17 @@ const RunningCard = observer(function RunningCard(p: { st: WebSt; local: Gallery
    )
 })
 
-export const Gallery = observer(function Gallery(p: { st: WebSt }) {
+/** compact = the pinned corner: the newest result only, no header. It is a RENDER decision,
+ * never a css one — hiding cards with :first-of-type counted div siblings, so the moment the
+ * header appeared every card vanished and a finished image disappeared behind the latent */
+export const Gallery = observer(function Gallery(p: { st: WebSt; compact?: boolean }) {
    const local = useGalleryLocal()
    if (p.st.run.results.length === 0 && !p.st.run.isRunning) return null
+   const results = p.compact === true ? p.st.run.results.slice(0, 1) : p.st.run.results
    return (
       <div className="gallery">
          <RunningCard st={p.st} local={local} />
-         {p.st.run.results.length > 0 ? (
+         {p.st.run.results.length > 0 && p.compact !== true ? (
             <div className="gallery-head">
                <span>
                   {p.st.run.results.length} result{p.st.run.results.length === 1 ? '' : 's'}
@@ -140,7 +144,7 @@ export const Gallery = observer(function Gallery(p: { st: WebSt }) {
                </button>
             </div>
          ) : null}
-         {p.st.run.results.map((r) => (
+         {results.map((r) => (
             <div key={r.promptId} className="run-card">
                <div className="meta">
                   <span>

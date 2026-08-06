@@ -21,20 +21,29 @@ export const SeedControl = observer(function SeedControl(p: { v: VarSt }) {
    }
    return (
       <div>
+         {/* one control: the modes are a segmented group, and every element on the row is
+             input-height so buttons and the number line up instead of stepping over each other */}
          <div className="row-inline">
-            {MODES.map((m) => (
-               <button
-                  key={m.mode}
-                  type="button"
-                  className={seed.mode === m.mode ? 'mode sel' : 'mode'}
-                  title={m.hint}
-                  onClick={() => p.v.set({ mode: m.mode, value: seed.value })}
-               >
-                  {m.label}
-               </button>
-            ))}
+            <span className="btn-group field-height">
+               {MODES.map((m) => (
+                  <button
+                     key={m.mode}
+                     type="button"
+                     className={seed.mode === m.mode ? 'sel' : ''}
+                     title={m.hint}
+                     onClick={() => p.v.set({ mode: m.mode, value: seed.value })}
+                  >
+                     {m.label}
+                  </button>
+               ))}
+            </span>
             <input type="number" min={0} value={seed.value} onChange={(e) => setValue(parseInt(e.target.value, 10))} />
-            <button type="button" title="roll a random seed now" onClick={() => setValue(randomSeed())}>
+            <button
+               type="button"
+               className="field-height"
+               title="roll a random seed now"
+               onClick={() => setValue(randomSeed())}
+            >
                <Icon name="dice" />
             </button>
          </div>
