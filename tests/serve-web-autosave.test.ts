@@ -89,6 +89,60 @@ describe('draft autosave', () => {
       form.dispose({ flush: false })
    })
 
+   it('a save queued BEHIND a failed one keeps its own marker, so a later revert still writes', async () => {
+      // the rollback used to fire unconditionally: the failed write reset the marker to the
+      // ORIGINAL value while a newer write was still queued, and once that newer one landed,
+      // editing back to the original read as "already on disk" and wrote nothing
+      const calls: string[] = []
+      let n = 0
+      const g = globalThis as { fetch: typeof fetch }
+      g.fetch = ((_url: string, init?: { body?: string }) => {
+         calls.push(JSON.parse(String(init?.body ?? '{}')).prompt)
+         n++
+         return Promise.resolve(n === 1 ? new Response('boom', { status: 500 }) : ok())
+      }) as typeof fetch
+
+      const form = new FormSt('wf', 'default', MOD, { prompt: 'V1' })
+      form.vars[0]?.set('V2')
+      const failing = form.save()
+      form.vars[0]?.set('V3')
+      const queued = form.save()
+      await Promise.all([failing, queued])
+      await tick()
+      calls.length = 0
+
+      form.vars[0]?.set('V1') // back to the value the draft loaded with
+      await form.save()
+      await tick()
+      expect(calls).toEqual(['V1']) // the disk must end at V1, not at V3
+      form.dispose({ flush: false })
+   })
+
+   it('dispose flushes a revert made while a save was still open', async () => {
+      const net = heldFetch()
+      const form = new FormSt('wf', 'default', MOD, { prompt: 'V1' })
+      form.vars[0]?.set('V2')
+      void form.save()
+      await tick()
+      form.vars[0]?.set('V1')
+      form.dispose() // flushes
+      net.release()
+      await tick()
+      await tick()
+      expect(net.calls.at(-1)).toEqual({ body: JSON.stringify({ prompt: 'V1' }) })
+   })
+
+   it('the tab-close flush writes a revert made during an open save — nothing runs after it', () => {
+      const net = heldFetch()
+      const form = new FormSt('wf', 'default', MOD, { prompt: 'V1' })
+      form.vars[0]?.set('V2')
+      void form.save()
+      form.vars[0]?.set('V1')
+      form.flushKeepalive()
+      expect(net.calls.map((c) => JSON.parse(c.body).prompt)).toContain('V1')
+      form.dispose({ flush: false })
+   })
+
    it('a FAILED save stays dirty, so the next attempt really re-sends', async () => {
       const g = globalThis as { fetch: typeof fetch }
       let n = 0

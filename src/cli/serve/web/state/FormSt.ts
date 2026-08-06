@@ -101,8 +101,10 @@ export class FormSt {
       for (const d of this.disposers) d()
       this.disposers = []
       if (p.flush === false) return
-      // a draft switch inside the debounce window must not lose the edit
-      if (JSON.stringify(this.valuesJSON()) !== this.lastSaved) void this.save()
+      // a draft switch inside the debounce window must not lose the edit. Compared against
+      // lastQueued, like save() itself: lastSaved lags behind an in-flight write, so a revert
+      // made while one is open looked identical to "already written" and was dropped
+      if (JSON.stringify(this.valuesJSON()) !== this.lastQueued) void this.save()
    }
 
    /** tab-close/hide flush. keepalive survives page teardown, so this one does NOT ride
@@ -110,7 +112,10 @@ export class FormSt {
     * server answers: a failed flush must stay dirty so the next save() retries it */
    flushKeepalive(): void {
       const encoded = JSON.stringify(this.valuesJSON())
-      if (encoded === this.lastSaved) return
+      // lastQueued, not lastSaved: nothing runs after this one, so a revert made while a PUT
+      // was open would be lost for good rather than merely delayed
+      if (encoded === this.lastQueued) return
+      this.lastQueued = encoded
       void saveDraft(
          { module: this.moduleKey, draft: this.draft, values: JSON.parse(encoded) as Record<string, unknown> },
          { keepalive: true },
@@ -123,6 +128,7 @@ export class FormSt {
             }),
          (e: unknown) =>
             runInAction(() => {
+               if (this.lastQueued === encoded) this.lastQueued = this.lastSaved
                this.saveState = 'error'
                this.saveError = e instanceof Error ? e.message : String(e)
             }),
@@ -196,8 +202,10 @@ export class FormSt {
             return true
          } catch (e) {
             runInAction(() => {
-               // roll back: this content is NOT on its way any more, the next save must re-send
-               this.lastQueued = this.lastSaved
+               // roll back ONLY if nothing newer was queued behind this one. Rolling back
+               // unconditionally set the marker to a value the later (successful) write would
+               // then leave stale, and an edit back to it read as "already on disk"
+               if (this.lastQueued === encoded) this.lastQueued = this.lastSaved
                this.saveState = 'error'
                this.saveError = e instanceof Error ? e.message : String(e)
             })
