@@ -1,5 +1,7 @@
 // commit guard: rejects commits containing keywords from .rv-private/banned-keywords.txt
-// rows: plain text = case-insensitive substring; `re:<pattern>` = case-insensitive regex
+// rows: plain text = case-insensitive WORD match (anything that is not a letter or a digit is
+// a break, so `folder/word`, `foo,word,bar` and `word_v2.safetensors` all hit, while a word
+// glued inside a longer one does not); `re:<pattern>` = case-insensitive regex
 // usage: check-banned.ts --staged        (pre-commit: staged contents + staged paths)
 //        check-banned.ts --msg <file>    (commit-msg: the commit message)
 import { spawnSync } from 'node:child_process'
@@ -15,6 +17,10 @@ function git(args: string[]): string {
 }
 
 type Hit = { where: string; keyword: string }
+
+function escapeRegex(raw: string): string {
+   return raw.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`)
+}
 
 function main(): void {
    const mode = process.argv[2]
@@ -49,11 +55,17 @@ function main(): void {
       }
    }
 
+   // a keyword surrounded by anything that is not alphanumeric: underscore, dash, comma, both
+   // slashes, every space and newline are breaks, because a leaked name arrives as a path or a
+   // filename far more often than as a bare word
+   const wordMatchers = new Map<string, RegExp>(
+      substrings.map((kw) => [kw, new RegExp(`(?<![a-z0-9])${escapeRegex(kw)}(?![a-z0-9])`, 'i')]),
+   )
+
    const hits: Hit[] = []
    const scan = (p: { where: string; text: string }): void => {
-      const low = p.text.toLowerCase()
       for (const kw of substrings) {
-         if (low.includes(kw.toLowerCase())) hits.push({ where: p.where, keyword: kw })
+         if (wordMatchers.get(kw)?.test(p.text) === true) hits.push({ where: p.where, keyword: kw })
       }
       for (const rx of regexes) {
          if (rx.re.test(p.text)) hits.push({ where: p.where, keyword: rx.row })
