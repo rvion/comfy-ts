@@ -1,5 +1,5 @@
 // an image var can name an http url, which serve fetches on your behalf. The inbound BODY cap
-// does not apply to that fetch, so it needs its own — and it has to STOP the read rather than
+// does not apply to that fetch, so it needs its own, and it has to STOP the read rather than
 // measure it afterwards, or a chunked reply exhausts the process before anything checks.
 import { describe, expect, it } from 'bun:test'
 import { readCapped } from 'src/cli/serve/ServeApp.ts'

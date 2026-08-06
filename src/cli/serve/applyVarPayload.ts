@@ -39,7 +39,7 @@ function listSome(items: readonly string[], cap: number = 20): string {
 }
 
 /** `extraLoraOptions`: names the lora-manager mirror knows that ComfyUI's enum does not.
- * They are accepted like any option — the file is on disk, so the run usually works — but
+ * they are accepted like any option, the file is on disk, so the run usually works, but
  * ONLY those: an arbitrary name still fails, so a typo cannot reach the host */
 export function applyVarPayload(
    varDef: AnyVar,

@@ -105,7 +105,7 @@ const VarRow = observer(function VarRow(p: {
 })
 
 /** the draft box: name, autosave state as its legend, and the two actions that own this draft.
- * Duplicate asks for the name INLINE — window.prompt is silently suppressed by browsers after
+ * duplicate asks for the name INLINE, window.prompt is silently suppressed by browsers after
  * a few dialogs, which reads exactly like a dead button */
 const DraftBox = observer(function DraftBox(p: { st: WebSt; form: FormSt }) {
    const local = useLocalObservable(() => ({
@@ -157,7 +157,7 @@ const DraftBox = observer(function DraftBox(p: { st: WebSt; form: FormSt }) {
                   if (e.key === 'Escape') local.stop()
                }}
                // blur CANCELS, it does not commit: clicking another draft in the sidebar blurred
-               // this input, and the rename then raced that selection — renameDraft bails when
+               // this input, and the rename then raced that selection, renameDraft bails when
                // the form has already moved on, leaving a duplicate instead of a rename, silently.
                // enter commits, which is the only unambiguous signal
                onBlur={() => local.stop()}
@@ -222,11 +222,8 @@ const DraftBox = observer(function DraftBox(p: { st: WebSt; form: FormSt }) {
    )
 })
 
-/** EVERYTHING about running, on one line: the button, what is queued behind it, and what it
- * has produced. These were three stacked blocks (button, a queue panel listing every pending
- * prompt by name, a gallery header) saying in ~10 lines what fits in one. The per-entry queue
- * rows are gone with them: a count and one clear is the whole decision, and a prompt already
- * on the host was only ever telling you it could not be cancelled. */
+/** everything about running on one line: the button, what is queued behind it, what it has
+ * produced. a count and one clear is the whole decision a queue offers */
 export const GenerateButton = observer(function GenerateButton(p: { st: WebSt }) {
    const run = p.st.run
    return (

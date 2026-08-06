@@ -21,7 +21,7 @@ export type LightboxRun = {
 export type LightboxView = { url: string; title: string; promptId: string | null }
 
 /** a latent target follows the live frame, and the moment the run ends it promotes itself to
- * the image that run produced — watching a latent become the picture is the point of opening
+ * the image that run produced, watching a latent become the picture is the point of opening
  * it big, so stopping at the last frame loses exactly what you opened it for */
 export function lightboxView(p: {
    target: LightboxTarget

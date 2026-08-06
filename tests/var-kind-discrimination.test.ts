@@ -6,7 +6,7 @@ import { applyVarPayload } from 'src/cli/serve/applyVarPayload.ts'
 import { describeVar, renderDescriptorLine } from 'src/cli/serve/describeVar.ts'
 import { type AnyVar, v } from 'src/vars/ComfyVars.ts'
 
-// From a consumer repo: every `POST /generate` payload
+// from a consumer repo: every `POST /generate` payload
 // override answered `var 'prompt' has unsupported kind 'text'`, for EVERY kind,
 // and `GET /drafts` described an int var as `"payload": "string"`.
 //

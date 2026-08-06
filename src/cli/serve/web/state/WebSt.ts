@@ -28,11 +28,10 @@ import { RunSt } from 'src/cli/serve/web/state/RunSt.ts'
 /** selection + drawer survive a reload: hand-tuned state persists and restores */
 const STORAGE_KEY = 'comfy-ts-serve-ui'
 
-/** where the results live. EVERY value is one of the buttons: there used to be an 'auto' that
- * meant "right on a wide screen, bottom on a narrow one", which is a placement no button could
- * show as selected and which nobody could name while looking at it. A mode you cannot point
- * at is not a mode. 'pinned' floats the newest image over the bottom of the screen, so a phone
- * shows the knobs and what they produced without scrolling between them */
+/** where the results live. every value is one of the buttons: a width rule would put the panel
+ * in a placement no button can show as selected, and a mode you cannot point at is not a mode.
+ * 'pinned' floats the newest image over the bottom, so a phone shows the knobs and what they
+ * produced without scrolling between them */
 export type ResultsLayout = 'off' | 'bottom' | 'left' | 'side' | 'pinned'
 
 /** results on the RIGHT: the wide-screen shape, and the one a first visit opens in */
@@ -78,10 +77,8 @@ type StoredSelection = {
  * the wrong shape (hand-edited, or written by an older version) crashed the whole panel to a
  * blank page inside render. Every entry is shape-checked here, once */
 export const DEFAULT_LORA_CAP = 200
-/** the previous default. It was persisted whether or not anyone chose it, so a stored 60
- * cannot be told apart from a deliberate one: it is read ONCE as "never chosen", so a browser
- * that simply carried the old default picks up the new one. Someone who really wanted 60 sets
- * it again, and from then on it sticks, because it is no longer the default */
+/** the previous default, persisted whether or not anyone chose it: a stored 60 cannot be told
+ * apart from a deliberate one, so it is read as unset once (see loraCapMigrated) */
 const LEGACY_LORA_CAP = 60
 /** an upper bound, not a policy: 2000 cards is 2000 image requests, and a number typed by
  * hand (or restored from an older blob) must not be able to hang the page */
@@ -175,7 +172,7 @@ export class WebSt {
    constructor() {
       this.run = new RunSt()
       // a finished run reports the seed it used; the form shows it, and the autosave carries it
-      // into the draft — which is also what the server continues from, so `+` keeps stepping
+      // into the draft, which is also what the server continues from, so `+` keeps stepping
       this.run.onSeeds = (p): void => this.applyRunSeeds(p)
       this.enhancer = new EnhancerSt()
       const stored = readStoredSelection()
@@ -188,8 +185,7 @@ export class WebSt {
       this.showLoraImages = stored.loraImages ?? true
       this.showLoraTitles = stored.loraTitles ?? true
       this.loraFill = stored.loraFill ?? true
-      // migrated ONCE, marked in the blob: without the marker this ran on every boot, so a cap
-      // someone deliberately set back to the old default could never stick
+      // marked in the blob, so the bump happens once and a deliberate 60 sticks after it
       this.loraCap = clampLoraCap(
          stored.loraCapMigrated !== true && stored.loraCap === LEGACY_LORA_CAP ? DEFAULT_LORA_CAP : stored.loraCap,
       )
@@ -234,7 +230,7 @@ export class WebSt {
    }
 
    /** put the seeds a run used back on the form, VALUE only: the mode is the draft's policy and
-    * a run never changes it. Writing the USED value (not the next one) is deliberate — the
+    * a run never changes it. Writing the USED value (not the next one) is deliberate, the
     * server restarts its continuation from the draft, so writing the next value would skip one */
    private applyRunSeeds(p: { module: string; draft: string; seeds: Record<string, number> }): void {
       const form = this.form
@@ -360,7 +356,7 @@ export class WebSt {
          outgoing.dispose()
          // OFF SCREEN before the round trip: its autosave reaction is already disposed, so
          // leaving it rendered meant every keystroke during the fetch went nowhere, silently.
-         // App shows "loading draft…" while form is null
+         // app shows "loading draft…" while form is null
          runInAction(() => {
             this.form = null
          })
@@ -400,8 +396,7 @@ export class WebSt {
    }
 
    setLayout(next: ResultsLayout): void {
-      // a click SETS the mode, it does not cycle: clicking the selected one used to fall back
-      // to the width rule, which is how you ended up in a placement no button was showing
+      // a click SETS the mode. cycling back to a width rule lands where no button is showing
       this.layout = next
       this.persist()
    }
@@ -517,7 +512,7 @@ export class WebSt {
    }
 
    /** a restart takes the host down and back: this WATCHES it instead of leaving you guessing.
-    * Polls until it answers, or gives up loudly after ~2 minutes */
+    * polls until it answers, or gives up loudly after ~2 minutes */
    hostWatch: 'idle' | 'down' | 'back' = 'idle'
 
    private async watchHostComeBack(): Promise<void> {
@@ -658,7 +653,7 @@ export class WebSt {
    }
 
    /** flush the autosave first: the server reads the draft it just wrote — one source of truth.
-    * Every click ENQUEUES, so hitting generate n times runs n prompts; the queued payload
+    * every click ENQUEUES, so hitting generate n times runs n prompts; the queued payload
     * freezes the values you saw, and seeds stay on the draft's server-side policy */
    private async generateNow(): Promise<void> {
       const form = this.form
@@ -671,7 +666,7 @@ export class WebSt {
    }
 
    /** rename = write the values under the new name, switch to it, then drop the old FILE.
-    * Same shape as the enhancer presets: the name IS the identity, so there is nothing to
+    * same shape as the enhancer presets: the name IS the identity, so there is nothing to
     * "rename" server side. The old file is only removed once the new one is confirmed */
    async renameDraft(rawName: string): Promise<void> {
       const form = this.form
@@ -698,7 +693,7 @@ export class WebSt {
    }
 
    /** delete the draft FILE, then fall back to another draft (DraftsSt.deleteDraft's rule).
-    * ORDER: the form is dropped WITHOUT flushing FIRST — its autosave would otherwise
+    * ORDER: the form is dropped WITHOUT flushing FIRST, its autosave would otherwise
     * re-create the file the server is about to delete */
    async deleteDraft(p: { module: string; draft: string }): Promise<void> {
       const form = this.form

@@ -221,7 +221,7 @@ export class ComfyExecution {
    private onExecuted = (msg: WsMsgExecuted): void => {
       const promptNodeID = msg.data.node
       // a STRING output reaches the client ONLY through an output node's ui
-      // payload (PreviewAny) — never through the prompt result
+      // payload (PreviewAny), never through the prompt result
       for (const entry of msg.data.output?.text ?? []) {
          if (typeof entry !== 'string') continue
          const nodeKey = this.workflow.data.apiJson?.[promptNodeID]?.class_type ?? null

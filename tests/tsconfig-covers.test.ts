@@ -18,7 +18,7 @@ function strings(raw: unknown): string[] {
 /**
  * THE GUARD: a config that `extends` the root INHERITS its `exclude`, and the root excludes
  * both dom corners. Each of them therefore excluded the very directory it exists to check,
- * and every file under src/cli/serve/web went unchecked — which is how an undefined import
+ * and every file under src/cli/serve/web went unchecked, which is how an undefined import
  * reached the browser. A dom config must override `exclude` and must not cover its own dir.
  */
 const DOM_CONFIGS = ['src/cli/serve/web/tsconfig.json', 'examples/web/tsconfig.json']

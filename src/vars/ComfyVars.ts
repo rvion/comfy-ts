@@ -380,7 +380,7 @@ export class LorasVar<T extends string> extends ComfyVar<Partial<Record<T, LoraS
 
    /** the filter the workflow declared, when it declared one (`v.loras(/krea-?2/i)`). Public so
     * a UI can SHOW it, and so serve applies the same narrowing to loras only its lora-manager
-    * mirror knows — an unfiltered union would put the whole catalog back in a filtered picker */
+    * mirror knows, an unfiltered union would put the whole catalog back in a filtered picker */
    get optionsFilter(): RegExp | null {
       return this.optionsSource instanceof RegExp ? this.optionsSource : null
    }

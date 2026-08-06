@@ -108,11 +108,7 @@ export class RunSt {
                   // capped: full-size <img>s per run would eat the tab
                   this.results = [{ ...result, at: new Date().toLocaleTimeString() }, ...this.results].slice(0, 20)
                })
-               // the seed the run ACTUALLY used goes back on the form. The server keeps its own
-               // continuation in memory and the draft file never moved, so under `+` the field
-               // sat on the first value forever while every image really was different
-               // WHICH run: the panel may be on another draft by the time this resolves, and a
-               // seed written into the wrong form is persisted there by its autosave
+               // named, because the panel may be on another draft by the time this resolves
                this.onSeeds?.({ module: next.module, draft: next.draft, seeds: result.seeds })
             } catch (e) {
                runInAction(() => {

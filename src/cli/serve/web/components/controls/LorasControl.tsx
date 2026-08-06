@@ -3,7 +3,7 @@
 // and a few without, never reopening the popup to add it back. Model/clip
 // strengths sit on the card too. The popup is the only place that lists ALL
 // loras: tap one there to add it to the palette, ✕ on a card removes it.
-// The PALETTE is derived, never read off the draft: loras that are ON, plus the
+// the PALETTE is derived, never read off the draft: loras that are ON, plus the
 // ones paused in this session. Reading "every key in the record" was the bug —
 // LorasVar writes `false` for every lora ever unticked, so a real draft with 35
 // keys and 2 on showed all 35. A pause removes the key (and remembers the
@@ -111,16 +111,16 @@ export const LorasControl = observer(function LorasControl(p: {
    const labels = p.v.desc.optionLabels ?? {}
    const label = (name: string): string => labels[name] ?? name
    // the PALETTE is what the row shows: the loras that are ON, plus the ones paused in this
-   // session. It is NOT "every key in the record" — LorasVar writes `false` for every lora
+   // session. It is NOT "every key in the record", LorasVar writes `false` for every lora
    // ever unticked, so that reading put the whole catalog in the row (a real draft
    // with 35 keys and 2 on). A paused lora leaves the record entirely and lives here instead
    const isOn = (name: string): boolean => loraIsOn(record[name])
    const isInPalette = (name: string): boolean => isOn(name) || local.paused.has(name)
    // NEWEST FIRST: the record keeps insertion order, so the lora you just added is the last
-   // key — reversed, it lands where you are looking instead of at the end of the row
+   // key, reversed, it lands where you are looking instead of at the end of the row
    const selectedNames = paletteOrder({ record, options, paused: local.paused })
    /** known to the lora manager, absent from ComfyUI's own enum: usually still runs, since the
-    * file is on disk and only the server's list is stale — so it is offered, not hidden */
+    * file is on disk and only the server's list is stale, so it is offered, not hidden */
    const managerOnly = new Set(p.v.desc.managerOnlyOptions ?? [])
    const MANAGER_ONLY_TIP = 'only according to the lora manager, not yet listed by comfy itself'
    const warnBadge = (name: string): ReactNode =>
@@ -156,7 +156,7 @@ export const LorasControl = observer(function LorasControl(p: {
 
    /** ONE slider by default, labelled `m+c`: model and clip are the same number in almost every
     * lora, and two sliders for one decision is noise. Clicking the label splits them, and a lora
-    * whose values already differ opens split — its setting is someone's work, not a default */
+    * whose values already differ opens split, its setting is someone's work, not a default */
    const strengthInputs = (name: string): ReactNode => {
       const pair = isOn(name) ? loraStrengthPair(record[name]) : (local.prevStrength.get(name) ?? { model: 1, clip: 1 })
       const split = local.isSplit(name, pair.model !== pair.clip)
@@ -373,7 +373,7 @@ export const LorasControl = observer(function LorasControl(p: {
                      onMouseDown={(e) => {
                         // the WHOLE card drags, so the browser hands it the pointer before any
                         // control below sees it, and a slider drag would only reorder the card.
-                        // Disarm for this gesture when it starts on an input: recomputed on every
+                        // disarm for this gesture when it starts on an input: recomputed on every
                         // mousedown, so there is no armed/disarmed state to leak
                         const from = e.target as HTMLElement
                         // buttons too (✕, the m+c label): a press that drifts a pixel would
@@ -390,9 +390,8 @@ export const LorasControl = observer(function LorasControl(p: {
                         // the index travels in the drag itself: no drag state to leak or reset
                         e.dataTransfer.setData(CARD_DRAG_TYPE, String(ix))
                      }}
-                     // only OUR drag: a file from the desktop, a selected word or a var row
-                     // carries no card index, and Number('') is 0 — every foreign drop used to
-                     // reorder the palette from slot 0, which is an order the run then uses
+                     // only OUR drag: a desktop file or a var row carries no index, and
+                     // Number('') is 0, so a foreign drop would reorder from slot 0
                      onDragOver={(e) => {
                         if (e.dataTransfer.types.includes(CARD_DRAG_TYPE)) e.preventDefault()
                      }}

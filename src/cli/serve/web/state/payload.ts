@@ -40,7 +40,7 @@ export function asSizeForm(raw: unknown): SizeFormValue {
 
 /** the record the web keeps holds ON loras ONLY, so it always reads as "what is in the
  * palette". Two things are dropped: keys the host no longer offers (dead weight the ui
- * cannot display, and a server-side build failure), and `false` entries — LorasVar writes
+ * cannot display, and a server-side build failure), and `false` entries, LorasVar writes
  * one for every lora ever unticked, so treating them as palette members put the WHOLE
  * catalog in the row. Off is off: `activeLoras` skips both spellings, so nothing changes
  * in the graph, and with live drafts the next autosave heals the file */
@@ -95,7 +95,7 @@ export function setLoraEnabled(
    // PAUSE KEEPS THE KEY (as `false`): deleting it dropped the lora out of the record's
    // insertion order, so pausing a card sent it to the end of the row. `false` is the same
    // "selected but off" spelling LorasVar uses, every reader ignores it, and normalizeInitial
-   // prunes it on load — so nothing accumulates in the draft file
+   // prunes it on load, so nothing accumulates in the draft file
    if (!on) next[name] = false
    else {
       const pair = prev ?? loraStrengthPair(record[name])
@@ -122,7 +122,7 @@ export function paletteOrder(p: {
 }
 
 /** move a lora to a new slot in the PALETTE (what the row shows, newest first) and give back the
- * record rewritten in that order — the record's key order IS the stored order */
+ * record rewritten in that order, the record's key order IS the stored order */
 export function reorderLoras(p: {
    record: Record<string, unknown>
    /** palette order, as displayed */

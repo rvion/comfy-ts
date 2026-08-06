@@ -1,5 +1,5 @@
 // a STRING output reaches the client ONLY through an output node's ui payload
-// (PreviewAny) — how a TextGenerate result gets back to TypeScript.
+// (PreviewAny), how a TextGenerate result gets back to TypeScript.
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
 import { mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'

@@ -1,4 +1,4 @@
-// Every file here is committed to a public repo and read by strangers. A comment, a test name
+// every file here is committed to a public repo and read by strangers. A comment, a test name
 // or a doc line says WHY a line exists; who asked for it and on what date belongs to git and
 // to the private journal. This guard exists because that voice creeps back one comment at a
 // time, and it reads as a repo run by an assistant rather than by its author.

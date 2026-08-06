@@ -1,7 +1,7 @@
 // ONE inline svg icon set for the panel. No icon font, no dependency, no emoji:
 // emoji render differently per platform (and a phone shows its own set), so an
 // affordance drawn with one is not the same button on two devices.
-// Every path uses currentColor and 1em, so an icon inherits the text it sits in.
+// every path uses currentColor and 1em, so an icon inherits the text it sits in.
 import type { ReactNode } from 'react'
 
 export type IconName =

@@ -181,7 +181,7 @@ function htmlToText(html: string): string {
 }
 
 /** the example images lora-manager keeps for a lora. `reason` explains an empty list rather
- * than pretending the lora has none — "no example images path configured" is a SETTING */
+ * than pretending the lora has none, "no example images path configured" is a SETTING */
 export async function fetchLoraExampleImages(
    host: ComfyHost,
    sha256: string,

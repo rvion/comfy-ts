@@ -1,7 +1,7 @@
 // serve's own slice of `.comfy-ts/settings.json`, under a `serve` key.
 // MERGE, never rewrite: the TUI owns the rest of that file and a whole-blob write
 // from here would silently drop its preview mode, last draft and lora prefixes.
-// Deliberately NOT the TUI's `saveToDisk`: that one governs TUI runs, this one
+// deliberately NOT the TUI's `saveToDisk`: that one governs TUI runs, this one
 // governs the api's, so the two surfaces cannot fight over one value.
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { stringMap } from 'src/utils/stringMap.ts'

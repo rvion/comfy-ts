@@ -1,5 +1,5 @@
 // module → drafts navigation + module load errors, mirrors the TUI tree's job.
-// A TREE: folder, then its workflows, then their drafts — the folder is part of
+// A TREE: folder, then its workflows, then their drafts, the folder is part of
 // what identifies a workflow, and eating it made six workflows look like a flat list
 import { observer } from 'mobx-react-lite'
 import { Icon } from 'src/cli/serve/web/components/Icon.tsx'

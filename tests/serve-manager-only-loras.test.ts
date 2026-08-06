@@ -1,6 +1,6 @@
 // the picker and the payload validator build the manager-only lora list from ONE function.
-// They used to build it twice: the picker derived the separator from the host's enum, the
-// validator took the '/' default, and applyVarPayload compares raw strings — so on a windows
+// they used to build it twice: the picker derived the separator from the host's enum, the
+// validator took the '/' default, and applyVarPayload compares raw strings, so on a windows
 // host the ui offered `styles\x.safetensors` and the api answered "unknown lora(s)".
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
 import { mkdtempSync, readFileSync } from 'node:fs'

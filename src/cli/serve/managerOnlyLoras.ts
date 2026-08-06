@@ -8,7 +8,7 @@ import { statelessRegex } from 'src/utils/matchesRegex.ts'
 
 /**
  * `options` is the host enum for this var: it decides both what counts as already-known
- * (compared by normalized key, never raw — the enum keeps case, extension and separators)
+ * (compared by normalized key, never raw, the enum keeps case, extension and separators)
  * and which separator the rebuilt names must use.
  */
 export function managerOnlyLoraOptions(p: {

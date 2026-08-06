@@ -21,9 +21,9 @@ export function readUrlSelection(search: string): UrlSelection {
 }
 
 /**
- * the query for a selection, with everything else in the url PRESERVED — the panel does not
+ * the query for a selection, with everything else in the url PRESERVED, the panel does not
  * own the whole query string, and eating an unrelated param someone appended would be rude.
- * Returns the full search string, `''` when there is nothing to carry.
+ * returns the full search string, `''` when there is nothing to carry.
  */
 export function writeUrlSelection(p: { search: string; module: string; draft: string }): string {
    const params = new URLSearchParams(p.search.startsWith('?') ? p.search.slice(1) : p.search)

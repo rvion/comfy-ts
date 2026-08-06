@@ -253,7 +253,7 @@ describe('ServeApp generate', () => {
 
 describe('seed continuation with the panel writing back', () => {
    // the panel puts each run's seed on the form and the autosave carries it into the draft.
-   // The continuation guard exists to notice a HUMAN editing the draft; our own number coming
+   // the continuation guard exists to notice a HUMAN editing the draft; our own number coming
    // home looked identical, so every other run re-used its predecessor and made the same image
    it('+ keeps stepping when the draft holds the seed the last run served', async () => {
       const host = comfy.host({ id: `serve-test-host`, host: '127.0.0.1', port: 65500 })

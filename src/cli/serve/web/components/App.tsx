@@ -10,7 +10,7 @@ import type { WebSt } from 'src/cli/serve/web/state/WebSt.ts'
 
 /** ⌘A / ctrl+A selects the field you are in. The browser does this on its own until something
  * on the page consumes the event, and this panel has several window-level key handlers plus a
- * drag layer over the rows — rather than hunt which one wins on which browser, the select is
+ * drag layer over the rows, rather than hunt which one wins on which browser, the select is
  * performed explicitly. It runs ONLY when focus is already in a text field, so the
  * whole-page select-all everywhere else is untouched. */
 function useSelectAllInFields(): void {

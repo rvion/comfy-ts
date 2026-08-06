@@ -74,7 +74,7 @@ export type ServeExecution = {
    /** live global progress (ComfyExecution has it; fakes may omit) — the /run/<module> poll reads it */
    progressGlobal?: { percent: number }
    /** the executing node and ITS counter, in its own unit (sampler steps, generated tokens).
-    * The only live signal a text node has: ComfyUI sends no partial text */
+    * the only live signal a text node has: ComfyUI sends no partial text */
    progress?: {
       nodeName: string | null
       nodeProgress: { value: number; max: number } | null
@@ -146,7 +146,7 @@ const INPUT_DOWNLOAD_TIMEOUT_MS = 60_000
 
 /** read a reply STREAMING, aborting the moment it passes the cap. `arrayBuffer()` buffers the
  * whole body first, so a chunked reply with no content-length could exhaust the process before
- * anything checked its size — the cap then reported a number nobody survived to read. */
+ * anything checked its size, the cap then reported a number nobody survived to read. */
 export async function readCapped(res: Response, cap: number, what: string): Promise<Uint8Array> {
    const body = res.body
    if (body == null) return new Uint8Array(0)
@@ -245,8 +245,8 @@ const USAGE = [
 ]
 
 /** content hash of the bundle, so the script URL CHANGES whenever the code does. no-store
- * alone cannot save a browser that already cached app.js under the old url from an earlier
- * run, and a panel running last week's javascript is indistinguishable from a broken fix */
+ * alone does not help a browser that already has app.js cached under a plain url, and a panel
+ * running stale javascript is indistinguishable from a broken fix */
 function buildId(js: string): string {
    let h = 5381
    for (let i = 0; i < js.length; i++) h = ((h << 5) + h + js.charCodeAt(i)) | 0
@@ -292,7 +292,7 @@ export class ServeApp {
       this.settingsCache = next
    }
    /** in-memory outputs of runs made with saving OFF: the ONLY copy, so the gallery has
-    * something to show. Capped and FIFO — a long session must not grow without bound */
+    * something to show. Capped and FIFO, a long session must not grow without bound */
    private memoryImages = new Map<string, { bytes: Uint8Array; contentType: string }>()
 
    constructor(
@@ -402,7 +402,7 @@ export class ServeApp {
    }
 
    /** THE draft-name gate, shared by every route that turns a url segment into a path
-    * (safeName.ts owns the rule — the prompt-enhancer routes call the same function) */
+    * (safeName.ts owns the rule, the prompt-enhancer routes call the same function) */
    private validDraftName(raw: string): string | null {
       return validStoreName(raw)
    }
@@ -472,13 +472,9 @@ export class ServeApp {
             }
             if (Object.keys(labels).length > 0) desc.optionLabels = labels
             // the UNION: a lora the manager mirror knows but ComfyUI's enum does not. It is on
-            // disk, so it usually runs — the picker offers it, flagged, rather than hiding it
-            // compare on the NORMALIZED key: an enum value keeps its case, extension and
-            // windows separators, so `krea2\\x.safetensors` and the mirror's `krea2/x` are the
-            // same lora. Comparing raw strings marked 200 of 281 loras as new
-            // the workflow's OWN narrowing applies to the mirror too: a var declared
-            // `v.loras(/krea-?2/i)` got the whole catalog back through the union, because the
-            // filter was treated as a property of the enum rather than the var's contract
+            // disk, so it usually runs, the picker offers it, flagged, rather than hiding it
+            // by normalized key, never raw: an enum value keeps its case, extension and
+            // windows separators. the var's own regex narrows the mirror too
             const extras = managerOnlyLoraOptions({
                hostId,
                options: desc.options,
@@ -633,7 +629,7 @@ export class ServeApp {
 
    /** delete the draft FILE. `default` is deletable like any other: the implicit `default`
     * draft (spec values, no file) survives it, which is exactly the reset. Missing file is
-    * still a 200 — the caller asked for it to be gone, and it is */
+    * still a 200, the caller asked for it to be gone, and it is */
    private async replyDeleteDraft(modKey: string, rawDraft: string): Promise<ServeReply> {
       const mod = this.moduleByKey(modKey)
       if (mod == null) return json(404, { error: `unknown module '${modKey}'` })
@@ -676,7 +672,7 @@ export class ServeApp {
 
    /** the host actions the TUI's host panel has, minus re-codegen: regenerating the sdk
     * rewrites a .d.ts for your EDITOR, while the running modules keep the builder they were
-    * imported with — a button that changes nothing in this process would be a lie */
+    * imported with, a button that changes nothing in this process would be a lie */
    private async replyHostAction(hostId: string, action: string): Promise<ServeReply> {
       const host = comfyts.hosts.get(hostId)
       if (host == null)
@@ -694,7 +690,7 @@ export class ServeApp {
          if (action === 'refresh-schema') {
             // refetch object_info and rewrite sdk.d.ts. HONEST about the limit: the modules in
             // THIS process keep the options they were defined with, so a var's list only widens
-            // after a serve restart — the file on disk is what a re-import and your editor read
+            // after a serve restart, the file on disk is what a re-import and your editor read
             await host.fetchAndUpdateSchema()
             const nodes = host.schema.nodes.length
             const loras = host.schema.getLoras().length
@@ -707,7 +703,7 @@ export class ServeApp {
          }
          if (action === 'restart') {
             // restartComfyUI already treats the mid-reboot disconnect as success, so what
-            // reaches here is a host that REFUSED — swallowing it reported a reboot that
+            // reaches here is a host that REFUSED, swallowing it reported a reboot that
             // never happened, which is worse than saying nothing
             await host.manager.restartComfyUI()
             return json(200, { ok: true, host: hostId, action, note: 'reboot requested — it reconnects when back' })
@@ -1061,7 +1057,7 @@ export class ServeApp {
    }
 
    /** what the mirror does NOT hold: civitai's description and the example images, both live
-    * from the extension. A SEPARATE route from /lora-info on purpose — that one is mirror-only
+    * from the extension. A SEPARATE route from /lora-info on purpose, that one is mirror-only
     * and instant, this one talks to the host and is fetched when a details panel opens */
    private async replyLoraAbout(hostId: string, lora: string): Promise<ServeReply> {
       const host = this.hostById(hostId)
@@ -1285,7 +1281,7 @@ export class ServeApp {
       }
 
       // 3. image vars must point at a real FILE of a declared type BEFORE anything is queued.
-      // The path a request hands us is read off this box and uploaded to the ComfyUI host, so
+      // the path a request hands us is read off this box and uploaded to the ComfyUI host, so
       // the extension list the descriptor advertises is enforced here, not merely advertised:
       // a var that accepts .png must not be talked into reading a key or a config file
       for (const [k, varDef] of varMap) {
@@ -1321,11 +1317,8 @@ export class ServeApp {
             if (seedVar.mode === '?') seedVar.randomize()
             else if (seedVar.mode === '+' || seedVar.mode === '-') {
                const prev = this.seedState.get(stateKey)
-               // continue while the draft still holds the value the chain grew from, OR the
-               // value this chain last SERVED: the panel writes each run's seed back into the
-               // draft, and that is our own number coming home, not the human edit the
-               // draftBase guard exists to notice. Without the second case every other run
-               // re-used its predecessor's seed and produced the same image twice
+               // the draft holding the value we last SERVED is our own write-back, not the
+               // human edit draftBase watches for
                const ours = prev != null && (prev.draftBase === draftValue || prev.last === draftValue)
                if (prev != null && ours) seedVar.set(prev.last + (seedVar.mode === '+' ? 1 : -1))
             }
@@ -1340,7 +1333,7 @@ export class ServeApp {
       this.latentPreviews.delete(mod.key)
       // the host the run ACTUALLY goes to: onLatentPreview is one slot per ComfyHost, so
       // wiring the defining host while running on an override left the override host with no
-      // dispatcher — the panel simply never saw a frame, with nothing to say why
+      // dispatcher, the panel simply never saw a frame, with nothing to say why
       const runHost = this.runHostFor(mod)
       this.wireLatents(runHost ?? mod.dw.host)
       try {
@@ -1356,7 +1349,7 @@ export class ServeApp {
          if (e instanceof Error && e.name === 'ImageVarEmptyError') return { status: 400, error: e.message }
          // the ComfyUI host is upstream of this bridge: 502, not "serve crashed".
          // The connect deadline (ConnectOptions.timeoutMs) is what makes this
-         // reachable at all — it used to hang here and block the module mutex
+         // this runs inside the module mutex: a url that never answers would hold it
          if (e instanceof Error && e.name === 'ComfyHostUnreachableError') return { status: 502, error: e.message }
          return { status: 500, error: extractErrorMessage(e) }
       }

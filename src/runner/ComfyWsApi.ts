@@ -65,7 +65,7 @@ const tempScope = scope({
          'previews?': [{ filepath: 'string' }, '[]'],
          'images?': 'ComfyImageInfo[]',
          // ui payload of a text output node (PreviewAny, and how TextGenerate
-         // results reach the client); entries are soft — non-strings are dropped
+         // results reach the client); entries are soft, non-strings are dropped
          'text?': 'unknown[]',
       },
       prompt_id: 'PromptID',

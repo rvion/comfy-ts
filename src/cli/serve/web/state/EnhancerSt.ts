@@ -2,7 +2,7 @@
 // run (architecture item 12, web ui). Hangs off the WebSt root.
 // SPLIT OF TRUTH: the master prompts are FILES on the server
 // (`.comfy-ts/prompt-enhancers/*.md`, autosaved like a draft), everything else is
-// browser-local in a localStorage blob — keys included, so the serve process never
+// browser-local in a localStorage blob, keys included, so the serve process never
 // holds a credential. normalizeSettings/nextPresetName are PURE and headless-tested.
 import { makeAutoObservable, reaction, runInAction, type IReactionDisposer } from 'mobx'
 import { stringMap } from 'src/utils/stringMap.ts'
@@ -141,7 +141,7 @@ export class EnhancerSt {
          lastSaved: false,
       })
       // the master prompt autosaves to its file, the live-drafts model (the values json is
-      // change-detector AND payload — the house persistence idiom)
+      // change-detector AND payload, the house persistence idiom)
       this.disposer = reaction(
          () => {
             const p = this.preset
@@ -390,7 +390,7 @@ export class EnhancerSt {
    }
 
    /** what gets SENT is editable too: sharpen the sketch, then refine, without closing the
-    * modal. It stays a copy — only apply() writes the var */
+    * modal. It stays a copy, only apply() writes the var */
    setOriginal(v: string): void {
       this.original = v
    }

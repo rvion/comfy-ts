@@ -1,6 +1,6 @@
 // the master prompts of the web ui's prompt enhancer, as FILES:
 // `.comfy-ts/prompt-enhancers/<name>.md`, the drafts model applied to prose.
-// Markdown, not json: these are hand-edited paragraphs, and a json string field
+// markdown, not json: these are hand-edited paragraphs, and a json string field
 // would be one escaped line. The FILENAME is the identity (a rename is a write
 // plus a delete); validStoreName is the same gate the draft routes use.
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
@@ -21,7 +21,7 @@ function promptEnhancerPath(name: string): string | null {
 }
 
 /** the shipped starting point. It is a FILE from the first read on, so it can be edited
- * on disk like everything else — the browser ships no copy of this text */
+ * on disk like everything else, the browser ships no copy of this text */
 const SEED: PromptEnhancer = {
    name: 'refine-krea2-prompt',
    text: `You rewrite image prompts for krea2 turbo, a distilled 8 step text to image model whose text encoder reads flowing natural language, not tag soup, and which is steered by adjectives rather than by negatives.

@@ -202,7 +202,7 @@ export function getLoraPreviewUrl(name: string, hostId?: string): string | null 
 /** the lora's NAMES: the file, and the model name a human would call it by */
 /**
  * every lora the mirror knows for a host: its normalized KEY (comparable with `loraKey(option)`,
- * never with a raw enum value — those keep their case, extension and windows separators) and the
+ * never with a raw enum value, those keep their case, extension and windows separators) and the
  * NAME a ComfyUI graph would load it by, rebuilt from the manager's folder + real filename.
  * `[]` when the host was never synced.
  */

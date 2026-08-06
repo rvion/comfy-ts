@@ -18,7 +18,7 @@ function buildInfoOf(rel: string): string {
 
 /**
  * THE GUARD: every tsconfig that is actually invoked needs its OWN incremental cache.
- * Two configs with different include sets writing one tsbuildinfo poison each other —
+ * two configs with different include sets writing one tsbuildinfo poison each other —
  * `typecheck:lib` then fails on a symbol that exists (an editor running the root config
  * in the background is enough to trigger it), which blocked a release once.
  */

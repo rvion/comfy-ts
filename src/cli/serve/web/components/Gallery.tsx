@@ -46,7 +46,7 @@ function useGalleryLocal(): GalleryLocal {
          this.resetZoom()
       },
       /** zoom around the CURSOR: the point under the pointer stays under it, which is what
-       * makes wheel zoom usable — a centre-anchored zoom walks the detail off screen */
+       * makes wheel zoom usable, a centre-anchored zoom walks the detail off screen */
       zoomBy(factor: number, at: { x: number; y: number }) {
          const next = Math.min(8, Math.max(1, this.zoom * factor))
          if (next === this.zoom) return
@@ -189,7 +189,7 @@ const Lightbox = observer(function Lightbox(p: { st: WebSt; local: GalleryLocal 
 })
 
 /** a reasoning model narrates inside <think> before it answers. The answer is what you asked
- * for, so it reads first and the thinking folds away — dropping it outright would hide the
+ * for, so it reads first and the thinking folds away, dropping it outright would hide the
  * only explanation of a bad answer */
 function splitThinking(text: string): { thinking: string | null; answer: string } {
    const close = text.indexOf('</think>')
@@ -331,7 +331,7 @@ const RunningCard = observer(function RunningCard(p: { st: WebSt; local: Gallery
 })
 
 /** compact = the pinned corner: the newest result only, no header. It is a RENDER decision,
- * never a css one — hiding cards with :first-of-type counted div siblings, so the moment the
+ * never a css one, hiding cards with :first-of-type counted div siblings, so the moment the
  * header appeared every card vanished and a finished image disappeared behind the latent */
 export const Gallery = observer(function Gallery(p: { st: WebSt; compact?: boolean }) {
    const local = useGalleryLocal()

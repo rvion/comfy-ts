@@ -1,6 +1,6 @@
 // the sidebar is a TREE, not a list: modules keep the folder they came from.
-// PURE and DOM-free (browser side, so no node:path) — tests/serve-web-tree.test.ts.
-// The module KEY stays the basename (it is the api identity); this only decides
+// PURE and DOM-free (browser side, so no node:path), tests/serve-web-tree.test.ts.
+// the module KEY stays the basename (it is the api identity); this only decides
 // what the sidebar shows above it.
 
 export type TreeItem = { module: string; file: string }

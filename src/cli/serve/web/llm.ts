@@ -2,7 +2,7 @@
 // (a local box). The second http module after api.ts, and the only one that leaves
 // this origin. Keys are parameters, never module state: they live in localStorage
 // (EnhancerSt) and never reach the serve process.
-// Parsing is pure and DOM-free so tests/serve-web-enhancer.test.ts covers it.
+// parsing is pure and DOM-free so tests/serve-web-enhancer.test.ts covers it.
 
 export type ProviderId = 'openrouter' | 'openwebui'
 

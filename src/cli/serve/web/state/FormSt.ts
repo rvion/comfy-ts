@@ -82,7 +82,7 @@ export class FormSt {
       )
       // seeded from the RAW reply, not the normalized values: when normalizeInitial heals
       // something (a stale lora key), the form is already out of sync with the file and the
-      // next save() must actually send — otherwise the server keeps building the stale record
+      // next save() must actually send, otherwise the server keeps building the stale record
       this.lastSaved = JSON.stringify(Object.fromEntries(this.vars.map((v) => [v.name, values[v.name]])))
       this.lastQueued = this.lastSaved
       makeAutoObservable<FormSt, 'disposers' | 'saveChain' | 'lastSaved' | 'lastQueued' | 'queueSeq'>(this, {
@@ -156,7 +156,7 @@ export class FormSt {
    }
 
    /** the keywords the ACTIVE loras will prepend to this prompt, in the ORDER THE RUN USES.
-    * That order is the var's option list (LorasVar.activeNames filters `names`), NOT the
+    * that order is the var's option list (LorasVar.activeNames filters `names`), NOT the
     * record's insertion order: walking the record showed the keywords in drag order while the
     * prompt that ran used the enum order, so the preview and the run disagreed the moment you
     * reordered a card. Computed here rather than fetched: it must follow every toggle live */

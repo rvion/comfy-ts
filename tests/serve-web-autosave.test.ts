@@ -1,5 +1,5 @@
 // the live-draft contract: what the panel shows IS what the draft file holds.
-// The failure this pins: `lastSaved` is committed only when a PUT RESOLVES, so while one is
+// the failure this pins: `lastSaved` is committed only when a PUT RESOLVES, so while one is
 // in flight the form still believes the disk holds the older value. Editing back to that
 // value made save() report "saved" and write nothing, and the in-flight PUT then landed the
 // value you had just undone.
@@ -62,7 +62,7 @@ describe('draft autosave', () => {
       await tick() // saves ride a promise chain, so the fetch happens a microtask later
       expect(net.calls).toHaveLength(1)
 
-      // back to V1 — the value the server last CONFIRMED, but NOT the one in flight
+      // back to V1, the value the server last CONFIRMED, but NOT the one in flight
       form.vars[0]?.set('V1')
       const p3 = form.save()
       await tick()

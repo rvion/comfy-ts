@@ -1,4 +1,4 @@
-// how many lora cards the popup draws is a MACHINE question — your collection, your box — so
+// how many lora cards the popup draws is a MACHINE question, your collection, your box, so
 // it is a setting kept in the browser, not a constant in the bundle. It is still clamped: each
 // card is an image request, and a hand-typed (or restored) number must not hang the page.
 import { describe, expect, it } from 'bun:test'

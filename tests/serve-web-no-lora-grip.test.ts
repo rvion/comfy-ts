@@ -1,6 +1,6 @@
 // the lora card has NO grip. The whole card is the drag source (mousedown disarms it when
 // the press lands on a control), so a permanent handle is chrome that buys nothing.
-// This is a guard, not a style opinion: the grip came back three times.
+// this is a guard, not a style opinion: the grip came back three times.
 import { describe, expect, it } from 'bun:test'
 import { readFileSync } from 'node:fs'
 
