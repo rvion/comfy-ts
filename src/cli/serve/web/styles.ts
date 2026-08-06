@@ -230,6 +230,14 @@ button.mode.sel { background: var(--accent-dim); border-color: var(--accent); co
    background: rgba(16, 18, 23, 0.72); opacity: 0.7; transition: opacity 0.12s, color 0.12s;
 }
 .chip-remove:hover, .chip-remove:focus-visible { opacity: 1; color: var(--red); }
+/* on a CARD it rides the picture itself: the card pads by 6px, so 6/6 lands exactly on the
+   thumb's corner. Bigger there because it is a touch target over an image, not a chip button,
+   and rounded only on the outer corner so it reads as part of the frame */
+.lora-chip.card .chip-remove {
+   top: 6px; right: 6px; padding: 5px; border-radius: 0 6px 0 8px;
+   background: rgba(16, 18, 23, 0.62); backdrop-filter: blur(2px);
+}
+.lora-chip.card .chip-remove:hover { background: rgba(16, 18, 23, 0.85); }
 
 /* PAUSED: still in the palette, visibly not contributing to the graph */
 .lora-chip.off, .lora-active-row.off { opacity: 0.55; }

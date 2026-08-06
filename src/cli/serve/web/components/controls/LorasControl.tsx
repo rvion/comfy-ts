@@ -383,15 +383,15 @@ export const LorasControl = observer(function LorasControl(p: {
                            p.v.set(reorderLoras({ record, displayed: selectedNames, from, to: ix }))
                      }}
                   >
-                     {/* ✕ lives in the CORNER, over the preview: it is the card's own affordance,
-                         not another item in the strength row */}
+                     {/* ✕ rides the PICTURE's top right corner: an overlay, so it costs the
+                         card no width, and big enough to hit with a thumb */}
                      <button
                         type="button"
                         className="chip-remove"
                         data-tip="remove from the palette (the popup adds it back)"
                         onClick={() => setEntry(name, null)}
                      >
-                        <Icon name="close" size={0.9} />
+                        <Icon name="close" size={1.05} />
                      </button>
                      {/* the CARD opens what this lora is; only the switch turns it on and off,
                          so reading about a lora can never change what the graph runs */}
