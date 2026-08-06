@@ -71,8 +71,15 @@ export function renderStartupLines(p: StartupInput): string[] {
 
    const count = `${p.modules.length} workflow${p.modules.length === 1 ? '' : 's'}`
    out.push(c.title(`comfy-ts serve · ${count} · ${primary}`))
-   if (!loopback)
-      out.push(c.warn(`⚠️  bound to ${p.bind} — this API has NO AUTH and runs workflows on your ComfyUI host`))
+   // said on EVERY launch, loopback included: cross-origin is open, so the exposure is not
+   // limited to who can reach the port. any page in your browser can reach 127.0.0.1 too
+   out.push(
+      c.warn(
+         loopback
+            ? '⚠️  no auth: this API runs workflows, and any page open in your browser can call it'
+            : `⚠️  bound to ${p.bind}, no auth: anyone on this network can run workflows on your ComfyUI host`,
+      ),
+   )
 
    for (const mod of p.modules) {
       out.push('', c.dim('─'.repeat(RULE_WIDTH)))

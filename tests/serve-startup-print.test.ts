@@ -48,10 +48,10 @@ describe('serve startup print', () => {
       expect(text).toContain('--bind')
    })
 
-   it('bound wide, the box lists the other urls and drops the hint, and the no-auth warning shows', () => {
+   it('bound wide, the box lists the other urls, drops the hint, and names the network exposure', () => {
       const lines = renderStartupLines(input({ bind: '0.0.0.0', urls: ['127.0.0.1', '192.168.1.42', '100.100.1.2'] }))
       const text = lines.join('\n')
-      expect(text).toContain('NO AUTH')
+      expect(text).toContain('no auth')
       expect(text).toContain('http://192.168.1.42:8288/')
       expect(text).toContain('(tailnet)')
       expect(text).not.toContain('--host 0.0.0.0')

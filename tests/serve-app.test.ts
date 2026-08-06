@@ -439,42 +439,6 @@ describe('image vars are a file gate, not a file reader', () => {
 })
 
 describe('http layer (makeRequestListener over a real socket)', () => {
-   it('a cross-origin request is refused outright, not merely denied the reply', async () => {
-      // a simple POST needs no preflight, so CORS-off stopped a page READING the answer but
-      // not restarting a host or starting a run
-      const app = new ServeApp([makeModule('wf-csrf')], { outputRoot: join(root, 'out') })
-      const server = createServer(makeRequestListener(app))
-      await new Promise<void>((r) => server.listen(0, '127.0.0.1', r))
-      const addr = server.address()
-      if (addr == null || typeof addr === 'string') throw new Error('no port')
-      const base = `http://127.0.0.1:${addr.port}`
-      try {
-         const evil = await fetch(`${base}/drafts`, { headers: { origin: 'https://evil.example' } })
-         expect(evil.status).toBe(403)
-         // the panel itself is same-origin, and curl sends no Origin at all
-         expect((await fetch(`${base}/drafts`, { headers: { origin: base } })).status).toBe(200)
-         expect((await fetch(`${base}/drafts`)).status).toBe(200)
-      } finally {
-         server.close()
-      }
-   })
-
-   it('--cors is what grants another origin, and it is off by default', async () => {
-      const app = new ServeApp([makeModule('wf-cors')], { outputRoot: join(root, 'out') })
-      const server = createServer(makeRequestListener(app, { cors: true }))
-      await new Promise<void>((r) => server.listen(0, '127.0.0.1', r))
-      const addr = server.address()
-      if (addr == null || typeof addr === 'string') throw new Error('no port')
-      try {
-         const res = await fetch(`http://127.0.0.1:${addr.port}/drafts`, {
-            headers: { origin: 'https://elsewhere.example' },
-         })
-         expect(res.headers.get('access-control-allow-origin')).toBe('*')
-      } finally {
-         server.close()
-      }
-   })
-
    it('serves the index, answers OPTIONS, 413s an oversized body', async () => {
       const mod = makeModule('wf-http')
       const app = new ServeApp([mod], { outputRoot: join(root, 'out') })
@@ -486,12 +450,12 @@ describe('http layer (makeRequestListener over a real socket)', () => {
       try {
          const index = await fetch(`${base}/drafts`)
          expect(index.status).toBe(200)
-         // NO cross-origin grant by default: the panel is same-origin, and `*` on a no-auth
-         // server lets any page you open drive this api and read the replies
-         expect(index.headers.get('access-control-allow-origin')).toBeNull()
+         // open CORS: a browser page is a first-class client (examples/web rides serve as its
+         // bridge from another port), and the launch print states the cost every time
+         expect(index.headers.get('access-control-allow-origin')).toBe('*')
          const preflight = await fetch(`${base}/generate/x`, { method: 'OPTIONS' })
          expect(preflight.status).toBe(204)
-         expect(preflight.headers.get('access-control-allow-methods')).toBeNull()
+         expect(preflight.headers.get('access-control-allow-methods')).toContain('POST')
          // the overflow path must ANSWER, never just destroy the socket
          const big = await fetch(`${base}/generate/wf-http/default`, {
             method: 'POST',

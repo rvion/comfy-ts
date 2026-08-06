@@ -18,13 +18,10 @@ import { extractErrorMessage } from 'src/utils/extractErrorMessage.ts'
 const DEFAULT_PORT = 8288
 const BODY_CAP = 10_000_000
 
-export function parseArgs(
-   args: string[],
-): { target?: string; port: number; bind: string; cors: boolean } | { error: string } {
+export function parseArgs(args: string[]): { target?: string; port: number; bind: string } | { error: string } {
    let target: string | undefined
    let port = DEFAULT_PORT
    let bind = '127.0.0.1'
-   let cors = false
    for (let i = 0; i < args.length; i++) {
       const a = args[i]
       if (a === '--port') {
@@ -36,54 +33,28 @@ export function parseArgs(
          const b = args[++i]
          if (b == null) return { error: `${a} expects an address (0.0.0.0 to reach it from another machine)` }
          bind = b
-      } else if (a === '--cors') cors = true
-      else if (a != null && a.startsWith('--')) return { error: `unknown flag '${a}'` }
+      } else if (a != null && a.startsWith('--')) return { error: `unknown flag '${a}'` }
       else if (a != null) {
          if (target != null) return { error: `one target only (got '${target}' and '${a}')` }
          target = a
       }
    }
-   return { target, port, bind, cors }
-}
-
-/** the page and the server agree on host:port. A missing Host is not a browser */
-export function sameOrigin(origin: string, host: string | undefined): boolean {
-   if (host == null) return false
-   try {
-      return new URL(origin).host === host
-   } catch {
-      return false
-   }
+   return { target, port, bind }
 }
 
 /** node:http glue around ServeApp.handle — exported so tests can drive a real socket */
-/** the panel is SAME-ORIGIN, so it needs no CORS at all. `*` on a no-auth server means any
- * page you happen to open can drive this api from your browser and READ the replies: delete a
- * draft, restart a host, start a generation, list your workflow paths. Opt in with --cors when
- * you really are calling serve from a page on another origin. */
-export function makeRequestListener(
-   app: ServeApp,
-   opts: { cors?: boolean } = {},
-): (req: IncomingMessage, res: ServerResponse) => void {
-   const cors =
-      opts.cors === true
-         ? {
-              'access-control-allow-origin': '*',
-              'access-control-allow-methods': 'GET, POST, PUT, DELETE, OPTIONS',
-              'access-control-allow-headers': 'content-type, accept',
-           }
-         : {}
+/** open CORS, because a browser page IS a first-class client here: the web entry runs the
+ * library in a tab and rides serve as its bridge to hosts that send no CORS headers
+ * (examples/web is on another port by construction). The cost is real and stated at launch:
+ * with no auth, any page you visit can drive this api. That is the same trade as the port
+ * being open at all, so it is said out loud rather than hidden behind a flag. */
+export function makeRequestListener(app: ServeApp): (req: IncomingMessage, res: ServerResponse) => void {
+   const cors = {
+      'access-control-allow-origin': '*',
+      'access-control-allow-methods': 'GET, POST, PUT, DELETE, OPTIONS',
+      'access-control-allow-headers': 'content-type, accept',
+   }
    return (req, res) => {
-      // a cross-origin POST with a simple content-type needs no preflight, so refusing CORS
-      // stops a page READING the reply but not causing the side effect: restarting a host,
-      // deleting a draft, starting a run. Anything that sends an Origin is a browser; curl and
-      // the panel itself either send none or send our own
-      const origin = req.headers.origin
-      if (origin != null && !sameOrigin(origin, req.headers.host) && opts.cors !== true) {
-         res.writeHead(403, { 'content-type': 'application/json' })
-         res.end(JSON.stringify({ error: `cross-origin request from ${origin} refused (see --cors)` }))
-         return
-      }
       const chunks: Buffer[] = []
       let size = 0
       let overflow = false
@@ -170,7 +141,7 @@ export async function runServe(args: string[]): Promise<number> {
    const app = new ServeApp(modules, { loadErrors, webJs: loadOrBuildWebJs })
    printStartup(app, parsed.bind, parsed.port)
 
-   const server = createServer(makeRequestListener(app, { cors: parsed.cors }))
+   const server = createServer(makeRequestListener(app))
 
    server.on('error', (e) => {
       console.error(`[comfy-ts serve] server error: ${extractErrorMessage(e)}`)

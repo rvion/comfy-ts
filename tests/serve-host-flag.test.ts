@@ -1,22 +1,18 @@
 import { describe, expect, it } from 'bun:test'
-import { parseArgs, sameOrigin, reachableAddresses, type Nic } from 'src/cli/serve/run-serve.ts'
+import { parseArgs, reachableAddresses, type Nic } from 'src/cli/serve/run-serve.ts'
 
 describe('comfy-ts serve --host', () => {
    it('binds loopback by default and takes --host, with --bind kept as an alias', () => {
-      expect(parseArgs([])).toEqual({ target: undefined, port: 8288, bind: '127.0.0.1', cors: false })
+      expect(parseArgs([])).toEqual({ target: undefined, port: 8288, bind: '127.0.0.1' })
       expect(parseArgs(['--host', '0.0.0.0'])).toEqual({
          target: undefined,
          port: 8288,
          bind: '0.0.0.0',
-         cors: false,
       })
-      // cross-origin access is opt-in, never the default
-      expect(parseArgs(['--cors'])).toEqual({ target: undefined, port: 8288, bind: '127.0.0.1', cors: true })
       expect(parseArgs(['--bind', '100.64.0.7'])).toEqual({
          target: undefined,
          port: 8288,
          bind: '100.64.0.7',
-         cors: false,
       })
    })
 
@@ -31,7 +27,6 @@ describe('comfy-ts serve --host', () => {
          target: './flows',
          port: 9000,
          bind: '0.0.0.0',
-         cors: false,
       })
    })
 })
@@ -58,15 +53,5 @@ describe('reachable addresses printed at startup', () => {
    it('node reporting family as the number 4 is handled like the string form', () => {
       const numeric: Record<string, Nic[] | undefined> = { en1: [{ address: '10.0.0.5', family: 4, internal: false }] }
       expect(reachableAddresses('0.0.0.0', numeric)).toEqual(['127.0.0.1', '10.0.0.5'])
-   })
-})
-
-describe('same-origin check', () => {
-   it('matches host and port, and a missing host is never a match', () => {
-      expect(sameOrigin('http://127.0.0.1:8288', '127.0.0.1:8288')).toBe(true)
-      expect(sameOrigin('http://127.0.0.1:8288', '127.0.0.1:9000')).toBe(false)
-      expect(sameOrigin('https://evil.example', '127.0.0.1:8288')).toBe(false)
-      expect(sameOrigin('null', '127.0.0.1:8288')).toBe(false)
-      expect(sameOrigin('http://127.0.0.1:8288', undefined)).toBe(false)
    })
 })

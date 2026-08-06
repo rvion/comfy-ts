@@ -17,7 +17,7 @@
 
 `comfy-ts serve` has always said it has no auth, and it is meant for a machine you trust. These close the gaps that let a LAN peer, or any web page you happened to open, reach further than that:
 
-- **Cross-origin requests are refused by default.** Every reply used to carry `access-control-allow-origin: *`, so any page in any browser on your network could drive the API and READ the replies: list your workflows, delete a draft, restart a host, start a generation. The panel is same-origin and never needed it. Pass `--cors` if you really do call serve from a page on another origin.
+- **The launch screen states the no-auth exposure on every start**, not only when you bind beyond localhost. Cross-origin calls stay open, because a browser page is a first-class client here (`comfy-ts/web` uses serve as its bridge from another port) — which also means a page you visit can reach the API on your own machine whatever the bind address. That is worth saying every time rather than hiding behind a flag.
 - **Image vars enforce the file types they advertise.** A payload naming any readable path had that file uploaded to the ComfyUI host (a third party, for a cloud host); only `existsSync` stood in the way. The extension list in the descriptor is checked now, directories are refused, and neither reaches the queue.
 - **A downloaded image input is capped at 50MB and no longer reports the upstream status.** There was no size limit at all, so one URL at a large file could exhaust the process, and echoing the remote status back turned an image var into a port scanner for everything the box can reach. The status goes to the server log instead.
 
