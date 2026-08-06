@@ -17,6 +17,9 @@ export function validStoreName(raw: string): string | null {
 export function validSavePrefix(raw: string): string | null {
    const clean = raw.trim().replaceAll('\\', '/')
    if (clean === '') return ''
+   // an ABSOLUTE path is refused, not quietly re-rooted: dropping the leading slash turned
+   // '/etc' into 'etc' under outputs/, which is safe but is not what the writer asked for
+   if (clean.startsWith('/') || /^[a-z]:/i.test(clean)) return null
    const segments = clean.split('/').filter((s) => s !== '')
    if (segments.length === 0 || segments.some((s) => validStoreName(s) == null)) return null
    return segments.join('/')
