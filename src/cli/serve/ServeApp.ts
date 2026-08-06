@@ -66,7 +66,18 @@ export type ServeStarter = (
 ) => Promise<ServeExecution>
 
 export type ServeRequest = { method: string; url: string; accept?: string; body?: string }
-export type ServeReply = { status: number; contentType: string; body: string | Uint8Array }
+export type ServeReply = {
+   status: number
+   contentType: string
+   body: string | Uint8Array
+   /** extra response headers, lowercase keys — the transport writes them verbatim */
+   headers?: Record<string, string>
+}
+
+/** the panel is REBUILT per serve process, so a cached copy is always the wrong one. With no
+ * cache header at all a browser applies heuristic freshness and reuses app.js across reloads,
+ * which makes every fix look like it never landed */
+const NO_STORE = { 'cache-control': 'no-store, must-revalidate' }
 
 /** connect + fresh graph from current var values + send; done is awaited OUTSIDE the module mutex.
  * serve OPTS INTO local saving (library default is memory-only, architecture.md
@@ -210,7 +221,7 @@ export class ServeApp {
             if (segs.length === 0 && this.opts.webJs != null && req.accept?.includes('text/html') === true) {
                this.webJsCache ??= this.opts.webJs()
                if ((await this.webJsCache) != null)
-                  return { status: 200, contentType: 'text/html; charset=utf-8', body: WEB_SHELL }
+                  return { status: 200, contentType: 'text/html; charset=utf-8', body: WEB_SHELL, headers: NO_STORE }
             }
             if (segs.length === 0 || (segs[0] === 'drafts' && segs.length === 1)) return this.replyIndex()
             if (segs[0] === 'web' && segs[1] === 'app.js' && segs.length === 2) return await this.replyWebJs()
@@ -448,7 +459,7 @@ export class ServeApp {
       this.webJsCache ??= this.opts.webJs()
       const js = await this.webJsCache
       if (js == null) return json(404, { error: 'web ui bundle unavailable — see the server log' })
-      return { status: 200, contentType: 'text/javascript; charset=utf-8', body: js }
+      return { status: 200, contentType: 'text/javascript; charset=utf-8', body: js, headers: NO_STORE }
    }
 
    /** browser file → local file an image var can point at (downloadInput family) */

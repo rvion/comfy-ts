@@ -22,6 +22,18 @@ describe('serve web ui routes', () => {
       expect(String(reply.body)).toContain('id="root"')
    })
 
+   // the bundle is rebuilt per serve process, so a cached copy is ALWAYS the wrong one. With
+   // no cache header a browser applies heuristic freshness and reuses app.js across reloads:
+   // every fix then looks like it never landed, which is worse than a slow load
+   it('the shell and the bundle are uncacheable', async () => {
+      const app = makeApp({ webJs: () => Promise.resolve('js!') })
+      const shell = await app.handle({ method: 'GET', url: '/', accept: 'text/html' })
+      expect(shell.headers?.['cache-control']).toContain('no-store')
+      const js = await app.handle({ method: 'GET', url: '/web/app.js' })
+      expect(js.status).toBe(200)
+      expect(js.headers?.['cache-control']).toContain('no-store')
+   })
+
    it('GET / without a browser accept stays the json index', async () => {
       const app = makeApp({ webJs: () => Promise.resolve('js!') })
       const reply = await app.handle({ method: 'GET', url: '/' })

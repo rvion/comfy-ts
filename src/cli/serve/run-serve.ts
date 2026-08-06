@@ -79,7 +79,7 @@ export function makeRequestListener(app: ServeApp): (req: IncomingMessage, res: 
             body: Buffer.concat(chunks).toString('utf8'),
          })
             .then((reply) => {
-               res.writeHead(reply.status, { 'content-type': reply.contentType, ...cors })
+               res.writeHead(reply.status, { 'content-type': reply.contentType, ...reply.headers, ...cors })
                res.end(reply.body)
             })
             .catch((e: unknown) => {

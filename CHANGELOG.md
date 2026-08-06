@@ -9,6 +9,7 @@
 
 ### The web panel
 
+- **Fixed: the panel served a stale bundle after a restart.** `/web/app.js` carried no cache header, so browsers applied heuristic freshness and reused the copy they already had: you reload, the server has the new code, and the page does not. Both the shell and the bundle are `no-store` now. The bundle is rebuilt per serve process, so a cached copy is always the wrong one.
 - **The title bar is gone.** It named the app and held a burger that opened the workflow menu; clicking the WORKFLOW box does that, so the bar only spent a strip of every screen. The page is tighter everywhere else too: smaller head boxes, rows and gutters.
 - **The results column never grows past the page.** With images on the right, a run history taller than the window dragged the whole document down, so reading a var meant scrolling past a stack of pictures. The column now sticks to the top and scrolls inside itself; the form column stays put.
 - **The run bar is just the run button.** The `draft values` / `N vars changed this session` prose and its `revert all` link took a whole line to say what a broom button in the DRAFT box now says in a tooltip. The broom only appears when something is actually changed.
