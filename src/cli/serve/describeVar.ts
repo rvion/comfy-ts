@@ -29,6 +29,8 @@ export type VarDescriptor = {
     * (`v.prompt(…, { loraKeywordsFrom })`) — filled by ServeApp.describeModule, which is the
     * only place that knows both vars by name. The panel previews the injection from it */
    keywordsFrom?: string
+   /** loras: the regex the workflow narrowed the list with (`/krea-?2/i`), when it did */
+   optionsFilter?: string
    /** loras: hand-assigned keyword (or trigger words) per option, entries only where one
     * exists — what a prompt with `loraKeywordsFrom` will prepend */
    optionKeywords?: Record<string, string>
@@ -88,6 +90,8 @@ export function describeVar(varDef: AnyVar): VarDescriptor {
             ...base,
             payload: '{"<lora name>": false | true | strength | [model, clip]}',
             options: v.options,
+            // the workflow's own narrowing, shown in the picker so the list is explainable
+            optionsFilter: v.optionsFilter == null ? undefined : String(v.optionsFilter),
          }
       }
       case 'size': {

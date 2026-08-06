@@ -24,7 +24,7 @@ import {
 import { fetchLoraList, fetchLoraPreviewBytes, loraKey, loraPreviewMapFrom } from 'src/host/loraManagerApi.ts'
 import { getLoraKeyword } from 'src/vars/loraKeywords.ts'
 import type { ComfyHost } from 'src/host/ComfyHost.ts'
-import type { ImageVar, PromptVar, SeedVar } from 'src/vars/ComfyVars.ts'
+import type { ImageVar, LorasVar, PromptVar, SeedVar } from 'src/vars/ComfyVars.ts'
 import type { DefinedWorkflow } from 'src/vars/DefinedWorkflow.ts'
 import { bang } from 'src/utils/bang.ts'
 import { extractErrorMessage } from 'src/utils/extractErrorMessage.ts'
@@ -331,9 +331,14 @@ export class ServeApp {
             // same lora. Comparing raw strings marked 200 of 281 loras as new
             const known = new Set(desc.options.map((o) => loraKey(o)))
             const separator = desc.options.some((o) => o.includes('\\')) ? '\\' : '/'
+            // the workflow's OWN narrowing applies to the mirror too: a var declared
+            // `v.loras(/krea-?2/i)` got the whole catalog back through the union, because the
+            // filter was treated as a property of the enum rather than the var's contract
+            const filter = (varDef as LorasVar<string>).optionsFilter
             const extras = loraMirrorEntries(hostId, { separator })
                .filter((e) => !known.has(e.key))
                .map((e) => e.serverName)
+               .filter((n) => filter == null || filter.test(n))
             if (extras.length > 0) {
                desc.managerOnlyOptions = extras
                desc.options = [...desc.options, ...extras]
@@ -1070,8 +1075,17 @@ export class ServeApp {
          // a lora the mirror knows but the enum does not is a legal choice here too, else the
          // picker would offer something the api then refuses
          const err = applyVarPayload(varDef, value, {
+            // narrowed by the var's OWN filter, exactly like the picker: what the ui offers and
+            // what the api accepts must be the same set, or one of them is lying
             extraLoraOptions:
-               varDef.kind === 'loras' ? loraMirrorEntries(mod.dw.host.data.id).map((e) => e.serverName) : undefined,
+               varDef.kind === 'loras'
+                  ? loraMirrorEntries(mod.dw.host.data.id)
+                       .map((e) => e.serverName)
+                       .filter((n) => {
+                          const f = (varDef as LorasVar<string>).optionsFilter
+                          return f == null || f.test(n)
+                       })
+                  : undefined,
          })
          if (err != null) return { status: 400, error: err }
       }

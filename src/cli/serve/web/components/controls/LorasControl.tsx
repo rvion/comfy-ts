@@ -196,6 +196,24 @@ export const LorasControl = observer(function LorasControl(p: {
       name.toLowerCase().includes(needle) || label(name).toLowerCase().includes(needle)
    const matches = options.filter(matchesFilter)
    const cards = matches.filter((o) => !isInPalette(o)).slice(0, CARD_CAP)
+   /** the enum value IS a path (`krea2\styles\x.safetensors`, separators vary by host and by
+    * where the name came from), so the folder is everything before the last separator */
+   const folderOf = (name: string): string => {
+      const parts = name.split(/[\\/]+/)
+      return parts.length <= 1 ? '' : parts.slice(0, -1).join('/')
+   }
+   const groupedCards = (() => {
+      const byFolder = new Map<string, string[]>()
+      for (const name of cards) {
+         const folder = folderOf(name)
+         const list = byFolder.get(folder)
+         if (list == null) byFolder.set(folder, [name])
+         else list.push(name)
+      }
+      return [...byFolder.entries()]
+         .map(([folder, names]) => ({ folder, names }))
+         .sort((a, b) => a.folder.localeCompare(b.folder))
+   })()
 
    // opening the popup puts you IN the filter with the previous needle SELECTED, so typing
    // replaces it instead of appending to it (the field keeps its text between opens)
@@ -292,6 +310,16 @@ export const LorasControl = observer(function LorasControl(p: {
                   {selectedNames.length} in the palette · {selectedNames.filter(isOn).length} on
                </span>
             ) : null}
+            {/* the workflow's own narrowing, said out loud: a picker that shows 200 loras when
+                the var asked for krea2 ones is not explainable */}
+            {p.v.desc.optionsFilter == null ? null : (
+               <span
+                  className="hint"
+                  data-tip="this workflow declared v.loras(<regex>) — only matching loras are offered"
+               >
+                  filter {p.v.desc.optionsFilter}
+               </span>
+            )}
          </div>
          <div className="row-inline">
             {!showImages && !showTitles ? (
@@ -341,7 +369,7 @@ export const LorasControl = observer(function LorasControl(p: {
                      <input
                         ref={filterRef}
                         type="text"
-                        placeholder={`filter ${options.length} loras — enter adds the first match`}
+                        placeholder={`search ${options.length} loras${p.v.desc.optionsFilter == null ? '' : ` matching ${p.v.desc.optionsFilter}`} — enter adds the first`}
                         value={local.filter}
                         onChange={(e) => local.setFilter(e.target.value)}
                         onKeyDown={(e) => {
@@ -394,23 +422,30 @@ export const LorasControl = observer(function LorasControl(p: {
                         </div>
                      ) : null}
                      <div className="section-title">all loras — tap to add to the palette</div>
-                     <div className="lora-grid">
-                        {cards.map((name) => (
-                           <button
-                              key={name}
-                              type="button"
-                              className="lora-card"
-                              data-tip={name}
-                              onClick={() => setEntry(name, [1, 1])}
-                           >
-                              {thumb(name)}
-                              <div className="lora-label">
-                                 {showTitles ? label(name) : name.slice(0, 2) + '···'}
-                                 {warnBadge(name)}
-                              </div>
-                           </button>
-                        ))}
-                     </div>
+                     {groupedCards.map((group) => (
+                        <div key={group.folder}>
+                           <div className="section-title">
+                              {group.folder === '' ? 'loose (no folder)' : `${group.folder}/`} · {group.names.length}
+                           </div>
+                           <div className="lora-grid">
+                              {group.names.map((name) => (
+                                 <button
+                                    key={name}
+                                    type="button"
+                                    className="lora-card"
+                                    data-tip={name}
+                                    onClick={() => setEntry(name, [1, 1])}
+                                 >
+                                    {thumb(name)}
+                                    <div className="lora-label">
+                                       {showTitles ? label(name) : name.slice(0, 2) + '···'}
+                                       {warnBadge(name)}
+                                    </div>
+                                 </button>
+                              ))}
+                           </div>
+                        </div>
+                     ))}
                      {matches.length - selectedNames.filter(matchesFilter).length > CARD_CAP ? (
                         <div className="loras-more">
                            … {matches.length - selectedNames.filter(matchesFilter).length - CARD_CAP} more — refine the
