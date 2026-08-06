@@ -342,7 +342,7 @@ export const LorasControl = observer(function LorasControl(p: {
                   type="button"
                   className="field-height warn-action"
                   disabled={p.st.hostWatch === 'down'}
-                  data-tip={`${managerOnlyInUse.length} lora(s) here are on disk but ComfyUI has not scanned them, so it refuses the prompt. Only a RESTART makes it re-read its models folder: refetching the schema just re-reads the same list. serve then needs a restart too, to widen the var`}
+                  data-tip={`${managerOnlyInUse.length} lora(s) here are on disk but ComfyUI has not scanned them, so it refuses the prompt. Only a RESTART makes it re-read its models folder: refetching the schema just re-reads the same list. then hit refresh here and the var widens in place`}
                   onClick={() => void p.st.hostAction('restart')}
                >
                   <Icon name="power" /> restart ComfyUI

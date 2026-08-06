@@ -97,6 +97,16 @@ export type ServeReply = {
    headers?: Record<string, string>
 }
 
+/** what serve will read off the disk and upload. Wider than the picker default: ComfyUI's
+ * LoadImage takes bmp and tiff too, and a var declaring one of those must not be refused */
+const SERVE_IMAGE_FLOOR = new Set([
+   ...DEFAULT_IMAGE_EXTENSIONS.map((e) => e.toLowerCase()),
+   'bmp',
+   'tif',
+   'tiff',
+   'avif',
+])
+
 /** the first bytes say what a file IS; the name only says what it claims. Cheap, and it stops
  * a .png that holds a key or a script from being read and uploaded to the host.
  * HONEST LIMIT: this is checked before the run, and the file is read again when the graph
@@ -106,9 +116,9 @@ function looksLikeImage(path: string): boolean {
    let fd: number | null = null
    try {
       fd = openSync(path, 'r')
-      const head = new Uint8Array(12)
-      readSync(fd, head, 0, 12, 0)
-      return sniffImageContentType(head) !== 'application/octet-stream'
+      const head = new Uint8Array(16)
+      const n = readSync(fd, head, 0, 16, 0)
+      return isImageMagic(head.subarray(0, n))
    } catch {
       return false
    } finally {
@@ -123,13 +133,13 @@ function looksLikeImage(path: string): boolean {
  * floor, never leave it. */
 function serveAcceptsImageExt(declared: readonly string[], ext: string): boolean {
    if (ext === '') return false
-   const floor = new Set(DEFAULT_IMAGE_EXTENSIONS.map((e) => e.toLowerCase()))
-   if (!floor.has(ext)) return false
-   // an EMPTY list is "the picker shows everything", so the floor stands. A list that names
-   // types is the author narrowing, and one naming only types outside the floor narrows to
-   // nothing: treating that as "no opinion" quietly handed the whole floor back
-   if (declared.length === 0) return true
-   return declared.some((e) => e.toLowerCase().replace(/^\./, '') === ext)
+   if (!SERVE_IMAGE_FLOOR.has(ext)) return false
+   // a declared list NARROWS the floor by its intersection. When that intersection is empty
+   // the declaration says nothing this bridge can honour (a picker filter for a format serve
+   // does not read), so the floor stands: narrowing to NOTHING would refuse every image,
+   // including the ones the var was declared for
+   const narrowed = declared.map((e) => e.toLowerCase().replace(/^\./, '')).filter((e) => SERVE_IMAGE_FLOOR.has(e))
+   return narrowed.length === 0 || narrowed.includes(ext)
 }
 
 /** an image var pointing at a url downloads it: capped, because the inbound BODY cap does not
@@ -214,6 +224,20 @@ function sniffImageContentType(bytes: Uint8Array): string {
    if (bytes[0] === 0x47 && bytes[1] === 0x49) return 'image/gif'
    if (bytes[0] === 0x52 && bytes[1] === 0x49) return 'image/webp' // RIFF container
    return 'application/octet-stream'
+}
+
+/** the FULL signature, not the first two bytes: `RI` alone matched a wav renamed .webp, and a
+ * two-byte file matched png. bmp/tiff/avif are here because the floor accepts them */
+export function isImageMagic(b: Uint8Array): boolean {
+   const at = (i: number, ...want: number[]): boolean => want.every((w, k) => b[i + k] === w)
+   if (at(0, 0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a)) return true // png
+   if (at(0, 0xff, 0xd8, 0xff)) return true // jpeg
+   if (at(0, 0x47, 0x49, 0x46, 0x38)) return true // gif87a/89a
+   if (at(0, 0x52, 0x49, 0x46, 0x46) && at(8, 0x57, 0x45, 0x42, 0x50)) return true // riff....webp
+   if (at(0, 0x42, 0x4d)) return true // bmp
+   if (at(0, 0x49, 0x49, 0x2a, 0x00) || at(0, 0x4d, 0x4d, 0x00, 0x2a)) return true // tiff le/be
+   if (at(4, 0x66, 0x74, 0x79, 0x70)) return true // isobmff box: avif/heif
+   return false
 }
 
 function json(status: number, payload: unknown): ServeReply {
@@ -692,14 +716,19 @@ export class ServeApp {
             // a lora var resolves its regex against the schema ONCE, at define time, so a
             // refetch alone left every var on the list it was born with and the panel kept
             // warning about a lora the host had just learned. rebinding re-runs that resolve
-            const rebound = this.rebindHostVars(hostId, host)
+            const rebound = await this.rebindHostVars(hostId, host)
             const nodes = host.schema.nodes.length
             const loras = host.schema.getLoras().length
+            const dropped =
+               rebound.stale.length === 0
+                  ? ''
+                  : `. dropped ${rebound.stale.length} selection(s) this host no longer lists`
             return json(200, {
                ok: true,
                host: hostId,
                action,
-               note: `schema refetched: ${nodes} node types, ${loras} loras, ${rebound} lora var(s) widened. no restart needed`,
+               stale: rebound.stale,
+               note: `schema refetched: ${nodes} node types, ${loras} loras, ${rebound.widened} lora var(s) changed${dropped}. no restart needed`,
             })
          }
          if (action === 'restart') {
@@ -720,20 +749,42 @@ export class ServeApp {
    /** re-sweep ComfyUI-Lora-Manager and rewrite the mirror — what `comfy-ts loras` does, with
     * its refusals kept: a partial or unreachable sweep NEVER overwrites, because writing it
     * would delete loras from the mirror that are alive on the host */
-   /** re-resolve every host-bound lora var of every module that runs on this host. LorasVar
-    * only resolves its RegExp inside bindHost, so nothing else picks up a widened enum */
-   private rebindHostVars(hostId: string, host: ComfyHost): number {
-      let n = 0
+   /** re-resolve the host-bound lora vars of the modules DEFINED on this host: LorasVar only
+    * resolves its RegExp inside bindHost, so nothing else picks up a widened enum.
+    *
+    * the defining host, not the override: rebinding an overridden module against another box
+    * rewrites its options AND its hostId (which picks the metadata mirror) with no way back,
+    * since dropping the override cannot un-resolve them.
+    *
+    * runs under each module's mutex, so it cannot swap the options out from under a generate
+    * that already validated its payload against the old list. */
+   private async rebindHostVars(hostId: string, host: ComfyHost): Promise<{ widened: number; stale: string[] }> {
+      let widened = 0
+      const stale: string[] = []
       for (const mod of this.modules) {
-         const target = this.runHostFor(mod) ?? mod.dw.host
-         if (target.data.id !== hostId) continue
-         for (const [, varDef] of mod.dw.entries()) {
-            if (varDef.kind !== 'loras') continue
-            ;(varDef as LorasVar<string>).bindHost(host)
-            n++
-         }
+         if (mod.dw.host.data.id !== hostId) continue
+         await this.exclusive(mod.key, () => {
+            for (const [name, varDef] of mod.dw.entries()) {
+               if (varDef.kind !== 'loras') continue
+               const lorasVar = varDef as LorasVar<string>
+               if (lorasVar.optionsFilter == null) continue // a plain array never re-resolves
+               const before = lorasVar.options.length
+               lorasVar.bindHost(host)
+               if (lorasVar.options.length !== before) widened++
+               // a SELECTED lora the host no longer lists would still ride into the graph and
+               // be refused there: it leaves the record, and the reply says which
+               const known = new Set<string>(lorasVar.options)
+               const value = lorasVar.value as Record<string, unknown>
+               for (const picked of Object.keys(value)) {
+                  if (known.has(picked)) continue
+                  stale.push(`${mod.key}/${name}: ${picked}`)
+                  delete value[picked]
+               }
+            }
+            return Promise.resolve()
+         })
       }
-      return n
+      return { widened, stale }
    }
 
    private async refreshLoraMirror(hostId: string, host: ComfyHost): Promise<ServeReply> {
@@ -1318,7 +1369,11 @@ export class ServeApp {
          } catch {
             return refuse
          }
-         if (!statSync(real).isFile()) return refuse
+         try {
+            if (!statSync(real).isFile()) return refuse
+         } catch {
+            return refuse
+         }
          if (!serveAcceptsImageExt(img.extensions, extname(real).toLowerCase().replace(/^\./, ''))) return refuse
          if (!looksLikeImage(real)) return refuse
       }

@@ -8,7 +8,7 @@ import { join } from 'pathe'
 
 // the repo ROOT files too: README, CHANGELOG and the agent guide are the first prose a
 // stranger reads, and they were the one surface this guard did not look at
-const ROOTS = ['src', 'tests', 'examples', 'agent', 'scripts', '.github']
+const ROOTS = ['src', 'tests', 'examples', 'agent', 'scripts', 'extra', '.github', '.comfy-ts/prompt-enhancers']
 const ROOT_FILES = ['README.md', 'CHANGELOG.md', 'CLAUDE.md', 'guide-for-agents.md']
 const SKIP_DIRS = new Set(['node_modules', 'generated', 'json', 'external-docs'])
 // generated sdk faces and upstream data mirrors are DATA, never prose we write

@@ -413,7 +413,7 @@ export const VarsForm = observer(function VarsForm(p: { st: WebSt }) {
                         </button>
                         <button
                            type="button"
-                           data-tip="refetch object_info from the host and rewrite sdk.d.ts (a restart of serve widens the var lists)"
+                           data-tip="refetch object_info from the host and rewrite sdk.d.ts (the var lists widen in place)"
                            onClick={() => void p.st.hostAction('refresh-schema')}
                         >
                            <Icon name="refresh" />

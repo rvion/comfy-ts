@@ -448,7 +448,6 @@ export class WebSt {
    toggleLogs(): void {
       this.showLogs = !this.showLogs
       this.persist()
-      this.persist()
       if (this.logsTimer != null) clearInterval(this.logsTimer)
       this.logsTimer = null
       if (!this.showLogs) return

@@ -350,7 +350,7 @@ Draft values are the defaults, the JSON body overrides per request, and every va
 
 Open that same url in a **browser** and you get a full control panel — no frontend to write, nothing to build, no extra dependency:
 
-- every var as its real control: prompt textarea (`//` comments, `- ` negative lines), sliders, seed mode buttons (fixed / +1 / -1 / random) with 🎲, size presets, image upload with preview, and a lora palette — click a card to pause or resume that lora in place, with per-lora model/clip strengths, and browse the rest as a gallery of preview cards carrying human model names and trigger words from the [lora mirror](#loras)
+- every var as its real control: prompt textarea (`//` comments, `- ` negative lines), sliders, seed mode buttons (`=` `+` `?`) with 🎲, size presets, image upload with preview, and a lora palette — a switch on each card pauses or resumes that lora in place, and clicking the card opens what it is, with per-lora model/clip strengths, and browse the rest as a gallery of preview cards carrying human model names and trigger words from the [lora mirror](#loras)
 - edits **autosave into the selected draft**, exactly like the TUI (the two stay in sync live); duplicate or delete a draft from the header
 - every click on generate **queues** another prompt; the queue lists them and drops any pending one
 - live progress bar and latent preview while it runs, results in a gallery — click any image for the lightbox (copy to clipboard / open / delete)

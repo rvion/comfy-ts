@@ -78,7 +78,6 @@
 
 ### Fixed
 
-- **The progress line shows the executing node's own counter** in its own unit — `TextGenerate 427/1024` tokens, `KSampler 12/20` steps — instead of only a global percent. Note that ComfyUI sends no partial text during generation, so a text node cannot be streamed: the counter is the live signal, and the string arrives whole at the end.
 - **Restarting ComfyUI from the TUI or the panel actually restarts it.** The call used `GET /api/manager/reboot`, which answers 404 on ComfyUI-Manager V3 (the route is POST now), and both callers treated any failure as the expected mid-reboot disconnect — so the button reported a reboot while the process kept running. It POSTs, falls back to GET for an older Manager, and a host that refuses now says so: 502 from the panel, "reboot refused" in the TUI.
 - **Running a workflow on a host you never connected threw instead of hanging forever.** The prompt was accepted and really ran on the server, but its websocket messages routed to a session that was not yours, so the run never finished and never failed: no error, no timeout, nothing to read. It now says which call is missing. `host.defineWorkflow(…).run()` connects on your behalf and was never affected.
 
@@ -102,7 +101,7 @@
 - **Fixed: duplicating a draft did nothing** when the browser had started suppressing dialogs. The new name is typed inline in the draft box now, no native prompt.
 - **The prompt shows what the loras will add to it.** A prompt declared with `loraKeywordsFrom` gets its active loras' keywords prepended at run time; they are listed above the box now, updating as you toggle loras, instead of only appearing in the generated image.
 - **Restarting a host reports what it is doing.** Every host action shows its outcome (the message was computed and dropped, which is why restart looked like a dead button), and a restart is watched: the panel says "waiting for the host to answer again" and tells you when it is back, or gives up loudly after two minutes.
-- **Refetch the schema from the panel**: a button in the host box re-downloads `object_info` and rewrites `sdk.d.ts`. Already-loaded workflows keep the options they were defined with until serve restarts, and the message says so.
+- **Refetch the schema from the panel**: a button in the host box re-downloads `object_info`, rewrites `sdk.d.ts`, and re-resolves the lora vars of the workflows already loaded, so a lora your ComfyUI has just learned becomes selectable without restarting anything. A selection the host no longer lists is dropped and named in the reply.
 - **The lightbox zooms.** Scroll to zoom around the cursor, drag to pan, double click to fit.
 - **Tooltips are instant.** Every button explains itself the moment you hover, through a tiny CSS tooltip instead of the native one that waits a second and cannot be styled. It opens under the button's left edge, so a tip on the leftmost button never runs off the screen.
 - **The lora card, redrawn**: uncropped preview, remove button back in its corner, the on/off switch beside the name, and ONE slider labelled `m+c` — click that label to set model and clip apart, click again to tie them. A lora whose two values already differ opens split. The sliders are drawn rather than left to the browser's default chrome, and the ✕ is an always-visible overlay inside the picture's own box.

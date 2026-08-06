@@ -96,12 +96,14 @@ export class TextVar extends ComfyVar<string> {
    readonly kind = 'text' as const
    /** normalized `opts.presets`, in authored order */
    readonly presets: VarPreset[]
-   constructor(
-      defaultValue: string,
-      public readonly opts: TextVarOpts = {},
-   ) {
-      super(defaultValue, opts.label)
-      this.presets = toPresetList(opts.presets)
+   readonly opts: TextVarOpts
+   /** a bare label string was the whole second parameter before opts existed: a published
+    * consumer passing one must keep working, exactly as SeedVar does */
+   constructor(defaultValue: string, opts: string | TextVarOpts = {}) {
+      const o = typeof opts === 'string' ? { label: opts } : opts
+      super(defaultValue, o.label)
+      this.opts = o
+      this.presets = toPresetList(o.presets)
    }
    parse(raw: string): boolean {
       this.set(raw)
