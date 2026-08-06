@@ -1,7 +1,18 @@
 // `comfy-ts serve` request handling, transport-free: run-serve owns node:http,
 // tests call handle() directly with an injected starter. Full contract:
 // agent/architecture.md item 12.
-import { existsSync, mkdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import {
+   closeSync,
+   existsSync,
+   mkdirSync,
+   openSync,
+   readFileSync,
+   readSync,
+   realpathSync,
+   rmSync,
+   statSync,
+   writeFileSync,
+} from 'node:fs'
 import { nanoid } from 'nanoid'
 import { basename, dirname, extname, join, resolve } from 'pathe'
 import { applyVarPayload } from 'src/cli/serve/applyVarPayload.ts'
@@ -86,6 +97,25 @@ export type ServeReply = {
    headers?: Record<string, string>
 }
 
+/** the first bytes say what a file IS; the name only says what it claims. Cheap, and it stops
+ * a .png that holds a key or a script from being read and uploaded to the host.
+ * HONEST LIMIT: this is checked before the run, and the file is read again when the graph
+ * builds, so a local writer who can swap the path in between still wins. Closing that needs
+ * the upload to hold an fd, which is a bigger change than this gate. */
+function looksLikeImage(path: string): boolean {
+   let fd: number | null = null
+   try {
+      fd = openSync(path, 'r')
+      const head = new Uint8Array(12)
+      readSync(fd, head, 0, 12, 0)
+      return sniffImageContentType(head) !== 'application/octet-stream'
+   } catch {
+      return false
+   } finally {
+      if (fd != null) closeSync(fd)
+   }
+}
+
 /** what `POST /generate` will read off this machine and upload to a ComfyUI host. A var's own
  * `extensions` is documented as a PICKER filter that never affects the value, so it cannot be
  * the gate: a workflow author narrowing (or emptying) it for listing reasons must not be able
@@ -95,12 +125,22 @@ function serveAcceptsImageExt(declared: readonly string[], ext: string): boolean
    if (ext === '') return false
    const floor = new Set(DEFAULT_IMAGE_EXTENSIONS.map((e) => e.toLowerCase()))
    if (!floor.has(ext)) return false
-   const narrowed = declared.map((e) => e.toLowerCase().replace(/^\./, '')).filter((e) => floor.has(e))
-   return narrowed.length === 0 || narrowed.includes(ext)
+   // an EMPTY list is "the picker shows everything", so the floor stands. A list that names
+   // types is the author narrowing, and one naming only types outside the floor narrows to
+   // nothing: treating that as "no opinion" quietly handed the whole floor back
+   if (declared.length === 0) return true
+   return declared.some((e) => e.toLowerCase().replace(/^\./, '') === ext)
 }
 
 /** an image var pointing at a url downloads it: capped, because the inbound BODY cap does not
  * apply to what serve fetches on your behalf, and one url at a big file would OOM the process */
+class DownloadRefused extends Error {
+   constructor(url: string) {
+      super(`could not fetch ${url}`)
+      this.name = 'DownloadRefused'
+   }
+}
+
 const INPUT_DOWNLOAD_CAP = 50_000_000
 const INPUT_DOWNLOAD_TIMEOUT_MS = 60_000
 
@@ -550,7 +590,9 @@ export class ServeApp {
          return json(400, { error: 'upload expects {"name":"<filename>","dataBase64":"<base64 bytes>"}' })
       const bytes = Buffer.from(o.dataBase64, 'base64')
       if (bytes.length === 0) return json(400, { error: 'dataBase64 decoded to zero bytes' })
-      const safe = basename(o.name).replace(/[^\w.-]+/g, '_') || 'upload'
+      // the same 100-char cap validStoreName carries: without it a long name reached the fs and
+      // came back as a 500 quoting the absolute path
+      const safe = (basename(o.name).replace(/[^\w.-]+/g, '_') || 'upload').slice(0, 100)
       const abs = join(this.outputRoot, 'serve-inputs', `${nanoid(6)}-${safe}`)
       mkdirSync(dirname(abs), { recursive: true })
       writeFileSync(abs, bytes)
@@ -1251,22 +1293,21 @@ export class ServeApp {
          const img = varDef as ImageVar
          if (!img.isSet()) continue
          const abs = img.absPath()
-         if (!existsSync(abs)) return { status: 400, error: `image var '${k}': file not found: ${abs}` }
+         // ONE message for every rejection below: distinct ones told an unauthenticated caller
+         // whether any path exists, is a file, and what type it is
+         const refuse = { status: 400, error: `image var '${k}': not a usable image file` }
+         if (!existsSync(abs)) return refuse
          // the REAL path: statSync follows symlinks, so `pic.png -> id_rsa` passed a check made
          // on the link's name. Resolving first means the gate judges the file being read
          let real: string
          try {
             real = realpathSync(abs)
-         } catch (e) {
-            return { status: 400, error: `image var '${k}': cannot resolve ${abs}: ${extractErrorMessage(e)}` }
+         } catch {
+            return refuse
          }
-         if (!statSync(real).isFile()) return { status: 400, error: `image var '${k}': not a file: ${abs}` }
-         const ext = extname(real).toLowerCase().replace(/^\./, '')
-         if (!serveAcceptsImageExt(img.extensions, ext))
-            return {
-               status: 400,
-               error: `image var '${k}': '${ext || 'no extension'}' is not an image type this bridge reads`,
-            }
+         if (!statSync(real).isFile()) return refuse
+         if (!serveAcceptsImageExt(img.extensions, extname(real).toLowerCase().replace(/^\./, ''))) return refuse
+         if (!looksLikeImage(real)) return refuse
       }
 
       // 4. seed policy (architecture item 12): payload wins; '?' rerolls;
@@ -1334,6 +1375,18 @@ export class ServeApp {
 
    /** payload image urls land as local files under outputs/serve-inputs/ */
    private async downloadInput(url: string): Promise<string> {
+      // every failure below answers the SAME thing. Refused, DNS miss, 403 and 200-of-the-wrong
+      // -type were four distinguishable replies, which is a port and host scanner for anything
+      // this box can reach. The reason goes to the server log
+      try {
+         return await this.fetchInput(url)
+      } catch (e) {
+         if (!(e instanceof DownloadRefused)) console.error(`[serve] input download failed: ${url}:`, e)
+         throw new DownloadRefused(url)
+      }
+   }
+
+   private async fetchInput(url: string): Promise<string> {
       // a timeout, because this runs INSIDE the module mutex: a url that accepts the connection
       // and then trickles would wedge that workflow's queue for as long as it liked
       const res = await fetch(url, { redirect: 'follow', signal: AbortSignal.timeout(INPUT_DOWNLOAD_TIMEOUT_MS) })
@@ -1342,7 +1395,7 @@ export class ServeApp {
       // endpoints). The caller learns the fetch failed, not what answered
       if (!res.ok) {
          console.error(`[serve] input download failed (http ${res.status}): ${url}`)
-         throw new Error(`download failed: ${url} (the server log has the status)`)
+         throw new DownloadRefused(url)
       }
       const declared = Number(res.headers.get('content-length') ?? '0')
       if (declared > INPUT_DOWNLOAD_CAP) throw new Error(`download too large (${declared} bytes): ${url}`)

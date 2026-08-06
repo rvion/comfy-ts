@@ -46,6 +46,16 @@ export function parseArgs(
    return { target, port, bind, cors }
 }
 
+/** the page and the server agree on host:port. A missing Host is not a browser */
+export function sameOrigin(origin: string, host: string | undefined): boolean {
+   if (host == null) return false
+   try {
+      return new URL(origin).host === host
+   } catch {
+      return false
+   }
+}
+
 /** node:http glue around ServeApp.handle — exported so tests can drive a real socket */
 /** the panel is SAME-ORIGIN, so it needs no CORS at all. `*` on a no-auth server means any
  * page you happen to open can drive this api from your browser and READ the replies: delete a
@@ -64,6 +74,16 @@ export function makeRequestListener(
            }
          : {}
    return (req, res) => {
+      // a cross-origin POST with a simple content-type needs no preflight, so refusing CORS
+      // stops a page READING the reply but not causing the side effect: restarting a host,
+      // deleting a draft, starting a run. Anything that sends an Origin is a browser; curl and
+      // the panel itself either send none or send our own
+      const origin = req.headers.origin
+      if (origin != null && !sameOrigin(origin, req.headers.host) && opts.cors !== true) {
+         res.writeHead(403, { 'content-type': 'application/json' })
+         res.end(JSON.stringify({ error: `cross-origin request from ${origin} refused (see --cors)` }))
+         return
+      }
       const chunks: Buffer[] = []
       let size = 0
       let overflow = false

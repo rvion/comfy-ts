@@ -48,9 +48,14 @@ function readBlob(): { blob: Record<string, unknown>; readable: boolean } {
    }
 }
 
-function filterValues(map: Record<string, string>, keep: (v: string) => boolean): Record<string, string> {
+/** keeps the CLEANED value, not the raw one: storing the raw form let the same input mean two
+ * different directories depending on whether it arrived by PUT or by hand */
+function cleanValues(map: Record<string, string>, clean: (v: string) => string | null): Record<string, string> {
    const out: Record<string, string> = {}
-   for (const [k, v] of Object.entries(map)) if (keep(v)) out[k] = v
+   for (const [k, v] of Object.entries(map)) {
+      const ok = clean(v)
+      if (ok != null) out[k] = ok
+   }
    return out
 }
 
@@ -63,7 +68,7 @@ export function readServeSettings(): ServeSettings {
       // validated on the way IN as well as on the way out: PUT /settings gates it, but a
       // hand-written file did not go through that route, and this value becomes an output
       // directory. One gate on one side is not a gate
-      savePrefix: filterValues(stringMap(o.savePrefix), (prefix) => validSavePrefix(prefix) != null),
+      savePrefix: cleanValues(stringMap(o.savePrefix), validSavePrefix),
    }
 }
 

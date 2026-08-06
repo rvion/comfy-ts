@@ -20,6 +20,9 @@ export function validSavePrefix(raw: string): string | null {
    // an ABSOLUTE path is refused, not quietly re-rooted: dropping the leading slash turned
    // '/etc' into 'etc' under outputs/, which is safe but is not what the writer asked for
    if (clean.startsWith('/') || /^[a-z]:/i.test(clean)) return null
+   // the whole path is capped, not only each segment: 3000 valid two-char segments passed and
+   // then broke that module's saving for good with an unopenable path
+   if (clean.length > 200) return null
    const segments = clean.split('/').filter((s) => s !== '')
    if (segments.length === 0 || segments.some((s) => validStoreName(s) == null)) return null
    return segments.join('/')

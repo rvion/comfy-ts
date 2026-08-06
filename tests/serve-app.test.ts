@@ -144,7 +144,7 @@ describe('ServeApp generate', () => {
       expect(badChoice.status).toBe(400)
       const badImage = await post(app, '/generate/wf-400/default', { source: '/definitely/not/here.png' })
       expect(badImage.status).toBe(400)
-      expect(parse(badImage).error).toContain('file not found')
+      expect(parse(badImage).error).toContain('not a usable image file')
       const badBody = await app.handle({ method: 'POST', url: '/generate/wf-400/default', body: '[1,2]' })
       expect(badBody.status).toBe(400)
       expect(seen.length).toBe(0)
@@ -325,7 +325,7 @@ describe('image vars are a file gate, not a file reader', () => {
          body: JSON.stringify({ source: secret }),
       })
       expect(reply.status).toBe(400)
-      expect(JSON.parse(String(reply.body)).error).toContain('is not an image type')
+      expect(JSON.parse(String(reply.body)).error).toContain('not a usable image file')
       expect(seen).toHaveLength(0) // nothing was queued, so nothing was uploaded
    })
 
@@ -337,7 +337,7 @@ describe('image vars are a file gate, not a file reader', () => {
          body: JSON.stringify({ source: root }),
       })
       expect(reply.status).toBe(400)
-      expect(JSON.parse(String(reply.body)).error).toContain('not a file')
+      expect(JSON.parse(String(reply.body)).error).toContain('not a usable image file')
    })
 
    it('an EMPTY extension list does not open the gate — it is a picker filter, not a policy', async () => {
@@ -383,9 +383,46 @@ describe('image vars are a file gate, not a file reader', () => {
       expect(seen).toHaveLength(0)
    })
 
+   it('a file NAMED .png that is not one is refused', async () => {
+      const fake = join(root, 'notreally.png')
+      writeFileSync(fake, '#!/bin/sh\nrm -rf /')
+      const seen: Record<string, unknown>[] = []
+      const app = new ServeApp([makeModule('wf-img-magic')], {
+         outputRoot: join(root, 'out'),
+         starter: snapshottingStarter(seen),
+      })
+      const reply = await app.handle({
+         method: 'POST',
+         url: '/generate/wf-img-magic/default',
+         body: JSON.stringify({ source: fake }),
+      })
+      expect(reply.status).toBe(400)
+      expect(seen).toHaveLength(0)
+   })
+
+   it('every refusal says the SAME thing: distinct ones map the filesystem for free', async () => {
+      const app = new ServeApp([makeModule('wf-img-oracle')], { outputRoot: join(root, 'out') })
+      const ask = async (source: string): Promise<string> => {
+         const r = await app.handle({
+            method: 'POST',
+            url: '/generate/wf-img-oracle/default',
+            body: JSON.stringify({ source }),
+         })
+         return (JSON.parse(String(r.body)) as { error: string }).error
+      }
+      const missing = await ask(join(root, 'definitely-absent'))
+      const directory = await ask(root)
+      const wrongType = await ask(join(root, 'id_rsa'))
+      expect(missing).toBe(directory)
+      expect(directory).toBe(wrongType)
+      // and it names none of them
+      expect(missing).not.toContain(root)
+   })
+
    it('an advertised extension still passes', async () => {
       const png = join(root, 'ok.png')
-      writeFileSync(png, 'not really a png, but the name is what is gated')
+      // real png magic: the NAME is not the gate, the bytes are
+      writeFileSync(png, Buffer.from([137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13]))
       const seen: Record<string, unknown>[] = []
       const app = new ServeApp([makeModule('wf-img-ok')], {
          outputRoot: join(root, 'out'),
@@ -402,6 +439,26 @@ describe('image vars are a file gate, not a file reader', () => {
 })
 
 describe('http layer (makeRequestListener over a real socket)', () => {
+   it('a cross-origin request is refused outright, not merely denied the reply', async () => {
+      // a simple POST needs no preflight, so CORS-off stopped a page READING the answer but
+      // not restarting a host or starting a run
+      const app = new ServeApp([makeModule('wf-csrf')], { outputRoot: join(root, 'out') })
+      const server = createServer(makeRequestListener(app))
+      await new Promise<void>((r) => server.listen(0, '127.0.0.1', r))
+      const addr = server.address()
+      if (addr == null || typeof addr === 'string') throw new Error('no port')
+      const base = `http://127.0.0.1:${addr.port}`
+      try {
+         const evil = await fetch(`${base}/drafts`, { headers: { origin: 'https://evil.example' } })
+         expect(evil.status).toBe(403)
+         // the panel itself is same-origin, and curl sends no Origin at all
+         expect((await fetch(`${base}/drafts`, { headers: { origin: base } })).status).toBe(200)
+         expect((await fetch(`${base}/drafts`)).status).toBe(200)
+      } finally {
+         server.close()
+      }
+   })
+
    it('--cors is what grants another origin, and it is off by default', async () => {
       const app = new ServeApp([makeModule('wf-cors')], { outputRoot: join(root, 'out') })
       const server = createServer(makeRequestListener(app, { cors: true }))
