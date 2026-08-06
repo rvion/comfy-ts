@@ -1,6 +1,6 @@
 # comfy-ts
 
-## Unreleased (minor)
+## 2.8.0
 
 ### Run a local LLM from TypeScript
 
