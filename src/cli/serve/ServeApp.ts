@@ -9,6 +9,7 @@ import { describeVar, type VarDescriptor } from 'src/cli/serve/describeVar.ts'
 import { deletePromptEnhancer, listPromptEnhancers, writePromptEnhancer } from 'src/cli/serve/promptEnhancers.ts'
 import { validStoreName } from 'src/cli/serve/safeName.ts'
 import { readServeSettings, writeServeSettings, type ServeSettings } from 'src/cli/serve/serveSettings.ts'
+import { assembleLogChunks } from 'src/cli/tui/state/LogsSt.ts'
 import { draftsDirForFile, listDraftsForFile } from 'src/cli/tui/state/DraftsSt.ts'
 import {
    getLoraDisplayName,
@@ -503,16 +504,20 @@ export class ServeApp {
       }
    }
 
-   /** the ComfyUI console, the TUI's logs panel over http. Newest last, capped by the caller */
+   /** the ComfyUI console, the TUI's logs panel over http — through the SAME assembly the TUI
+    * uses (assembleLogChunks): entries are write CHUNKS, so lines are folded there, ANSI is
+    * stripped, tqdm redraws collapse to their last state, and the cp1252 mojibake a windows
+    * host emits is repaired. Re-implementing any of that here would drift from the TUI */
    private async replyHostLogs(hostId: string): Promise<ServeReply> {
       const host = comfyts.hosts.get(hostId)
       if (host == null) return json(404, { error: `unknown host '${hostId}'` })
       try {
          const raw = await host.fetchRawLogs()
-         return json(200, {
-            host: hostId,
-            entries: raw.entries.slice(-200).map((e) => ({ t: e.t, m: e.m })),
-         })
+         const lines: string[] = []
+         const partial = assembleLogChunks({ lines, partial: '', entries: raw.entries })
+         // the tail has no newline yet (a live progress bar): show it, it is the current state
+         if (partial.trim() !== '') lines.push(partial)
+         return json(200, { host: hostId, lines: lines.slice(-200) })
       } catch (e) {
          return json(502, { error: `could not read the logs of '${hostId}': ${extractErrorMessage(e)}` })
       }

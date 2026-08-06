@@ -303,7 +303,8 @@ export class WebSt {
       try {
          const reply = await fetchHostLogs({ host })
          runInAction(() => {
-            this.logLines = reply.entries.map((e) => e.m.replace(/\n+$/, ''))
+            // already folded into lines server side, through the TUI's own assembly
+            this.logLines = reply.lines
             this.logsError = null
          })
       } catch (e) {

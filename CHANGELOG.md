@@ -33,7 +33,7 @@
 - **Tooltips are instant.** Every button explains itself the moment you hover, through a tiny CSS tooltip instead of the native one that waits a second and cannot be styled. It opens under the button's left edge, so a tip on the leftmost button never runs off the screen.
 - **The lora section links to the host's lora manager** (`http://<host>/loras`), for the host the workflow currently runs on.
 - **The host box acts**: interrupt the running prompt, drop the pending queue, or restart ComfyUI on that host (the TUI's host actions, over `POST /hosts/<host>/<action>`). A host that refuses answers 502 rather than reporting success.
-- **The ComfyUI console on demand**: a toggle in the preview box shows the host's log lines (`GET /hosts/<host>/logs`), polled only while it is open, and closed on every fresh load.
+- **The ComfyUI console on demand**: a toggle in the preview box shows the host's log lines (`GET /hosts/<host>/logs`), polled only while it is open, and closed on every fresh load. Lines are folded by the same assembly the TUI uses, so ANSI is stripped, a progress bar collapses to its last state instead of repeating, and text from a Windows host is not mangled.
 - **Every header box is two lines**: what you are on, then what you can do to it. The preview box carries placement on the first line and the latent-preview and console toggles on the second.
 - **The lora controls moved above the palette**, left aligned, and a newly added lora appears first in the row instead of last.
 - **The header navigates**: the workflow name opens the workflow menu, and the draft name is a dropdown of every draft of that workflow. A pen button renames the current draft (the file is renamed), beside duplicate and delete.

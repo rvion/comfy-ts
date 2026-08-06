@@ -135,7 +135,7 @@ export function postHostAction(p: { host: string; action: HostAction }): Promise
    return jsonFetch(`/hosts/${encodeURIComponent(p.host)}/${p.action}`, { method: 'POST' })
 }
 
-export function fetchHostLogs(p: { host: string }): Promise<{ entries: { t: string; m: string }[] }> {
+export function fetchHostLogs(p: { host: string }): Promise<{ lines: string[] }> {
    return jsonFetch(`/hosts/${encodeURIComponent(p.host)}/logs`)
 }
 
