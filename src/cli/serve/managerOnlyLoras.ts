@@ -2,7 +2,8 @@
 // ONE function, because the picker and the payload validator must agree exactly: whatever
 // the ui offers, `applyVarPayload` compares by RAW STRING, so a name built with the wrong
 // separator is offered and then refused as an unknown lora.
-import { loraKey, loraMirrorEntries } from 'src/host/loraInfoCache.ts'
+import { loraMirrorEntries } from 'src/host/loraInfoCache.ts'
+import { loraKey } from 'src/host/loraManagerApi.ts'
 
 /**
  * `options` is the host enum for this var: it decides both what counts as already-known

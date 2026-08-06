@@ -7,6 +7,7 @@ import { basename, dirname, extname, join, resolve } from 'pathe'
 import { applyVarPayload } from 'src/cli/serve/applyVarPayload.ts'
 import { describeVar, type VarDescriptor } from 'src/cli/serve/describeVar.ts'
 import { deletePromptEnhancer, listPromptEnhancers, writePromptEnhancer } from 'src/cli/serve/promptEnhancers.ts'
+import { managerOnlyLoraOptions } from 'src/cli/serve/managerOnlyLoras.ts'
 import { validStoreName } from 'src/cli/serve/safeName.ts'
 import { readServeSettings, writeServeSettings, type ServeSettings } from 'src/cli/serve/serveSettings.ts'
 import { assembleLogChunks } from 'src/cli/tui/state/LogsSt.ts'
@@ -17,7 +18,6 @@ import {
    getLoraInfo,
    getLoraPreviewUrl,
    getLoraTriggerWords,
-   loraMirrorEntries,
    refreshLoraInfoCacheIfChanged,
    reloadLoraInfoCache,
    writeLoraMirror,
@@ -359,16 +359,14 @@ export class ServeApp {
             // compare on the NORMALIZED key: an enum value keeps its case, extension and
             // windows separators, so `krea2\\x.safetensors` and the mirror's `krea2/x` are the
             // same lora. Comparing raw strings marked 200 of 281 loras as new
-            const known = new Set(desc.options.map((o) => loraKey(o)))
-            const separator = desc.options.some((o) => o.includes('\\')) ? '\\' : '/'
             // the workflow's OWN narrowing applies to the mirror too: a var declared
             // `v.loras(/krea-?2/i)` got the whole catalog back through the union, because the
             // filter was treated as a property of the enum rather than the var's contract
-            const filter = (varDef as LorasVar<string>).optionsFilter
-            const extras = loraMirrorEntries(hostId, { separator })
-               .filter((e) => !known.has(e.key))
-               .map((e) => e.serverName)
-               .filter((n) => filter == null || filter.test(n))
+            const extras = managerOnlyLoraOptions({
+               hostId,
+               options: desc.options,
+               filter: (varDef as LorasVar<string>).optionsFilter,
+            })
             if (extras.length > 0) {
                desc.managerOnlyOptions = extras
                desc.options = [...desc.options, ...extras]
@@ -1143,14 +1141,15 @@ export class ServeApp {
          const err = applyVarPayload(varDef, value, {
             // narrowed by the var's OWN filter, exactly like the picker: what the ui offers and
             // what the api accepts must be the same set, or one of them is lying
+            // the SAME function the picker used: it derives the separator from this var's own
+            // enum, so a backslash host cannot be offered `a/b` and then refused it
             extraLoraOptions:
                varDef.kind === 'loras'
-                  ? loraMirrorEntries(mod.dw.host.data.id)
-                       .map((e) => e.serverName)
-                       .filter((n) => {
-                          const f = (varDef as LorasVar<string>).optionsFilter
-                          return f == null || f.test(n)
-                       })
+                  ? managerOnlyLoraOptions({
+                       hostId: mod.dw.host.data.id,
+                       options: (varDef as LorasVar<string>).options,
+                       filter: (varDef as LorasVar<string>).optionsFilter,
+                    })
                   : undefined,
          })
          if (err != null) return { status: 400, error: err }
