@@ -27,6 +27,8 @@
 
 ### The web panel
 
+- **The Krea 2 refiner that ships with the panel was rewritten from Krea's own prompting guide.** The old one capped a rewrite at 80 words while the model is documented as doing its best work on long detailed prompts, so the refiner was throwing away the reason to run it. It now expands into the picture your line implies: subjects keep their own attributes, spatial words stay grounded, a medium you named (photo of, 3D render of, painting of) is never traded for an easier one, an already dense prompt gets polished instead of inflated, and text you want rendered comes back in "quotes" the way Krea 2 wants it. `// ` comment lines and `- ` negative lines still survive verbatim. A `refine-krea2-prompt.md` you already have on disk is untouched; delete it to get the new one.
+
 - **Fixed: under `+` the seed field never moved.** Every image really was different — the server keeps its own continuation and the draft file was never rewritten — but the number on screen sat on its first value, so the panel looked stuck. A finished run now reports the seed it used and the form takes it, which the autosave carries into the draft; the server continues from there, so nothing is skipped.
 
 - **The workflow tree starts closed**, on every width: the panel is a form, and a tree taking a column of it before you asked for one is chrome. It has its own close button and a header naming it now, so the way out is visible from inside — which is also how you learn that the workflow name is the way back in. Your last choice is still remembered.
