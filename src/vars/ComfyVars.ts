@@ -6,6 +6,7 @@ import { action, makeObservable, observable } from 'mobx'
 import { basename, isAbsolute, join, resolve } from 'pathe'
 import { getComfyStorage } from 'src/storage/ComfyStorage.ts'
 import { getLoraKeyword } from 'src/vars/loraKeywords.ts'
+import { toPresetList, type VarPreset, type VarPresetSpec } from 'src/vars/presets.ts'
 
 /**
  * the var's CLASS, and the only safe way to discriminate one: `instanceof` compares class
@@ -86,15 +87,21 @@ export type TextVarOpts = {
    /** render as a box you can write paragraphs in, not a one-line field. Some text IS long by
     * nature (an llm instruction, a system prompt) and a single line hides all but its start */
    multiline?: boolean
+   /** named starting texts, `{ label: text }`. The TUI and the web panel offer them behind one
+    * button and picking one REPLACES the value, so a preset is a shortcut, never a mode */
+   presets?: VarPresetSpec
 }
 
 export class TextVar extends ComfyVar<string> {
    readonly kind = 'text' as const
+   /** normalized `opts.presets`, in authored order */
+   readonly presets: VarPreset[]
    constructor(
       defaultValue: string,
       public readonly opts: TextVarOpts = {},
    ) {
       super(defaultValue, opts.label)
+      this.presets = toPresetList(opts.presets)
    }
    parse(raw: string): boolean {
       this.set(raw)
@@ -126,11 +133,18 @@ export type PromptValue = { positive: string; negative: string }
  */
 export class PromptVar extends ComfyVarBase<string, PromptValue> {
    readonly kind = 'prompt' as const
+   /** normalized `promptOpts.presets`, in authored order (TextVarOpts.presets owns the WHY) */
+   readonly presets: VarPreset[]
    constructor(
       defaultValue: string,
-      public promptOpts: { label?: string; loraKeywordsFrom?: ActiveLoraSource } = {},
+      public promptOpts: {
+         label?: string
+         loraKeywordsFrom?: ActiveLoraSource
+         presets?: VarPresetSpec
+      } = {},
    ) {
       super(defaultValue, promptOpts.label)
+      this.presets = toPresetList(promptOpts.presets)
    }
    parse(raw: string): boolean {
       this.set(raw)
@@ -629,8 +643,10 @@ export const v = {
    // the old `v.text(x, 'label')` form still works: a bare string IS the label
    text: (defaultValue: string, opts: TextVarOpts | string = {}): TextVar =>
       new TextVar(defaultValue, typeof opts === 'string' ? { label: opts } : opts),
-   prompt: (defaultValue: string, opts: { label?: string; loraKeywordsFrom?: ActiveLoraSource } = {}): PromptVar =>
-      new PromptVar(defaultValue, opts),
+   prompt: (
+      defaultValue: string,
+      opts: { label?: string; loraKeywordsFrom?: ActiveLoraSource; presets?: VarPresetSpec } = {},
+   ): PromptVar => new PromptVar(defaultValue, opts),
    int: (defaultValue: number, opts: { min?: number; max?: number; label?: string } = {}): IntVar =>
       new IntVar(defaultValue, opts),
    float: (defaultValue: number, opts: { min?: number; max?: number; label?: string } = {}): FloatVar =>

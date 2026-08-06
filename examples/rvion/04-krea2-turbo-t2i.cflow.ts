@@ -26,7 +26,21 @@ export const t2i = host.defineWorkflow({
          // lines (both stripped from .positive; negatives land in .negative),
          // and the ACTIVE loras' keywords prefix .positive (assigned via ⌃K
          // in the TUI loras overlay, stored in .comfy-ts/lora-keywords.json)
-         prompt: v.prompt('top-down, game sprite, spherical sheep', { loraKeywordsFrom: loras }),
+         // presets are named starting texts (`P` in the TUI, the presets button in the panel):
+         // this pipeline is a sprite factory, and the subject changes far more often than the
+         // framing does. Picking one REPLACES the box, so the draft is what reverts it
+         prompt: v.prompt('top-down, game sprite, spherical sheep', {
+            loraKeywordsFrom: loras,
+            presets: {
+               'sheep sprite': 'top-down, game sprite, spherical sheep',
+               'rabbit sprite': 'top-down, game sprite, round rabbit, long ears',
+               'prop, isometric': 'isometric game prop, wooden crate, painted wood grain, soft top light',
+               'icon, flat':
+                  'flat vector game icon, thick outline, two-tone shading, centered\n- gradient, photo, text',
+               'portrait, painterly':
+                  'painterly character portrait, shoulders up, warm rim light, muted background\n- extra fingers, watermark',
+            },
+         }),
          // '+' by default: a tuning session wants every run to be a new image, and the
          // number still says exactly which one you are on
          seed: v.seed(517, { mode: '+' }),

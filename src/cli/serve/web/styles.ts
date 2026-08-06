@@ -142,6 +142,30 @@ input[type='range'] { width: 100%; accent-color: var(--accent); }
 input[type='checkbox'] { accent-color: var(--accent); width: 16px; height: 16px; }
 .row-inline { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 
+/* presets menu (text + prompt vars). The backdrop sits UNDER the menu and over everything
+   else, so any outside click closes it without a document listener */
+.preset-box { position: relative; }
+.preset-btn { white-space: nowrap; }
+.preset-backdrop { position: fixed; inset: 0; z-index: 40; }
+.preset-menu {
+   position: absolute; top: calc(100% + 4px); left: 0; z-index: 41;
+   display: flex; flex-direction: column; min-width: 260px; max-width: min(520px, 90vw);
+   max-height: 320px; overflow-y: auto;
+   background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px; padding: 4px;
+   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
+}
+.preset-item {
+   display: flex; flex-direction: column; gap: 1px; align-items: flex-start;
+   background: none; border: 0; border-radius: 6px; padding: 4px 7px; text-align: left; width: 100%;
+}
+.preset-item:hover { background: var(--accent-dim); border-color: transparent; }
+.preset-item.on .preset-name { color: var(--accent); }
+.preset-name { white-space: pre; }
+.preset-peek {
+   color: var(--dim); font-size: 11px; max-width: 100%;
+   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
 button {
    background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
    border-radius: 6px; padding: 3px 8px; font: inherit; cursor: pointer;

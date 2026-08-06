@@ -105,6 +105,12 @@ const MODE_KEYS: Partial<Record<string, Hint[]>> = {
       ['type', 'filter'],
       ['esc', 'cancel'],
    ],
+   'overlay-preset': [
+      ['⏎', 'use this text'],
+      ['↑↓', 'move'],
+      ['type', 'filter'],
+      ['esc', 'cancel'],
+   ],
    'overlay-size': [
       ['⏎', 'pick'],
       ['↑↓', 'move'],
@@ -172,7 +178,14 @@ export const KeyBar = observer((p: { st: TuiSt }) => {
            ['↑↓', 'move'],
            ['esc', 'clear'],
         ]
-      : (MODE_KEYS[s.mode] ?? [['↑↓', 'select'], ['←', 'tree'], ...(kind ? (KIND_KEYS[kind] ?? []) : [])])
+      : (MODE_KEYS[s.mode] ?? [
+           ['↑↓', 'select'],
+           ['←', 'tree'],
+           ...(kind ? (KIND_KEYS[kind] ?? []) : []),
+           // advertised only on a row that HAS presets: a key offered on every text var would
+           // open nothing four times out of five
+           ...(s.picker.presetVar != null ? ([['P', 'presets']] as Hint[]) : []),
+        ])
    // keys already advertised by a panel title (t/v/p) or a header box (w/d/h/a)
    // are NOT repeated here — one letter, one place
    const globalHints: Hint[] =

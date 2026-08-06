@@ -1,10 +1,14 @@
 import { makeAutoObservable } from 'mobx'
 import { fuzzyMatch } from 'src/utils/fuzzyMatch.ts'
-import type { ChoiceVar, SizeVar } from 'src/vars/ComfyVars.ts'
+import type { ChoiceVar, PromptVar, SizeVar, TextVar } from 'src/vars/ComfyVars.ts'
+import type { VarPreset } from 'src/vars/presets.ts'
 import type { TuiSt } from 'src/cli/tui/state/TuiSt.ts'
 
+/** the two var classes that carry presets */
+type PresetVar = TextVar | PromptVar
+
 /**
- * choice + size overlays: a windowed option list with a fuzzy type-to-filter.
+ * choice + size + preset overlays: a windowed option list with a fuzzy type-to-filter.
  * For sizes the filter doubles as free `WxH` entry.
  */
 export class PickerSt {
@@ -31,7 +35,26 @@ export class PickerSt {
       return sel?.kind === 'size' ? (sel as SizeVar) : null
    }
 
+   /** null when the selected var is not text/prompt, or carries no presets */
+   get presetVar(): PresetVar | null {
+      const sel = this.st.selected?.[1]
+      if (sel == null || (sel.kind !== 'text' && sel.kind !== 'prompt')) return null
+      const withPresets = sel as PresetVar
+      return withPresets.presets.length === 0 ? null : withPresets
+   }
+
+   /** the preset rows the filter kept — the label AND the text are searched, since what you
+    * remember of a preset is often a phrase inside it */
+   get presetOptions(): VarPreset[] {
+      const pv = this.presetVar
+      if (pv == null) return []
+      if (this.filter === '') return pv.presets
+      return pv.presets.filter((x) => fuzzyMatch(this.filter, `${x.label} ${x.text}`))
+   }
+
    get options(): string[] {
+      const pv = this.presetVar
+      if (pv != null) return this.presetOptions.map((x) => x.label)
       const cv = this.choiceVar
       if (cv != null) {
          if (this.filter === '') return [...cv.choices]
@@ -54,6 +77,19 @@ export class PickerSt {
       this.filter = ''
       this.invalid = false
       this.ix = Math.max(0, cv.choices.indexOf(cv.value))
+   }
+
+   /** `P` on a text/prompt var that declares presets. A var without any stays on `nav`:
+    * the keybar only advertises the key when the row has some */
+   beginPresets(): void {
+      const pv = this.presetVar
+      if (pv == null) return
+      this.st.mode = 'overlay-preset'
+      this.filter = ''
+      this.invalid = false
+      const value = pv.value.trim()
+      const ix = pv.presets.findIndex((x) => x.text.trim() === value)
+      this.ix = ix === -1 ? 0 : ix
    }
 
    beginSize(): void {
@@ -94,6 +130,16 @@ export class PickerSt {
    }
 
    commit(): void {
+      const pv = this.presetVar
+      if (pv != null) {
+         const hit = this.presetOptions[this.ix]
+         if (hit == null) return
+         // REPLACES the value, like the web panel's menu: a preset is a starting text, and the
+         // draft the row came from is what reverts it
+         pv.set(hit.text)
+         this.st.mode = 'nav'
+         return
+      }
       const cv = this.choiceVar
       if (cv != null) {
          const hit = this.options[this.ix]

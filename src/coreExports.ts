@@ -106,7 +106,9 @@ export type {
    SizeValue,
    SizePreset,
    ImageVarOpts,
+   TextVarOpts,
 } from 'src/vars/ComfyVars.ts'
+export { toPresetList, activePresetLabel, type VarPreset, type VarPresetSpec } from 'src/vars/presets.ts'
 export { DefinedWorkflow, type DefineWorkflowSpec, type BoundVars, type LoraNameOf } from 'src/vars/DefinedWorkflow.ts'
 export {
    clearLoraKeywordOverride,

@@ -1,6 +1,7 @@
 // the small per-kind controls: prompt, text, int/float, toggle, choice —
 // bigger kinds (seed, size, loras, image) have their own files
 import { observer } from 'mobx-react-lite'
+import { PresetPicker } from 'src/cli/serve/web/components/controls/PresetPicker.tsx'
 import { PromptEnhancer } from 'src/cli/serve/web/components/PromptEnhancer.tsx'
 import type { VarSt } from 'src/cli/serve/web/state/FormSt.ts'
 import type { WebSt } from 'src/cli/serve/web/state/WebSt.ts'
@@ -25,6 +26,7 @@ export const PromptControl = observer(function PromptControl(p: { v: VarSt; st: 
          <textarea rows={rows} value={text} onChange={(e) => p.v.set(e.target.value)} />
          <div className="row-inline">
             <span className="hint">// line = comment · "- " line = negative prompt</span>
+            <PresetPicker v={p.v} />
             <PromptEnhancer v={p.v} st={p.st} module={p.module} />
          </div>
       </div>
@@ -33,13 +35,31 @@ export const PromptControl = observer(function PromptControl(p: { v: VarSt; st: 
 
 export const TextControl = observer(function TextControl(p: { v: VarSt }) {
    const text = typeof p.v.value === 'string' ? p.v.value : ''
+   const presets = p.v.desc.textPresets ?? []
    // `v.text(…, { multiline: true })`: an llm instruction is a paragraph, and a one-line field
    // shows its first few words. Grows with the text like the prompt box does
    if (p.v.desc.multiline === true) {
       const rows = Math.min(12, Math.max(3, text.split('\n').length + 1))
-      return <textarea rows={rows} value={text} onChange={(e) => p.v.set(e.target.value)} />
+      return (
+         <div>
+            <textarea rows={rows} value={text} onChange={(e) => p.v.set(e.target.value)} />
+            {presets.length > 0 ? (
+               <div className="row-inline">
+                  <PresetPicker v={p.v} />
+               </div>
+            ) : null}
+         </div>
+      )
    }
-   return <input type="text" value={text} onChange={(e) => p.v.set(e.target.value)} />
+   if (presets.length === 0) return <input type="text" value={text} onChange={(e) => p.v.set(e.target.value)} />
+   // a one-line field keeps the button BESIDE it: a menu under a single input would sit alone
+   // on a row of its own, twice the height for one button
+   return (
+      <div className="row-inline">
+         <input type="text" style={{ flex: 1 }} value={text} onChange={(e) => p.v.set(e.target.value)} />
+         <PresetPicker v={p.v} />
+      </div>
+   )
 })
 
 export const NumberControl = observer(function NumberControl(p: { v: VarSt }) {

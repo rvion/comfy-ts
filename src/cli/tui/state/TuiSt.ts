@@ -29,6 +29,7 @@ export type TuiMode =
    | 'edit'
    | 'overlay-text'
    | 'overlay-choice'
+   | 'overlay-preset'
    | 'overlay-size'
    | 'overlay-loras'
    | 'overlay-image'

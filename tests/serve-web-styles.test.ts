@@ -39,4 +39,16 @@ describe('web stylesheet', () => {
       expect(scoped).toBeGreaterThan(generic)
       expect(STYLES).not.toMatch(/\n\.chip-remove \{/) // never the unscoped, losing form
    })
+
+   it('the preset menu sits above its own click-catching backdrop', () => {
+      // the backdrop is what closes the menu on an outside click; one z-index below the menu
+      // and it would swallow the click on the preset you were aiming at
+      const backdrop = ruleBody('.preset-backdrop {')
+      const menu = ruleBody('.preset-menu {')
+      expect(backdrop).toContain('position: fixed')
+      const zOf = (body: string): number => Number(/z-index: (\d+)/.exec(body)?.[1] ?? 0)
+      expect(zOf(menu)).toBeGreaterThan(zOf(backdrop))
+      expect(menu).toContain('position: absolute') // anchored to .preset-box, which is relative
+      expect(ruleBody('.preset-box {')).toContain('position: relative')
+   })
 })

@@ -191,8 +191,7 @@ export class WebSt {
       )
       this.showLatent = stored.latent ?? true
       this.varOrder = stored.varOrder ?? {}
-      // logs start CLOSED whatever was stored: a panel that polls must be asked for
-      this.showLogs = false
+      this.showLogs = stored.logs ?? false
       makeAutoObservable(this, { run: false, enhancer: false, form: observableRef, modules: observableShallow })
       // a closing/hidden tab must not lose an edit still inside the autosave debounce
       window.addEventListener('beforeunload', () => this.form?.flushKeepalive())
@@ -286,6 +285,7 @@ export class WebSt {
                loraCapMigrated: true,
                layout: this.layout,
                latent: this.showLatent,
+               logs: this.showLogs,
                varOrder: this.varOrder,
             }),
          )
@@ -447,6 +447,7 @@ export class WebSt {
 
    toggleLogs(): void {
       this.showLogs = !this.showLogs
+      this.persist()
       this.persist()
       if (this.logsTimer != null) clearInterval(this.logsTimer)
       this.logsTimer = null

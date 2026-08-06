@@ -45,6 +45,24 @@ const SWEEP_CANDIDATES = [
    'umt5_xxl_fp8_e4m3fn_scaled.safetensors',
 ] as const
 
+// the instruction IS the workflow: the same 4B model writes a krea2 paragraph or a terse tag
+// line depending only on this text. So they ship as PRESETS on the var (`P` in the TUI, the
+// presets button in the web panel) instead of living in five commented-out lines
+const INSTRUCTIONS = {
+   'expand, one sentence':
+      'You expand short image prompts into vivid detailed ones. Reply with only the expanded prompt, one sentence.',
+   'krea2 paragraph':
+      'You expand short image prompts for a text to image model that reads flowing natural language. Reply with ONE paragraph of 60 to 150 words. Keep every subject, action and color the input names, then add lighting, palette, material and texture, camera angle and distance, composition, and the signature of the medium. No praise words, no lists, no preamble.',
+   'cinematic photo':
+      'You turn a short subject into a photographic brief. Reply with one paragraph: the subject first, then lens and distance, lighting setup, time of day, film stock or sensor look, depth of field, and the color palette. Photographic language only, no illustration or render terms.',
+   'anime cel':
+      'You turn a short subject into an anime cel-animation brief. Reply with one paragraph: character, expression, pose, hair and clothing, then background, key light color, line weight and shading style. Say what era or studio look it follows.',
+   'terse tags':
+      'You rewrite a subject as a comma separated tag list for an image model: 12 to 20 tags, concrete visual nouns and adjectives only, subject tags first, then style, lighting and composition. Reply with the tags on one line, nothing else.',
+   'to english, unchanged':
+      'You translate the input into English. Change nothing else: same subjects, same order, same level of detail. Reply with the translation only.',
+} as const
+
 type TextGenParams = {
    model: (typeof SWEEP_CANDIDATES)[number]
    instruction: string
@@ -99,12 +117,22 @@ export const localLlmTextGen = host.defineWorkflow({
       model: v.choice(GENERATIVE, 'qwen_3_4b.safetensors', 'llm'),
       // every one of these wants FRAMING: fed a bare subject, the enhancer models
       // continue the text instead of expanding it (ernie writes a novel's front matter)
-      instruction: v.text(
-         'You expand short image prompts into vivid detailed ones. Reply with only the expanded prompt, one sentence.',
+      instruction: v.text(INSTRUCTIONS['expand, one sentence'], {
+         label: 'instruction',
          // a system prompt is a paragraph you rewrite, not a value you type once
-         { label: 'instruction', multiline: true },
-      ),
-      subject: v.text('a cat on a roof', { label: 'subject', multiline: true }),
+         multiline: true,
+         presets: INSTRUCTIONS,
+      }),
+      subject: v.text('a cat on a roof', {
+         label: 'subject',
+         multiline: true,
+         presets: {
+            'cat on a roof': 'a cat on a roof',
+            'harvest mouse': 'a harvest mouse on a branch',
+            'rocket launch': 'a rocket launch seen from very close',
+            'jester, dark fantasy': 'a menacing jester with a glowing sword',
+         },
+      }),
       // the budget must cover the whole answer INCLUDING a reasoning preamble, and a
       // truncated run just stops mid-word: ~1024 for qwen3, ~128 for ernie (which pads
       // with repetition once past its natural length)

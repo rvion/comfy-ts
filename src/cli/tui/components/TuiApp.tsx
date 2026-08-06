@@ -6,7 +6,7 @@ import { Header } from 'src/cli/tui/components/Header.tsx'
 import { HostPanel } from 'src/cli/tui/components/HostPanel.tsx'
 import { HostsOverlay } from 'src/cli/tui/components/HostsOverlay.tsx'
 import { LorasOverlay } from 'src/cli/tui/components/LorasOverlay.tsx'
-import { ChoiceOverlay, SizeOverlay } from 'src/cli/tui/components/PickerOverlays.tsx'
+import { ChoiceOverlay, PresetOverlay, SizeOverlay } from 'src/cli/tui/components/PickerOverlays.tsx'
 import { PreviewPanel } from 'src/cli/tui/components/PreviewPanel.tsx'
 import { PromptOverlay } from 'src/cli/tui/components/PromptOverlay.tsx'
 import { KeyBar, ProgressLine } from 'src/cli/tui/components/StatusBar.tsx'
@@ -72,7 +72,7 @@ export const TuiApp = observer((p: { st: TuiSt }) => {
             if (input && !key.ctrl && !key.meta) return ed.input(input)
             return
          }
-         if (s.mode === 'overlay-choice' || s.mode === 'overlay-size') {
+         if (s.mode === 'overlay-choice' || s.mode === 'overlay-size' || s.mode === 'overlay-preset') {
             const pk = s.picker
             if (key.escape) return s.editor.cancel()
             if (key.return) return pk.commit()
@@ -237,6 +237,7 @@ export const TuiApp = observer((p: { st: TuiSt }) => {
             s.tree.focus()
             return s.tree.beginFilter()
          }
+         if (input === 'P') return s.picker.beginPresets()
          if (input === 'e') return s.drafts.beginRename()
          if (input === 'r') return void s.exec.run()
          if (input === 's') return s.exec.randomizeSeedAndRun()
@@ -273,6 +274,8 @@ export const TuiApp = observer((p: { st: TuiSt }) => {
                   <TextOverlay st={s} />
                ) : s.mode === 'overlay-choice' ? (
                   <ChoiceOverlay st={s} />
+               ) : s.mode === 'overlay-preset' ? (
+                  <PresetOverlay st={s} />
                ) : s.mode === 'overlay-size' ? (
                   <SizeOverlay st={s} />
                ) : s.mode === 'overlay-loras' ? (

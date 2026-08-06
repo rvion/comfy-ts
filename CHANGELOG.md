@@ -23,9 +23,13 @@
 
 ### Vars
 
+- **Text and prompt vars can ship PRESETS**: `v.text(x, { presets: { 'terse tags': '…', 'krea2 paragraph': '…' } })`, same option on `v.prompt`. The row gets a small `presets ▾` button in the web panel and `P` in the TUI (advertised in the keybar only on a row that has some); the menu lists each label with a dim peek at its first line, marks the one your text still is, and picking one replaces the field. It is a shortcut, not a mode: nothing is stored about which preset you used, and the row's revert dot puts the draft value back. The TUI overlay filters on the label AND the text, since what you remember of a preset is often a phrase inside it.
+- **[`07-local-llm-text-gen`](examples/rvion/07-local-llm-text-gen.cflow.ts) ships six instructions** — expand one sentence, krea2 paragraph, cinematic photo, anime cel, terse tags, translate to English — plus a few subjects to try them on. The instruction IS the workflow there: the same 4B model writes a paragraph or a tag line depending only on that text, so switching one is now a keystroke instead of a paste. [`04-krea2-turbo-t2i`](examples/rvion/04-krea2-turbo-t2i.cflow.ts) gets five sprite-factory prompts, two of them carrying `- ` negative lines.
 - **A workflow can declare the seed MODE it runs in**: `v.seed(517, { mode: '+' })`. It is the SPEC default, so a draft with no seed of its own starts there and `reset()` comes back to it, unlike `setMode()` which only changes the live value. The old `v.seed(n, 'label')` form still works. `examples/rvion/04-krea2-turbo-t2i` uses it: a tuning session wants each run to be a new image.
 
 ### The web panel
+
+- **Fixed: the ComfyUI console toggle forgot itself on reload.** It was the one view setting deliberately reset at boot; it now rides the same localStorage blob as the preview placement, the latent toggle and the lora view switches. A test pins that every one of them is both written and read back, so a toggle cannot silently stop persisting again.
 
 - **The Krea 2 refiner that ships with the panel was rewritten from Krea's own prompting guide.** The old one capped a rewrite at 80 words while the model is documented as doing its best work on long detailed prompts, so the refiner was throwing away the reason to run it. It now expands into the picture your line implies: subjects keep their own attributes, spatial words stay grounded, a medium you named (photo of, 3D render of, painting of) is never traded for an easier one, an already dense prompt gets polished instead of inflated, and text you want rendered comes back in "quotes" the way Krea 2 wants it. `// ` comment lines and `- ` negative lines still survive verbatim. A `refine-krea2-prompt.md` you already have on disk is untouched; delete it to get the new one.
 

@@ -8,12 +8,14 @@ import type {
    ImageVar,
    IntVar,
    LorasVar,
+   PromptVar,
    SeedVar,
    SizePreset,
    SizeVar,
    TextVar,
    VarKind,
 } from 'src/vars/ComfyVars.ts'
+import type { VarPreset } from 'src/vars/presets.ts'
 
 export type VarDescriptor = {
    kind: VarKind
@@ -41,10 +43,18 @@ export type VarDescriptor = {
    managerOnlyOptions?: readonly string[]
    /** text: this one wants a box, not a line (`v.text(…, { multiline: true })`) */
    multiline?: boolean
+   /** text + prompt: named starting texts (`{ presets: { label: text } }`). NOT `presets`, which
+    * a size var already owns with a different shape — one flat descriptor type, two kinds */
+   textPresets?: VarPreset[]
    min?: number
    max?: number
    presets?: SizePreset[]
    extensions?: readonly string[]
+}
+
+/** an empty list is absent from the json: every var without presets would otherwise carry `[]` */
+function presetsOrUndefined(presets: VarPreset[]): VarPreset[] | undefined {
+   return presets.length === 0 ? undefined : presets
 }
 
 function rangeText(opts: { min?: number; max?: number }): string {
@@ -58,11 +68,17 @@ export function describeVar(varDef: AnyVar): VarDescriptor {
    // different copies of every class (VarKind owns the WHY). Casts are the sanctioned
    // kind-narrowing family (agent/coding.md cast whitelist 6)
    switch (varDef.kind) {
-      case 'prompt':
-         return { ...base, payload: 'string ("//" lines = comments, "- " lines = negative)' }
+      case 'prompt': {
+         const v = varDef as PromptVar
+         return {
+            ...base,
+            payload: 'string ("//" lines = comments, "- " lines = negative)',
+            textPresets: presetsOrUndefined(v.presets),
+         }
+      }
       case 'text': {
          const v = varDef as TextVar
-         return { ...base, payload: 'string', multiline: v.opts.multiline }
+         return { ...base, payload: 'string', multiline: v.opts.multiline, textPresets: presetsOrUndefined(v.presets) }
       }
       case 'int': {
          const v = varDef as IntVar
