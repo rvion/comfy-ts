@@ -322,7 +322,7 @@ bunx comfy-ts serve txt2img.cflow.ts    # one workflow (routes shorten to /gener
 bunx comfy-ts serve --port 9000 --host 0.0.0.0   # pick port / reach it from your phone or tailnet
 ```
 
-Bound beyond localhost, the startup print lists every URL the box answers on (LAN and tailnet), so the web UI is one tap away on another device. There is no auth: only do this on a network you trust.
+Bound beyond localhost, the startup print lists every URL the box answers on (LAN and tailnet), so the web UI is one tap away on another device. There is no auth: only do this on a network you trust. Requests from other ORIGINS are refused unless you pass `--cors` — with no auth, a wide-open CORS policy would let any page you happen to visit drive this API from your browser.
 
 Discover what's being served — same info the startup print shows, as JSON:
 

@@ -47,7 +47,13 @@ export function listPromptEnhancers(): PromptEnhancer[] {
       if (!file.endsWith(EXT)) continue
       const name = file.slice(0, -EXT.length)
       if (validStoreName(name) == null) continue
-      out.push({ name, text: readFileSync(join(dir, file), 'utf8') })
+      // one unreadable entry (a DIRECTORY called *.md, a permission problem) must not take the
+      // whole route down: it is skipped loudly, the rest still list
+      try {
+         out.push({ name, text: readFileSync(join(dir, file), 'utf8') })
+      } catch (e) {
+         console.error(`[serve] prompt enhancer '${name}' unreadable, skipped:`, e)
+      }
    }
    return out
 }

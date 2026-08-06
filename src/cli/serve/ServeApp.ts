@@ -1138,7 +1138,7 @@ export class ServeApp {
       const memoryKeys = new Map<number, string>()
       for (const [ix, img] of execution.images.entries()) {
          if (img.absPath != null || img.buffer == null) continue
-         const key = `${encodeURIComponent(execution.data.id)}/${ix}`
+         const key = `${execution.data.id}/${ix}`
          this.rememberMemoryImage(key, img.buffer, img.filename)
          memoryKeys.set(ix, key)
       }
@@ -1169,7 +1169,12 @@ export class ServeApp {
                img.absPath != null
                   ? this.outputUrl(img.absPath)
                   : memoryKeys.has(ix)
-                    ? `/images/${memoryKeys.get(ix) ?? ''}`
+                    ? // the KEY is raw (`<promptId>/<ix>`); the url encodes each segment, and
+                      // handle() decodes per segment, so the lookup gets the raw key back
+                      `/images/${(memoryKeys.get(ix) ?? '')
+                         .split('/')
+                         .map((seg) => encodeURIComponent(seg))
+                         .join('/')}`
                     : null,
             absPath: img.absPath,
          })),
