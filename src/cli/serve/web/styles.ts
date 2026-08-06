@@ -423,8 +423,12 @@ div.lora-thumb.none {
 .head-group button { padding: 2px 5px; }
 /* rows that mix buttons and inputs: one height for both, so nothing steps over the line.
    32px is what an input with 6px padding and a 1px border measures at this font size */
-.field-height, .field-height button { height: 32px; }
-.field-height button { display: inline-flex; align-items: center; }
+/* everything on a var row is the SAME height as the input beside it, or the row steps.
+   28px is what the slimmed input measures (14px text, 3px padding, 1px border) */
+.field-height, .field-height button { height: 28px; }
+.field-height button { display: inline-flex; align-items: center; justify-content: center; }
+/* a one-character mode button still needs a target: = + ? are narrow glyphs */
+.btn-group.field-height button { min-width: 28px; }
 .head-input { padding: 2px 6px; font-size: 13px; font-weight: 600; color: var(--accent); max-width: 180px; }
 .head-label .save-state { color: var(--dim); font-weight: 400; margin-left: 4px; }
 .head-label .save-state.error { color: var(--red); }
