@@ -132,6 +132,14 @@ button.link.danger:hover { color: var(--red); }
 button.mode { padding: 2px 7px; font-size: 12px; }
 button.mode.sel { background: var(--accent-dim); border-color: var(--accent); color: #fff; }
 
+/* the run line: button, queue count, result count — one row, each part appearing only when
+   it has something to say */
+.run-line { display: inline-flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.run-chip {
+   display: inline-flex; gap: 6px; align-items: center; color: var(--dim); font-size: 12px;
+   border: 1px solid var(--border); border-radius: 999px; padding: 2px 10px;
+}
+.run-chip .link { font-size: 12px; }
 .runbar {
    position: sticky; bottom: 0; display: flex; gap: 14px; align-items: center;
    background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
@@ -147,7 +155,6 @@ button.mode.sel { background: var(--accent-dim); border-color: var(--accent); co
 @keyframes pulse { 50% { opacity: 0.45; } }
 
 .gallery { margin-top: 12px; display: flex; flex-direction: column; gap: 10px; }
-.gallery-head { display: flex; gap: 12px; align-items: baseline; color: var(--dim); font-size: 12px; }
 .run-card { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; }
 .run-card .meta { color: var(--dim); font-size: 12px; margin-bottom: 8px; display: flex; justify-content: space-between; gap: 8px; }
 .run-card .imgs { display: flex; flex-wrap: wrap; gap: 10px; }
@@ -242,15 +249,6 @@ button.mode.sel { background: var(--accent-dim); border-color: var(--accent); co
 .lora-chip.off { border-style: dashed; }
 .lora-chip.off .lora-thumb, .lora-active-row.off .lora-thumb { filter: grayscale(1); }
 
-.queue { margin-top: 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--panel); }
-.queue-head {
-   display: flex; gap: 12px; align-items: baseline; justify-content: space-between;
-   padding: 6px 10px; border-bottom: 1px solid var(--border); color: var(--dim); font-size: 12px;
-}
-.queue-row { display: flex; gap: 10px; align-items: center; padding: 4px 10px; font-size: 12px; }
-.queue-ix { color: var(--dim); width: 16px; }
-.queue-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.queue-row button { padding: 1px 8px; font-size: 11px; }
 
 .modal-overlay {
    position: fixed; inset: 0; z-index: 50; background: rgba(0, 0, 0, 0.55);

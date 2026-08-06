@@ -222,24 +222,59 @@ const DraftBox = observer(function DraftBox(p: { st: WebSt; form: FormSt }) {
    )
 })
 
-/** the run button, rendered either in the form's runbar or inside the results panel */
+/** EVERYTHING about running, on one line: the button, what is queued behind it, and what it
+ * has produced. These were three stacked blocks (button, a queue panel listing every pending
+ * prompt by name, a gallery header) saying in ~10 lines what fits in one. The per-entry queue
+ * rows are gone with them: a count and one clear is the whole decision, and a prompt already
+ * on the host was only ever telling you it could not be cancelled. */
 export const GenerateButton = observer(function GenerateButton(p: { st: WebSt }) {
+   const run = p.st.run
    return (
-      <button
-         type="button"
-         className={p.st.run.isRunning ? 'primary pulse' : 'primary'}
-         data-tip="⌘⏎ / ctrl+⏎ — click again to queue another"
-         onClick={() => p.st.generate()}
-      >
-         <Icon name="play" size={0.85} />{' '}
-         {p.st.run.isRunning
-            ? p.st.run.progressPercent != null
-               ? `generating… ${Math.round(p.st.run.progressPercent)}%`
-               : 'generating…'
-            : 'generate'}
-         {/* the shortcut is SAID, not only tooltipped: nobody hovers a button they can click */}
-         {p.st.run.isRunning ? null : <span className="kbd-hint">⌘⏎</span>}
-      </button>
+      <span className="run-line">
+         <button
+            type="button"
+            className={run.isRunning ? 'primary pulse' : 'primary'}
+            data-tip="⌘⏎ / ctrl+⏎ — click again to queue another"
+            onClick={() => p.st.generate()}
+         >
+            <Icon name="play" size={0.85} />{' '}
+            {run.isRunning
+               ? run.progressPercent != null
+                  ? `generating… ${Math.round(run.progressPercent)}%`
+                  : 'generating…'
+               : 'generate'}
+            {/* the shortcut is SAID, not only tooltipped: nobody hovers a button they can click */}
+            {run.isRunning ? null : <span className="kbd-hint">⌘⏎</span>}
+         </button>
+         {run.queue.length > 0 ? (
+            <span className="run-chip" data-tip="prompts waiting behind this one">
+               queue: {run.queue.length}
+               {run.pendingCount > 0 ? (
+                  <button
+                     type="button"
+                     className="link"
+                     data-tip={`drop the ${run.pendingCount} not yet sent to the host`}
+                     onClick={() => run.clearQueue()}
+                  >
+                     clear
+                  </button>
+               ) : null}
+            </span>
+         ) : null}
+         {run.results.length > 0 ? (
+            <span className="run-chip" data-tip="runs kept in this page">
+               {run.results.length} result{run.results.length === 1 ? '' : 's'}
+               <button
+                  type="button"
+                  className="link"
+                  data-tip="forget every run shown here"
+                  onClick={() => run.clear()}
+               >
+                  clear
+               </button>
+            </span>
+         ) : null}
+      </span>
    )
 })
 
@@ -279,41 +314,6 @@ const SaveRow = observer(function SaveRow(p: { st: WebSt; module: string }) {
             </div>
             {p.st.savingError != null ? <div className="error">🔴 {p.st.savingError}</div> : null}
          </div>
-      </div>
-   )
-})
-
-/** what is waiting on the host, and the way to drop it */
-const QueuePanel = observer(function QueuePanel(p: { st: WebSt }) {
-   const queue = p.st.run.queue
-   if (queue.length === 0) return null
-   return (
-      <div className="queue">
-         <div className="queue-head">
-            <span>
-               queue · {queue.length} prompt{queue.length === 1 ? '' : 's'}
-            </span>
-            {p.st.run.pendingCount > 0 ? (
-               <button type="button" className="link" onClick={() => p.st.run.clearQueue()}>
-                  clear {p.st.run.pendingCount} pending
-               </button>
-            ) : null}
-         </div>
-         {queue.map((e, ix) => (
-            <div key={e.id} className="queue-row">
-               <span className="queue-ix">{ix + 1}</span>
-               <span className="queue-name">
-                  {e.module}/{e.draft}
-               </span>
-               {e.sent ? (
-                  <span className="hint">on the host — past cancelling</span>
-               ) : (
-                  <button type="button" data-tip="drop this queued prompt" onClick={() => p.st.run.removeQueued(e.id)}>
-                     ✕
-                  </button>
-               )}
-            </div>
-         ))}
       </div>
    )
 })
@@ -525,7 +525,6 @@ export const VarsForm = observer(function VarsForm(p: { st: WebSt }) {
                {p.st.run.error != null ? <span className="error">🔴 {p.st.run.error}</span> : null}
             </div>
          )}
-         <QueuePanel st={p.st} />
       </div>
    )
 })

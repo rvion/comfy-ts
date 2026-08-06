@@ -210,16 +210,8 @@ export const Gallery = observer(function Gallery(p: { st: WebSt; compact?: boole
    return (
       <div className="gallery">
          <RunningCard st={p.st} local={local} />
-         {p.st.run.results.length > 0 && p.compact !== true ? (
-            <div className="gallery-head">
-               <span>
-                  {p.st.run.results.length} result{p.st.run.results.length === 1 ? '' : 's'}
-               </span>
-               <button type="button" className="link" onClick={() => p.st.run.clear()}>
-                  clear all
-               </button>
-            </div>
-         ) : null}
+         {/* the count and clear-all moved onto the run line beside the generate button: two
+             headers for one idea is a header too many */}
          {results.map((r) => (
             <div key={r.promptId} className="run-card">
                <div className="meta">

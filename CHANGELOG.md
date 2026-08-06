@@ -17,6 +17,7 @@
 
 ### The web panel
 
+- **Running is ONE line.** The generate button, the queue and the result count were three stacked blocks: a button, a panel listing every pending prompt by name, and a gallery header. They are now `[generate] queue: 3 clear · 9 results clear`, each part appearing only when it has something to say. The per-prompt queue rows are gone with it — a count and one clear is the whole decision, and a prompt already sent to the host was only ever telling you it could not be cancelled. It also puts the queue where the button is: with the results panel on the side, it used to sit alone at the bottom of the form.
 - **Fixed: ⌘A / ctrl+A selects the text of the field you are in** (the prompt box, the lora search) instead of doing nothing. The panel installs several window-level key handlers and a drag layer over the rows; the select-all is now performed explicitly whenever focus is in a text field, and left to the browser everywhere else.
 - **The label is the drag handle.** The grip that appeared on hover at the start of each var label is gone; the label itself reorders the row.
 - **The page is slimmer.** Inputs, buttons and button groups lost padding, and the run button is a normal-sized button that shows its `⌘⏎` shortcut instead of only tooltipping it.
