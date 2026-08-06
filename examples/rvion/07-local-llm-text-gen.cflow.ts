@@ -80,9 +80,10 @@ export const localLlmTextGen = host.defineWorkflow({
       // continue the text instead of expanding it (ernie writes a novel's front matter)
       instruction: v.text(
          'You expand short image prompts into vivid detailed ones. Reply with only the expanded prompt, one sentence.',
-         'instruction',
+         // a system prompt is a paragraph you rewrite, not a value you type once
+         { label: 'instruction', multiline: true },
       ),
-      subject: v.text('a cat on a roof', 'subject'),
+      subject: v.text('a cat on a roof', { label: 'subject', multiline: true }),
       // the budget must cover the whole answer INCLUDING a reasoning preamble, and a
       // truncated run just stops mid-word: ~1024 for qwen3, ~128 for ernie (which pads
       // with repetition once past its natural length)

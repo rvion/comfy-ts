@@ -81,8 +81,21 @@ export abstract class ComfyVar<T> extends ComfyVarBase<T, T> {
    }
 }
 
+export type TextVarOpts = {
+   label?: string
+   /** render as a box you can write paragraphs in, not a one-line field. Some text IS long by
+    * nature (an llm instruction, a system prompt) and a single line hides all but its start */
+   multiline?: boolean
+}
+
 export class TextVar extends ComfyVar<string> {
    readonly kind = 'text' as const
+   constructor(
+      defaultValue: string,
+      public readonly opts: TextVarOpts = {},
+   ) {
+      super(defaultValue, opts.label)
+   }
    parse(raw: string): boolean {
       this.set(raw)
       return true
@@ -610,7 +623,9 @@ export class ImageVar extends ComfyVar<string> {
 
 /** the var constructors: v.text / v.prompt / v.int / v.float / v.seed / v.toggle / v.choice / v.loras / v.size / v.image */
 export const v = {
-   text: (defaultValue: string, label?: string): TextVar => new TextVar(defaultValue, label),
+   // the old `v.text(x, 'label')` form still works: a bare string IS the label
+   text: (defaultValue: string, opts: TextVarOpts | string = {}): TextVar =>
+      new TextVar(defaultValue, typeof opts === 'string' ? { label: opts } : opts),
    prompt: (defaultValue: string, opts: { label?: string; loraKeywordsFrom?: ActiveLoraSource } = {}): PromptVar =>
       new PromptVar(defaultValue, opts),
    int: (defaultValue: number, opts: { min?: number; max?: number; label?: string } = {}): IntVar =>

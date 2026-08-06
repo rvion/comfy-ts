@@ -32,13 +32,14 @@ export const PromptControl = observer(function PromptControl(p: { v: VarSt; st: 
 })
 
 export const TextControl = observer(function TextControl(p: { v: VarSt }) {
-   return (
-      <input
-         type="text"
-         value={typeof p.v.value === 'string' ? p.v.value : ''}
-         onChange={(e) => p.v.set(e.target.value)}
-      />
-   )
+   const text = typeof p.v.value === 'string' ? p.v.value : ''
+   // `v.text(…, { multiline: true })`: an llm instruction is a paragraph, and a one-line field
+   // shows its first few words. Grows with the text like the prompt box does
+   if (p.v.desc.multiline === true) {
+      const rows = Math.min(12, Math.max(3, text.split('\n').length + 1))
+      return <textarea rows={rows} value={text} onChange={(e) => p.v.set(e.target.value)} />
+   }
+   return <input type="text" value={text} onChange={(e) => p.v.set(e.target.value)} />
 })
 
 export const NumberControl = observer(function NumberControl(p: { v: VarSt }) {

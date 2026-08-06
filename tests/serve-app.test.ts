@@ -27,11 +27,14 @@ afterAll(() => {
    else Reflect.deleteProperty(globalThis, 'comfyts')
 })
 
-function fakeExecution(p: { id?: string; status?: string; images?: string[]; error?: unknown } = {}): ServeExecution {
+function fakeExecution(
+   p: { id?: string; status?: string; images?: string[]; texts?: string[]; error?: unknown } = {},
+): ServeExecution {
    return {
       done: Promise.resolve(null),
       status: p.status ?? 'Success',
       images: (p.images ?? []).map((absPath) => ({ absPath, filename: absPath.split('/').pop() ?? absPath })),
+      texts: (p.texts ?? []).map((text, ix) => ({ nodeId: String(ix), nodeKey: 'PreviewAny', text })),
       data: { id: p.id ?? 'prompt-1', error: p.error },
    }
 }
@@ -407,6 +410,9 @@ describe('ServeApp draft save (PUT) + live run state', () => {
          running: false,
          status: 'idle',
          percent: null,
+         // the executing node and its own counter: null while nothing runs
+         node: null,
+         nodeProgress: null,
          hasPreview: false,
          previewSeq: null,
       })
@@ -522,5 +528,28 @@ describe('ServeApp draft delete (DELETE)', () => {
       const app = new ServeApp([mod], { outputRoot: join(root, 'out') })
       const reply = await app.handle({ method: 'DELETE', url: '/drafts/wf-del-missing/never-existed' })
       expect(reply.status).toBe(200)
+   })
+})
+
+// an llm graph produces STRING outputs and no images at all, so a reply carrying only
+// `images` is an empty reply: the panel drew "no image outputs" and nothing else
+describe('text outputs reach the panel', () => {
+   it('a run with no images and one text still reports the text', async () => {
+      const mod = makeModule('wf-text-out')
+      const app = new ServeApp([mod], {
+         outputRoot: join(root, 'out'),
+         starter: snapshottingStarter([], () => fakeExecution({ texts: ['an expanded prompt'] })),
+      })
+      const body = parse(await post(app, '/generate/wf-text-out/default', {}))
+      expect(body.images).toEqual([])
+      expect(body.texts).toEqual([{ nodeKey: 'PreviewAny', text: 'an expanded prompt' }])
+   })
+
+   it('a run with neither images nor texts reports both empty, never a missing key', async () => {
+      const mod = makeModule('wf-no-out')
+      const app = new ServeApp([mod], { outputRoot: join(root, 'out'), starter: snapshottingStarter([]) })
+      const body = parse(await post(app, '/generate/wf-no-out/default', {}))
+      expect(body.images).toEqual([])
+      expect(body.texts).toEqual([])
    })
 })

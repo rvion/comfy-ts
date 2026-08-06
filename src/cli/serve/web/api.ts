@@ -16,6 +16,9 @@ export type IndexPayload = {
 
 export type GeneratedImage = { filename: string; url: string | null; absPath: string | null }
 
+/** a STRING output (PreviewAny). An llm graph produces these and no images at all */
+export type GeneratedText = { nodeKey: string | null; text: string }
+
 export type GenerateOk = {
    ok: true
    module: string
@@ -24,6 +27,7 @@ export type GenerateOk = {
    durationMs: number
    seeds: Record<string, number>
    images: GeneratedImage[]
+   texts?: GeneratedText[]
 }
 
 async function jsonFetch<T>(url: string, init?: RequestInit): Promise<T> {
@@ -74,6 +78,10 @@ export type RunStatus = {
    running: boolean
    status: string
    percent: number | null
+   /** the executing node and its OWN counter: generated tokens on a text node, sampler steps
+    * on a KSampler. The only live signal a text graph has */
+   node?: string | null
+   nodeProgress?: { value: number; max: number } | null
    hasPreview: boolean
    previewSeq: number | null
 }

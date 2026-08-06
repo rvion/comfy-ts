@@ -25,6 +25,10 @@ export class RunSt {
    error: string | null = null
    results: RunResult[] = []
    progressPercent: number | null = null
+   /** what the host is doing right now, in the node's own unit — `TextGenerate 427/1024`.
+    * A text graph has no latent preview and no image, so this is all there is to watch */
+   progressNode: string | null = null
+   progressCount: { value: number; max: number } | null = null
    hasPreview = false
    /** the server's frame seq — the <img> cache-buster, changes only on a NEW frame */
    previewTick = 0
@@ -85,6 +89,8 @@ export class RunSt {
                // replace-by-copy keeps the one array idiom of this store
                this.queue = this.queue.map((e) => (e.id === next.id ? { ...e, sent: true } : e))
                this.progressPercent = null
+               this.progressNode = null
+               this.progressCount = null
                this.hasPreview = false
             })
             const gen = ++this.pollGen
@@ -107,6 +113,8 @@ export class RunSt {
                runInAction(() => {
                   this.queue = this.queue.filter((e) => e.id !== next.id)
                   this.progressPercent = null
+                  this.progressNode = null
+                  this.progressCount = null
                   this.hasPreview = false
                })
             }
@@ -125,6 +133,8 @@ export class RunSt {
             runInAction(() => {
                if (gen !== this.pollGen) return
                this.progressPercent = status.percent
+               this.progressNode = status.node ?? null
+               this.progressCount = status.nodeProgress ?? null
                this.hasPreview = status.hasPreview
                this.previewTick = status.previewSeq ?? 0
             })

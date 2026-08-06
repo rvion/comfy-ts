@@ -177,6 +177,75 @@ const Lightbox = observer(function Lightbox(p: { st: WebSt; local: GalleryLocal 
    )
 })
 
+/** a reasoning model narrates inside <think> before it answers. The answer is what you asked
+ * for, so it reads first and the thinking folds away — dropping it outright would hide the
+ * only explanation of a bad answer */
+function splitThinking(text: string): { thinking: string | null; answer: string } {
+   const close = text.indexOf('</think>')
+   if (close === -1) {
+      // no closing tag: the whole budget went into reasoning and the answer never came
+      return text.trimStart().startsWith('<think>')
+         ? { thinking: text.replace(/^\s*<think>/, '').trim(), answer: '' }
+         : { thinking: null, answer: text.trim() }
+   }
+   const thinking = text
+      .slice(0, close)
+      .replace(/^\s*<think>/, '')
+      .trim()
+   return { thinking: thinking === '' ? null : thinking, answer: text.slice(close + '</think>'.length).trim() }
+}
+
+/** a STRING output. An llm graph produces ONLY these, so a run card without them shows nothing */
+const TextResult = observer(function TextResult(p: { entry: { nodeKey: string | null; text: string } }) {
+   const local = useLocalObservable(() => ({
+      showThinking: false,
+      copied: false,
+      toggle(): void {
+         this.showThinking = !this.showThinking
+      },
+      markCopied(): void {
+         this.copied = true
+      },
+   }))
+   const { thinking, answer } = splitThinking(p.entry.text)
+   return (
+      <div className="run-text">
+         <div className="run-text-head">
+            <span className="hint">{p.entry.nodeKey ?? 'text'}</span>
+            {thinking != null ? (
+               <button
+                  type="button"
+                  className="link"
+                  data-tip="the model's reasoning, before its answer"
+                  onClick={() => local.toggle()}
+               >
+                  {local.showThinking ? 'hide thinking' : 'thinking'}
+               </button>
+            ) : null}
+            {canCopy ? (
+               <button
+                  type="button"
+                  className="link"
+                  data-tip="copy this text"
+                  onClick={() => {
+                     void navigator.clipboard.writeText(answer === '' ? p.entry.text : answer)
+                     local.markCopied()
+                  }}
+               >
+                  <Icon name="copy" /> {local.copied ? 'copied' : ''}
+               </button>
+            ) : null}
+         </div>
+         {thinking != null && local.showThinking ? <pre className="run-thinking">{thinking}</pre> : null}
+         {answer === '' ? (
+            <div className="noimg">the model reasoned past its token budget and never answered — raise max tokens</div>
+         ) : (
+            <pre className="run-text-body">{answer}</pre>
+         )}
+      </div>
+   )
+})
+
 /** live card while a run is in flight: progress bar + the latest latent frame */
 const RunningCard = observer(function RunningCard(p: { st: WebSt; local: GalleryLocal }) {
    // the RUNNING module, never the selection: switching modules mid-run must not retarget the card
@@ -184,12 +253,22 @@ const RunningCard = observer(function RunningCard(p: { st: WebSt; local: Gallery
    if (!p.st.run.isRunning || moduleKey == null) return null
    const percent = p.st.run.progressPercent
    const previewUrl = runPreviewSrc({ module: moduleKey, tick: p.st.run.previewTick })
+   // the node's OWN counter: generated tokens on a text node, sampler steps on a KSampler.
+   // A text graph has no latent frame and no image, so without this its card is a bare bar
+   const node = p.st.run.progressNode
+   const count = p.st.run.progressCount
    return (
       <div className="run-card running">
          <div className="meta">
             <span>generating {moduleKey}…</span>
             <span>{percent != null ? `${Math.round(percent)}%` : ''}</span>
          </div>
+         {node != null ? (
+            <div className="run-node">
+               {node}
+               {count != null ? ` ${count.value}/${count.max}` : ''}
+            </div>
+         ) : null}
          <div className="progress-track">
             <div className="progress-fill" style={{ width: `${percent ?? 0}%` }} />
          </div>
@@ -262,8 +341,13 @@ export const Gallery = observer(function Gallery(p: { st: WebSt; compact?: boole
                         </div>
                      ),
                   )}
-                  {r.images.length === 0 ? <div className="noimg">no image outputs</div> : null}
+                  {r.images.length === 0 && (r.texts ?? []).length === 0 ? (
+                     <div className="noimg">no outputs</div>
+                  ) : null}
                </div>
+               {(r.texts ?? []).map((t, ix) => (
+                  <TextResult key={`${r.promptId}-${ix}`} entry={t} />
+               ))}
             </div>
          ))}
          <Lightbox st={p.st} local={local} />

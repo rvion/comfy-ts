@@ -94,7 +94,9 @@
       "prepublishOnly": "bun run ci && bun run build",
       "tui": "bun src/cli/comfy-ts-cli.ts tui",
       "serve": "bun src/cli/comfy-ts-cli.ts serve",
-      "serve:watch": "bun src/cli/comfy-ts-cli.ts serve"
+      "serve:watch": "bun --watch src/cli/comfy-ts-cli.ts serve",
+      "serve:0000": "bun src/cli/comfy-ts-cli.ts serve --host 0.0.0.0",
+      "serve:0000:rvion": "bun src/cli/comfy-ts-cli.ts serve --host 0.0.0.0 examples/rvion"
    },
    "rvt": {
       "skip": [

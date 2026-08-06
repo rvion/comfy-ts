@@ -55,9 +55,15 @@ export type ServeExecution = {
    /** buffer is the ONLY copy for an in-memory image (saving off); reading it on a
     * SAVED image would hit the disk, so it is only touched when absPath is null */
    images: { absPath: string | null; filename: string; buffer?: Uint8Array }[]
+   /** STRING outputs (PreviewAny, i.e. every llm graph). A text-only workflow has no images at
+    * all, so without these its run reply is empty and the panel shows nothing */
+   texts?: { nodeId: string; nodeKey: string | null; text: string }[]
    data: { id: string; error?: unknown }
    /** live global progress (ComfyExecution has it; fakes may omit) — the /run/<module> poll reads it */
    progressGlobal?: { percent: number }
+   /** the executing node and ITS counter, in its own unit (sampler steps, generated tokens).
+    * The only live signal a text node has: ComfyUI sends no partial text */
+   progress?: { nodeName: string | null; nodeProgress: { value: number; max: number } | null }
 }
 
 export type ServeStarter = (
@@ -905,6 +911,15 @@ export class ServeApp {
          running,
          status: exec?.status ?? 'idle',
          percent: running ? (exec.progressGlobal?.percent ?? null) : null,
+         // the node and ITS counter: on a text graph this is the ONLY thing that moves, since
+         // ComfyUI publishes no partial text (probed: 90 progress messages, then one `executed`)
+         node: running ? (exec.progress?.nodeName ?? null) : null,
+         // value/max ONLY: the raw ws progress message also carries prompt_id and node, and
+         // echoing a whole wire message into our own api makes its extra fields look like ours
+         nodeProgress:
+            running && exec.progress?.nodeProgress != null
+               ? { value: exec.progress.nodeProgress.value, max: exec.progress.nodeProgress.max }
+               : null,
          hasPreview: this.latentPreviews.has(mod.key),
          previewSeq: this.latentPreviews.get(mod.key)?.seq ?? null,
       })
@@ -1067,9 +1082,9 @@ export class ServeApp {
          })
       }
 
-      console.log(
-         `[serve] 🟢 ${mod.key}/${draft} done in ${(durationMs / 1000).toFixed(1)}s · ${execution.images.length} image(s)`,
-      )
+      const produced = [`${execution.images.length} image(s)`]
+      if ((execution.texts ?? []).length > 0) produced.push(`${(execution.texts ?? []).length} text(s)`)
+      console.log(`[serve] 🟢 ${mod.key}/${draft} done in ${(durationMs / 1000).toFixed(1)}s · ${produced.join(' · ')}`)
 
       // saving off → the buffer is the only copy: keep it addressable so the gallery (and
       // curl) still get an image instead of a null url
@@ -1100,6 +1115,7 @@ export class ServeApp {
          durationMs,
          seeds,
          savedToDisk: this.settings.saveToDisk,
+         texts: (execution.texts ?? []).map((t) => ({ nodeKey: t.nodeKey, text: t.text })),
          images: execution.images.map((img, ix) => ({
             filename: img.filename,
             url:

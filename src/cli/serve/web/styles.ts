@@ -192,6 +192,21 @@ button.mode.sel { background: var(--accent-dim); border-color: var(--accent); co
 .run-card img { max-width: min(320px, 100%); max-height: 320px; border-radius: 6px; display: block; }
 .run-card .noimg { color: var(--dim); font-style: italic; }
 .run-card.running { border-color: var(--accent-dim); }
+/* what the host is on, in the node's own unit — the live signal of a text run, which has
+   neither a latent frame nor an image to show */
+.run-node { color: var(--accent); font-size: 12px; margin-bottom: 6px; font-variant-numeric: tabular-nums; }
+
+/* a STRING output: the answer is prose, so it wraps and selects like prose. Monospace because
+   an expanded prompt is copied into another field verbatim */
+.run-text { margin-top: 8px; border-top: 1px solid var(--border); padding-top: 6px; }
+.run-text-head { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+.run-text-body, .run-thinking {
+   margin: 0; white-space: pre-wrap; overflow-wrap: anywhere;
+   font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; line-height: 1.5;
+   background: var(--panel-2); border: 1px solid var(--border); border-radius: 6px; padding: 7px 9px;
+   max-height: 40vh; overflow-y: auto;
+}
+.run-thinking { color: var(--dim); font-size: 12px; margin-bottom: 6px; }
 .progress-track { height: 6px; background: var(--panel-2); border-radius: 3px; overflow: hidden; margin-bottom: 8px; }
 .progress-fill { height: 100%; background: var(--accent); border-radius: 3px; transition: width 0.4s ease; }
 

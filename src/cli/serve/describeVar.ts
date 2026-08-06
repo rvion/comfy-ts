@@ -11,6 +11,7 @@ import type {
    SeedVar,
    SizePreset,
    SizeVar,
+   TextVar,
    VarKind,
 } from 'src/vars/ComfyVars.ts'
 
@@ -38,6 +39,8 @@ export type VarDescriptor = {
     * the picker with a warning, because a lora present on disk usually runs even when the
     * server has not rescanned its list — filled by ServeApp.describeModule */
    managerOnlyOptions?: readonly string[]
+   /** text: this one wants a box, not a line (`v.text(…, { multiline: true })`) */
+   multiline?: boolean
    min?: number
    max?: number
    presets?: SizePreset[]
@@ -57,8 +60,10 @@ export function describeVar(varDef: AnyVar): VarDescriptor {
    switch (varDef.kind) {
       case 'prompt':
          return { ...base, payload: 'string ("//" lines = comments, "- " lines = negative)' }
-      case 'text':
-         return { ...base, payload: 'string' }
+      case 'text': {
+         const v = varDef as TextVar
+         return { ...base, payload: 'string', multiline: v.opts.multiline }
+      }
       case 'int': {
          const v = varDef as IntVar
          return { ...base, payload: `integer${rangeText(v.opts)}`, min: v.opts.min, max: v.opts.max }
