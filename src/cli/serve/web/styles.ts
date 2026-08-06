@@ -23,19 +23,12 @@ body {
 }
 #root { height: 100%; }
 .app { display: flex; flex-direction: column; height: 100%; }
-.topbar {
-   display: flex; align-items: baseline; gap: 12px;
-   padding: 10px 16px; border-bottom: 1px solid var(--border); background: var(--panel);
-}
-.topbar h1 { font-size: 15px; margin: 0; font-weight: 600; }
-.topbar .dim { color: var(--dim); font-size: 12px; }
-.burger { font-size: 16px; padding: 3px 10px; align-self: center; }
 .cols { display: flex; flex: 1; min-height: 0; position: relative; }
 .backdrop { display: none; }
 
 .sidebar {
    width: 240px; flex-shrink: 0; overflow-y: auto;
-   border-right: 1px solid var(--border); background: var(--panel); padding: 8px 0;
+   border-right: 1px solid var(--border); background: var(--panel); padding: 6px 0;
 }
 .side-module { padding: 6px 12px 2px; }
 .side-module .name { font-weight: 600; }
@@ -50,16 +43,16 @@ body {
 .side-errors .file { color: var(--dim); word-break: break-all; }
 .side-errors .msg { color: var(--red); }
 
-.main { flex: 1; overflow-y: auto; padding: 16px 20px 60px; }
+.main { flex: 1; overflow-y: auto; padding: 12px 14px 48px; }
 .main h2 { font-size: 14px; margin: 0; color: var(--dim); font-weight: 500; }
 .main h2 b { color: var(--text); }
-.form-head { display: flex; gap: 12px; align-items: baseline; margin-bottom: 12px; flex-wrap: wrap; }
+.form-head { display: flex; gap: 10px; align-items: baseline; margin-bottom: 8px; flex-wrap: wrap; }
 
 /* the TUI header on the web: one labelled box per thing you are editing, actions below */
-.head-boxes { display: flex; gap: 10px; flex-wrap: wrap; margin: 6px 0 0; }
+.head-boxes { display: flex; gap: 8px; flex-wrap: wrap; margin: 4px 0 0; }
 .head-box {
    position: relative; border: 1px solid var(--border); border-radius: 8px;
-   padding: 7px 12px; background: var(--panel); min-width: 0;
+   padding: 5px 9px; background: var(--panel); min-width: 0;
 }
 .head-label {
    position: absolute; top: -7px; left: 9px; padding: 0 5px; background: var(--bg);
@@ -77,21 +70,27 @@ body {
    color: var(--amber); display: inline-flex; align-items: center; gap: 5px;
 }
 .head-value.as-link:hover { color: var(--accent); text-decoration: underline; }
-.head-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 12px 0 14px; }
+.head-actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin: 8px 0 10px; }
 .head-actions button { padding: 4px 12px; font-size: 12px; }
 button.danger { color: var(--dim); }
 button.danger:hover { color: var(--red); border-color: var(--red); }
 
 /* the sidebar is a tree: folder → workflows → drafts, the branch line makes the nesting readable */
-.side-group { margin-bottom: 10px; }
+.side-group { margin-bottom: 7px; }
 .side-folder { padding: 4px 12px 2px; color: var(--dim); font-size: 11px; overflow-wrap: anywhere; }
 .side-branch { margin-left: 10px; border-left: 1px solid var(--border); }
 
+/* the label column is fit-content CAPPED, not a fixed slab: with short labels the controls
+   start right after them. Rows are subgrids of .vars so the column still lines up across
+   rows — a per-row grid would give every row its own width. The 150px track is the
+   pre-subgrid fallback, kept first so an old engine still gets aligned columns */
+.vars { display: grid; grid-template-columns: fit-content(150px) 1fr; }
 .var-row {
-   display: grid; grid-template-columns: 170px 1fr; gap: 10px; align-items: start;
-   padding: 8px 0; border-bottom: 1px solid var(--border);
+   display: grid; grid-template-columns: 150px 1fr; grid-column: 1 / -1;
+   grid-template-columns: subgrid; gap: 8px; align-items: start;
+   padding: 5px 0; border-bottom: 1px solid var(--border);
 }
-.var-label { padding-top: 5px; overflow-wrap: break-word; }
+.var-label { padding-top: 4px; overflow-wrap: break-word; }
 /* the grip appears on hover: a permanent one on every row is noise */
 .drag-handle {
    display: inline-flex; vertical-align: -0.15em; margin-right: 4px; cursor: grab;
@@ -106,7 +105,7 @@ button.danger:hover { color: var(--red); border-color: var(--red); }
 .var-label .dirty-dot { color: var(--amber); margin-left: 4px; background: none; border: 0; padding: 0; cursor: pointer; font: inherit; }
 .var-label .dirty-dot:hover { color: var(--red); }
 .var-control { min-width: 0; }
-.hint { color: var(--dim); font-size: 11px; margin-top: 3px; }
+.hint { color: var(--dim); font-size: 11px; margin-top: 2px; }
 
 input[type='text'], input[type='number'], textarea, select {
    background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
@@ -136,16 +135,16 @@ button.mode.sel { background: var(--accent-dim); border-color: var(--accent); co
 .runbar {
    position: sticky; bottom: 0; display: flex; gap: 14px; align-items: center;
    background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
-   padding: 10px 14px; margin-top: 14px;
+   padding: 8px 12px; margin-top: 10px;
 }
 .runbar .status { color: var(--dim); font-size: 12px; }
 .runbar .error { color: var(--red); font-size: 12px; white-space: pre-wrap; }
 .pulse { animation: pulse 1.2s ease-in-out infinite; }
 @keyframes pulse { 50% { opacity: 0.45; } }
 
-.gallery { margin-top: 18px; display: flex; flex-direction: column; gap: 14px; }
+.gallery { margin-top: 12px; display: flex; flex-direction: column; gap: 10px; }
 .gallery-head { display: flex; gap: 12px; align-items: baseline; color: var(--dim); font-size: 12px; }
-.run-card { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; }
+.run-card { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; }
 .run-card .meta { color: var(--dim); font-size: 12px; margin-bottom: 8px; display: flex; justify-content: space-between; gap: 8px; }
 .run-card .imgs { display: flex; flex-wrap: wrap; gap: 10px; }
 .run-card img { max-width: min(320px, 100%); max-height: 320px; border-radius: 6px; display: block; }

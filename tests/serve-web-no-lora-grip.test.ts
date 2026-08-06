@@ -10,7 +10,7 @@ const css = readFileSync('src/cli/serve/web/styles.ts', 'utf8')
 describe('lora card chrome', () => {
    it('renders no grip', () => {
       expect(card).not.toContain('chip-grip')
-      expect(card).not.toContain("name=\"grip\"")
+      expect(card).not.toContain('name="grip"')
       expect(card).not.toContain("name='grip'")
       expect(css).not.toContain('chip-grip')
    })

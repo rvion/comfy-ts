@@ -5,7 +5,6 @@
 import type { ReactNode } from 'react'
 
 export type IconName =
-   | 'menu'
    | 'close'
    | 'trash'
    | 'copy'
@@ -38,7 +37,6 @@ export type IconName =
 
 /** 24x24 viewBox paths, stroked (fill: none) unless the shape reads better solid */
 const PATHS: Record<IconName, ReactNode> = {
-   menu: <path d="M4 7h16M4 12h16M4 17h16" />,
    close: <path d="M6 6l12 12M18 6L6 18" />,
    trash: <path d="M4 7h16M10 7V5h4v2M6 7l1 12h10l1-12M10 11v5M14 11v5" />,
    copy: <path d="M9 9h10v10H9zM5 15V5h10" />,

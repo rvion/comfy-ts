@@ -472,21 +472,25 @@ export const VarsForm = observer(function VarsForm(p: { st: WebSt }) {
          {/* the autosave state is the draft box's legend now; only a FAILURE gets a line of
              its own, because that one you must not miss */}
          {form.saveState === 'error' ? <div className="error">🔴 draft save failed: {form.saveError}</div> : null}
-         {orderedVars.map((v, ix) => (
-            // keyed by DRAFT too: a draft switch must reset per-row ui state (lora filter,
-            // remembered strengths), not carry the other draft's over
-            <VarRow
-               key={`${form.draft}/${v.name}`}
-               v={v}
-               host={form.host}
-               st={p.st}
-               module={form.moduleKey}
-               index={ix}
-               names={orderedNames}
-            />
-         ))}
-         {/* the OUTPUT is a knob like the others: a row, not a lone button in the header */}
-         <SaveRow st={p.st} module={form.moduleKey} />
+         {/* ONE grid for every row (rows are subgrids of it), so the label column can size
+             itself to the longest label instead of reserving a fixed slab of the width */}
+         <div className="vars">
+            {orderedVars.map((v, ix) => (
+               // keyed by DRAFT too: a draft switch must reset per-row ui state (lora filter,
+               // remembered strengths), not carry the other draft's over
+               <VarRow
+                  key={`${form.draft}/${v.name}`}
+                  v={v}
+                  host={form.host}
+                  st={p.st}
+                  module={form.moduleKey}
+                  index={ix}
+                  names={orderedNames}
+               />
+            ))}
+            {/* the OUTPUT is a knob like the others: a row, not a lone button in the header */}
+            <SaveRow st={p.st} module={form.moduleKey} />
+         </div>
          <div className="runbar">
             {/* side and pinned put generate INSIDE the results panel (it sits next to what it
                 produces, and on a phone it stays on screen); the form keeps it otherwise */}

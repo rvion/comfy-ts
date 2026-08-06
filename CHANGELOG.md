@@ -9,6 +9,8 @@
 
 ### The web panel
 
+- **The title bar is gone.** It named the app and held a burger that opened the workflow menu; clicking the WORKFLOW box does that, so the bar only spent a strip of every screen. The page is tighter everywhere else too: smaller head boxes, rows and gutters.
+- **The var label column sizes itself.** It was a fixed 150px slab, so a form of short labels pushed every control halfway across the screen. It now fits the longest label, capped, and still lines up across rows.
 - **A lora card drags from anywhere on it**, and carries no grip at all. It disarms itself for one gesture when you press on a control, so the strength slider, its number, the switch and the ✕ all still work; the picture and the card's own padding are what starts a reorder.
 - **The strength value has room** — a signed two-decimal value like `-0.55` was clipped.
 - **The kind tag moved into a tooltip.** `int`, `seed`, `loras` were printed under every label, on their own line and out of alignment with the control beside them. Hover the label when you want it.

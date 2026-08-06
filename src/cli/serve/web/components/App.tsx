@@ -1,6 +1,6 @@
-// layout root: topbar (burger toggles the sidebar), sidebar drawer, form
-// column + results column (right on wide screens, below on narrow ones)
-import { Icon } from 'src/cli/serve/web/components/Icon.tsx'
+// layout root: sidebar drawer + form column + results column (right on wide
+// screens, below on narrow ones). NO title bar: the workflow head box opens the
+// sidebar, so a permanent bar would only spend vertical space naming the app
 import { observer } from 'mobx-react-lite'
 import { Gallery } from 'src/cli/serve/web/components/Gallery.tsx'
 import { Sidebar } from 'src/cli/serve/web/components/Sidebar.tsx'
@@ -17,21 +17,6 @@ export const App = observer(function App(p: { st: WebSt }) {
       )
    return (
       <div className="app">
-         <div className="topbar">
-            <button
-               type="button"
-               className="burger"
-               data-tip="toggle the workflow menu"
-               onClick={() => p.st.toggleSidebar()}
-            >
-               <Icon name="menu" />
-            </button>
-            <h1>comfy-ts serve</h1>
-            <span className="dim">
-               {p.st.modules.length} workflow{p.st.modules.length === 1 ? '' : 's'} · drafts are the base, edits
-               override per run
-            </span>
-         </div>
          <div className="cols">
             {p.st.sidebarOpen ? <div className="backdrop" onClick={() => p.st.toggleSidebar()} /> : null}
             {p.st.sidebarOpen ? <Sidebar st={p.st} /> : null}
