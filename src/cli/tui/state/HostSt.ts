@@ -300,9 +300,10 @@ export class HostSt {
             this.st.exec.notice = 'reboot requested — the ws reconnects when the host is back'
          })
       } catch (e) {
-         // the server dropping the connection mid-reboot IS the expected shape
+         // restartComfyUI already resolves on the mid-reboot disconnect, so an error here is a
+         // host that REFUSED. Reporting it as "requested" is how a dead button looks alive
          runInAction(() => {
-            this.st.exec.notice = `reboot requested (${extractErrorMessage(e)}) — the ws reconnects when the host is back`
+            this.st.exec.notice = `🔴 reboot refused: ${extractErrorMessage(e)}`
          })
       } finally {
          runInAction(() => {

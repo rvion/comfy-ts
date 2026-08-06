@@ -617,9 +617,10 @@ export class ServeApp {
             })
          }
          if (action === 'restart') {
-            // the server dropping the connection mid-reboot IS the expected shape, so a
-            // failure here still means "asked" — the ws reconnects when it comes back
-            await host.manager.restartComfyUI().catch(() => null)
+            // restartComfyUI already treats the mid-reboot disconnect as success, so what
+            // reaches here is a host that REFUSED — swallowing it reported a reboot that
+            // never happened, which is worse than saying nothing
+            await host.manager.restartComfyUI()
             return json(200, { ok: true, host: hostId, action, note: 'reboot requested — it reconnects when back' })
          }
          return json(400, {

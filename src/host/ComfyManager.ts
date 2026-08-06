@@ -80,19 +80,37 @@ export class ComfyManager {
    rebootComfyUIAndUpdateHostPluginsAndModelsAfter10Seconds(): Promise<void> {
       // 🔴 bad code
       setTimeout(() => void this.fetchPluginsAndModels(), 10_000)
-      // curl 'http://<host>:8188/api/manager/reboot' \
-      //     -H 'Accept: */*' \
-      //     -H 'Accept-Language: en-GB' \
-      //     -H 'Cache-Control: max-age=0' \
-      //     -H 'Comfy-User: undefined' \
-      //     -H 'Connection: keep-alive' \
-      //     -H 'Referer: http://<host>:8188/' \
-      //     -H 'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) cushystudio-shell/32.1.2 Chrome/128.0.6613.162 Electron/32.1.2 Safari/537.36'
-      return this.fetchGetJSON('/manager/reboot')
+      return this.restartComfyUI()
    }
 
-   restartComfyUI = async (): Promise<unknown> => {
-      return this.fetchGetJSON('/manager/reboot')
+   /**
+    * reboot the ComfyUI process (ComfyUI-Manager).
+    *
+    * The server dies mid-request, so a DROPPED CONNECTION is the success shape and the only
+    * one most callers ever see. A 404 is not: the route is POST from Manager V3 on (verified
+    * against V3.41), and a GET there answers 404 while the process keeps running — a caller
+    * that treats every failure as "expected mid-reboot disconnect" then reports a reboot that
+    * never happened. Both verbs are tried so an old and a new Manager both work, and anything
+    * that is neither a disconnect nor a 404 throws with what the host actually said.
+    */
+   restartComfyUI = async (): Promise<void> => {
+      const refusals: string[] = []
+      for (const method of ['POST', 'GET'] as const) {
+         let response: Response
+         try {
+            response = await this.host.fetch('/manager/reboot', { method })
+         } catch {
+            return // connection gone: the process is going down, which is what we asked for
+         }
+         if (response.ok) return
+         refusals.push(`${method} → ${response.status}`)
+         // only a missing route is worth retrying with the other verb
+         if (response.status !== 404) break
+      }
+      throw new Error(
+         `🔴 ${this.host.getServerHostHTTP()} refused to reboot (${refusals.join(', ')}) — ` +
+            `ComfyUI-Manager is not installed there, or its reboot route moved again`,
+      )
    }
 
    modelList: Maybe<ComfyManagerAPIModelList> = null
