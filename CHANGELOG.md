@@ -21,6 +21,9 @@
 
 ### The web panel
 
+- **The panel's URL is shareable.** The selected workflow and draft ride the address bar (`?workflow=04-krea2-turbo-t2i&draft=sheep%20fun%202`) and follow every switch, rename and duplicate, so the link on screen always opens what you are looking at. Someone opening it lands on that exact draft: the URL wins over whatever their browser last had, which is the point of sending one. A link naming a workflow or a draft the server no longer has falls back instead of failing, and params the panel does not own are left alone.
+
+
 - **Results can sit LEFT of the form too**, a fifth placement in the button group. The corner placement got an icon from the same family (a filled corner inside the same frame) instead of a pin, which said "sticky" while every sibling said where.
 - **The head boxes lay out in 4, 2 or 1 column**, and they measure the form column rather than the window — a results panel on the side halves the space they have while the viewport is unchanged, so a width media query would answer the wrong question. Even splits only: wrapping used to be able to leave three boxes on one line and one alone below. The form also gets some air under them, instead of the first var sitting flush against the boxes.
 - **Fixed: the page scrolled when it had nothing to scroll**, and the side results column overflowed past its own scrollbar once it held several images. The column was sized against the whole viewport while living inside a padded scroll container, so it was always taller than the room it had; it now subtracts that padding exactly, and measures `dvh` so a phone's browser chrome counts. The 48px of bottom padding left over from a fixed run bar went too: everything that floats there is sticky, so it takes flow space and needs no clearance.

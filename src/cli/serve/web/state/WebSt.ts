@@ -21,6 +21,7 @@ import {
 import { EnhancerSt } from 'src/cli/serve/web/state/EnhancerSt.ts'
 import { FormSt } from 'src/cli/serve/web/state/FormSt.ts'
 import { logWebError } from 'src/cli/serve/web/logWeb.ts'
+import { readUrlSelection, resolveSelection, writeUrlSelection } from 'src/cli/serve/web/state/urlSelection.ts'
 import { RunSt } from 'src/cli/serve/web/state/RunSt.ts'
 
 /** selection + drawer survive a reload: hand-tuned state persists and restores */
@@ -204,6 +205,25 @@ export class WebSt {
       this.persist()
    }
 
+   /** the address bar follows the selection, so the url on screen is always the one to share.
+    * replaceState, not pushState: picking drafts is a browsing gesture here, and one history
+    * entry per click would make Back mean "undo the last twelve clicks" */
+   private syncUrl(): void {
+      const form = this.form
+      if (form == null) return
+      try {
+         const search = writeUrlSelection({
+            search: window.location.search,
+            module: form.moduleKey,
+            draft: form.draft,
+         })
+         window.history.replaceState(null, '', `${window.location.pathname}${search}${window.location.hash}`)
+      } catch (e) {
+         // a sandboxed frame can refuse history writes; the panel itself still works
+         logWebError('could not put the selection in the url', e)
+      }
+   }
+
    private persist(): void {
       try {
          // merge, never rebuild: toggling the sidebar before a draft loads must not
@@ -244,10 +264,15 @@ export class WebSt {
          void this.loadSettings()
          void this.loadHosts()
          const stored = readStoredSelection()
-         const mod = (stored.module != null ? this.moduleByKey(stored.module) : null) ?? this.modules[0]
-         if (mod == null) return
-         const draft = stored.draft != null && mod.drafts.includes(stored.draft) ? stored.draft : 'default'
-         await this.select({ module: mod.module, draft })
+         // the URL wins over the stored selection: a link someone sent is an instruction, the
+         // stored one is only a memory of this browser's last visit
+         const opening = resolveSelection({
+            url: readUrlSelection(window.location.search),
+            stored: { module: stored.module ?? null, draft: stored.draft ?? null },
+            modules: this.modules,
+         })
+         if (opening == null) return
+         await this.select(opening)
       } catch (e) {
          runInAction(() => {
             this.phase = 'error'
@@ -292,6 +317,7 @@ export class WebSt {
             if (token !== this.selectToken) return
             this.form = new FormSt(p.module, p.draft, mod, reply.values ?? {})
             this.persist()
+            this.syncUrl()
          })
       } catch (e) {
          runInAction(() => {
