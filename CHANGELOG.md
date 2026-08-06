@@ -9,7 +9,7 @@
 
 ### The web panel
 
-- **A lora card drags from anywhere on it**, not just from the grip in its corner. It disarms itself for one gesture when you press on a control, so the strength slider and its number still work; the grip stays as the hint that cards reorder at all.
+- **A lora card drags from anywhere on it**, and carries no grip at all. It disarms itself for one gesture when you press on a control, so the strength slider, its number, the switch and the ✕ all still work; the picture and the card's own padding are what starts a reorder.
 - **The strength value has room** — a signed two-decimal value like `-0.55` was clipped.
 - **The kind tag moved into a tooltip.** `int`, `seed`, `loras` were printed under every label, on their own line and out of alignment with the control beside them. Hover the label when you want it.
 - **The seed row no longer restates the mode it is on.** `+1` already says it increments; each mode button keeps its own hint.
