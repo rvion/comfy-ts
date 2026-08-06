@@ -38,6 +38,17 @@ function run(p: { cmd: string[]; capture?: boolean }): string {
    return p.capture ? (res.stdout?.toString() ?? '') : ''
 }
 
+/** the npm token, never from a tracked file: `NPM_TOKEN` if it is set, else the command named
+ * by `COMFY_TS_NPM_TOKEN_CMD` (a keychain or secret-store call, whichever this machine uses).
+ * Naming one particular tool here would publish somebody's local setup with the package. */
+function npmToken(): string {
+   const direct = process.env['NPM_TOKEN']
+   if (direct != null && direct !== '') return direct.trim()
+   const cmd = process.env['COMFY_TS_NPM_TOKEN_CMD']
+   if (cmd == null || cmd === '') return ''
+   return run({ cmd: ['sh', '-c', cmd], capture: true }).trim()
+}
+
 async function main(): Promise<void> {
    const dryRun = process.argv.includes('--dry-run')
    const allowDirty = process.argv.includes('--allow-dirty')
@@ -76,8 +87,11 @@ async function main(): Promise<void> {
    console.log(`[release] 📝 notes: ${notes.split('\n').length} lines from CHANGELOG.md "## ${version}"`)
 
    run({ cmd: ['gh', 'auth', 'status'], capture: true })
-   const token = run({ cmd: ['rv-secret', 'get', 'rv/npm/token'], capture: true }).trim()
-   if (token === '') throw new Error('[release] 🔴 rv-secret returned an empty npm token')
+   const token = npmToken()
+   if (token === '')
+      throw new Error(
+         '[release] 🔴 no npm token — set NPM_TOKEN, or COMFY_TS_NPM_TOKEN_CMD to a command that prints one',
+      )
 
    if (dryRun) {
       const steps = alreadyPublished ? `tag ${tag} → push → gh release` : `npm publish → tag ${tag} → push → gh release`
