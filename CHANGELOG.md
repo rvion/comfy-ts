@@ -17,6 +17,14 @@
 
 ### The web panel
 
+- **Fixed: an edit made while a save was in flight could be lost.** The panel only remembered what the server had CONFIRMED, so undoing a change back to that value during an open request wrote nothing and the value you had just undone landed on disk, under a "saved" label.
+- **Fixed: the lora keywords listed above a prompt were in the wrong order.** They followed the order you dragged the cards into, while the run injects them in the var's option order, so the preview and the prompt disagreed the moment you reordered.
+- **Fixed: a draft that fails to load no longer leaves the previous one on screen.** It stayed editable with its autosave already stopped, so edits silently went nowhere while the header still read "saved".
+- **Fixed: lora previews, trigger words and the details sheet follow the host you picked**, instead of the workflow's own host while the manager link opened the other one. The console header names the host the lines actually come from too.
+- **Fixed: opening one lora's details then another's could show the first one's description** under the second one's name.
+- **Fixed: a failed lora-manager lookup says so** instead of rendering an empty sheet that reads as "this lora has nothing to say".
+- **Fixed: renaming a draft and then clicking another draft no longer silently duplicates it.** Enter commits the name (the field says so); clicking away cancels.
+- **Fixed: a malformed stored ui-state no longer blanks the page.** The remembered field order is shape-checked on read.
 - **Fixed: on a Windows host, a lora only the lora-manager knew was offered and then refused.** The picker built its names with the host's own separator while the API built the same list with `/`, and the two are compared as raw strings — so picking one answered `unknown lora(s)` on generate. Both sides call one function now.
 - **Fixed: the panel could keep running an old bundle for days.** `/web/app.js` carried no cache header, so browsers applied heuristic freshness and reused the copy they already had: you reload, the server has the new code, and the page does not, which makes every fix look like it never landed. The shell and the bundle are `no-store` now, and the script url carries a hash of the bundle, so changed code is fetched under a url the cache has never seen.
 - **The title bar is gone.** It named the app and held a burger that opened the workflow menu; clicking the WORKFLOW box does that, so the bar only spent a strip of every screen. The page is tighter everywhere else too: smaller head boxes, rows and gutters.

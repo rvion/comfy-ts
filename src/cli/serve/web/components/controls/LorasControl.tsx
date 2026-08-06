@@ -12,6 +12,7 @@
 // WebSt); with both hidden the row collapses to a count. Names come from
 // descriptor optionLabels; the value keeps raw enum keys, replaced by copy
 import { Icon } from 'src/cli/serve/web/components/Icon.tsx'
+import { logWebError } from 'src/cli/serve/web/logWeb.ts'
 import { observer, useLocalObservable } from 'mobx-react-lite'
 import { useEffect, useRef, type ReactNode } from 'react'
 import { fetchLoraAbout, fetchLoraInfo, loraPreviewSrc, type LoraAbout, type LoraInfo } from 'src/cli/serve/web/api.ts'
@@ -562,30 +563,57 @@ const LoraDetails = observer(function LoraDetails(p: {
    const local = useLocalObservable<{
       info: LoraInfo | 'loading' | 'error'
       about: LoraAbout | null
+      aboutError: string | null
       set(v: LoraInfo | 'loading' | 'error'): void
       setAbout(v: LoraAbout | null): void
+      setAboutError(msg: string): void
    }>(() => ({
       info: 'loading',
       about: null,
+      aboutError: null,
       set(v) {
          this.info = v
       },
       setAbout(v) {
          this.about = v
+         this.aboutError = null
+      },
+      setAboutError(msg: string) {
+         this.about = null
+         this.aboutError = msg
       },
    }))
    const { name, host } = p
    useEffect(() => {
+      // the panel is ONE instance reused across loras, and /lora-about is a live host round
+      // trip: without this guard, opening A then B within A's latency painted A's description
+      // and example images under B's title
+      let current = true
       local.set('loading')
       local.setAbout(null)
       fetchLoraInfo({ host, name })
-         .then((i) => local.set(i))
-         .catch(() => local.set('error'))
+         .then((i) => {
+            if (current) local.set(i)
+         })
+         .catch((e: unknown) => {
+            if (current) local.set('error')
+            logWebError(`lora info for ${name}`, e)
+         })
       // the LIVE half (civitai description + example images) arrives second: the mirror data
       // must not wait on a host round trip to render
       fetchLoraAbout({ host, name })
-         .then((a) => local.setAbout(a))
-         .catch(() => local.setAbout(null))
+         .then((a) => {
+            if (current) local.setAbout(a)
+         })
+         .catch((e: unknown) => {
+            // an empty sheet reads as "this lora has nothing to say", which is a different
+            // fact from "the extension did not answer"
+            if (current) local.setAboutError(e instanceof Error ? e.message : String(e))
+            logWebError(`lora details for ${name}`, e)
+         })
+      return () => {
+         current = false
+      }
    }, [host, name, local])
    useEffect(() => {
       const onKey = (e: KeyboardEvent): void => {
@@ -658,6 +686,11 @@ const LoraDetails = observer(function LoraDetails(p: {
                         ) : null}
                         {local.about?.examplesReason == null ? null : (
                            <div className="hint">no example images: {local.about.examplesReason}</div>
+                        )}
+                        {/* an empty sheet reads as "this lora has nothing to say"; that the
+                            extension never answered is a different fact and must be said */}
+                        {local.aboutError == null ? null : (
+                           <div className="error">🔴 the lora manager did not answer: {local.aboutError}</div>
                         )}
                         {p.hostUrl == null ? null : (
                            <a className="button-link" href={`${p.hostUrl}/loras`} target="_blank" rel="noreferrer">

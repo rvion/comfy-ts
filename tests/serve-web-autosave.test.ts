@@ -3,7 +3,7 @@
 // in flight the form still believes the disk holds the older value. Editing back to that
 // value made save() report "saved" and write nothing, and the in-flight PUT then landed the
 // value you had just undone.
-import { describe, expect, it } from 'bun:test'
+import { afterAll, afterEach, describe, expect, it } from 'bun:test'
 import { FormSt } from 'src/cli/serve/web/state/FormSt.ts'
 import type { ModuleDescription } from 'src/cli/serve/web/api.ts'
 
@@ -16,6 +16,16 @@ const MOD: ModuleDescription = {
 }
 
 const ok = (): Response => new Response(JSON.stringify({ ok: true, drafts: ['default'] }), { status: 200 })
+
+// bun runs every test file in ONE process: a stubbed global that is not put back breaks the
+// files that run after this one, and the failure surfaces far from here
+const realFetch = globalThis.fetch
+afterEach(() => {
+   globalThis.fetch = realFetch
+})
+afterAll(() => {
+   globalThis.fetch = realFetch
+})
 
 /** a fetch stub that holds every PUT open until release(), then stops holding: saves are
  * CHAINED, so a later one is only issued once the earlier resolves */

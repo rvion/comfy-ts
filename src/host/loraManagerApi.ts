@@ -146,12 +146,19 @@ export type LoraSweep =
 export async function fetchLoraDescription(host: ComfyHost, filePath: string): Promise<string | null> {
    try {
       const res = await host.fetch(`/lm/loras/model-description?file_path=${encodeURIComponent(filePath)}`, {})
-      if (!res.ok) return null
+      // a 404 IS "no description", any other status is the extension failing at its job: the
+      // two collapsed to the same silent null, which is the wrong-cause report the sibling
+      // fetchLoraExampleImages carries a `reason` to avoid
+      if (!res.ok) {
+         if (res.status !== 404) logError(`[lora-manager] description ${res.status} for ${filePath}`)
+         return null
+      }
       const raw: unknown = await res.json()
       const description = isRecord(raw) ? raw['description'] : null
       if (typeof description !== 'string' || description === '') return null
       return htmlToText(description)
-   } catch {
+   } catch (e) {
+      logError(`[lora-manager] description unreachable for ${filePath}: ${extractErrorMessage(e)}`)
       return null
    }
 }

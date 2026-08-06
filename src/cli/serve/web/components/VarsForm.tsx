@@ -33,7 +33,10 @@ const VarControl = observer(function VarControl(p: { v: VarSt; host: string; st:
       case 'choice':
          return <ChoiceControl v={p.v} />
       case 'loras':
-         return <LorasControl v={p.v} host={p.host} st={p.st} hostUrl={p.st.hostUrlFor(p.module)} />
+         // the OVERRIDE host, like every other host-scoped read: with `host` fixed at form
+         // construction the previews, trigger words and details sheet came from the workflow's
+         // own box while the manager link opened the one actually selected
+         return <LorasControl v={p.v} host={p.st.hostFor(p.module)} st={p.st} hostUrl={p.st.hostUrlFor(p.module)} />
       case 'size':
          return <SizeControl v={p.v} />
       case 'image':
@@ -147,14 +150,19 @@ const DraftBox = observer(function DraftBox(p: { st: WebSt; form: FormSt }) {
                autoFocus
                className="head-input"
                value={local.name}
-               placeholder={local.mode === 'rename' ? 'rename this draft' : 'new draft name'}
+               // enter is the ONLY commit now, so it has to be said
+               placeholder={local.mode === 'rename' ? 'new name, then enter' : 'new draft name, then enter'}
                onFocus={(e) => e.currentTarget.select()}
                onChange={(e) => local.set(e.target.value)}
                onKeyDown={(e) => {
                   if (e.key === 'Enter') confirm()
                   if (e.key === 'Escape') local.stop()
                }}
-               onBlur={confirm}
+               // blur CANCELS, it does not commit: clicking another draft in the sidebar blurred
+               // this input, and the rename then raced that selection — renameDraft bails when
+               // the form has already moved on, leaving a duplicate instead of a rename, silently.
+               // enter commits, which is the only unambiguous signal
+               onBlur={() => local.stop()}
             />
          ) : (
             /* the name IS the picker: every draft of this workflow, switching selects it */
@@ -488,10 +496,12 @@ export const VarsForm = observer(function VarsForm(p: { st: WebSt }) {
              itself to the longest label instead of reserving a fixed slab of the width */}
          <div className="vars">
             {orderedVars.map((v, ix) => (
-               // keyed by DRAFT too: a draft switch must reset per-row ui state (lora filter,
-               // remembered strengths), not carry the other draft's over
+               // keyed by MODULE and DRAFT: a switch must reset per-row ui state (lora filter,
+               // remembered strengths, paused set), not carry the other selection's over.
+               // module matters because every workflow has a `default` draft and a `prompt`
+               // var, so draft+name alone matches across workflows and react reuses the row
                <VarRow
-                  key={`${form.draft}/${v.name}`}
+                  key={`${form.moduleKey}/${form.draft}/${v.name}`}
                   v={v}
                   host={form.host}
                   st={p.st}

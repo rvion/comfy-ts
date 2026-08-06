@@ -20,6 +20,7 @@ import {
 } from 'src/cli/serve/web/api.ts'
 import { EnhancerSt } from 'src/cli/serve/web/state/EnhancerSt.ts'
 import { FormSt } from 'src/cli/serve/web/state/FormSt.ts'
+import { logWebError } from 'src/cli/serve/web/logWeb.ts'
 import { RunSt } from 'src/cli/serve/web/state/RunSt.ts'
 
 /** selection + drawer survive a reload (his standing default: hand-tuned state persists and restores) */
@@ -59,9 +60,21 @@ type StoredSelection = {
    varOrder?: Record<string, string[]>
 }
 
+/** varOrder is the one stored field a reader INDEXES rather than merely reads, so a blob of
+ * the wrong shape (hand-edited, or written by an older version) crashed the whole panel to a
+ * blank page inside render. Every entry is shape-checked here, once */
+function readVarOrder(raw: unknown): Record<string, string[]> {
+   if (raw == null || typeof raw !== 'object' || Array.isArray(raw)) return {}
+   const out: Record<string, string[]> = {}
+   for (const [k, v] of Object.entries(raw as Record<string, unknown>))
+      if (Array.isArray(v)) out[k] = v.filter((n): n is string => typeof n === 'string')
+   return out
+}
+
 function readStoredSelection(): StoredSelection {
    try {
-      return (JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}') ?? {}) as StoredSelection
+      const raw = (JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}') ?? {}) as StoredSelection
+      return { ...raw, varOrder: readVarOrder(raw.varOrder) }
    } catch {
       return {}
    }
@@ -181,8 +194,8 @@ export class WebSt {
                varOrder: this.varOrder,
             }),
          )
-      } catch {
-         // storage full/blocked: state just won't survive the reload
+      } catch (e) {
+         logWebError('ui state could not be stored (it will not survive a reload)', e)
       }
    }
 
@@ -253,6 +266,10 @@ export class WebSt {
       } catch (e) {
          runInAction(() => {
             if (token !== this.selectToken) return
+            // the outgoing form was DISPOSED above: keeping it on screen leaves an editable
+            // form whose autosave reaction is dead, so edits silently stop persisting while
+            // the header still reads 'saved'. No form is honest, the error says what happened
+            this.form = null
             this.formError = e instanceof Error ? e.message : String(e)
          })
       } finally {
@@ -295,8 +312,11 @@ export class WebSt {
          runInAction(() => {
             this.hosts = hosts
          })
-      } catch {
-         // an older server has no /hosts route: the header just shows the module's own host
+      } catch (e) {
+         // the process serving this page owns /hosts, so a failure here is a real one (500,
+         // transport) rather than an old server: never swallowed, or the host box silently
+         // shows the module default and every host action targets the wrong box
+         logWebError('could not read the host list', e)
       }
    }
 
@@ -361,7 +381,13 @@ export class WebSt {
             this.modules = index.workflows
          })
          if (current != null) {
-            this.form = null
+            // flush and DISPOSE the outgoing form, in an action: dropping the reference alone
+            // leaked its autosave reaction and let it write the file the new form just read
+            current.dispose()
+            await current.save()
+            runInAction(() => {
+               this.form = null
+            })
             await this.select({ module: current.moduleKey, draft: current.draft })
          }
       } catch (e) {
@@ -453,8 +479,10 @@ export class WebSt {
          runInAction(() => {
             this.settings = s
          })
-      } catch {
-         // an older server has no /settings route: it always saves, which is what the default says
+      } catch (e) {
+         // same as the host list: this process owns /settings, so a failure is a real one and
+         // the panel would otherwise show the DEFAULT setting as if it were the server's
+         logWebError('could not read the serve settings', e)
       }
    }
 

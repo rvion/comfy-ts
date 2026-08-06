@@ -138,18 +138,24 @@ export class FormSt {
       return payloadSnapshot(this.vars.map((v) => ({ name: v.name, kind: v.desc.kind, value: v.value })))
    }
 
-   /** the keywords the ACTIVE loras will prepend to this prompt, in the order the loras sit in
-    * the record. Computed here rather than fetched: it must follow every toggle live, and the
-    * descriptor already carries both halves (which loras var feeds it, and each one's keyword) */
+   /** the keywords the ACTIVE loras will prepend to this prompt, in the ORDER THE RUN USES.
+    * That order is the var's option list (LorasVar.activeNames filters `names`), NOT the
+    * record's insertion order: walking the record showed the keywords in drag order while the
+    * prompt that ran used the enum order, so the preview and the run disagreed the moment you
+    * reordered a card. Computed here rather than fetched: it must follow every toggle live */
    loraKeywordsFor(promptVar: VarSt): string[] {
       const sourceName = promptVar.desc.keywordsFrom
       if (sourceName == null) return []
       const source = this.vars.find((v) => v.name === sourceName)
       if (source == null) return []
       const keywords = source.desc.optionKeywords ?? {}
-      const record = source.value != null && typeof source.value === 'object' ? source.value : {}
+      const record = (source.value != null && typeof source.value === 'object' ? source.value : {}) as Record<
+         string,
+         unknown
+      >
       const out: string[] = []
-      for (const [name, st] of Object.entries(record as Record<string, unknown>)) {
+      for (const name of source.desc.options ?? []) {
+         const st = record[name]
          // same rule as the graph: only loras that are ON contribute
          if (st == null || st === false) continue
          const kw = keywords[name]

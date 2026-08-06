@@ -33,7 +33,9 @@ export const App = observer(function App(p: { st: WebSt }) {
                      {p.st.showLogs ? (
                         <div className="logs">
                            <div className="logs-head">
-                              <span>console · {p.st.hosts.defaults[p.st.form?.moduleKey ?? ''] ?? 'host'}</span>
+                              {/* the host the lines actually come from (pullLogs uses hostFor),
+                                  not the module's declared default */}
+                              <span>console · {p.st.hostFor(p.st.form?.moduleKey ?? '') || 'host'}</span>
                               <button type="button" className="link" onClick={() => p.st.toggleLogs()}>
                                  hide
                               </button>
