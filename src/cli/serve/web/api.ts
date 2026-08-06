@@ -120,7 +120,7 @@ export function saveSettings(p: { saveToDisk?: boolean; savePrefix?: Record<stri
 
 /** every host the serve process knows, and where each module currently runs */
 export type HostsPayload = {
-   hosts: { id: string; url: string; modules: string[] }[]
+   hosts: { id: string; url: string; httpUrl: string; modules: string[] }[]
    defaults: Record<string, string>
    overrides: Record<string, string>
 }

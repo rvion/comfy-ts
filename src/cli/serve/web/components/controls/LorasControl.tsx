@@ -51,7 +51,12 @@ type LocalSt = {
    setPaused(name: string, paused: boolean): void
 }
 
-export const LorasControl = observer(function LorasControl(p: { v: VarSt; host: string; st: WebSt }) {
+export const LorasControl = observer(function LorasControl(p: {
+   v: VarSt
+   host: string
+   st: WebSt
+   hostUrl: string | null
+}) {
    const local = useLocalObservable<LocalSt>(() => ({
       open: false,
       filter: '',
@@ -225,7 +230,7 @@ export const LorasControl = observer(function LorasControl(p: { v: VarSt; host: 
          <button
             type="button"
             className={showImages ? 'mode sel' : 'mode'}
-            title={showImages ? 'hide lora images' : 'show lora images'}
+            data-tip={showImages ? 'hide lora images' : 'show lora images'}
             onClick={() => p.st.toggleLoraImages()}
          >
             <Icon name="image" />
@@ -233,7 +238,7 @@ export const LorasControl = observer(function LorasControl(p: { v: VarSt; host: 
          <button
             type="button"
             className={showTitles ? 'mode sel' : 'mode'}
-            title={showTitles ? 'hide lora titles' : 'show lora titles'}
+            data-tip={showTitles ? 'hide lora titles' : 'show lora titles'}
             onClick={() => p.st.toggleLoraTitles()}
          >
             <Icon name="tag" />
@@ -250,6 +255,19 @@ export const LorasControl = observer(function LorasControl(p: { v: VarSt; host: 
                <Icon name="plus" /> {selectedNames.length === 0 ? `add loras (${options.length})` : 'add'}
             </button>
             <span className="btn-group field-height">{visibilityToggles}</span>
+            {/* the host's OWN lora manager: where you tag, rename and re-scan them. Same host
+                the runs go to, so the page you open is the one that owns these files */}
+            {p.hostUrl == null ? null : (
+               <a
+                  className="button-link field-height"
+                  href={`${p.hostUrl}/loras`}
+                  target="_blank"
+                  rel="noreferrer"
+                  data-tip="open the lora manager of this host in a new tab"
+               >
+                  <Icon name="external" /> manager
+               </a>
+            )}
             {selectedNames.length > 0 ? (
                <span className="hint">
                   {selectedNames.length} in the palette · {selectedNames.filter(isOn).length} on
@@ -272,7 +290,7 @@ export const LorasControl = observer(function LorasControl(p: { v: VarSt; host: 
                      <button
                         type="button"
                         className="lora-toggle"
-                        title={isOn(name) ? `${name}\nclick to pause` : `${name}\npaused — click to resume`}
+                        data-tip={isOn(name) ? `${name}\nclick to pause` : `${name}\npaused — click to resume`}
                         onClick={() => toggleOn(name, !isOn(name))}
                      >
                         {thumb(name)}
@@ -285,7 +303,7 @@ export const LorasControl = observer(function LorasControl(p: { v: VarSt; host: 
                         {strengthInputs(name)}
                         <button
                            type="button"
-                           title="remove from the palette (the popup adds it back)"
+                           data-tip="remove from the palette (the popup adds it back)"
                            onClick={() => setEntry(name, null)}
                         >
                            <Icon name="close" />
@@ -313,7 +331,7 @@ export const LorasControl = observer(function LorasControl(p: { v: VarSt; host: 
                         }}
                      />
                      {visibilityToggles}
-                     <button type="button" title="close (esc)" onClick={() => local.setOpen(false)}>
+                     <button type="button" data-tip="close (esc)" onClick={() => local.setOpen(false)}>
                         <Icon name="close" />
                      </button>
                   </div>
@@ -327,7 +345,7 @@ export const LorasControl = observer(function LorasControl(p: { v: VarSt; host: 
                                  <div key={name} className={isOn(name) ? 'lora-active-row' : 'lora-active-row off'}>
                                     {thumb(name)}
                                     <div className="lora-active-text">
-                                       <div className="lora-label" title={name}>
+                                       <div className="lora-label" data-tip={name}>
                                           {showTitles ? label(name) : '···'}
                                        </div>
                                        {typeof info === 'object' && info.triggerWords.length > 0 ? (
@@ -339,13 +357,13 @@ export const LorasControl = observer(function LorasControl(p: { v: VarSt; host: 
                                     <input
                                        type="checkbox"
                                        checked={isOn(name)}
-                                       title={isOn(name) ? 'pause (stays in the palette)' : 'resume'}
+                                       data-tip={isOn(name) ? 'pause (stays in the palette)' : 'resume'}
                                        onChange={(e) => toggleOn(name, e.target.checked)}
                                     />
                                     {strengthInputs(name)}
                                     <button
                                        type="button"
-                                       title="remove from the list"
+                                       data-tip="remove from the list"
                                        onClick={() => setEntry(name, null)}
                                     >
                                        <Icon name="close" />
@@ -362,7 +380,7 @@ export const LorasControl = observer(function LorasControl(p: { v: VarSt; host: 
                               key={name}
                               type="button"
                               className="lora-card"
-                              title={name}
+                              data-tip={name}
                               onClick={() => setEntry(name, [1, 1])}
                            >
                               {thumb(name)}

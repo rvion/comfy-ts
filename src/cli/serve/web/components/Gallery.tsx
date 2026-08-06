@@ -60,7 +60,7 @@ const Lightbox = observer(function Lightbox(p: { st: WebSt; local: GalleryLocal 
          <div className="lightbox" onClick={(e) => e.stopPropagation()}>
             <img src={box.url} alt={box.title} />
             <div className="lightbox-bar">
-               <span className="hint" title={box.title}>
+               <span className="hint" data-tip={box.title}>
                   {box.title}
                </span>
                {canCopy ? (
@@ -74,7 +74,7 @@ const Lightbox = observer(function Lightbox(p: { st: WebSt; local: GalleryLocal 
                {box.promptId != null ? (
                   <button
                      type="button"
-                     title="remove this result"
+                     data-tip="remove this result"
                      onClick={() => {
                         if (box.promptId != null) p.st.run.remove(box.promptId)
                         p.local.closeLightbox()
@@ -84,7 +84,7 @@ const Lightbox = observer(function Lightbox(p: { st: WebSt; local: GalleryLocal 
                   </button>
                ) : null}
                {p.local.copyNote?.url === box.url ? <span className="hint">{p.local.copyNote.text}</span> : null}
-               <button type="button" title="close (esc)" onClick={() => p.local.closeLightbox()}>
+               <button type="button" data-tip="close (esc)" onClick={() => p.local.closeLightbox()}>
                   <Icon name="close" />
                </button>
             </div>
@@ -154,7 +154,7 @@ export const Gallery = observer(function Gallery(p: { st: WebSt; compact?: boole
                   <button
                      type="button"
                      className="link"
-                     title="remove this result"
+                     data-tip="remove this result"
                      onClick={() => p.st.run.remove(r.promptId)}
                   >
                      <Icon name="trash" />
@@ -167,7 +167,7 @@ export const Gallery = observer(function Gallery(p: { st: WebSt; compact?: boole
                            key={img.filename}
                            type="button"
                            className="img-button"
-                           title={img.filename}
+                           data-tip={img.filename}
                            onClick={() => {
                               if (img.url != null)
                                  local.openLightbox({ url: img.url, title: img.filename, promptId: r.promptId })

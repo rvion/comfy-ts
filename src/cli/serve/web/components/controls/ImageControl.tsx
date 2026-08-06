@@ -42,7 +42,7 @@ export const ImageControl = observer(function ImageControl(p: { v: VarSt }) {
             {value !== '' ? (
                <button
                   type="button"
-                  title="clear the image"
+                  data-tip="clear the image"
                   onClick={() => {
                      p.v.set('')
                      p.v.setUploadedUrl(null)

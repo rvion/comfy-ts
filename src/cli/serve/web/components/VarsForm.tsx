@@ -33,7 +33,7 @@ const VarControl = observer(function VarControl(p: { v: VarSt; host: string; st:
       case 'choice':
          return <ChoiceControl v={p.v} />
       case 'loras':
-         return <LorasControl v={p.v} host={p.host} st={p.st} />
+         return <LorasControl v={p.v} host={p.host} st={p.st} hostUrl={p.st.hostUrlFor(p.module)} />
       case 'size':
          return <SizeControl v={p.v} />
       case 'image':
@@ -53,7 +53,7 @@ const VarRow = observer(function VarRow(p: { v: VarSt; host: string; st: WebSt; 
                <button
                   type="button"
                   className="dirty-dot"
-                  title="changed this session — click to restore the loaded value (autosaves)"
+                  data-tip="changed this session — click to restore the loaded value (autosaves)"
                   onClick={() => p.v.revert()}
                >
                   ●
@@ -126,7 +126,7 @@ const DraftBox = observer(function DraftBox(p: { st: WebSt; form: FormSt }) {
             <select
                className="head-select draft"
                value={p.form.draft}
-               title="switch draft"
+               data-tip="switch draft"
                onChange={(e) => void p.st.select({ module: p.form.moduleKey, draft: e.target.value })}
             >
                {drafts.map((d) => (
@@ -139,14 +139,14 @@ const DraftBox = observer(function DraftBox(p: { st: WebSt; form: FormSt }) {
          <span className="btn-group head-group">
             <button
                type="button"
-               title="rename this draft (the file is renamed)"
+               data-tip="rename this draft (the file is renamed)"
                onClick={() => (local.mode != null ? confirm() : local.start('rename', p.form.draft))}
             >
                <Icon name="pen" />
             </button>
             <button
                type="button"
-               title="save these values as a new draft"
+               data-tip="save these values as a new draft"
                onClick={() => (local.mode != null ? confirm() : local.start('duplicate', p.form.draft))}
             >
                <Icon name="copy-plus" />
@@ -154,7 +154,7 @@ const DraftBox = observer(function DraftBox(p: { st: WebSt; form: FormSt }) {
             <button
                type="button"
                className="danger"
-               title="delete this draft's file (default resets to the workflow's own values)"
+               data-tip="delete this draft's file (default resets to the workflow's own values)"
                onClick={() => {
                   if (window.confirm(`delete draft '${p.form.draft}' of ${p.form.moduleKey}? the file is removed.`))
                      void p.st.deleteDraft({ module: p.form.moduleKey, draft: p.form.draft })
@@ -173,7 +173,7 @@ export const GenerateButton = observer(function GenerateButton(p: { st: WebSt })
       <button
          type="button"
          className={p.st.run.isRunning ? 'primary pulse' : 'primary'}
-         title="⌘⏎ / ctrl+⏎ — click again to queue another"
+         data-tip="⌘⏎ / ctrl+⏎ — click again to queue another"
          onClick={() => p.st.generate()}
       >
          <Icon name="play" size={0.9} />{' '}
@@ -212,7 +212,7 @@ const SaveRow = observer(function SaveRow(p: { st: WebSt; module: string }) {
                         style={{ flex: 1, minWidth: 120 }}
                         placeholder={p.module}
                         value={p.st.savePrefixDraft(p.module)}
-                        title="subfolder the images land in — folder names only, a/b allowed"
+                        data-tip="subfolder the images land in — folder names only, a/b allowed"
                         onChange={(e) => p.st.setSavePrefix(p.module, e.target.value)}
                      />
                      <span className="hint">/…png</span>
@@ -252,7 +252,7 @@ const QueuePanel = observer(function QueuePanel(p: { st: WebSt }) {
                {e.sent ? (
                   <span className="hint">on the host — past cancelling</span>
                ) : (
-                  <button type="button" title="drop this queued prompt" onClick={() => p.st.run.removeQueued(e.id)}>
+                  <button type="button" data-tip="drop this queued prompt" onClick={() => p.st.run.removeQueued(e.id)}>
                      ✕
                   </button>
                )}
@@ -290,7 +290,7 @@ export const VarsForm = observer(function VarsForm(p: { st: WebSt }) {
                   <button
                      type="button"
                      className="head-value app as-link"
-                     title={p.st.sidebarOpen ? 'close the workflow menu' : 'browse every workflow'}
+                     data-tip={p.st.sidebarOpen ? 'close the workflow menu' : 'browse every workflow'}
                      onClick={() => p.st.toggleSidebar()}
                   >
                      {form.moduleKey}
@@ -300,7 +300,7 @@ export const VarsForm = observer(function VarsForm(p: { st: WebSt }) {
                   <span className="btn-group">
                      <button
                         type="button"
-                        title={p.st.sidebarOpen ? 'close the workflow menu' : 'browse every workflow'}
+                        data-tip={p.st.sidebarOpen ? 'close the workflow menu' : 'browse every workflow'}
                         onClick={() => p.st.toggleSidebar()}
                      >
                         <Icon name="folder" />
@@ -319,7 +319,7 @@ export const VarsForm = observer(function VarsForm(p: { st: WebSt }) {
                      <select
                         className="head-select"
                         value={p.st.hostFor(form.moduleKey)}
-                        title="run this workflow on another host"
+                        data-tip="run this workflow on another host"
                         onChange={(e) => void p.st.setModuleHost({ module: form.moduleKey, host: e.target.value })}
                      >
                         {p.st.hosts.hosts.map((h) => (
@@ -337,14 +337,14 @@ export const VarsForm = observer(function VarsForm(p: { st: WebSt }) {
                   <span className="btn-group">
                      <button
                         type="button"
-                        title="interrupt the prompt running now"
+                        data-tip="interrupt the prompt running now"
                         onClick={() => void p.st.hostAction('interrupt')}
                      >
                         <Icon name="pause" />
                      </button>
                      <button
                         type="button"
-                        title="drop everything still pending in the host queue"
+                        data-tip="drop everything still pending in the host queue"
                         onClick={() => void p.st.hostAction('clear-queue')}
                      >
                         <Icon name="trash" />
@@ -352,7 +352,7 @@ export const VarsForm = observer(function VarsForm(p: { st: WebSt }) {
                      <button
                         type="button"
                         className="danger"
-                        title="restart ComfyUI on that host (manager reboot) — it reconnects when back"
+                        data-tip="restart ComfyUI on that host (manager reboot) — it reconnects when back"
                         onClick={() => {
                            if (window.confirm(`restart ComfyUI on '${p.st.hostFor(form.moduleKey)}'?`))
                               void p.st.hostAction('restart')
@@ -365,7 +365,7 @@ export const VarsForm = observer(function VarsForm(p: { st: WebSt }) {
                      <button
                         type="button"
                         className="link"
-                        title={`runs on an override — back to ${p.st.hosts.defaults[form.moduleKey] ?? 'its own host'}`}
+                        data-tip={`runs on an override — back to ${p.st.hosts.defaults[form.moduleKey] ?? 'its own host'}`}
                         onClick={() => void p.st.setModuleHost({ module: form.moduleKey, host: null })}
                      >
                         <Icon name="swap" /> reset
@@ -385,7 +385,7 @@ export const VarsForm = observer(function VarsForm(p: { st: WebSt }) {
                            key={l.id}
                            type="button"
                            className={p.st.layout === l.id ? 'sel' : ''}
-                           title={`${l.title}${p.st.layout === l.id ? ' — click again for the automatic placement' : ''}`}
+                           data-tip={`${l.title}${p.st.layout === l.id ? ' — click again for the automatic placement' : ''}`}
                            onClick={() => p.st.setLayout(l.id)}
                         >
                            <Icon name={l.icon} />
@@ -398,7 +398,7 @@ export const VarsForm = observer(function VarsForm(p: { st: WebSt }) {
                      <button
                         type="button"
                         className={p.st.showLatent ? 'sel' : ''}
-                        title={p.st.showLatent ? 'hide the latent preview during a run' : 'show the latent preview'}
+                        data-tip={p.st.showLatent ? 'hide the latent preview during a run' : 'show the latent preview'}
                         onClick={() => p.st.toggleLatent()}
                      >
                         <Icon name="image" />
@@ -406,7 +406,7 @@ export const VarsForm = observer(function VarsForm(p: { st: WebSt }) {
                      <button
                         type="button"
                         className={p.st.showLogs ? 'sel' : ''}
-                        title={p.st.showLogs ? 'hide the ComfyUI console' : 'show the ComfyUI console'}
+                        data-tip={p.st.showLogs ? 'hide the ComfyUI console' : 'show the ComfyUI console'}
                         onClick={() => p.st.toggleLogs()}
                      >
                         <Icon name="terminal" />

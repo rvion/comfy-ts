@@ -71,12 +71,12 @@ const Settings = observer(function Settings(p: { e: EnhancerSt }) {
                   style={{ flex: 1 }}
                />
             )}
-            <label className="row-inline" title="hide models that report no reasoning support">
+            <label className="row-inline" data-tip="hide models that report no reasoning support">
                <input type="checkbox" checked={p.e.thinkingOnly} onChange={() => p.e.toggleThinkingOnly()} />
                <span className="hint">thinking only</span>
             </label>
             {local ? null : (
-               <label className="row-inline" title="reasoning effort sent to the model">
+               <label className="row-inline" data-tip="reasoning effort sent to the model">
                   <span className="hint">effort</span>
                   <select value={p.e.effort} onChange={(ev) => p.e.setEffort(ev.target.value)}>
                      {EFFORTS.map((x) => (
@@ -147,7 +147,7 @@ const MasterPrompt = observer(function MasterPrompt(p: { e: EnhancerSt }) {
             <button type="button" onClick={rename}>
                rename
             </button>
-            <button type="button" onClick={remove} title="delete this master prompt file">
+            <button type="button" onClick={remove} data-tip="delete this master prompt file">
                <Icon name="close" />
             </button>
             <span className="hint">
@@ -220,7 +220,7 @@ const Modal = observer(function Modal(p: { e: EnhancerSt }) {
                      stop
                   </button>
                ) : (
-                  <button type="button" className="primary" onClick={() => e.run()} title="⌘⏎ / ctrl+⏎">
+                  <button type="button" className="primary" onClick={() => e.run()} data-tip="⌘⏎ / ctrl+⏎">
                      enhance
                   </button>
                )}
@@ -246,7 +246,7 @@ export const PromptEnhancer = observer(function PromptEnhancer(p: { v: VarSt; st
          <button
             type="button"
             className="link"
-            title="rewrite this prompt with an llm"
+            data-tip="rewrite this prompt with an llm"
             onClick={() => e.openFor({ v: p.v, module: p.module })}
          >
             <Icon name="sparkle" /> enhance

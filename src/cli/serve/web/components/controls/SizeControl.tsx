@@ -40,7 +40,7 @@ export const SizeControl = observer(function SizeControl(p: { v: VarSt }) {
          />
          <button
             type="button"
-            title="swap width and height"
+            data-tip="swap width and height"
             onClick={() => p.v.set({ width: size.height, height: size.width })}
          >
             <Icon name="swap" />

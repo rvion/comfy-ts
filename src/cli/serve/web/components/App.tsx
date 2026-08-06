@@ -21,7 +21,7 @@ export const App = observer(function App(p: { st: WebSt }) {
             <button
                type="button"
                className="burger"
-               title="toggle the workflow menu"
+               data-tip="toggle the workflow menu"
                onClick={() => p.st.toggleSidebar()}
             >
                <Icon name="menu" />

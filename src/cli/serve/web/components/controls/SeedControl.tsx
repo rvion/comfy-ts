@@ -30,7 +30,7 @@ export const SeedControl = observer(function SeedControl(p: { v: VarSt }) {
                      key={m.mode}
                      type="button"
                      className={seed.mode === m.mode ? 'sel' : ''}
-                     title={m.hint}
+                     data-tip={m.hint}
                      onClick={() => p.v.set({ mode: m.mode, value: seed.value })}
                   >
                      {m.label}
@@ -41,7 +41,7 @@ export const SeedControl = observer(function SeedControl(p: { v: VarSt }) {
             <button
                type="button"
                className="field-height"
-               title="roll a random seed now"
+               data-tip="roll a random seed now"
                onClick={() => setValue(randomSeed())}
             >
                <Icon name="dice" />

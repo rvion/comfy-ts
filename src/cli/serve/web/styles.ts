@@ -158,8 +158,9 @@ button.mode.sel { background: var(--accent-dim); border-color: var(--accent); co
 .lora-chip.card {
    flex-direction: column; align-items: stretch; border-radius: 8px; padding: 6px;
    background: var(--panel-2); border: 1px solid var(--border); width: 132px;
-   /* anything that still outgrows the card is clipped IN PLACE, never painted over its neighbour */
-   overflow: hidden;
+   /* anything that still outgrows the card is clipped IN PLACE, never painted over its
+      neighbour. CLIP on x only: hidden on both axes would trap the tooltips too */
+   overflow-x: clip; overflow-y: visible;
 }
 .lora-chip.card .lora-thumb { height: 110px; }
 .lora-chip.card .chip-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -325,6 +326,13 @@ div.lora-thumb.none {
 /* the lora controls sit above the palette, left aligned */
 .lora-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
 .lora-actions button { font-size: 12px; }
+/* an anchor that must read as a button (it opens the host's own page, so it IS a link) */
+.button-link {
+   display: inline-flex; align-items: center; gap: 5px; text-decoration: none; font-size: 12px;
+   background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
+   border-radius: 6px; padding: 0 10px;
+}
+.button-link:hover { border-color: var(--accent); color: var(--accent); }
 
 /* the ComfyUI console, only while asked for */
 .logs { margin-top: 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--panel); }
@@ -337,6 +345,24 @@ div.lora-thumb.none {
    font-size: 11px; line-height: 1.35; color: var(--dim);
    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
+
+/* INSTANT tooltips: the native title attribute waits about a second and cannot be styled, so
+   every affordance carries data-tip instead. No js, no library, and no delay, which is the point */
+[data-tip] { position: relative; }
+[data-tip]:hover::after, [data-tip]:focus-visible::after {
+   content: attr(data-tip);
+   position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%);
+   z-index: 60; pointer-events: none; white-space: pre; max-width: 60vw;
+   background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
+   border-radius: 6px; padding: 4px 8px; font-size: 11px; font-weight: 400; line-height: 1.3;
+   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+}
+/* a tip on the top row would be cut off by the viewport: those flip below their button */
+.topbar [data-tip]:hover::after, .head-boxes [data-tip]:hover::after {
+   bottom: auto; top: calc(100% + 6px);
+}
+/* the pointer never crosses a tooltip, so hover cannot flicker between the two */
+@media (hover: none) { [data-tip]:hover::after { display: none; } }
 
 /* icons inherit the text they sit in, so a button never jumps when one is swapped in */
 .icon { display: inline-block; vertical-align: -0.16em; flex-shrink: 0; }

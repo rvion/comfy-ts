@@ -251,6 +251,12 @@ export class WebSt {
       return this.hosts.overrides[moduleKey] ?? this.hosts.defaults[moduleKey] ?? ''
    }
 
+   /** the host's OWN base url, for opening its pages (the lora manager lives there) */
+   hostUrlFor(moduleKey: string): string | null {
+      const id = this.hostFor(moduleKey)
+      return this.hosts.hosts.find((h) => h.id === id)?.httpUrl ?? null
+   }
+
    isHostOverridden(moduleKey: string): boolean {
       return this.hosts.overrides[moduleKey] != null
    }

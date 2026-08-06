@@ -30,6 +30,8 @@
 - **Fixed: the ✕ that removes a lora from the palette was unclickable** on every card but the last of each row — the strength inputs overflowed the card and the next card covered the button.
 - **Fixed: the newest image vanished in pinned mode**, leaving only the latent preview, as soon as a run finished.
 - **Fixed: duplicating a draft did nothing** when the browser had started suppressing dialogs. The new name is typed inline in the draft box now, no native prompt.
+- **Tooltips are instant.** Every button explains itself the moment you hover, through a tiny CSS tooltip instead of the native one that waits a second and cannot be styled.
+- **The lora section links to the host's lora manager** (`http://<host>/loras`), for the host the workflow currently runs on.
 - **The host box acts**: interrupt the running prompt, drop the pending queue, or restart ComfyUI on that host (the TUI's host actions, over `POST /hosts/<host>/<action>`). A host that refuses answers 502 rather than reporting success.
 - **The ComfyUI console on demand**: a toggle in the preview box shows the host's log lines (`GET /hosts/<host>/logs`), polled only while it is open, and closed on every fresh load.
 - **Every header box is two lines**: what you are on, then what you can do to it. The preview box carries placement on the first line and the latent-preview and console toggles on the second.
