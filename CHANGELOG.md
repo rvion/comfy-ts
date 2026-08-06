@@ -65,6 +65,7 @@
 ### Fixed
 
 - **The progress line shows the executing node's own counter** in its own unit — `TextGenerate 427/1024` tokens, `KSampler 12/20` steps — instead of only a global percent. Note that ComfyUI sends no partial text during generation, so a text node cannot be streamed: the counter is the live signal, and the string arrives whole at the end.
+- **Restarting ComfyUI from the TUI or the panel actually restarts it.** The call used `GET /api/manager/reboot`, which answers 404 on ComfyUI-Manager V3 (the route is POST now), and both callers treated any failure as the expected mid-reboot disconnect — so the button reported a reboot while the process kept running. It POSTs, falls back to GET for an older Manager, and a host that refuses now says so: 502 from the panel, "reboot refused" in the TUI.
 - **Running a workflow on a host you never connected threw instead of hanging forever.** The prompt was accepted and really ran on the server, but its websocket messages routed to a session that was not yours, so the run never finished and never failed: no error, no timeout, nothing to read. It now says which call is missing. `host.defineWorkflow(…).run()` connects on your behalf and was never affected.
 
 ### Dynamic combos are typed
