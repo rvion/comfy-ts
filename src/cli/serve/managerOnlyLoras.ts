@@ -4,6 +4,7 @@
 // separator is offered and then refused as an unknown lora.
 import { loraMirrorEntries } from 'src/host/loraInfoCache.ts'
 import { loraKey } from 'src/host/loraManagerApi.ts'
+import { matchesRegex } from 'src/utils/matchesRegex.ts'
 
 /**
  * `options` is the host enum for this var: it decides both what counts as already-known
@@ -21,5 +22,5 @@ export function managerOnlyLoraOptions(p: {
    return loraMirrorEntries(p.hostId, { separator })
       .filter((e) => !known.has(e.key))
       .map((e) => e.serverName)
-      .filter((n) => p.filter == null || p.filter.test(n))
+      .filter((n) => p.filter == null || matchesRegex(p.filter, n))
 }

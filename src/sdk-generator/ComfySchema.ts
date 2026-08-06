@@ -1,4 +1,5 @@
 import { sha1HexOfString } from 'src/utils/sha1.ts'
+import { matchesRegex } from 'src/utils/matchesRegex.ts'
 import { getUnionNameBasedOnFirstFoundEnumName } from 'src/sdk-generator/_getUnionNameBasedOnFirstFoundEnumName.ts'
 import { toQualifiedNodeKey } from 'src/sdk-generator/_toQualifiedNodeKey.ts'
 import { ComfyNodeSchema } from 'src/sdk-generator/ComfyNodeSchema.ts'
@@ -362,7 +363,7 @@ export class ComfySchema {
    /** all loras on the host, optionally narrowed by a regex */
    getLoras = (filter?: RegExp): string[] => {
       const all = this.stringValues('LoraLoader.lora_name')
-      return filter == null ? all : all.filter((n) => filter.test(n))
+      return filter == null ? all : all.filter((n) => matchesRegex(filter, n))
    }
 
    hasImage(imgName: string): imgName is ComfyImageName {

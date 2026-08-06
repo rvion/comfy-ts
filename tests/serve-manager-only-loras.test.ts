@@ -69,4 +69,14 @@ describe('manager-only lora options', () => {
    it('an unsynced host offers nothing', () => {
       expect(managerOnlyLoraOptions({ hostId: 'never-synced', options: [] })).toEqual([])
    })
+
+   it('a /g filter gives the SAME set on every call — the picker and the validator each call it once', () => {
+      // RegExp.test advances lastIndex on a global regex, so the second caller used to get a
+      // different set: the panel offered a lora the api then answered 'unknown lora(s)' to
+      const filter = /e/gi
+      const first = managerOnlyLoraOptions({ hostId: 'win-host', options: [], filter })
+      const second = managerOnlyLoraOptions({ hostId: 'win-host', options: [], filter })
+      expect(second).toEqual(first)
+      expect(first.length).toBeGreaterThan(1)
+   })
 })
