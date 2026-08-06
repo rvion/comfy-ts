@@ -131,6 +131,9 @@ export const LorasControl = observer(function LorasControl(p: {
             <Icon name="warn" size={0.9} />
          </span>
       ) : null
+   /** manager-only loras actually IN the palette: those are the ones a run will send, and the
+    * ones ComfyUI has no entry for until it rescans its models */
+   const managerOnlyInUse = selectedNames.filter((n) => managerOnly.has(n))
    const showImages = p.st.showLoraImages
    const showTitles = p.st.showLoraTitles
 
@@ -334,6 +337,16 @@ export const LorasControl = observer(function LorasControl(p: {
             >
                <Icon name="refresh" /> {p.st.loraSyncing ? 'syncing…' : 'sync'}
             </button>
+            {managerOnlyInUse.length > 0 ? (
+               <button
+                  type="button"
+                  className="field-height warn-action"
+                  data-tip={`${managerOnlyInUse.length} lora(s) in this palette are unknown to ComfyUI. this refetches its model list and rewrites sdk.d.ts; a serve restart is what widens the var itself`}
+                  onClick={() => void p.st.hostAction('refresh-schema')}
+               >
+                  <Icon name="warn" /> rescan host
+               </button>
+            ) : null}
             {p.hostUrl == null ? null : (
                <a
                   className="button-link field-height"

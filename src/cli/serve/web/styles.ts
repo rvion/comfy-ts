@@ -538,6 +538,8 @@ div.lora-thumb.none {
 .detail-examples { display: flex; gap: 8px; flex-wrap: wrap; }
 .detail-examples img { width: 96px; height: 96px; object-fit: cover; border-radius: 6px; }
 
+button.warn-action { color: var(--amber); border-color: var(--amber); }
+button.warn-action:hover { background: var(--panel); }
 .lora-warn { color: var(--amber); display: inline-flex; margin-left: 4px; vertical-align: -0.1em; }
 /* an anchor that must read as a button (it opens the host's own page, so it IS a link) */
 .button-link {
