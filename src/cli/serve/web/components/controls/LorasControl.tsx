@@ -111,7 +111,7 @@ export const LorasControl = observer(function LorasControl(p: {
    const label = (name: string): string => labels[name] ?? name
    // the PALETTE is what the row shows: the loras that are ON, plus the ones paused in this
    // session. It is NOT "every key in the record" — LorasVar writes `false` for every lora
-   // ever unticked, so that reading put the whole catalog in the row (his repro: a draft
+   // ever unticked, so that reading put the whole catalog in the row (a real draft
    // with 35 keys and 2 on). A paused lora leaves the record entirely and lives here instead
    const isOn = (name: string): boolean => loraIsOn(record[name])
    const isInPalette = (name: string): boolean => isOn(name) || local.paused.has(name)

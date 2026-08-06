@@ -195,7 +195,7 @@ describe('small-terminal frame smoke (tree used to overflow the terminal)', () =
    })
 })
 
-describe('VarsPanel viewport (reviewer follow-up: selection clipped off-screen on small terminals)', () => {
+describe('VarsPanel viewport (selection clipped off-screen on small terminals)', () => {
    let stP: Promise<import('src/cli/tui/state/TuiSt.ts').TuiSt> | null = null
    let prior: unknown
    beforeAll(() => {

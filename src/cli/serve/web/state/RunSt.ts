@@ -1,6 +1,6 @@
 // the run QUEUE + results. Clicking generate repeatedly enqueues; the drainer
 // sends ONE prompt at a time so anything still pending can be dropped before it
-// ever reaches the host (his ask: queued prompts must be clearable, singly or
+// ever reaches the host: queued prompts must be clearable, singly or
 // all). Progress + latent preview are polled ~700ms while a prompt is in flight
 import { makeAutoObservable, observableShallow, runInAction } from 'mobx'
 import { fetchRunStatus, postGenerate, type GenerateOk } from 'src/cli/serve/web/api.ts'

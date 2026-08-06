@@ -23,7 +23,7 @@ import { FormSt } from 'src/cli/serve/web/state/FormSt.ts'
 import { logWebError } from 'src/cli/serve/web/logWeb.ts'
 import { RunSt } from 'src/cli/serve/web/state/RunSt.ts'
 
-/** selection + drawer survive a reload (his standing default: hand-tuned state persists and restores) */
+/** selection + drawer survive a reload: hand-tuned state persists and restores */
 const STORAGE_KEY = 'comfy-ts-serve-ui'
 
 /** where the results live. 'auto' keeps the width rule (side ≥1100px, bottom under it);

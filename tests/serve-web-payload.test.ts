@@ -62,7 +62,7 @@ describe('loras record transitions (LorasVar semantics, web side)', () => {
       expect(on).toEqual({ 'a.safetensors': [0.8, 0.6] })
    })
 
-   it('his repro: a draft full of `false` leftovers must not fill the palette', () => {
+   it('a draft full of `false` leftovers must not fill the palette', () => {
       // a real draft after ticking/unticking in the TUI: 4 keys, 1 on
       const draft = {
          'a.safetensors': false,

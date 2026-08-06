@@ -744,7 +744,7 @@ describe('ephemeral outputs: SaveImageWebsocket frame correlation (item 14)', ()
       host.executions.delete(promptId)
    })
 
-   it('frames beating the POST /prompt response are buffered and replayed (reviewer repro)', async () => {
+   it('frames beating the POST /prompt response are buffered and replayed', async () => {
       const { ComfyExecution } = await import('src/runner/ComfyExecution.ts')
       const { PromptID_ark } = await import('src/runner/ComfyWsApi.ts')
 

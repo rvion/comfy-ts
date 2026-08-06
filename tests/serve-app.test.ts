@@ -163,7 +163,7 @@ describe('ServeApp generate', () => {
       expect((r4.seeds as Record<string, number>).seed).toBe(56)
    })
 
-   it("reviewer's repro: a payload seed mode must NOT leak into the next request", async () => {
+   it('a payload seed mode must NOT leak into the next request', async () => {
       const mod = makeModule('wf-seed-leak')
       const seen: Record<string, unknown>[] = []
       const app = new ServeApp([mod], { starter: snapshottingStarter(seen), outputRoot: join(root, 'out') })
@@ -452,7 +452,7 @@ describe('seed continuation vs an edited draft value (live-draft model)', () => 
 })
 
 describe('draft name is one gate for every route (traversal)', () => {
-   it("reviewer's repro: %2F in a draft segment must not escape the drafts dir on READ or GENERATE", async () => {
+   it('%2F in a draft segment must not escape the drafts dir on READ or GENERATE', async () => {
       const mod = makeModule('wf-traversal')
       const seen: Record<string, unknown>[] = []
       const app = new ServeApp([mod], { outputRoot: join(root, 'out'), starter: snapshottingStarter(seen) })

@@ -246,7 +246,7 @@ export class TuiSt {
       this.selIx = (this.selIx + delta + len) % len
    }
 
-   // ---- vars viewport (reviewer follow-up 2026-07-31: the fixed-height
+   // ---- vars viewport (the fixed-height
    // frame clips instead of overflowing, so the vars list must window like
    // the tree — measured height, never chrome arithmetic) ----
 

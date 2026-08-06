@@ -137,9 +137,11 @@ button.mode.sel { background: var(--accent-dim); border-color: var(--accent); co
    background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
    padding: 8px 12px; margin-top: 10px;
 }
-/* the changed-vars broom lives in the draft head box; amber says there is something to revert */
-.head-group button.dirty { color: var(--amber); }
-.head-group button.dirty:hover { color: var(--red); border-color: var(--red); }
+/* the changed-vars broom: FAR RIGHT of the draft box line and outside the button group, so
+   appearing and disappearing with the dirty count never shifts the buttons beside it */
+.head-box .head-right { margin-left: auto; padding: 2px 5px; }
+.head-box button.dirty { color: var(--amber); }
+.head-box button.dirty:hover { color: var(--red); border-color: var(--red); }
 .runbar .error { color: var(--red); font-size: 12px; white-space: pre-wrap; }
 .pulse { animation: pulse 1.2s ease-in-out infinite; }
 @keyframes pulse { 50% { opacity: 0.45; } }

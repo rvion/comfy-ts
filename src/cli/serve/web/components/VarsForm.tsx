@@ -179,44 +179,46 @@ const DraftBox = observer(function DraftBox(p: { st: WebSt; form: FormSt }) {
                ))}
             </select>
          )}
-         <span className="btn-group head-group">
-            {/* the session's changed-vars count was a line of prose in the run bar; it is a
-                button here, and only while there is something to revert */}
+         <span className="head-line">
+            <span className="btn-group head-group">
+               <button
+                  type="button"
+                  data-tip="rename this draft (the file is renamed)"
+                  onClick={() => (local.mode != null ? confirm() : local.start('rename', p.form.draft))}
+               >
+                  <Icon name="pen" />
+               </button>
+               <button
+                  type="button"
+                  data-tip="save these values as a new draft"
+                  onClick={() => (local.mode != null ? confirm() : local.start('duplicate', p.form.draft))}
+               >
+                  <Icon name="copy-plus" />
+               </button>
+               <button
+                  type="button"
+                  className="danger"
+                  data-tip="delete this draft's file (default resets to the workflow's own values)"
+                  onClick={() => {
+                     if (window.confirm(`delete draft '${p.form.draft}' of ${p.form.moduleKey}? the file is removed.`))
+                        void p.st.deleteDraft({ module: p.form.moduleKey, draft: p.form.draft })
+                  }}
+               >
+                  <Icon name="trash" />
+               </button>
+            </span>
+            {/* FAR RIGHT of the same line, outside the group: inside it, the broom appeared and
+                vanished with the dirty count and shoved the other buttons sideways */}
             {p.form.dirtyCount > 0 ? (
                <button
                   type="button"
-                  className="dirty"
+                  className="dirty head-right"
                   data-tip={`${p.form.dirtyCount} var${p.form.dirtyCount > 1 ? 's' : ''} changed this session — revert to the values this draft loaded with`}
                   onClick={() => p.form.revertAll()}
                >
                   <Icon name="broom" />
                </button>
             ) : null}
-            <button
-               type="button"
-               data-tip="rename this draft (the file is renamed)"
-               onClick={() => (local.mode != null ? confirm() : local.start('rename', p.form.draft))}
-            >
-               <Icon name="pen" />
-            </button>
-            <button
-               type="button"
-               data-tip="save these values as a new draft"
-               onClick={() => (local.mode != null ? confirm() : local.start('duplicate', p.form.draft))}
-            >
-               <Icon name="copy-plus" />
-            </button>
-            <button
-               type="button"
-               className="danger"
-               data-tip="delete this draft's file (default resets to the workflow's own values)"
-               onClick={() => {
-                  if (window.confirm(`delete draft '${p.form.draft}' of ${p.form.moduleKey}? the file is removed.`))
-                     void p.st.deleteDraft({ module: p.form.moduleKey, draft: p.form.draft })
-               }}
-            >
-               <Icon name="trash" />
-            </button>
          </span>
       </div>
    )
@@ -318,7 +320,7 @@ const QueuePanel = observer(function QueuePanel(p: { st: WebSt }) {
 
 export const VarsForm = observer(function VarsForm(p: { st: WebSt }) {
    const form = p.st.form
-   // ⌘⏎ / ctrl+⏎ submits from anywhere, textarea included (his ask)
+   // ⌘⏎ / ctrl+⏎ submits from anywhere, textarea included
    useEffect(() => {
       const onKey = (e: KeyboardEvent): void => {
          // the enhancer modal owns ⌘⏎ while it is open (refine), so a rewrite never queues a run
@@ -513,12 +515,16 @@ export const VarsForm = observer(function VarsForm(p: { st: WebSt }) {
             {/* the OUTPUT is a knob like the others: a row, not a lone button in the header */}
             <SaveRow st={p.st} module={form.moduleKey} />
          </div>
-         <div className="runbar">
-            {/* side and pinned put generate INSIDE the results panel (it sits next to what it
-                produces, and on a phone it stays on screen); the form keeps it otherwise */}
-            {p.st.generateInResults ? null : <GenerateButton st={p.st} />}
-            {p.st.run.error != null ? <span className="error">🔴 {p.st.run.error}</span> : null}
-         </div>
+         {/* side and pinned put generate INSIDE the results panel (it sits next to what it
+             produces, and on a phone it stays on screen); the form keeps it otherwise. With
+             neither a button nor an error there is nothing to bar: rendering it anyway left a
+             sticky bordered strip holding nothing */}
+         {p.st.generateInResults && p.st.run.error == null ? null : (
+            <div className="runbar">
+               {p.st.generateInResults ? null : <GenerateButton st={p.st} />}
+               {p.st.run.error != null ? <span className="error">🔴 {p.st.run.error}</span> : null}
+            </div>
+         )}
          <QueuePanel st={p.st} />
       </div>
    )

@@ -72,7 +72,7 @@ describe('buildFileRows', () => {
       ])
    })
 
-   it('chain merge never clobbers a real sibling dir of the same name (reviewer repro)', () => {
+   it('chain merge never clobbers a real sibling dir of the same name', () => {
       // /r/a/b + /r/b: merging chain a/b re-keyed as 'b' used to overwrite
       // sibling b, silently dropping its subtree
       const rows = buildFileRows({
