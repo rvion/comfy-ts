@@ -124,7 +124,7 @@ export const LorasControl = observer(function LorasControl(p: {
     * fails at send time until that host rescans its models */
    const managerOnly = new Set(p.v.desc.managerOnlyOptions ?? [])
    const MANAGER_ONLY_TIP =
-      'the lora manager sees this one, ComfyUI does not yet. it will refuse the prompt until it rescans: restart the host, or hit refresh in the HOST box'
+      'on disk and known to the lora manager, but ComfyUI has not scanned it: it refuses the prompt. only restarting ComfyUI makes it re-read the folder'
    const warnBadge = (name: string): ReactNode =>
       managerOnly.has(name) ? (
          <span className="lora-warn" data-tip={MANAGER_ONLY_TIP}>
@@ -341,10 +341,11 @@ export const LorasControl = observer(function LorasControl(p: {
                <button
                   type="button"
                   className="field-height warn-action"
-                  data-tip={`${managerOnlyInUse.length} lora(s) in this palette are unknown to ComfyUI. this refetches its model list and rewrites sdk.d.ts; a serve restart is what widens the var itself`}
-                  onClick={() => void p.st.hostAction('refresh-schema')}
+                  disabled={p.st.hostWatch === 'down'}
+                  data-tip={`${managerOnlyInUse.length} lora(s) here are on disk but ComfyUI has not scanned them, so it refuses the prompt. Only a RESTART makes it re-read its models folder: refetching the schema just re-reads the same list. serve then needs a restart too, to widen the var`}
+                  onClick={() => void p.st.hostAction('restart')}
                >
-                  <Icon name="warn" /> rescan host
+                  <Icon name="power" /> restart ComfyUI
                </button>
             ) : null}
             {p.hostUrl == null ? null : (

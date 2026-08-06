@@ -698,7 +698,10 @@ export class ServeApp {
                ok: true,
                host: hostId,
                action,
-               note: `schema refetched: ${nodes} node types, ${loras} loras — restart serve to widen the var lists`,
+               note:
+                  `schema refetched: ${nodes} node types, ${loras} loras. ` +
+                  `this re-reads what ComfyUI REPORTS, it cannot make it rescan its models folder ` +
+                  `(restart ComfyUI for that). serve must restart to widen the var lists`,
             })
          }
          if (action === 'restart') {

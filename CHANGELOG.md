@@ -31,7 +31,7 @@
 ### Fixed
 
 - **A prompt the host refuses now says why.** ComfyUI answers a rejection with a non-200, its own message and per-node details, and no `prompt_id`. The reply was validated as if it were a success, so the console showed `prompt_id must be a string (was missing)` twice and threw away the sentence naming the node and the value. It now reads: `ComfyUI refused the prompt: Prompt outputs failed validation · node 12: Value not in list — lora_name: '…' not in (list of length 200)`.
-- **A lora only the lora-manager knows is honestly labelled.** It is still offered, but ComfyUI validates against the enum it has CACHED, so picking one is refused until that host rescans. The ⚠ tooltip says exactly that, and what to do: restart the host, or hit refresh in the HOST box.
+- **A lora only the lora-manager knows is honestly labelled, and the way out is one button.** It is still offered, but ComfyUI refuses a prompt naming a file it has not scanned. Refetching the schema does NOT help: that re-reads what ComfyUI reports, and only restarting ComfyUI makes it re-read its models folder. The loras row grows a `restart ComfyUI` button while such a lora is in the palette, and both it and the ⚠ badge say that plainly.
 
 ### The web panel
 
