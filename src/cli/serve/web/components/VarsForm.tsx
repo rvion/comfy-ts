@@ -124,21 +124,28 @@ export const VarsForm = observer(function VarsForm(p: { st: WebSt }) {
    }
    return (
       <div>
-         <div className="form-head">
-            <h2>
-               <b>{form.moduleKey}</b> / {form.draft}
-            </h2>
-            <span className="hint">
-               {form.saveState === 'saving' ? 'saving…' : null}
-               {form.saveState === 'saved' ? 'autosaved' : null}
-               {form.saveState === 'error' ? `🔴 save failed: ${form.saveError}` : null}
-            </span>
-            <button type="button" className="link" title="save these values as a new draft" onClick={duplicate}>
+         {/* the TUI header, on the web: labelled boxes for what you are editing and where it runs */}
+         <div className="head-boxes">
+            <div className="head-box">
+               <span className="head-label">workflow</span>
+               <span className="head-value app">{form.moduleKey}</span>
+            </div>
+            <div className="head-box">
+               <span className="head-label">draft</span>
+               <span className="head-value draft">{form.draft}</span>
+            </div>
+            <div className="head-box">
+               <span className="head-label">host</span>
+               <span className="head-value host">{form.host}</span>
+            </div>
+         </div>
+         <div className="head-actions">
+            <button type="button" title="save these values as a new draft" onClick={duplicate}>
                duplicate…
             </button>
             <button
                type="button"
-               className="link danger"
+               className="danger"
                title="delete this draft's file (default resets to the workflow's own values)"
                onClick={() => {
                   if (window.confirm(`delete draft '${form.draft}' of ${form.moduleKey}? the file is removed.`))
@@ -147,6 +154,11 @@ export const VarsForm = observer(function VarsForm(p: { st: WebSt }) {
             >
                delete
             </button>
+            <span className="hint">
+               {form.saveState === 'saving' ? 'saving…' : null}
+               {form.saveState === 'saved' ? 'autosaved' : null}
+               {form.saveState === 'error' ? `🔴 save failed: ${form.saveError}` : null}
+            </span>
          </div>
          {form.vars.map((v) => (
             // keyed by DRAFT too: a draft switch must reset per-row ui state (lora filter,

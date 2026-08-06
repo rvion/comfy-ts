@@ -55,6 +55,30 @@ body {
 .main h2 b { color: var(--text); }
 .form-head { display: flex; gap: 12px; align-items: baseline; margin-bottom: 12px; flex-wrap: wrap; }
 
+/* the TUI header on the web: one labelled box per thing you are editing, actions below */
+.head-boxes { display: flex; gap: 10px; flex-wrap: wrap; margin: 6px 0 0; }
+.head-box {
+   position: relative; border: 1px solid var(--border); border-radius: 8px;
+   padding: 7px 12px; background: var(--panel); min-width: 0;
+}
+.head-label {
+   position: absolute; top: -7px; left: 9px; padding: 0 5px; background: var(--bg);
+   color: var(--dim); font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase;
+}
+.head-value { font-weight: 600; overflow-wrap: anywhere; }
+.head-value.app { color: var(--amber); }
+.head-value.draft { color: var(--accent); }
+.head-value.host { color: var(--green); }
+.head-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 12px 0 14px; }
+.head-actions button { padding: 4px 12px; font-size: 12px; }
+button.danger { color: var(--dim); }
+button.danger:hover { color: var(--red); border-color: var(--red); }
+
+/* the sidebar is a tree: folder → workflows → drafts, the branch line makes the nesting readable */
+.side-group { margin-bottom: 10px; }
+.side-folder { padding: 4px 12px 2px; color: var(--dim); font-size: 11px; overflow-wrap: anywhere; }
+.side-branch { margin-left: 10px; border-left: 1px solid var(--border); }
+
 .var-row {
    display: grid; grid-template-columns: 170px 1fr; gap: 10px; align-items: start;
    padding: 8px 0; border-bottom: 1px solid var(--border);
@@ -126,6 +150,8 @@ button.mode.sel { background: var(--accent-dim); border-color: var(--accent); co
 .lora-chip.card {
    flex-direction: column; align-items: stretch; border-radius: 8px; padding: 6px;
    background: var(--panel-2); border: 1px solid var(--border); width: 132px;
+   /* anything that still outgrows the card is clipped IN PLACE, never painted over its neighbour */
+   overflow: hidden;
 }
 .lora-chip.card .lora-thumb { height: 110px; }
 .lora-chip.card .chip-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -140,6 +166,12 @@ button.mode.sel { background: var(--accent-dim); border-color: var(--accent); co
 .chip-state { font-size: 10px; color: var(--green); letter-spacing: 0.04em; }
 .lora-chip.off .chip-state { color: var(--amber); }
 .chip-controls { display: flex; gap: 4px; align-items: center; }
+/* the card is a FIXED width: its controls must divide that width, never overflow it.
+   Two 52px inputs plus the ✕ were wider than the card, so the ✕ spilled under the next
+   card and only the last one of a row stayed clickable */
+.lora-chip.card .chip-controls { width: 100%; min-width: 0; }
+.lora-chip.card .chip-controls input[type='number'] { flex: 1 1 0; width: auto; min-width: 0; }
+.lora-chip.card .chip-controls button { flex: 0 0 auto; }
 .chip-controls input[type='number'] { width: 52px; padding: 1px 4px; font-size: 11px; }
 .chip-controls button { border: 0; background: none; color: inherit; padding: 0 2px; font-size: 11px; }
 .chip-controls button:hover { color: var(--red); }
