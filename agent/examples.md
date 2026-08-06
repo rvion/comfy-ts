@@ -1,6 +1,6 @@
 # The example zoo
 
-`examples/` is the FIRST thing Rémi (and any consumer) reads and playtests — the examples ARE the review surface. This doc owns their shape: layout, the shared cloud helper, the per-mode vars conventions, the key story, and the verification bar. The build matrix at the bottom is the ground truth for which zoo files exist and which official template each one mirrors.
+`examples/` is the FIRST thing a consumer reads and playtests — the examples ARE the review surface. This doc owns their shape: layout, the shared cloud helper, the per-mode vars conventions, the key story, and the verification bar. The build matrix at the bottom is the ground truth for which zoo files exist and which official template each one mirrors.
 
 ## Layout
 
@@ -45,7 +45,7 @@ Import-safe, loud at run:
 - The helper NEVER throws (or warns) at import. On a keyless machine every cloud example still loads: the TUI shows a clean tree, zero red rows. (This replaced example 05's original throw-at-import, which would have painted one red ✗ per zoo file.)
 - Standalone runs fail FAST and clear: `requireCloudKey()` names `COMFY_CLOUD_API_KEY` before anything connects.
 - A TUI run without a key fails with the library's single typed `ComfyHostAuthError` ("401 … host requires authentication, no apiKey configured") in the exec error line — one notice per attempted run, never a wall of red.
-- The key VALUE never appears in any tracked file (banned-keywords hook enforces the shape). On this machine: `rv-secret get rv/comfy-cloud/api-key` or `.rv-private/comfy-cloud-api-key` (both untracked); examples read ONLY the env var.
+- The key VALUE never appears in any tracked file (banned-keywords hook enforces the shape). Examples read ONLY `COMFY_CLOUD_API_KEY`; wherever the value is kept locally, it stays untracked.
 
 ## The file skeleton
 
@@ -85,7 +85,7 @@ Deviations from the skeleton, both deliberate:
 
 - Header comment: 2-4 lines — family+mode+model, the SOURCE TEMPLATE name, the key requirement, the run command. Nothing else.
 - ONE workflow per file, `export const` + `export default`, id = `<family>-<mode>` (matches the basename).
-- IMAGE examples save via `b.SaveImageWebsocket({ images })` — never `SaveImage` (his order 2026-07-31: examples leave NO trace on the server; architecture.md item 14 owns the mechanics). The grouping string that used to be the server-side `filename_prefix` moves to the LOCAL save prefix: standalone blocks pass `save: { prefix: 'comfy-ts-zoo/<family>-<mode>' }` (rvion examples: `comfy-ts-example/<id>`) so opt-in saves land in a local subfolder under `.comfy-ts/outputs/`. Not a var — outputs group per example, var panels stay signal-only.
+- IMAGE examples save via `b.SaveImageWebsocket({ images })` — never `SaveImage` (examples leave NO trace on the server; architecture.md item 14 owns the mechanics). The grouping string that used to be the server-side `filename_prefix` moves to the LOCAL save prefix: standalone blocks pass `save: { prefix: 'comfy-ts-zoo/<family>-<mode>' }` (rvion examples: `comfy-ts-example/<id>`) so opt-in saves land in a local subfolder under `.comfy-ts/outputs/`. Not a var — outputs group per example, var panels stay signal-only.
 - VIDEO/AUDIO examples keep their server-side savers (`SaveVideo`, `SaveAudioMP3`) with the hardcoded `comfy-ts-zoo/<name>` filename_prefix — upstream ships no websocket variant for them; each header comment states that outputs persist on the host.
 - Build code mirrors the source template's CONVERTED api.json (see verification bar), simplified: drop UI scaffolding (Primitive*, ComfySwitchNode, PreviewAny, Note, math/resolution helper nodes, empty lora chains); keep every model-defining node.
 
@@ -107,8 +107,8 @@ Model-specific extras (shift, guidance, …) are allowed when the template expos
 
 i2i/i2v examples must run OUT OF THE BOX from node_modules — the input image ships in the tarball (`package.json files` already carries `examples`). Total budget: under ~1.5 MB for the whole folder.
 
-- Naming: `<subject>_<W>x<H>.jpg` — the subject is what the photo honestly shows, the size is EXACT (Rémi's sketch: `bear_1024x1024.png` style; we ship jpg, not png — a 1024² photographic png alone would blow the budget; flagged deviation, the naming style is his).
-- The set (one per common size): `<subject>_512x512.jpg`, `<subject>_768x768.jpg`, `<subject>_1024x1024.jpg`, one wide `<subject>_1344x768.jpg`, one tall `<subject>_768x1344.jpg`, plus his `<subject>_200x300.jpg` example. Known-good picsum id: 237 (the black dog) → `dog_512x512.jpg`; other subjects are named after eyeballing the fetched image (data labeling, not look-and-feel self-verification).
+- Naming: `<subject>_<W>x<H>.jpg` — the subject is what the photo honestly shows, the size is EXACT (the sketch: `bear_1024x1024.png` style; we ship jpg, not png — a 1024² photographic png alone would blow the budget; flagged deviation, the naming style is his).
+- The set (one per common size): `<subject>_512x512.jpg`, `<subject>_768x768.jpg`, `<subject>_1024x1024.jpg`, one wide `<subject>_1344x768.jpg`, one tall `<subject>_768x1344.jpg`, plus a `<subject>_200x300.jpg` example. Known-good picsum id: 237 (the black dog) → `dog_512x512.jpg`; other subjects are named after eyeballing the fetched image (data labeling, not look-and-feel self-verification).
 - Source & license: picsum.photos serves Unsplash-sourced photos, free to use. Every image's picsum id + author (from `https://picsum.photos/id/<id>/info`) is recorded in the manifest INSIDE `scripts/fetch-example-images.ts` — the script IS the manifest, one source of truth.
 - `scripts/fetch-example-images.ts` (package script `examples:images`): manifest rows `{ name, id, width, height }`, fetches `https://picsum.photos/id/<id>/<w>/<h>`, re-encodes via sharp to jpeg (quality ~80, metadata stripped) for weight control, VERIFIES the decoded dimensions match the filename (loud throw on mismatch), writes to `examples/images/`. Regeneration is DELIBERATE: images are committed DATA, the script only runs by hand.
 - Resolution from the package: `exampleImagePath('dog_512x512.jpg')`, a public helper exported from `'comfy-ts'` (home: `src/exampleAssets.ts` — it is lib surface, not TUI surface) reusing the `bundledExamplesDir` walk (import.meta-based, never cwd — works from a consumer's `node_modules/comfy-ts/` and from this repo). Missing file or pruned examples folder = loud throw naming the path.

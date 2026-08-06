@@ -61,7 +61,7 @@ Never fail silently. Loud console + thrown Error. `bang(x, msg)` for invariants.
 
 Default = NO comment. Comment only the WHY. No change-narration; git + `.rv-journal/changelog.md` own history.
 
-## Markdown — no hard wraps (his rule 2026-07-31)
+## Markdown — no hard wraps
 
 One line per paragraph and per bullet, however long. Never cut a sentence with a newline to respect an invisible line width: editors soft-wrap, renderers reflow, and grep needs the phrase whole. Code fences, tables and frontmatter keep their own line structure. `agent/external-docs/` is excluded: those pages are upstream mirrors, DATA, never restyled (same rule as the json fixtures). `tests/markdown-no-hard-wraps.test.ts` is the guard and runs in `bun run ci`.
 

@@ -40,7 +40,7 @@ Types for every KNOWN custom node / plugin / model in the ecosystem (`src/manage
 
 ## G6 — local AND remote hosts
 
-`ComfyInstallType` distinguishes local / remote-over-ssh. A locality-aware media retrieval fast-path was on the roadmap here and was DROPPED (his call 2026-07-31): the saver × save matrix (G9, README) already gives every placement — same-machine users pick `SaveImage` with no `save:` and read the server's own `output/` file, one write, zero copies. No hidden path derivation to maintain.
+`ComfyInstallType` distinguishes local / remote-over-ssh. A locality-aware media retrieval fast-path was on the roadmap here and was DROPPED: the saver × save matrix (G9, README) already gives every placement — same-machine users pick `SaveImage` with no `save:` and read the server's own `output/` file, one write, zero copies. No hidden path derivation to maintain.
 
 - ✅ type distinction + ssh helpers (`ssh-host-manager/`: config upsert, remote exec — port-forward tunnels DELETED 2026-07-27: they died silently, connect straight to the host instead)
 - ✅ cloud hosts: `url:`-first config + `apiKey` (X-API-Key on http AND the ws upgrade), one authed `host.fetch` with /api-prefix fallback, 302 signed-url downloads, binary type-4 preview frames. Ran live end to end against cloud.comfy.org 2026-07-30 (one 512x512 txt2img: ws progress streamed, output image downloaded). Committed account-generic catalog sdk at `examples/comfy-cloud/sdk.d.ts` (`bun run gen:sdk:cloud`) + `examples/rvion/05-comfy-cloud.cflow.ts`
@@ -52,17 +52,17 @@ Types for every KNOWN custom node / plugin / model in the ecosystem (`src/manage
 `bunx comfy-ts serve [module|dir]` → drafts as a local HTTP generation API: `POST /generate/<module>/<draft>` (or `/generate/<draft>` when unambiguous) with `{ ...vars }` overriding the draft's values, blocking response with output urls (or raw image bytes under `Accept: image/*`); `GET /drafts` self-describes every var (kind, allowed values, ranges, defaults) so a frontend can build a form; `GET /outputs/…` serves the results. Opening the same url in a BROWSER gets a react control panel: every var rendered as its matching web control (prompt textarea, sliders, seed mode buttons + 🎲, loras popup gallery with mirror display names + previews + strengths, size presets, image upload + preview), generate button with live progress + latent preview, output gallery with per-image copy/delete. Edits AUTOSAVE into the selected draft exactly like the TUI, and drafts duplicate from the form header. Draft files are read live (tweak in the TUI while serving) and never written. Binds 127.0.0.1:8288 by default. Full contract: agent/architecture.md item 12.
 
 - ✅ gen / outline / loras / tui (tui look & feel not yet signed off by a human playtest)
-- ✅ serve (drafts over HTTP, Rémi's GO 2026-07-31)
-- 🔶 serve web UI (his ask 2026-08-05) — built, pending his browser playtest
+- ✅ serve (drafts over HTTP)
+- 🔶 serve web UI — built, pending a browser playtest
 
 ## G8 — runs in the browser
 
 `import { ComfyTS } from 'comfy-ts/web'`: the core library in a browser bundle — in-memory storage backend (the `ComfyStorage` seam), native WebSocket (api key as `?token=` on the upgrade, the probed cloud contract), pure-JS sha1, no sharp/ws/node:* in the graph (machine-guarded by `tests/web-bundle.test.ts`). Local/LAN hosts connect directly behind `--enable-cors-header`; Comfy Cloud lacks CORS and rides `comfy-ts serve`. Browser example: `examples/web/` (`bun examples/web/serve.ts`).
 
-- ✅ web entry + storage seam + bundle guard (Rémi's full GO 2026-07-31)
+- ✅ web entry + storage seam + bundle guard
 - 🔶 browser playtest by a human — pending
 
-## G9 — leave no traces (ephemeral outputs, his GO 2026-07-31)
+## G9 — leave no traces (ephemeral outputs)
 
 Images that never persist: `SaveImageWebsocket` outputs stream over the ws and never touch the server disk (every image example uses it); local saving is OPT-IN (`run({ save })` — default keeps outputs in memory only); `ephemeral: true` rewrites `SaveImage` → `SaveImageWebsocket` in the sent prompt and scrubs the server history entry after the run (`host.deleteHistory`/`clearHistory`). Honest limits are part of the feature: uploads persist server-side (base64 loaders are the feature-detected alternative, absent on cloud), video/audio savers have no ws variant, server logs/RAM/cloud retention are out of reach. Contract: architecture.md item 14.
 
@@ -72,5 +72,6 @@ Images that never persist: `SaveImageWebsocket` outputs stream over the ws and n
 
 ## Non-goals
 
-- no app-scale UI (CushyStudio's job), no LLM calls. The TUI and the serve web panel are sidekick surfaces over drafts; `comfy-ts serve` stays a thin LOCAL bridge — no auth, no multi-tenant, no hosted product.
+- no app-scale UI (CushyStudio's job). The TUI and the serve web panel are sidekick surfaces over drafts; `comfy-ts serve` stays a thin LOCAL bridge — no auth, no multi-tenant, no hosted product.
+- no LLM calls FROM THE LIBRARY. Two explicit exceptions: the panel's prompt enhancer talks to OpenRouter or a local Open WebUI from the BROWSER, with a key that never reaches the serve process (`src/cli/serve/web/llm.ts`), and a workflow may run ComfyUI's own text nodes on the host (`execution.texts`). Nothing in `src/` calls a hosted model on its own.
 - no support matrix beyond ComfyUI's own API surface.
