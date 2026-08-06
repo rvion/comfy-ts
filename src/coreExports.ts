@@ -33,7 +33,12 @@ export {
    type ProgressReport,
    type RunSettings,
 } from 'src/runner/ComfyWorkflow.ts'
-export { ComfyExecution, type ComfyExecutionData, type ExecutionProgress } from 'src/runner/ComfyExecution.ts'
+export {
+   ComfyExecution,
+   type ComfyExecutionData,
+   type ComfyTextOutput,
+   type ExecutionProgress,
+} from 'src/runner/ComfyExecution.ts'
 export type { PromptID, WsMsg, PromptRelated_WsMsg } from 'src/runner/ComfyWsApi.ts'
 export { MediaImage, type MediaImageData } from 'src/runner/MediaImage.ts'
 export type { ComfyExecutionStatus } from 'src/runner/ComfyExecutionStatus.ts'

@@ -36,6 +36,13 @@ export type ComfyExecutionData = {
    status?: ComfyExecutionStatus | null
 }
 
+/** one text output as an output node published it (`nodeKey` is null when the node left the snapshot) */
+export type ComfyTextOutput = {
+   nodeId: ComfyNodeId
+   nodeKey: string | null
+   text: string
+}
+
 export type ExecutionProgress = ProgressReport & {
    promptId: PromptID
    nodeName: string | null
@@ -118,7 +125,9 @@ export class ComfyExecution {
    private finishProgressLine(): void {
       if (!this.logProgress) return
       const p = this.progress
-      const line = `${this.status === 'Failure' ? '🔴' : '🟢'} ${this.status.toLowerCase()} in ${(p.elapsedMs / 1000).toFixed(1)}s · ${this.images.length} image(s)`
+      const outputs = [`${this.images.length} image(s)`]
+      if (this.texts.length > 0) outputs.push(`${this.texts.length} text(s)`)
+      const line = `${this.status === 'Failure' ? '🔴' : '🟢'} ${this.status.toLowerCase()} in ${(p.elapsedMs / 1000).toFixed(1)}s · ${outputs.join(' · ')}`
       if (globalThis.process?.stdout?.isTTY) process.stdout.write(`\r\x1b[2K${line}\n`)
       else console.log(line)
    }
@@ -195,6 +204,13 @@ export class ComfyExecution {
    /** update execution list */
    private onExecuted = (msg: WsMsgExecuted): void => {
       const promptNodeID = msg.data.node
+      // a STRING output reaches the client ONLY through an output node's ui
+      // payload (PreviewAny) — never through the prompt result
+      for (const entry of msg.data.output?.text ?? []) {
+         if (typeof entry !== 'string') continue
+         const nodeKey = this.workflow.data.apiJson?.[promptNodeID]?.class_type ?? null
+         this.texts.push({ nodeId: promptNodeID, nodeKey, text: entry })
+      }
       const images = msg.data.output?.images
       if (images) {
          for (const img of images) {
@@ -374,6 +390,14 @@ export class ComfyExecution {
 
    /** images retrieved for this execution, in arrival order (final once `done` resolves) */
    images: MediaImage[] = []
+
+   /** text outputs emitted for this execution, in arrival order (final once `done` resolves) */
+   texts: ComfyTextOutput[] = []
+
+   /** the last text output, the one a single-generator workflow means by "the result" */
+   get text(): string | null {
+      return this.texts.at(-1)?.text ?? null
+   }
 
    update(data: Partial<ComfyExecutionData>): void {
       Object.assign(this.data, data)
