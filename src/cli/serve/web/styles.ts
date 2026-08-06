@@ -221,16 +221,13 @@ button.mode.sel { background: var(--accent-dim); border-color: var(--accent); co
 }
 .chip-title.as-text:hover { color: var(--accent); }
 
-/* corner affordances over the preview */
-.chip-remove, .chip-grip {
-   position: absolute; top: 4px; z-index: 2; display: inline-flex; align-items: center;
-   border: 0; border-radius: 6px; padding: 2px; color: var(--text);
+/* corner affordance over the preview. no grip: the whole card is the drag source */
+.chip-remove {
+   position: absolute; top: 4px; right: 4px; z-index: 2; display: inline-flex; align-items: center;
+   border: 0; border-radius: 6px; padding: 2px; color: var(--text); cursor: pointer;
    background: rgba(16, 18, 23, 0.72); opacity: 0; transition: opacity 0.12s;
 }
-.chip-remove { right: 4px; cursor: pointer; }
-.chip-grip { left: 4px; cursor: grab; }
-.chip-grip:active { cursor: grabbing; }
-.lora-chip:hover .chip-remove, .lora-chip:hover .chip-grip { opacity: 1; }
+.lora-chip:hover .chip-remove { opacity: 1; }
 .chip-remove:hover { color: var(--red); }
 
 /* PAUSED: still in the palette, visibly not contributing to the graph */

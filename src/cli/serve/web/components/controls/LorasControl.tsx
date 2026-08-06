@@ -383,11 +383,6 @@ export const LorasControl = observer(function LorasControl(p: {
                            p.v.set(reorderLoras({ record, displayed: selectedNames, from, to: ix }))
                      }}
                   >
-                     {/* the grip is now a HINT, not the drag source: it says the card reorders,
-                         which nothing else on a card announces */}
-                     <span className="chip-grip" data-tip="drag the card to reorder">
-                        <Icon name="grip" size={0.8} />
-                     </span>
                      {/* ✕ lives in the CORNER, over the preview: it is the card's own affordance,
                          not another item in the strength row */}
                      <button
