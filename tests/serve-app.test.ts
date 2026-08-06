@@ -251,6 +251,62 @@ describe('ServeApp generate', () => {
    })
 })
 
+describe('seed continuation with the panel writing back', () => {
+   // the panel puts each run's seed on the form and the autosave carries it into the draft.
+   // The continuation guard exists to notice a HUMAN editing the draft; our own number coming
+   // home looked identical, so every other run re-used its predecessor and made the same image
+   it('+ keeps stepping when the draft holds the seed the last run served', async () => {
+      const host = comfy.host({ id: `serve-test-host`, host: '127.0.0.1', port: 65500 })
+      const dw = host.defineWorkflow({
+         id: 'wf-seed-writeback',
+         vars: { seed: v.seed(100, { mode: '+' }) },
+         build: () => {},
+      })
+      const app = new ServeApp([{ key: 'wf-seed-writeback', file: '/fake/s.cflow.ts', dw }], {
+         outputRoot: join(root, 'out'),
+         starter: () => Promise.resolve(fakeExecution()),
+      })
+      const used: number[] = []
+      for (let i = 0; i < 5; i++) {
+         const run = await app.handle({ method: 'POST', url: '/generate/wf-seed-writeback/default', body: '{}' })
+         const seed = (JSON.parse(String(run.body)) as { seeds: { seed: number } }).seeds.seed
+         used.push(seed)
+         await app.handle({
+            method: 'PUT',
+            url: '/drafts/wf-seed-writeback/default',
+            body: JSON.stringify({ seed: { mode: '+', value: seed } }),
+         })
+      }
+      expect(used).toEqual([100, 101, 102, 103, 104])
+   })
+
+   it('a HUMAN typing a seed still restarts the chain there', async () => {
+      const host = comfy.host({ id: `serve-test-host`, host: '127.0.0.1', port: 65500 })
+      const dw = host.defineWorkflow({
+         id: 'wf-seed-typed',
+         vars: { seed: v.seed(10, { mode: '+' }) },
+         build: () => {},
+      })
+      const app = new ServeApp([{ key: 'wf-seed-typed', file: '/fake/t.cflow.ts', dw }], {
+         outputRoot: join(root, 'out'),
+         starter: () => Promise.resolve(fakeExecution()),
+      })
+      const run = async (): Promise<number> => {
+         const r = await app.handle({ method: 'POST', url: '/generate/wf-seed-typed/default', body: '{}' })
+         return (JSON.parse(String(r.body)) as { seeds: { seed: number } }).seeds.seed
+      }
+      expect(await run()).toBe(10)
+      expect(await run()).toBe(11)
+      // someone types 500 into the box: that is NOT the value the chain last served
+      await app.handle({
+         method: 'PUT',
+         url: '/drafts/wf-seed-typed/default',
+         body: JSON.stringify({ seed: { mode: '+', value: 500 } }),
+      })
+      expect(await run()).toBe(500)
+   })
+})
+
 describe('image vars are a file gate, not a file reader', () => {
    // the path in a payload is read off THIS box and uploaded to the ComfyUI host, which for a
    // cloud host is a third party. The descriptor advertises the extensions it takes, so they

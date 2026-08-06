@@ -176,7 +176,7 @@ export class WebSt {
       this.run = new RunSt()
       // a finished run reports the seed it used; the form shows it, and the autosave carries it
       // into the draft — which is also what the server continues from, so `+` keeps stepping
-      this.run.onSeeds = (seeds): void => this.applyRunSeeds(seeds)
+      this.run.onSeeds = (p): void => this.applyRunSeeds(p)
       this.enhancer = new EnhancerSt()
       const stored = readStoredSelection()
       // a stored 'auto' from before the mode was removed resolves to what it MEANT on a
@@ -201,7 +201,9 @@ export class WebSt {
       // a closing/hidden tab must not lose an edit still inside the autosave debounce
       window.addEventListener('beforeunload', () => this.form?.flushKeepalive())
       document.addEventListener('visibilitychange', () => {
-         if (document.visibilityState === 'hidden') this.form?.flushKeepalive()
+         // hiding a tab is not closing it: the ordinary chained save keeps writes in order.
+         // keepalive is unchained by necessity and could land before an older one
+         if (document.visibilityState === 'hidden') void this.form?.save()
       })
       void this.boot()
    }
@@ -234,17 +236,19 @@ export class WebSt {
    /** put the seeds a run used back on the form, VALUE only: the mode is the draft's policy and
     * a run never changes it. Writing the USED value (not the next one) is deliberate — the
     * server restarts its continuation from the draft, so writing the next value would skip one */
-   private applyRunSeeds(seeds: Record<string, number>): void {
+   private applyRunSeeds(p: { module: string; draft: string; seeds: Record<string, number> }): void {
       const form = this.form
-      if (form == null) return
+      // the run that finished, not whatever is on screen now: a queued run resolving after you
+      // browsed away wrote its seed into ANOTHER draft, and the autosave put it on disk
+      if (form == null || form.moduleKey !== p.module || form.draft !== p.draft) return
       runInAction(() => {
          for (const varSt of form.vars) {
             if (varSt.desc.kind !== 'seed') continue
-            const used = seeds[varSt.name]
+            const used = p.seeds[varSt.name]
             if (typeof used !== 'number' || !Number.isFinite(used)) continue
             const current = asSeedForm(varSt.value)
             if (current.value === used) continue
-            varSt.set({ mode: current.mode, value: used })
+            varSt.setFromRun({ mode: current.mode, value: used })
          }
       })
    }
@@ -360,7 +364,10 @@ export class WebSt {
          runInAction(() => {
             this.form = null
          })
-         await outgoing.save()
+         if (!(await outgoing.save()))
+            runInAction(() => {
+               this.formError = `the previous draft could not be saved: ${outgoing.saveError ?? 'unknown error'}`
+            })
       }
       try {
          const reply = await fetchDraftValues(p)

@@ -18,15 +18,23 @@ export class VarSt {
    constructor(
       public readonly name: string,
       public readonly desc: VarDescriptor,
-      public readonly initial: unknown,
+      public initial: unknown,
    ) {
       this.value = initial
-      makeAutoObservable(this, { value: observableRef, name: false, desc: false, initial: false })
+      makeAutoObservable(this, { value: observableRef, name: false, desc: false })
    }
 
    set(value: unknown): void {
       this.value = value
       this.dirty = true
+   }
+
+   /** a value the RUN reported, not one you typed: it re-baselines, so the row is not marked
+    * changed and revert-all does not offer to undo something nobody did */
+   setFromRun(value: unknown): void {
+      this.value = value
+      this.initial = value
+      this.dirty = false
    }
 
    setUploadedUrl(url: string | null): void {
@@ -59,6 +67,8 @@ export class FormSt {
     * against this one, never against lastSaved: while a PUT is open the disk does not hold
     * lastSaved any more, so editing back to it wrote nothing and the in-flight value won */
    private lastQueued: string
+   /** identity of the newest queued write, so a rollback cannot claim someone else's */
+   private queueSeq = 0
 
    constructor(
       public readonly moduleKey: string,
@@ -75,7 +85,7 @@ export class FormSt {
       // next save() must actually send — otherwise the server keeps building the stale record
       this.lastSaved = JSON.stringify(Object.fromEntries(this.vars.map((v) => [v.name, values[v.name]])))
       this.lastQueued = this.lastSaved
-      makeAutoObservable<FormSt, 'disposers' | 'saveChain' | 'lastSaved' | 'lastQueued'>(this, {
+      makeAutoObservable<FormSt, 'disposers' | 'saveChain' | 'lastSaved' | 'lastQueued' | 'queueSeq'>(this, {
          vars: false,
          moduleKey: false,
          draft: false,
@@ -84,6 +94,7 @@ export class FormSt {
          saveChain: false,
          lastSaved: false,
          lastQueued: false,
+         queueSeq: false,
       })
       // the persistence idiom: the values json is change-detector AND payload
       this.disposers.push(
@@ -177,13 +188,10 @@ export class FormSt {
    /** persist the draft now. Resolves FALSE on failure — generate() must not run stale inputs */
    save(): Promise<boolean> {
       const encoded = JSON.stringify(this.valuesJSON())
-      if (encoded === this.lastQueued) {
-         // already on its way (or landed): riding the chain resolves when that write does, so
-         // generate() cannot run ahead of it. A FAILED write rolls lastQueued back, so this
-         // branch never hands back a stale false
-         return this.saveChain
-      }
+      // already on its way (or landed): ride the chain, so generate() waits for that write
+      if (encoded === this.lastQueued) return this.lastSaved === encoded ? Promise.resolve(true) : this.saveChain
       this.lastQueued = encoded
+      const seq = ++this.queueSeq
       runInAction(() => {
          this.saveState = 'saving'
       })
@@ -202,10 +210,10 @@ export class FormSt {
             return true
          } catch (e) {
             runInAction(() => {
-               // roll back ONLY if nothing newer was queued behind this one. Rolling back
-               // unconditionally set the marker to a value the later (successful) write would
-               // then leave stale, and an edit back to it read as "already on disk"
-               if (this.lastQueued === encoded) this.lastQueued = this.lastSaved
+               // by seq, not by value: a newer save carrying the same json must keep its marker
+               if (this.queueSeq === seq) this.lastQueued = this.lastSaved
+               // a failed chain must not be handed to the next no-op caller as a stale false
+               this.saveChain = Promise.resolve(true)
                this.saveState = 'error'
                this.saveError = e instanceof Error ? e.message : String(e)
             })

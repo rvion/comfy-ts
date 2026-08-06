@@ -4,7 +4,7 @@
 // separator is offered and then refused as an unknown lora.
 import { loraMirrorEntries } from 'src/host/loraInfoCache.ts'
 import { loraKey } from 'src/host/loraManagerApi.ts'
-import { matchesRegex } from 'src/utils/matchesRegex.ts'
+import { statelessRegex } from 'src/utils/matchesRegex.ts'
 
 /**
  * `options` is the host enum for this var: it decides both what counts as already-known
@@ -17,10 +17,11 @@ export function managerOnlyLoraOptions(p: {
    /** the var's own narrowing, `v.loras(/krea-?2/i)`: it applies to the mirror too */
    filter?: RegExp | null
 }): string[] {
+   const filter = p.filter == null ? null : statelessRegex(p.filter)
    const known = new Set(p.options.map((o) => loraKey(o)))
    const separator = p.options.some((o) => o.includes('\\')) ? '\\' : '/'
    return loraMirrorEntries(p.hostId, { separator })
       .filter((e) => !known.has(e.key))
       .map((e) => e.serverName)
-      .filter((n) => p.filter == null || matchesRegex(p.filter, n))
+      .filter((n) => filter == null || filter.test(n))
 }

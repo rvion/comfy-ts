@@ -1280,9 +1280,13 @@ export class ServeApp {
             if (seedVar.mode === '?') seedVar.randomize()
             else if (seedVar.mode === '+' || seedVar.mode === '-') {
                const prev = this.seedState.get(stateKey)
-               // continue only while the draft still holds the value the chain grew from
-               if (prev != null && prev.draftBase === draftValue)
-                  seedVar.set(prev.last + (seedVar.mode === '+' ? 1 : -1))
+               // continue while the draft still holds the value the chain grew from, OR the
+               // value this chain last SERVED: the panel writes each run's seed back into the
+               // draft, and that is our own number coming home, not the human edit the
+               // draftBase guard exists to notice. Without the second case every other run
+               // re-used its predecessor's seed and produced the same image twice
+               const ours = prev != null && (prev.draftBase === draftValue || prev.last === draftValue)
+               if (prev != null && ours) seedVar.set(prev.last + (seedVar.mode === '+' ? 1 : -1))
             }
          }
          this.seedState.set(stateKey, { last: seedVar.value, draftBase: draftValue })

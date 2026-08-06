@@ -41,7 +41,7 @@ export class RunSt {
 
    /** what a finished run's seeds should do to the form. Set by WebSt: RunSt owns the queue,
     * not the draft */
-   onSeeds: ((seeds: Record<string, number>) => void) | null = null
+   onSeeds: ((p: { module: string; draft: string; seeds: Record<string, number> }) => void) | null = null
 
    constructor() {
       makeAutoObservable(this, { queue: observableShallow, results: observableShallow })
@@ -111,7 +111,9 @@ export class RunSt {
                // the seed the run ACTUALLY used goes back on the form. The server keeps its own
                // continuation in memory and the draft file never moved, so under `+` the field
                // sat on the first value forever while every image really was different
-               this.onSeeds?.(result.seeds)
+               // WHICH run: the panel may be on another draft by the time this resolves, and a
+               // seed written into the wrong form is persisted there by its autosave
+               this.onSeeds?.({ module: next.module, draft: next.draft, seeds: result.seeds })
             } catch (e) {
                runInAction(() => {
                   this.error = e instanceof Error ? e.message : String(e)

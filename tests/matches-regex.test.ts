@@ -2,7 +2,7 @@
 // /g or /y regex advances lastIndex, so consecutive calls with the SAME pattern disagree: the
 // picker offered a lora the payload validator then refused as unknown.
 import { describe, expect, it } from 'bun:test'
-import { matchesRegex } from 'src/utils/matchesRegex.ts'
+import { matchesRegex, statelessRegex } from 'src/utils/matchesRegex.ts'
 
 describe('matchesRegex', () => {
    it('a /g regex gives the same answer every time', () => {
@@ -20,10 +20,18 @@ describe('matchesRegex', () => {
       expect(names.filter((n) => re.test(n))).not.toEqual(names) // the bug, pinned
    })
 
-   it('a sticky regex too', () => {
-      const re = /a/y
-      expect(matchesRegex(re, 'a')).toBe(true)
-      expect(matchesRegex(re, 'a')).toBe(true)
+   it('a sticky regex keeps its ANCHORING, it just loses the state', () => {
+      const re = /abc/y
+      expect(matchesRegex(re, 'abc')).toBe(true)
+      expect(matchesRegex(re, 'abc')).toBe(true)
+      // /abc/y at position 0 means "starts with": dropping the flag would have widened it
+      expect(matchesRegex(re, 'xabc')).toBe(false)
+   })
+
+   it('statelessRegex hands back the SAME object when there is no state to lose', () => {
+      const plain = /^krea/i
+      expect(statelessRegex(plain)).toBe(plain)
+      expect(statelessRegex(/krea/g)).not.toBe(plain)
    })
 
    it('an ordinary regex is untouched, flags and all', () => {
