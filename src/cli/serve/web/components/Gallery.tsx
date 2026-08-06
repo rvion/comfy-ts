@@ -109,7 +109,7 @@ const RunningCard = observer(function RunningCard(p: { st: WebSt; local: Gallery
          <div className="progress-track">
             <div className="progress-fill" style={{ width: `${percent ?? 0}%` }} />
          </div>
-         {p.st.run.hasPreview ? (
+         {p.st.run.hasPreview && p.st.showLatent ? (
             <div className="imgs">
                <button
                   type="button"

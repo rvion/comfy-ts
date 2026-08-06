@@ -317,6 +317,26 @@ div.lora-thumb.none {
 .head-input { padding: 2px 6px; font-size: 13px; font-weight: 600; color: var(--accent); max-width: 180px; }
 .head-label .save-state { color: var(--dim); font-weight: 400; margin-left: 4px; }
 .head-label .save-state.error { color: var(--red); }
+/* every head box is two lines: what you are on, then what you can do to it */
+.head-box { display: flex; flex-direction: column; gap: 5px; }
+.head-line { display: flex; gap: 8px; align-items: center; min-height: 24px; }
+.head-line .head-group { margin-left: 0; }
+
+/* the lora controls sit above the palette, left aligned */
+.lora-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
+.lora-actions button { font-size: 12px; }
+
+/* the ComfyUI console, only while asked for */
+.logs { margin-top: 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--panel); }
+.logs-head {
+   display: flex; justify-content: space-between; gap: 12px; align-items: baseline;
+   padding: 6px 10px; border-bottom: 1px solid var(--border); color: var(--dim); font-size: 12px;
+}
+.logs pre {
+   margin: 0; padding: 8px 10px; max-height: 240px; overflow: auto; white-space: pre-wrap;
+   font-size: 11px; line-height: 1.35; color: var(--dim);
+   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
 
 /* icons inherit the text they sit in, so a button never jumps when one is swapped in */
 .icon { display: inline-block; vertical-align: -0.16em; flex-shrink: 0; }

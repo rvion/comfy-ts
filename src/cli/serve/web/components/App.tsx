@@ -44,6 +44,19 @@ export const App = observer(function App(p: { st: WebSt }) {
                <div className={`work layout-${p.st.layout}`}>
                   <div className="form-col">
                      <VarsForm st={p.st} />
+                     {/* the ComfyUI console, only while asked for (it polls) */}
+                     {p.st.showLogs ? (
+                        <div className="logs">
+                           <div className="logs-head">
+                              <span>console · {p.st.hosts.defaults[p.st.form?.moduleKey ?? ''] ?? 'host'}</span>
+                              <button type="button" className="link" onClick={() => p.st.toggleLogs()}>
+                                 hide
+                              </button>
+                           </div>
+                           {p.st.logsError != null ? <div className="error">🔴 {p.st.logsError}</div> : null}
+                           <pre>{p.st.logLines.join('\n')}</pre>
+                        </div>
+                     ) : null}
                   </div>
                   {p.st.layout === 'off' ? null : (
                      <div className="results-col">

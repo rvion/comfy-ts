@@ -89,7 +89,14 @@ export const LorasControl = observer(function LorasControl(p: { v: VarSt; host: 
    // with 35 keys and 2 on). A paused lora leaves the record entirely and lives here instead
    const isOn = (name: string): boolean => loraIsOn(record[name])
    const isInPalette = (name: string): boolean => isOn(name) || local.paused.has(name)
-   const selectedNames = options.filter(isInPalette)
+   // NEWEST FIRST: the record keeps insertion order, so the lora you just added is the last
+   // key — reversed, it lands where you are looking instead of at the end of the row
+   const selectedNames = (() => {
+      const known = new Set(options)
+      const inRecord = Object.keys(record).filter((n) => known.has(n) && isInPalette(n))
+      const pausedOnly = [...local.paused].filter((n) => known.has(n) && !inRecord.includes(n))
+      return [...inRecord, ...pausedOnly].reverse()
+   })()
    const showImages = p.st.showLoraImages
    const showTitles = p.st.showLoraTitles
 
@@ -236,6 +243,19 @@ export const LorasControl = observer(function LorasControl(p: { v: VarSt; host: 
 
    return (
       <div>
+         {/* the controls sit ABOVE the palette, left aligned: after a row of cards they read as
+             an afterthought, and a centred trio of buttons has nothing to align with */}
+         <div className="lora-actions">
+            <button type="button" className="field-height" onClick={() => local.setOpen(true)}>
+               <Icon name="plus" /> {selectedNames.length === 0 ? `add loras (${options.length})` : 'add'}
+            </button>
+            <span className="btn-group field-height">{visibilityToggles}</span>
+            {selectedNames.length > 0 ? (
+               <span className="hint">
+                  {selectedNames.length} in the palette · {selectedNames.filter(isOn).length} on
+               </span>
+            ) : null}
+         </div>
          <div className="row-inline">
             {!showImages && !showTitles ? (
                <span className="hint">
@@ -274,10 +294,6 @@ export const LorasControl = observer(function LorasControl(p: { v: VarSt; host: 
                   </span>
                ))
             )}
-            <button type="button" onClick={() => local.setOpen(true)}>
-               {selectedNames.length === 0 ? `add loras… (${options.length})` : '+ add…'}
-            </button>
-            {visibilityToggles}
          </div>
 
          {local.open ? (

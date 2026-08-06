@@ -146,3 +146,26 @@ describe('in-memory outputs stay reachable (else "memory only" shows a blank gal
       expect((await app.handle({ method: 'GET', url: '/images/prompt-1/0' })).status).toBe(404)
    })
 })
+
+describe('host actions and logs', () => {
+   it('an unknown host is a 404 naming what exists, on both the action and the logs route', async () => {
+      const app = makeApp()
+      const action = await app.handle({ method: 'POST', url: '/hosts/nope/interrupt' })
+      expect(action.status).toBe(404)
+      expect(String(action.body)).toContain('known:')
+      expect((await app.handle({ method: 'GET', url: '/hosts/nope/logs' })).status).toBe(404)
+   })
+
+   it('an unknown ACTION is refused with the list, never silently accepted', async () => {
+      const reply = await makeApp().handle({ method: 'POST', url: '/hosts/save-host/format-my-disk' })
+      expect(reply.status).toBe(400)
+      expect(String(reply.body)).toContain('interrupt | clear-queue | restart')
+   })
+
+   it('an action the host cannot serve answers 502, so a dead button is never reported as done', async () => {
+      // the fake host points at a closed port: every call fails at the socket
+      const reply = await makeApp().handle({ method: 'POST', url: '/hosts/save-host/interrupt' })
+      expect(reply.status).toBe(502)
+      expect(String(reply.body)).toContain('refused')
+   })
+})

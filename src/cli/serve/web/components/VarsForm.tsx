@@ -286,64 +286,133 @@ export const VarsForm = observer(function VarsForm(p: { st: WebSt }) {
                 folder → workflow → draft tree, so a second dropdown would be a rival copy of it */}
             <div className="head-box">
                <span className="head-label">workflow</span>
-               <button
-                  type="button"
-                  className="head-value app as-link"
-                  title={p.st.sidebarOpen ? 'close the workflow menu' : 'browse every workflow'}
-                  onClick={() => p.st.toggleSidebar()}
-               >
-                  <Icon name="folder" size={1} /> {form.moduleKey}
-               </button>
+               <div className="head-line">
+                  <button
+                     type="button"
+                     className="head-value app as-link"
+                     title={p.st.sidebarOpen ? 'close the workflow menu' : 'browse every workflow'}
+                     onClick={() => p.st.toggleSidebar()}
+                  >
+                     {form.moduleKey}
+                  </button>
+               </div>
+               <div className="head-line">
+                  <span className="btn-group">
+                     <button
+                        type="button"
+                        title={p.st.sidebarOpen ? 'close the workflow menu' : 'browse every workflow'}
+                        onClick={() => p.st.toggleSidebar()}
+                     >
+                        <Icon name="folder" />
+                     </button>
+                  </span>
+                  <span className="hint">{form.vars.length} vars</span>
+               </div>
             </div>
             {/* duplicate and delete act on THIS draft, so they live in the draft box */}
             <DraftBox st={p.st} form={form} />
             <div className="head-box">
                <span className="head-label">host</span>
-               {/* pick where this workflow RUNS (the TUI's host override), remembered per module */}
-               {p.st.hosts.hosts.length > 1 ? (
-                  <select
-                     className="head-select"
-                     value={p.st.hostFor(form.moduleKey)}
-                     title="run this workflow on another host"
-                     onChange={(e) => void p.st.setModuleHost({ module: form.moduleKey, host: e.target.value })}
-                  >
-                     {p.st.hosts.hosts.map((h) => (
-                        <option key={h.id} value={h.id}>
-                           {h.id === (p.st.hosts.defaults[form.moduleKey] ?? '') ? `${h.id} (its own)` : h.id}
-                        </option>
-                     ))}
-                  </select>
-               ) : (
-                  <span className="head-value host">{p.st.hostFor(form.moduleKey) || form.host}</span>
-               )}
-               {p.st.isHostOverridden(form.moduleKey) ? (
-                  <button
-                     type="button"
-                     className="link"
-                     title={`runs on an override — back to ${p.st.hosts.defaults[form.moduleKey] ?? 'its own host'}`}
-                     onClick={() => void p.st.setModuleHost({ module: form.moduleKey, host: null })}
-                  >
-                     <Icon name="swap" /> reset
-                  </button>
-               ) : null}
+               <div className="head-line">
+                  {/* pick where this workflow RUNS (the TUI's host override), remembered per module */}
+                  {p.st.hosts.hosts.length > 1 ? (
+                     <select
+                        className="head-select"
+                        value={p.st.hostFor(form.moduleKey)}
+                        title="run this workflow on another host"
+                        onChange={(e) => void p.st.setModuleHost({ module: form.moduleKey, host: e.target.value })}
+                     >
+                        {p.st.hosts.hosts.map((h) => (
+                           <option key={h.id} value={h.id}>
+                              {h.id === (p.st.hosts.defaults[form.moduleKey] ?? '') ? `${h.id} (its own)` : h.id}
+                           </option>
+                        ))}
+                     </select>
+                  ) : (
+                     <span className="head-value host">{p.st.hostFor(form.moduleKey) || form.host}</span>
+                  )}
+               </div>
+               {/* the TUI's host actions: they act on the box this workflow runs on */}
+               <div className="head-line">
+                  <span className="btn-group">
+                     <button
+                        type="button"
+                        title="interrupt the prompt running now"
+                        onClick={() => void p.st.hostAction('interrupt')}
+                     >
+                        <Icon name="pause" />
+                     </button>
+                     <button
+                        type="button"
+                        title="drop everything still pending in the host queue"
+                        onClick={() => void p.st.hostAction('clear-queue')}
+                     >
+                        <Icon name="trash" />
+                     </button>
+                     <button
+                        type="button"
+                        className="danger"
+                        title="restart ComfyUI on that host (manager reboot) — it reconnects when back"
+                        onClick={() => {
+                           if (window.confirm(`restart ComfyUI on '${p.st.hostFor(form.moduleKey)}'?`))
+                              void p.st.hostAction('restart')
+                        }}
+                     >
+                        <Icon name="power" />
+                     </button>
+                  </span>
+                  {p.st.isHostOverridden(form.moduleKey) ? (
+                     <button
+                        type="button"
+                        className="link"
+                        title={`runs on an override — back to ${p.st.hosts.defaults[form.moduleKey] ?? 'its own host'}`}
+                        onClick={() => void p.st.setModuleHost({ module: form.moduleKey, host: null })}
+                     >
+                        <Icon name="swap" /> reset
+                     </button>
+                  ) : null}
+               </div>
             </div>
             {/* its own box beside host: on a phone, scrolling between the knobs and the image
                 is the whole friction, so 📌 pins the newest one over the bottom */}
             <div className="head-box">
                <span className="head-label">preview</span>
-               <span className="btn-group">
-                  {LAYOUTS.map((l) => (
+               {/* first line: WHERE the results sit. second: what shows up while it runs */}
+               <div className="head-line">
+                  <span className="btn-group">
+                     {LAYOUTS.map((l) => (
+                        <button
+                           key={l.id}
+                           type="button"
+                           className={p.st.layout === l.id ? 'sel' : ''}
+                           title={`${l.title}${p.st.layout === l.id ? ' — click again for the automatic placement' : ''}`}
+                           onClick={() => p.st.setLayout(l.id)}
+                        >
+                           <Icon name={l.icon} />
+                        </button>
+                     ))}
+                  </span>
+               </div>
+               <div className="head-line">
+                  <span className="btn-group">
                      <button
-                        key={l.id}
                         type="button"
-                        className={p.st.layout === l.id ? 'sel' : ''}
-                        title={`${l.title}${p.st.layout === l.id ? ' — click again for the automatic placement' : ''}`}
-                        onClick={() => p.st.setLayout(l.id)}
+                        className={p.st.showLatent ? 'sel' : ''}
+                        title={p.st.showLatent ? 'hide the latent preview during a run' : 'show the latent preview'}
+                        onClick={() => p.st.toggleLatent()}
                      >
-                        <Icon name={l.icon} />
+                        <Icon name="image" />
                      </button>
-                  ))}
-               </span>
+                     <button
+                        type="button"
+                        className={p.st.showLogs ? 'sel' : ''}
+                        title={p.st.showLogs ? 'hide the ComfyUI console' : 'show the ComfyUI console'}
+                        onClick={() => p.st.toggleLogs()}
+                     >
+                        <Icon name="terminal" />
+                     </button>
+                  </span>
+               </div>
             </div>
          </div>
          {p.st.hostError != null ? <div className="error">🔴 {p.st.hostError}</div> : null}

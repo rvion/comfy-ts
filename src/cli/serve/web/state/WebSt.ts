@@ -4,12 +4,15 @@ import { makeAutoObservable, observableRef, observableShallow, runInAction } fro
 import {
    deleteDraft,
    fetchDraftValues,
+   fetchHostLogs,
    fetchHosts,
    fetchIndex,
    fetchSettings,
+   postHostAction,
    saveDraft,
    saveSettings,
    setModuleHost,
+   type HostAction,
    type HostsPayload,
    type ModuleDescription,
    type ServeSettings,
@@ -49,6 +52,8 @@ type StoredSelection = {
    loraImages?: boolean
    loraTitles?: boolean
    layout?: string
+   latent?: boolean
+   logs?: boolean
 }
 
 function readStoredSelection(): StoredSelection {
@@ -104,6 +109,9 @@ export class WebSt {
       this.sidebarOpen = stored.sidebar ?? !isNarrowScreen()
       this.showLoraImages = stored.loraImages ?? true
       this.showLoraTitles = stored.loraTitles ?? true
+      this.showLatent = stored.latent ?? true
+      // logs start CLOSED whatever was stored: a panel that polls must be asked for
+      this.showLogs = false
       makeAutoObservable(this, { run: false, enhancer: false, form: observableRef, modules: observableShallow })
       // a closing/hidden tab must not lose an edit still inside the autosave debounce
       window.addEventListener('beforeunload', () => this.form?.flushKeepalive())
@@ -142,6 +150,7 @@ export class WebSt {
                loraImages: this.showLoraImages,
                loraTitles: this.showLoraTitles,
                layout: this.layout,
+               latent: this.showLatent,
             }),
          )
       } catch {
@@ -254,6 +263,67 @@ export class WebSt {
          })
       } catch {
          // an older server has no /hosts route: the header just shows the module's own host
+      }
+   }
+
+   /** the ComfyUI console, polled only while the logs panel is open (off by default: most of
+    * the time you do not care, and a closed panel must cost nothing) */
+   showLogs = false
+   logLines: string[] = []
+   logsError: string | null = null
+   hostNote: string | null = null
+   /** the latent frames during a run: on by default, off when you only want the final image */
+   showLatent = true
+   private logsTimer: ReturnType<typeof setInterval> | null = null
+
+   toggleLatent(): void {
+      this.showLatent = !this.showLatent
+      this.persist()
+   }
+
+   toggleLogs(): void {
+      this.showLogs = !this.showLogs
+      this.persist()
+      if (this.logsTimer != null) clearInterval(this.logsTimer)
+      this.logsTimer = null
+      if (!this.showLogs) return
+      void this.pullLogs()
+      this.logsTimer = setInterval(() => void this.pullLogs(), 3000)
+   }
+
+   private async pullLogs(): Promise<void> {
+      const host = this.form == null ? null : this.hostFor(this.form.moduleKey)
+      if (host == null || host === '') return
+      try {
+         const reply = await fetchHostLogs({ host })
+         runInAction(() => {
+            this.logLines = reply.entries.map((e) => e.m.replace(/\n+$/, ''))
+            this.logsError = null
+         })
+      } catch (e) {
+         runInAction(() => {
+            this.logsError = e instanceof Error ? e.message : String(e)
+         })
+      }
+   }
+
+   /** interrupt / clear the queue / reboot the box this workflow runs on */
+   async hostAction(action: HostAction): Promise<void> {
+      const host = this.form == null ? null : this.hostFor(this.form.moduleKey)
+      if (host == null || host === '') return
+      runInAction(() => {
+         this.hostError = null
+         this.hostNote = null
+      })
+      try {
+         const reply = await postHostAction({ host, action })
+         runInAction(() => {
+            this.hostNote = reply.note
+         })
+      } catch (e) {
+         runInAction(() => {
+            this.hostError = e instanceof Error ? e.message : String(e)
+         })
       }
    }
 

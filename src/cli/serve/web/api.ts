@@ -129,6 +129,16 @@ export function fetchHosts(): Promise<HostsPayload> {
    return jsonFetch('/hosts')
 }
 
+export type HostAction = 'interrupt' | 'clear-queue' | 'restart'
+
+export function postHostAction(p: { host: string; action: HostAction }): Promise<{ ok: true; note: string }> {
+   return jsonFetch(`/hosts/${encodeURIComponent(p.host)}/${p.action}`, { method: 'POST' })
+}
+
+export function fetchHostLogs(p: { host: string }): Promise<{ entries: { t: string; m: string }[] }> {
+   return jsonFetch(`/hosts/${encodeURIComponent(p.host)}/logs`)
+}
+
 export function setModuleHost(p: { module: string; host: string | null }): Promise<{
    ok: true
    module: string

@@ -101,6 +101,8 @@ const USAGE = [
    'PUT  /prompt-enhancers/<name> with {"text"} — write one · DELETE /prompt-enhancers/<name> — remove it',
    'GET  /settings — { saveToDisk } · PUT /settings with {"saveToDisk"} — write outputs to disk, or keep them in memory',
    'GET  /hosts — every host this process knows · PUT /hosts/<module> with {"host"} — run that workflow elsewhere',
+   'POST /hosts/<hostId>/<interrupt|clear-queue|restart> — act on a ComfyUI host',
+   'GET  /hosts/<hostId>/logs — the last lines of that host console',
    'GET  /images/<promptId>/<ix> — an in-memory output (saving off), while the process lives',
    'GET  /outputs/<path> — generated files',
 ]
@@ -200,6 +202,8 @@ export class ServeApp {
             if (segs[0] === 'prompt-enhancers' && segs.length === 1) return this.replyPromptEnhancers()
             if (segs[0] === 'settings' && segs.length === 1) return this.replySettings()
             if (segs[0] === 'hosts' && segs.length === 1) return this.replyHosts()
+            if (segs[0] === 'hosts' && segs.length === 3 && segs[1] != null && segs[2] === 'logs')
+               return await this.replyHostLogs(segs[1])
             if (segs[0] === 'images' && segs.length === 3 && segs[1] != null && segs[2] != null)
                return this.replyMemoryImage(`${segs[1]}/${segs[2]}`)
             if (segs[0] === 'outputs') return this.replyOutput(segs.slice(1))
@@ -218,6 +222,8 @@ export class ServeApp {
          if (req.method === 'PUT' && segs[0] === 'settings' && segs.length === 1) return this.replySaveSettings(req)
          if (req.method === 'PUT' && segs[0] === 'hosts' && segs.length === 2 && segs[1] != null)
             return this.replySetHost(segs[1], req)
+         if (req.method === 'POST' && segs[0] === 'hosts' && segs.length === 3 && segs[1] != null && segs[2] != null)
+            return await this.replyHostAction(segs[1], segs[2])
          if (req.method === 'PUT' && segs[0] === 'prompt-enhancers' && segs.length === 2 && segs[1] != null)
             return this.replySavePromptEnhancer(segs[1], req)
          if (req.method === 'DELETE' && segs[0] === 'prompt-enhancers' && segs.length === 2 && segs[1] != null)
@@ -461,6 +467,49 @@ export class ServeApp {
       const wanted = this.settings.hostOverride[mod.key]
       if (wanted == null || wanted === mod.dw.host.data.id) return null
       return comfyts.hosts.get(wanted) ?? null
+   }
+
+   /** the host actions the TUI's host panel has, minus re-codegen: regenerating the sdk
+    * rewrites a .d.ts for your EDITOR, while the running modules keep the builder they were
+    * imported with — a button that changes nothing in this process would be a lie */
+   private async replyHostAction(hostId: string, action: string): Promise<ServeReply> {
+      const host = comfyts.hosts.get(hostId)
+      if (host == null)
+         return json(404, { error: `unknown host '${hostId}' — known: ${[...comfyts.hosts.keys()].join(', ')}` })
+      try {
+         if (action === 'interrupt') {
+            await host.interrupt()
+            return json(200, { ok: true, host: hostId, action, note: 'interrupt requested' })
+         }
+         if (action === 'clear-queue') {
+            await host.clearQueue()
+            return json(200, { ok: true, host: hostId, action, note: 'pending prompts dropped' })
+         }
+         if (action === 'restart') {
+            // the server dropping the connection mid-reboot IS the expected shape, so a
+            // failure here still means "asked" — the ws reconnects when it comes back
+            await host.manager.restartComfyUI().catch(() => null)
+            return json(200, { ok: true, host: hostId, action, note: 'reboot requested — it reconnects when back' })
+         }
+         return json(400, { error: `unknown host action '${action}' — interrupt | clear-queue | restart` })
+      } catch (e) {
+         return json(502, { error: `host '${hostId}' refused '${action}': ${extractErrorMessage(e)}` })
+      }
+   }
+
+   /** the ComfyUI console, the TUI's logs panel over http. Newest last, capped by the caller */
+   private async replyHostLogs(hostId: string): Promise<ServeReply> {
+      const host = comfyts.hosts.get(hostId)
+      if (host == null) return json(404, { error: `unknown host '${hostId}'` })
+      try {
+         const raw = await host.fetchRawLogs()
+         return json(200, {
+            host: hostId,
+            entries: raw.entries.slice(-200).map((e) => ({ t: e.t, m: e.m })),
+         })
+      } catch (e) {
+         return json(502, { error: `could not read the logs of '${hostId}': ${extractErrorMessage(e)}` })
+      }
    }
 
    private replyHosts(): ServeReply {
