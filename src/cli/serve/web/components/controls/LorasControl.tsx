@@ -29,8 +29,6 @@ import {
    type LoraStrengthPair,
 } from 'src/cli/serve/web/state/payload.ts'
 
-const CARD_CAP = 60
-
 function asRecord(raw: unknown): Record<string, unknown> {
    if (raw != null && typeof raw === 'object' && !Array.isArray(raw)) return raw as Record<string, unknown>
    return {}
@@ -219,7 +217,8 @@ export const LorasControl = observer(function LorasControl(p: {
    const matchesFilter = (name: string): boolean =>
       name.toLowerCase().includes(needle) || label(name).toLowerCase().includes(needle)
    const matches = options.filter(matchesFilter)
-   const cards = matches.filter((o) => !isInPalette(o)).slice(0, CARD_CAP)
+   const cardCap = p.st.loraCap
+   const cards = matches.filter((o) => !isInPalette(o)).slice(0, cardCap)
    /** the enum value IS a path (`krea2\styles\x.safetensors`, separators vary by host and by
     * where the name came from), so the folder is everything before the last separator */
    const folderOf = (name: string): string => {
@@ -544,10 +543,19 @@ export const LorasControl = observer(function LorasControl(p: {
                            </div>
                         </div>
                      ))}
-                     {matches.length - selectedNames.filter(matchesFilter).length > CARD_CAP ? (
+                     {matches.length - selectedNames.filter(matchesFilter).length > cardCap ? (
                         <div className="loras-more">
-                           … {matches.length - selectedNames.filter(matchesFilter).length - CARD_CAP} more — refine the
-                           filter
+                           … {matches.length - selectedNames.filter(matchesFilter).length - cardCap} more — refine the
+                           filter, or draw
+                           <input
+                              type="number"
+                              min={1}
+                              max={2000}
+                              value={cardCap}
+                              data-tip="how many cards this popup draws — each one is an image request, so the right number depends on your collection and your box. Kept in this browser"
+                              onChange={(e) => p.st.setLoraCap(parseInt(e.target.value, 10))}
+                           />
+                           at once
                         </div>
                      ) : null}
                      {matches.length === 0 ? <div className="loras-more">no lora matches '{local.filter}'</div> : null}

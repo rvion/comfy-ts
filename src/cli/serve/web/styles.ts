@@ -325,6 +325,7 @@ div.lora-thumb.none {
    background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px;
 }
 .lightbox-bar a { color: var(--accent); text-decoration: none; }
+.loras-more input[type='number'] { width: 72px; margin: 0 5px; }
 .loras-more { color: var(--dim); font-size: 12px; padding: 4px 10px; }
 
 /* prompt enhancer modal */

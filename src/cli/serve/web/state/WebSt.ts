@@ -56,6 +56,8 @@ type StoredSelection = {
    loraTitles?: boolean
    /** lora previews fill their card (cover) instead of fitting inside it (contain) */
    loraFill?: boolean
+   /** how many lora cards the popup draws before it stops */
+   loraCap?: number
    layout?: string
    latent?: boolean
    logs?: boolean
@@ -66,6 +68,14 @@ type StoredSelection = {
 /** varOrder is the one stored field a reader INDEXES rather than merely reads, so a blob of
  * the wrong shape (hand-edited, or written by an older version) crashed the whole panel to a
  * blank page inside render. Every entry is shape-checked here, once */
+export const DEFAULT_LORA_CAP = 60
+/** an upper bound, not a policy: 2000 cards is 2000 image requests, and a number typed by
+ * hand (or restored from an older blob) must not be able to hang the page */
+export function clampLoraCap(raw: unknown): number {
+   const n = typeof raw === 'number' && Number.isFinite(raw) ? Math.floor(raw) : DEFAULT_LORA_CAP
+   return Math.min(2000, Math.max(1, n))
+}
+
 function readVarOrder(raw: unknown): Record<string, string[]> {
    if (raw == null || typeof raw !== 'object' || Array.isArray(raw)) return {}
    const out: Record<string, string[]> = {}
@@ -102,6 +112,9 @@ export class WebSt {
    showLoraTitles: boolean
    /** cover vs contain for every lora preview: art crops well, a character sheet does not */
    loraFill: boolean
+   /** how many lora cards the popup draws. A cap exists because each card is an image
+    * request; how many is a MACHINE question (your box, your collection), so it is yours */
+   loraCap: number
    run: RunSt
    /** prompt refiner: own store, own localStorage blob (the openrouter key never leaves the browser) */
    enhancer: EnhancerSt
@@ -154,6 +167,7 @@ export class WebSt {
       this.showLoraImages = stored.loraImages ?? true
       this.showLoraTitles = stored.loraTitles ?? true
       this.loraFill = stored.loraFill ?? true
+      this.loraCap = clampLoraCap(stored.loraCap ?? DEFAULT_LORA_CAP)
       this.showLatent = stored.latent ?? true
       this.varOrder = stored.varOrder ?? {}
       // logs start CLOSED whatever was stored: a panel that polls must be asked for
@@ -183,6 +197,10 @@ export class WebSt {
 
    toggleLoraFill(): void {
       this.loraFill = !this.loraFill
+   }
+
+   setLoraCap(next: number): void {
+      this.loraCap = clampLoraCap(next)
       this.persist()
    }
 
@@ -200,6 +218,7 @@ export class WebSt {
                loraImages: this.showLoraImages,
                loraTitles: this.showLoraTitles,
                loraFill: this.loraFill,
+               loraCap: this.loraCap,
                layout: this.layout,
                latent: this.showLatent,
                varOrder: this.varOrder,
