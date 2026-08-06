@@ -332,12 +332,27 @@ div.lora-thumb.none {
    .work.layout-auto .form-col { flex: 1; min-width: 0; }
    .work.layout-auto .results-col { width: 380px; flex-shrink: 0; }
    .work.layout-auto .results-col .gallery { margin-top: 0; }
+   /* inside the query on purpose: below 1100px auto stacks the results UNDER the form, and
+      capping the height there would trap the gallery in a 100vh box instead of letting the
+      page scroll. Same rule as layout-side, see the note there */
+   .work.layout-auto .results-col {
+      position: sticky; top: 0; align-self: flex-start;
+      max-height: calc(100vh - 24px); overflow-y: auto; overscroll-behavior: contain;
+   }
 }
 /* chosen placements */
 .work.layout-side { display: flex; gap: 18px; align-items: flex-start; }
 .work.layout-side .form-col { flex: 1; min-width: 0; }
 .work.layout-side .results-col { width: min(380px, 45vw); flex-shrink: 0; }
 .work.layout-side .results-col .gallery { margin-top: 0; }
+/* A COLUMN OF RESULTS IS NEVER TALLER THAN THE PAGE. Left to itself it grows with the run
+   history and drags the document down, so reading a var meant scrolling past a stack of
+   images. It sticks to the top of .main (the scroll container) and scrolls INSIDE itself,
+   so the form column stays where it is however many runs pile up */
+.work.layout-side .results-col {
+   position: sticky; top: 0; align-self: flex-start;
+   max-height: calc(100vh - 24px); overflow-y: auto; overscroll-behavior: contain;
+}
 /* PINNED: the newest result floats over the bottom, the form scrolls under it — the phone
    answer to "I always have to scroll between them". Sticky, so it never covers the runbar.
    It HUGS its content: fit-content width + auto height, so an empty run or a tall portrait
