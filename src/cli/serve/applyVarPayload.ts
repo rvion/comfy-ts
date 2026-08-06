@@ -38,7 +38,14 @@ function listSome(items: readonly string[], cap: number = 20): string {
    return `${items.slice(0, cap).join(', ')} … +${items.length - cap} more`
 }
 
-export function applyVarPayload(varDef: AnyVar, raw: unknown): string | null {
+/** `extraLoraOptions`: names the lora-manager mirror knows that ComfyUI's enum does not.
+ * They are accepted like any option — the file is on disk, so the run usually works — but
+ * ONLY those: an arbitrary name still fails, so a typo cannot reach the host */
+export function applyVarPayload(
+   varDef: AnyVar,
+   raw: unknown,
+   opts: { extraLoraOptions?: readonly string[] } = {},
+): string | null {
    const name = varDef.name ?? varDef.label ?? varDef.kind
 
    switch (varDef.kind) {
@@ -100,10 +107,10 @@ export function applyVarPayload(varDef: AnyVar, raw: unknown): string | null {
          if (raw == null || typeof raw !== 'object' || Array.isArray(raw))
             return `var '${name}' expects {"<lora name>": false | true | strength | [model, clip]}`
          const record = raw as Record<string, unknown>
-         const known = new Set<string>(v.options)
+         const known = new Set<string>([...v.options, ...(opts.extraLoraOptions ?? [])])
          const unknownNames = Object.keys(record).filter((k) => !known.has(k))
          if (unknownNames.length > 0)
-            return `var '${name}': unknown lora(s) ${unknownNames.join(', ')} — available: ${listSome(v.options)}`
+            return `var '${name}': unknown lora(s) ${unknownNames.join(', ')} — available: ${listSome([...known])}`
          for (const [k, st] of Object.entries(record))
             if (!isLoraStrength(st)) return `var '${name}': '${k}' must be false | true | number | [model, clip]`
          v.set(record as Partial<Record<string, LoraStrength>>) // every entry validated just above

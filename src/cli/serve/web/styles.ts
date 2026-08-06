@@ -326,6 +326,8 @@ div.lora-thumb.none {
 /* the lora controls sit above the palette, left aligned */
 .lora-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
 .lora-actions button { font-size: 12px; }
+/* a lora the manager knows and comfy does not: flagged, never hidden */
+.lora-warn { color: var(--amber); display: inline-flex; margin-left: 4px; vertical-align: -0.1em; }
 /* an anchor that must read as a button (it opens the host's own page, so it IS a link) */
 .button-link {
    display: inline-flex; align-items: center; gap: 5px; text-decoration: none; font-size: 12px;

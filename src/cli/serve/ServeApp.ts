@@ -12,10 +12,14 @@ import { readServeSettings, writeServeSettings, type ServeSettings } from 'src/c
 import { assembleLogChunks } from 'src/cli/tui/state/LogsSt.ts'
 import { draftsDirForFile, listDraftsForFile } from 'src/cli/tui/state/DraftsSt.ts'
 import {
+   buildLoraMirror,
    getLoraDisplayName,
    getLoraPreviewUrl,
    getLoraTriggerWords,
+   loraMirrorNames,
    refreshLoraInfoCacheIfChanged,
+   reloadLoraInfoCache,
+   writeLoraMirror,
 } from 'src/host/loraInfoCache.ts'
 import { fetchLoraList, fetchLoraPreviewBytes, loraKey, loraPreviewMapFrom } from 'src/host/loraManagerApi.ts'
 import type { ComfyHost } from 'src/host/ComfyHost.ts'
@@ -316,6 +320,18 @@ export class ServeApp {
                if (label !== option) labels[option] = label
             }
             if (Object.keys(labels).length > 0) desc.optionLabels = labels
+            // the UNION: a lora the manager mirror knows but ComfyUI's enum does not. It is on
+            // disk, so it usually runs — the picker offers it, flagged, rather than hiding it
+            const known = new Set(desc.options)
+            const extras = loraMirrorNames(hostId).filter((n) => !known.has(n))
+            if (extras.length > 0) {
+               desc.managerOnlyOptions = extras
+               desc.options = [...desc.options, ...extras]
+               for (const extra of extras) {
+                  const label = getLoraDisplayName(extra, hostId)
+                  if (label !== extra) (desc.optionLabels ??= {})[extra] = label
+               }
+            }
          }
          vars[name] = desc
       }
@@ -492,16 +508,53 @@ export class ServeApp {
             await host.clearQueue()
             return json(200, { ok: true, host: hostId, action, note: 'pending prompts dropped' })
          }
+         if (action === 'refresh-loras') return await this.refreshLoraMirror(hostId, host)
          if (action === 'restart') {
             // the server dropping the connection mid-reboot IS the expected shape, so a
             // failure here still means "asked" — the ws reconnects when it comes back
             await host.manager.restartComfyUI().catch(() => null)
             return json(200, { ok: true, host: hostId, action, note: 'reboot requested — it reconnects when back' })
          }
-         return json(400, { error: `unknown host action '${action}' — interrupt | clear-queue | restart` })
+         return json(400, {
+            error: `unknown host action '${action}' — interrupt | clear-queue | restart | refresh-loras`,
+         })
       } catch (e) {
          return json(502, { error: `host '${hostId}' refused '${action}': ${extractErrorMessage(e)}` })
       }
+   }
+
+   /** re-sweep ComfyUI-Lora-Manager and rewrite the mirror — what `comfy-ts loras` does, with
+    * its refusals kept: a partial or unreachable sweep NEVER overwrites, because writing it
+    * would delete loras from the mirror that are alive on the host */
+   private async refreshLoraMirror(hostId: string, host: ComfyHost): Promise<ServeReply> {
+      const sweep = await fetchLoraList(host)
+      if (sweep.status === 'absent')
+         return json(400, {
+            error: `${hostId} has no ComfyUI-Lora-Manager: the extension is not installed there. Mirror left untouched.`,
+         })
+      if (sweep.status === 'unreachable')
+         return json(502, { error: `${hostId} unreachable — ${sweep.reason}. Mirror left untouched.` })
+      if (sweep.status === 'partial')
+         return json(502, {
+            error: `the sweep broke off after ${sweep.items.length} loras (${sweep.reason}). Writing that would drop every lora past it, so the mirror is left untouched.`,
+         })
+      const mirror = buildLoraMirror({
+         hostId,
+         hostUrl: host.getServerHostHTTP(),
+         fetchedAt: new Date().toISOString(),
+         items: sweep.items,
+      })
+      writeLoraMirror(mirror)
+      // the in-process cache reads the file by mtime, so every surface sees the new names
+      reloadLoraInfoCache()
+      console.log(`[serve] lora mirror refreshed for ${hostId}: ${mirror.count} loras`)
+      return json(200, {
+         ok: true,
+         host: hostId,
+         action: 'refresh-loras',
+         count: mirror.count,
+         note: `${mirror.count} loras synced`,
+      })
    }
 
    /** the ComfyUI console, the TUI's logs panel over http — through the SAME assembly the TUI
@@ -957,7 +1010,11 @@ export class ServeApp {
                return { status: 400, error: `var '${k}': ${extractErrorMessage(e)}` }
             }
          }
-         const err = applyVarPayload(varDef, value)
+         // a lora the mirror knows but the enum does not is a legal choice here too, else the
+         // picker would offer something the api then refuses
+         const err = applyVarPayload(varDef, value, {
+            extraLoraOptions: varDef.kind === 'loras' ? loraMirrorNames(mod.dw.host.data.id) : undefined,
+         })
          if (err != null) return { status: 400, error: err }
       }
 

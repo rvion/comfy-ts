@@ -25,6 +25,10 @@ export type VarDescriptor = {
    options?: readonly string[]
    /** loras: human display names from the lora-manager mirror, keyed by option — entries only where the label differs (filled by ServeApp.describeModule, which knows the host) */
    optionLabels?: Record<string, string>
+   /** loras: names the lora-manager mirror knows and ComfyUI's enum does NOT (yet). Offered in
+    * the picker with a warning, because a lora present on disk usually runs even when the
+    * server has not rescanned its list — filled by ServeApp.describeModule */
+   managerOnlyOptions?: readonly string[]
    min?: number
    max?: number
    presets?: SizePreset[]

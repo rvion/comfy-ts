@@ -314,6 +314,39 @@ export class WebSt {
       }
    }
 
+   /** the lora mirror sweep, from the panel: the metadata (names, trigger words, previews) is
+    * re-downloaded and every surface re-reads it, which needs the descriptors reloaded too */
+   loraSyncing = false
+
+   async refreshLoras(): Promise<void> {
+      if (this.loraSyncing) return
+      runInAction(() => {
+         this.loraSyncing = true
+      })
+      await this.hostAction('refresh-loras')
+      // the option lists (and the manager-only union) live in the descriptors: re-read them,
+      // then re-select the same draft so the form is rebuilt against the new options
+      try {
+         const index = await fetchIndex()
+         const current = this.form
+         runInAction(() => {
+            this.modules = index.workflows
+         })
+         if (current != null) {
+            this.form = null
+            await this.select({ module: current.moduleKey, draft: current.draft })
+         }
+      } catch (e) {
+         runInAction(() => {
+            this.hostError = e instanceof Error ? e.message : String(e)
+         })
+      } finally {
+         runInAction(() => {
+            this.loraSyncing = false
+         })
+      }
+   }
+
    /** interrupt / clear the queue / reboot the box this workflow runs on */
    async hostAction(action: HostAction): Promise<void> {
       const host = this.form == null ? null : this.hostFor(this.form.moduleKey)

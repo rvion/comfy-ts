@@ -102,6 +102,16 @@ export const LorasControl = observer(function LorasControl(p: {
       const pausedOnly = [...local.paused].filter((n) => known.has(n) && !inRecord.includes(n))
       return [...inRecord, ...pausedOnly].reverse()
    })()
+   /** known to the lora manager, absent from ComfyUI's own enum: usually still runs, since the
+    * file is on disk and only the server's list is stale — so it is offered, not hidden */
+   const managerOnly = new Set(p.v.desc.managerOnlyOptions ?? [])
+   const MANAGER_ONLY_TIP = 'only according to the lora manager, not yet listed by comfy itself'
+   const warnBadge = (name: string): ReactNode =>
+      managerOnly.has(name) ? (
+         <span className="lora-warn" data-tip={MANAGER_ONLY_TIP}>
+            <Icon name="warn" size={0.9} />
+         </span>
+      ) : null
    const showImages = p.st.showLoraImages
    const showTitles = p.st.showLoraTitles
 
@@ -257,6 +267,15 @@ export const LorasControl = observer(function LorasControl(p: {
             <span className="btn-group field-height">{visibilityToggles}</span>
             {/* the host's OWN lora manager: where you tag, rename and re-scan them. Same host
                 the runs go to, so the page you open is the one that owns these files */}
+            <button
+               type="button"
+               className="field-height"
+               disabled={p.st.loraSyncing}
+               data-tip="re-download the lora metadata from the lora manager on this host (names, trigger words, previews)"
+               onClick={() => void p.st.refreshLoras()}
+            >
+               <Icon name="refresh" /> {p.st.loraSyncing ? 'syncing…' : 'sync'}
+            </button>
             {p.hostUrl == null ? null : (
                <a
                   className="button-link field-height"
@@ -297,6 +316,7 @@ export const LorasControl = observer(function LorasControl(p: {
                         {showTitles ? <span className="chip-title">{label(name)}</span> : null}
                         <span className="chip-state">
                            <Icon name={isOn(name) ? 'dot' : 'pause'} size={0.85} /> {isOn(name) ? 'on' : 'paused'}
+                           {warnBadge(name)}
                         </span>
                      </button>
                      <span className="chip-controls">
@@ -384,7 +404,10 @@ export const LorasControl = observer(function LorasControl(p: {
                               onClick={() => setEntry(name, [1, 1])}
                            >
                               {thumb(name)}
-                              <div className="lora-label">{showTitles ? label(name) : name.slice(0, 2) + '···'}</div>
+                              <div className="lora-label">
+                                 {showTitles ? label(name) : name.slice(0, 2) + '···'}
+                                 {warnBadge(name)}
+                              </div>
                            </button>
                         ))}
                      </div>

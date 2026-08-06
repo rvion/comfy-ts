@@ -197,6 +197,13 @@ export function getLoraPreviewUrl(name: string, hostId?: string): string | null 
 }
 
 /** the lora's NAMES: the file, and the model name a human would call it by */
+/** every lora key the mirror knows for a host, sorted. `[]` when it was never synced —
+ * the caller decides what an empty mirror means (serve unions it with ComfyUI's enum) */
+export function loraMirrorNames(hostId: string): string[] {
+   ensureLoaded()
+   return [...(byHost.get(hostId)?.keys() ?? [])].sort()
+}
+
 export function loraSearchNames(name: string, hostId?: string): string[] {
    const names = [loraBasename(name), name.replaceAll('\\', '/')]
    const info = getLoraInfo(name, hostId)

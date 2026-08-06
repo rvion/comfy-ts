@@ -27,6 +27,8 @@ export type IconName =
    | 'copy-plus'
    | 'pen'
    | 'power'
+   | 'warn'
+   | 'refresh'
    | 'terminal'
    | 'folder'
    | 'dot'
@@ -92,6 +94,8 @@ const PATHS: Record<IconName, ReactNode> = {
    'copy-plus': <path d="M9 9h10v10H9zM5 15V5h10M14 12v4M12 14h4" />,
    pen: <path d="M4 20h4L20 8l-4-4L4 16zM14 6l4 4" />,
    power: <path d="M12 3v9M7.5 6.5a7 7 0 109 0" />,
+   warn: <path d="M12 4l9 16H3zM12 10v4M12 17h.01" />,
+   refresh: <path d="M20 11a8 8 0 10-2 6M20 6v5h-5" />,
    terminal: <path d="M4 5h16v14H4zM7 9l3 3-3 3M13 15h4" />,
    folder: <path d="M3 7h6l2 2h10v10H3z" />,
    dot: <circle cx="12" cy="12" r="5" fill="currentColor" stroke="none" />,
