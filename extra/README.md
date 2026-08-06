@@ -25,3 +25,8 @@ Run it with the same Python ComfyUI itself uses, so `torch` and `safetensors` ar
 ```
 
 Restart ComfyUI afterwards: the model list is read at startup.
+
+Two things it handles that trip up a hand-rolled merge, both found the hard way:
+
+- **Key nesting differs per repo.** ComfyUI wants the transformer at `model.layers.*`, but a VL repo ships `model.language_model.layers.*` and some abliterations ship `language_model.model.layers.*`. Left alone the model loads and generates pure newlines. The script finds the key carrying `layers.0.input_layernorm.weight` and strips whatever sits in front of it, so any spelling normalises.
+- **Some ComfyUI repacks embed the tokenizer as a tensor.** Ministral and ERNIE files carry `tekken_model`; a raw Hugging Face merge has no such key and `CLIPLoader` dies with `the JSON object must be str, bytes or bytearray, not NoneType`. `--borrow-from <working.safetensors>` copies any tensor the merge lacks from a working file of the same architecture.

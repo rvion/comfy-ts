@@ -20,9 +20,17 @@ await host.loadSchemaFromCache() // offline import; run() connects lazily
 // file: nothing here was installed for LLM use, they arrived with image models.
 const GENERATIVE = [
    'qwen_3_4b.safetensors', // best answers, but REASONS first: needs ~1024 tokens to get past <think>
+   // abliterated = the refusal behaviour trained out. Same Qwen3-4B shape (hidden 2560), so
+   // ComfyUI detects and runs them exactly like the stock one. Fetched with
+   // extra/scripts/fetch_text_encoder.py, which merges the HF shards into one file
+   'qwen_3_4b_abliterated_v2.safetensors', // huihui-ai/Huihui-Qwen3-4B-abliterated-v2
+   'qwen_3_4b_abliterated.safetensors', // huihui-ai/Qwen3-4B-abliterated (the older v1)
    'ernie-image-prompt-enhancer.safetensors', // 4s, purpose-built expander; drifts into repetition past ~128 tokens
+   'ernie-image-prompt-enhancer-abliterated.safetensors', // ponpoke/ERNIE-Image-Abliterated (abliterated_pe)
    'qwen3vl_4b_fp8_scaled.safetensors', // vision-language, also takes an `image` input
+   'qwen3vl_4b_abliterated.safetensors', // huihui-ai/Huihui-Qwen3-VL-4B-Instruct-abliterated
    'ministral-3-3b.safetensors', // no chat template: echoes the instruction before answering
+   'ministral-3-3b-abliterated.safetensors', // Nitral-Archive/mistralai_Ministral-3-3B-Instruct-2512-BF16-abliterated
 ] as const
 
 // every text encoder on the box, generative or not — the --sweep corpus. The non-generative

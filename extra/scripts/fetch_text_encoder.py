@@ -23,7 +23,41 @@ SUPPORTED = {
     "gemma2": {2304: "Gemma2-2B"},
     "gemma3": {2560: "Gemma3-4B", 3840: "Gemma3-12B"},
     "gemma3_text": {2560: "Gemma3-4B", 3840: "Gemma3-12B"},
+    "ministral3": {3072: "Ministral-3-3B"},
+    # a VL model keeps its language dims: comfy remaps model.language_model.* -> model.* on load
+    "qwen3_vl": {2560: "Qwen3-VL-4B", 4096: "Qwen3-VL-8B"},
+    # a VL repo names its TEXT config qwen3_vl_text; the vision tower rides along in the file
+    "qwen3_vl_text": {2560: "Qwen3-VL-4B", 4096: "Qwen3-VL-8B"},
 }
+
+
+# ComfyUI's text-encoder stack wants the transformer at `model.layers.*` and a vision tower
+# at `visual.*` (its own repacks ship that way). Hugging Face repos nest them differently and
+# INCONSISTENTLY: a VL repo uses `model.language_model.layers.*`, another abliteration ships
+# `language_model.model.layers.*`, a plain text model is already `model.layers.*`. Rather than
+# keep a table of prefixes per repo, find the key that carries the anchor and strip whatever
+# sits in front of it, which normalizes every spelling seen so far and the next one too
+LAYER_ANCHOR = "layers.0.input_layernorm.weight"
+
+
+def normalize_keys(merged: dict) -> dict:
+    """rename so the transformer lands at model.* and any vision tower at visual.*"""
+    anchor_key = next((k for k in merged if k.endswith(LAYER_ANCHOR)), None)
+    if anchor_key is None:
+        return merged
+    prefix = anchor_key[: -len(LAYER_ANCHOR)]
+    if prefix == "model.":
+        return merged
+    print(f"  normalizing key prefix {prefix!r} -> 'model.'")
+    out = {}
+    for k, v in merged.items():
+        if k.startswith(prefix):
+            out["model." + k[len(prefix) :]] = v
+        elif "visual." in k:
+            out["visual." + k.split("visual.", 1)[1]] = v
+        else:
+            out[k] = v
+    return out
 
 
 def main() -> int:
@@ -31,12 +65,22 @@ def main() -> int:
     ap.add_argument("repo")
     ap.add_argument("out")
     ap.add_argument("--dest", default=None, help="text_encoders dir (default: ./models/text_encoders)")
+    ap.add_argument("--subdir", default=None, help="repo subfolder holding the model (some repos ship several)")
+    ap.add_argument(
+        "--borrow-from",
+        default=None,
+        help="an existing working .safetensors to copy NON-MODEL tensors from. Some ComfyUI "
+        "repacks embed the tokenizer as a tensor (Ministral/ERNIE carry 'tekken_model'), and a "
+        "raw HF merge has no such key, so CLIPLoader dies on json.loads(None). Point this at the "
+        "stock file for the same architecture",
+    )
     args = ap.parse_args()
 
     from huggingface_hub import hf_hub_download, snapshot_download
     from safetensors.torch import load_file, save_file
 
-    cfg_path = hf_hub_download(args.repo, "config.json")
+    prefix = f"{args.subdir.rstrip('/')}/" if args.subdir else ""
+    cfg_path = hf_hub_download(args.repo, f"{prefix}config.json")
     cfg = json.load(open(cfg_path, encoding="utf-8"))
     text_cfg = cfg.get("text_config", cfg)
     model_type = str(text_cfg.get("model_type", "")).lower()
@@ -59,8 +103,10 @@ def main() -> int:
         return 0
 
     print("downloading weights...")
-    local = snapshot_download(args.repo, allow_patterns=["*.safetensors", "*.safetensors.index.json"])
+    local = snapshot_download(args.repo, allow_patterns=[f"{prefix}*.safetensors", f"{prefix}*.safetensors.index.json"])
+    local = os.path.join(local, args.subdir) if args.subdir else local
 
+    # .bak siblings are a real thing in the wild and are NOT part of the model
     shards = sorted(f for f in os.listdir(local) if f.endswith(".safetensors"))
     if not shards:
         print("ERROR: the repo publishes no .safetensors (a GGUF-only repo cannot be used here)")
@@ -71,6 +117,15 @@ def main() -> int:
         # contiguous: a merged view can otherwise refuse to serialize
         for k, v in load_file(os.path.join(local, shard)).items():
             merged[k] = v.contiguous()
+    merged = normalize_keys(merged)
+
+    if args.borrow_from:
+        donor = load_file(args.borrow_from)
+        extra = {k: v.clone().contiguous() for k, v in donor.items() if k not in merged}
+        del donor
+        if extra:
+            print(f"  borrowing {sorted(extra)} from {os.path.basename(args.borrow_from)}")
+            merged.update(extra)
 
     print(f"writing {target} ({len(merged)} tensors)")
     save_file(merged, target)
