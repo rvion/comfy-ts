@@ -52,6 +52,28 @@ export function lmBaseModel(item: LmLoraItem): string | null {
 export function lmPreviewUrl(item: LmLoraItem): string | null {
    return readString(item, 'preview_url')
 }
+/** the file's size in bytes, when the extension reports it */
+export function lmFileSize(item: LmLoraItem): number | null {
+   const raw = item['file_size']
+   return typeof raw === 'number' && Number.isFinite(raw) ? raw : null
+}
+
+/** the note YOU wrote in the lora manager, empty when there is none */
+export function lmNotes(item: LmLoraItem): string {
+   return readString(item, 'notes') ?? ''
+}
+
+/** the civitai block: what links a local file back to the page it came from */
+export function lmCivitai(item: LmLoraItem): { modelId: number | null; name: string | null } | null {
+   const civitai = item['civitai']
+   if (!isRecord(civitai)) return null
+   const modelId = civitai['modelId']
+   return {
+      modelId: typeof modelId === 'number' && Number.isFinite(modelId) ? modelId : null,
+      name: readString(civitai, 'name'),
+   }
+}
+
 export function lmTags(item: LmLoraItem): string[] {
    return readStringArray(item, 'tags')
 }

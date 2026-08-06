@@ -14,6 +14,7 @@ import { draftsDirForFile, listDraftsForFile } from 'src/cli/tui/state/DraftsSt.
 import {
    buildLoraMirror,
    getLoraDisplayName,
+   getLoraInfo,
    getLoraPreviewUrl,
    getLoraTriggerWords,
    loraMirrorEntries,
@@ -21,7 +22,19 @@ import {
    reloadLoraInfoCache,
    writeLoraMirror,
 } from 'src/host/loraInfoCache.ts'
-import { fetchLoraList, fetchLoraPreviewBytes, loraKey, loraPreviewMapFrom } from 'src/host/loraManagerApi.ts'
+import {
+   fetchLoraList,
+   fetchLoraPreviewBytes,
+   lmBaseModel,
+   lmCivitai,
+   lmFilePath,
+   lmFileSize,
+   lmFolder,
+   lmNotes,
+   lmTags,
+   loraKey,
+   loraPreviewMapFrom,
+} from 'src/host/loraManagerApi.ts'
 import { getLoraKeyword } from 'src/vars/loraKeywords.ts'
 import type { ComfyHost } from 'src/host/ComfyHost.ts'
 import type { ImageVar, LorasVar, PromptVar, SeedVar } from 'src/vars/ComfyVars.ts'
@@ -889,10 +902,23 @@ export class ServeApp {
       if (this.hostById(hostId) == null)
          return json(404, { error: `unknown host '${hostId}' — hosts: ${this.hostIds()}` })
       refreshLoraInfoCacheIfChanged()
+      // everything the mirror holds that a human wants when they click a card. Read through the
+      // lm* accessors, never off the raw json: the extension's field names are its business
+      const item = getLoraInfo(lora, hostId)
+      const civitai = item == null ? null : lmCivitai(item)
       return json(200, {
          name: lora,
          displayName: getLoraDisplayName(lora, hostId),
          triggerWords: getLoraTriggerWords(lora, hostId),
+         known: item != null,
+         baseModel: item == null ? null : lmBaseModel(item),
+         folder: item == null ? null : lmFolder(item),
+         filePath: item == null ? null : lmFilePath(item),
+         fileSize: item == null ? null : lmFileSize(item),
+         tags: item == null ? [] : lmTags(item),
+         notes: item == null ? '' : lmNotes(item),
+         civitaiUrl: civitai?.modelId == null ? null : `https://civitai.com/models/${civitai.modelId}`,
+         civitaiVersion: civitai?.name ?? null,
       })
    }
 

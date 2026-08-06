@@ -87,7 +87,21 @@ export function runPreviewSrc(p: { module: string; tick: number }): string {
    return `/run/${encodeURIComponent(p.module)}/preview?t=${p.tick}`
 }
 
-export type LoraInfo = { name: string; displayName: string; triggerWords: string[] }
+export type LoraInfo = {
+   name: string
+   displayName: string
+   triggerWords: string[]
+   /** false when the lora manager mirror has never heard of this file */
+   known?: boolean
+   baseModel?: string | null
+   folder?: string | null
+   filePath?: string | null
+   fileSize?: number | null
+   tags?: string[]
+   notes?: string
+   civitaiUrl?: string | null
+   civitaiVersion?: string | null
+}
 
 export function fetchLoraInfo(p: { host: string; name: string }): Promise<LoraInfo> {
    return jsonFetch(`/lora-info/${encodeURIComponent(p.host)}/${encodeURIComponent(p.name)}`)

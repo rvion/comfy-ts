@@ -351,6 +351,32 @@ div.lora-thumb.none {
    font-size: 11px; padding: 2px 8px; border-radius: 10px;
    background: var(--accent-dim); color: #fff;
 }
+/* a real switch, not a word: the state is readable at a glance and hittable on a phone */
+.switch { position: relative; display: inline-flex; width: 28px; height: 16px; flex-shrink: 0; cursor: pointer; }
+.switch input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+.switch .track {
+   position: absolute; inset: 0; border-radius: 999px; background: var(--panel-2);
+   border: 1px solid var(--border); transition: background 0.15s, border-color 0.15s;
+}
+.switch .track::after {
+   content: ''; position: absolute; top: 1px; left: 1px; width: 12px; height: 12px; border-radius: 50%;
+   background: var(--dim); transition: transform 0.15s, background 0.15s;
+}
+.switch input:checked + .track { background: var(--accent-dim); border-color: var(--accent); }
+.switch input:checked + .track::after { transform: translateX(12px); background: var(--accent); }
+.switch input:focus-visible + .track { outline: 2px solid var(--accent); outline-offset: 2px; }
+.chip-state { display: flex; gap: 5px; align-items: center; }
+.state-text { font-size: 10px; color: var(--dim); letter-spacing: 0.04em; }
+
+/* the lora details sheet */
+.lora-details { display: flex; gap: 14px; flex-wrap: wrap; }
+.detail-thumb { width: 220px; max-width: 100%; border-radius: 8px; }
+.detail-list { flex: 1; min-width: 220px; display: flex; flex-direction: column; gap: 6px; }
+.detail-row { display: grid; grid-template-columns: 110px 1fr; gap: 10px; font-size: 12px; }
+.detail-key { color: var(--dim); }
+.detail-val { overflow-wrap: anywhere; }
+.detail-val a { color: var(--accent); text-decoration: none; }
+
 .lora-warn { color: var(--amber); display: inline-flex; margin-left: 4px; vertical-align: -0.1em; }
 /* an anchor that must read as a button (it opens the host's own page, so it IS a link) */
 .button-link {

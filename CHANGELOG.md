@@ -35,6 +35,7 @@
 - **Refetch the schema from the panel**: a button in the host box re-downloads `object_info` and rewrites `sdk.d.ts`. Already-loaded workflows keep the options they were defined with until serve restarts, and the message says so.
 - **The lightbox zooms.** Scroll to zoom around the cursor, drag to pan, double click to fit.
 - **Tooltips are instant.** Every button explains itself the moment you hover, through a tiny CSS tooltip instead of the native one that waits a second and cannot be styled. It opens under the button's left edge, so a tip on the leftmost button never runs off the screen.
+- **Clicking a lora tells you what it is** — display name, base model, trigger words, the keyword it injects, tags, notes, size, path and its civitai page, from the lora-manager mirror. Clicking a card no longer toggles it: an explicit switch does that, and it is a real switch rather than a word.
 - **Fields reorder by dragging.** A grip appears on hover at the start of each var label; the order is remembered per workflow.
 - **Loras reorder by dragging too**, and their order rides in the draft itself (the record's key order IS the order).
 - **Fixed: pausing a lora moved it to the end of the row.** Pausing wrote the lora out of the record entirely, so it lost its slot. It keeps its place now, on and off.

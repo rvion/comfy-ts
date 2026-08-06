@@ -51,6 +51,9 @@ type LocalSt = {
    notePreviewFailed(name: string): void
    notePrevStrength(name: string, pair: LoraStrengthPair): void
    setPaused(name: string, paused: boolean): void
+   /** the lora whose details panel is open, null when none */
+   details: string | null
+   setDetails(name: string | null): void
 }
 
 export const LorasControl = observer(function LorasControl(p: {
@@ -84,6 +87,10 @@ export const LorasControl = observer(function LorasControl(p: {
       setPaused(name: string, paused: boolean) {
          if (paused) this.paused.add(name)
          else this.paused.delete(name)
+      },
+      details: null,
+      setDetails(name: string | null) {
+         this.details = name
       },
    }))
    const record = asRecord(p.v.value)
@@ -342,21 +349,29 @@ export const LorasControl = observer(function LorasControl(p: {
                            p.v.set(reorderLoras({ record, displayed: selectedNames, from, to: ix }))
                      }}
                   >
-                     {/* THE palette gesture: the card itself pauses and resumes, so trying a
-                         few images with a lora and a few without never opens the popup */}
+                     {/* the CARD opens what this lora is; only the switch turns it on and off,
+                         so reading about a lora can never change what the graph runs */}
                      <button
                         type="button"
                         className="lora-toggle"
-                        data-tip={isOn(name) ? `${name}\nclick to pause` : `${name}\npaused — click to resume`}
-                        onClick={() => toggleOn(name, !isOn(name))}
+                        data-tip={`${name}\nclick for its details`}
+                        onClick={() => local.setDetails(name)}
                      >
                         {thumb(name)}
                         {showTitles ? <span className="chip-title">{label(name)}</span> : null}
-                        <span className="chip-state">
-                           <Icon name={isOn(name) ? 'dot' : 'pause'} size={0.85} /> {isOn(name) ? 'on' : 'paused'}
-                           {warnBadge(name)}
-                        </span>
                      </button>
+                     <span className="chip-state">
+                        <label className="switch" data-tip={isOn(name) ? 'pause this lora' : 'resume this lora'}>
+                           <input
+                              type="checkbox"
+                              checked={isOn(name)}
+                              onChange={(e) => toggleOn(name, e.target.checked)}
+                           />
+                           <span className="track" />
+                        </label>
+                        <span className="state-text">{isOn(name) ? 'on' : 'paused'}</span>
+                        {warnBadge(name)}
+                     </span>
                      <span className="chip-controls">
                         {strengthInputs(name)}
                         <button
@@ -372,6 +387,18 @@ export const LorasControl = observer(function LorasControl(p: {
             )}
          </div>
 
+         {local.details == null ? null : (
+            <LoraDetails
+               name={local.details}
+               host={p.host}
+               hostUrl={p.hostUrl}
+               label={label(local.details)}
+               showImage={showImages}
+               keyword={(p.v.desc.optionKeywords ?? {})[local.details] ?? null}
+               managerOnly={managerOnly.has(local.details)}
+               onClose={() => local.setDetails(null)}
+            />
+         )}
          {local.open ? (
             <div className="modal-overlay" onClick={() => local.setOpen(false)}>
                <div className="modal" onClick={(e) => e.stopPropagation()}>
@@ -467,6 +494,105 @@ export const LorasControl = observer(function LorasControl(p: {
                </div>
             </div>
          ) : null}
+      </div>
+   )
+})
+
+/** what a lora IS, from the lora-manager mirror: clicking a card opens this instead of
+ * silently toggling the graph. Everything shown comes from the mirror, so an unsynced lora
+ * says so rather than rendering an empty sheet */
+const LoraDetails = observer(function LoraDetails(p: {
+   name: string
+   host: string
+   hostUrl: string | null
+   label: string
+   showImage: boolean
+   keyword: string | null
+   managerOnly: boolean
+   onClose(): void
+}) {
+   const local = useLocalObservable<{
+      info: LoraInfo | 'loading' | 'error'
+      set(v: LoraInfo | 'loading' | 'error'): void
+   }>(() => ({
+      info: 'loading',
+      set(v) {
+         this.info = v
+      },
+   }))
+   const { name, host } = p
+   useEffect(() => {
+      local.set('loading')
+      fetchLoraInfo({ host, name })
+         .then((i) => local.set(i))
+         .catch(() => local.set('error'))
+   }, [host, name, local])
+   useEffect(() => {
+      const onKey = (e: KeyboardEvent): void => {
+         if (e.key === 'Escape') p.onClose()
+      }
+      window.addEventListener('keydown', onKey)
+      return () => window.removeEventListener('keydown', onKey)
+   }, [p])
+   const info = local.info
+   const row = (k: string, v: ReactNode): ReactNode =>
+      v == null || v === '' ? null : (
+         <div className="detail-row">
+            <span className="detail-key">{k}</span>
+            <span className="detail-val">{v}</span>
+         </div>
+      )
+   return (
+      <div className="modal-overlay" onClick={() => p.onClose()}>
+         <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-head">
+               <b style={{ flex: 1 }}>{p.label}</b>
+               <button type="button" data-tip="close (esc)" onClick={() => p.onClose()}>
+                  <Icon name="close" />
+               </button>
+            </div>
+            <div className="modal-body">
+               {info === 'loading' ? <div className="hint">reading the mirror…</div> : null}
+               {info === 'error' ? <div className="error">🔴 could not read this lora's metadata</div> : null}
+               {typeof info === 'object' ? (
+                  <div className="lora-details">
+                     {p.showImage ? (
+                        <img className="detail-thumb" src={loraPreviewSrc({ host, name })} alt={p.label} />
+                     ) : null}
+                     <div className="detail-list">
+                        {info.known === false ? (
+                           <div className="hint">
+                              not in the lora manager mirror — run sync, or this file is unknown to it
+                           </div>
+                        ) : null}
+                        {p.managerOnly ? <div className="hint">⚠ only the lora manager lists it, not comfy</div> : null}
+                        {row('file', name)}
+                        {row('base model', info.baseModel)}
+                        {row('folder', info.folder)}
+                        {row('trigger words', info.triggerWords.join(', '))}
+                        {row('prompt keyword', p.keyword)}
+                        {row('tags', (info.tags ?? []).join(', '))}
+                        {row('notes', info.notes)}
+                        {row('size', info.fileSize == null ? null : `${(info.fileSize / 1e9).toFixed(2)} GB`)}
+                        {row('path', info.filePath)}
+                        {row(
+                           'civitai',
+                           info.civitaiUrl == null ? null : (
+                              <a href={info.civitaiUrl} target="_blank" rel="noreferrer">
+                                 {info.civitaiVersion ?? 'model page'} ↗
+                              </a>
+                           ),
+                        )}
+                        {p.hostUrl == null ? null : (
+                           <a className="button-link" href={`${p.hostUrl}/loras`} target="_blank" rel="noreferrer">
+                              <Icon name="external" /> open in the lora manager
+                           </a>
+                        )}
+                     </div>
+                  </div>
+               ) : null}
+            </div>
+         </div>
       </div>
    )
 })
