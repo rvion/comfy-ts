@@ -48,10 +48,23 @@ body {
 .main h2 b { color: var(--text); }
 
 /* the TUI header on the web: one labelled box per thing you are editing, actions below */
-/* they GROW to fill their row: wrapped onto two lines they used to keep their content width
-   and leave a ragged gap, which read as a mistake rather than as a layout */
-.head-boxes { display: flex; gap: 8px 10px; flex-wrap: wrap; margin: 4px 0 0; align-items: stretch; }
-.head-boxes > .head-box { flex: 1 1 auto; min-width: 150px; }
+/* the boxes measure the FORM COLUMN, not the window: a results panel on the side halves the
+   space they have while the viewport is unchanged, so a media query would answer the wrong
+   question. Three variants, and EVEN ones: flex-wrap could leave 3 boxes on one line and 1
+   alone on the next, which reads as a bug rather than as a layout */
+.head-shell { container-type: inline-size; }
+.head-boxes { display: grid; grid-template-columns: 1fr; gap: 10px; margin: 4px 0 0; align-items: stretch; }
+@container (min-width: 380px) {
+   .head-boxes { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@container (min-width: 780px) {
+   .head-boxes { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+/* no container-query support: fall back to the old wrapping row rather than a stack of four */
+@supports not (container-type: inline-size) {
+   .head-boxes { display: flex; flex-wrap: wrap; }
+   .head-boxes > .head-box { flex: 1 1 auto; min-width: 150px; }
+}
 .head-box {
    position: relative; border: 1px solid var(--border); border-radius: 8px;
    padding: 5px 9px; background: var(--panel); min-width: 0;
