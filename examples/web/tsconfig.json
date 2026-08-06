@@ -14,5 +14,8 @@
       // sets makes a typecheck fail on a symbol that exists (tests/tsconfig-buildinfo)
       "tsBuildInfoFile": "../../node_modules/.cache/tsbuildinfo-examples-web.json"
    },
+   // MUST override the root's exclude: it lists this directory (to keep dom types out of
+   // the library check), and inheriting it left these files unchecked by every config
+   "exclude": ["../../src/cli/serve/web"],
    "include": [".", "../../src"]
 }
