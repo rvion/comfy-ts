@@ -1,12 +1,12 @@
 # comfy-ts
 
-_the ultimate ComfyUI toolkit for TypeScript: `SDK` + `CLI` + `TUI` + agent guide_
+_the ultimate ComfyUI toolkit for TypeScript: `SDK` + `CLI` + `TUI` + `web panel` + agent guide_
 
 [![CI](https://github.com/rvion/comfy-ts/actions/workflows/ci.yml/badge.svg)](https://github.com/rvion/comfy-ts/actions/workflows/ci.yml) [![npm version](https://img.shields.io/npm/v/comfy-ts.svg)](https://www.npmjs.com/package/comfy-ts) [![npm downloads](https://img.shields.io/npm/dm/comfy-ts.svg)](https://www.npmjs.com/package/comfy-ts) [![GitHub release](https://img.shields.io/github/v/release/rvion/comfy-ts)](https://github.com/rvion/comfy-ts/releases) [![types](https://img.shields.io/npm/types/comfy-ts)](https://www.npmjs.com/package/comfy-ts) [![license](https://img.shields.io/npm/l/comfy-ts.svg)](https://github.com/rvion/comfy-ts/blob/main/LICENSE) [![sponsor](https://img.shields.io/github/sponsors/rvion?label=sponsor&logo=githubsponsors)](https://github.com/sponsors/rvion)
 
-**Everything ComfyUI, from TypeScript.** Build workflows in code with autocomplete on every node and model of your exact install. Run them on any host, from the box under your desk to a cloud GPU, and get the images straight back into your code. Drive them from a terminal UI with live latent previews. Let scripts and agents discover and install whatever the ecosystem offers. Import and export both ComfyUI JSON formats. One library, the whole pipeline.
+**Everything ComfyUI, from TypeScript.** Build workflows in code with autocomplete on every node and model of your exact install. Run them on any host, from the box under your desk to a cloud GPU, and get the images straight back into your code. Drive them from a terminal UI with live latent previews, or from a browser panel that turns every workflow into a form — on your desk or on your phone. Let scripts and agents discover and install whatever the ecosystem offers. Import and export both ComfyUI JSON formats. One library, the whole pipeline.
 
-**Jump to:** [⚡ 60 second start](#-60-second-start) · [🧩 SDK](#-the-sdk-workflows-as-code) · [🧬 Codegen](#-the-codegen-nothing-else-comes-close) · [🎛️ App mode & vars](#-app-mode--vars-knobs-on-everything) · [🖥️ TUI](#-the-tui) · [⌨️ CLI](#-the-cli) · [🌍 Comfy Cloud & hosts](#-hosts-local-lan-comfy-cloud-any-provider) · [🔌 Ecosystem](#-ecosystem-discovery-and-install) · [🤖 Agents](#-for-ai-agents) · [📚 Examples](#-examples) · [🧱 Trust](#-a-lib-you-can-trust-made-to-last)
+**Jump to:** [⚡ 60 second start](#-60-second-start) · [🧩 SDK](#-the-sdk-workflows-as-code) · [🧬 Codegen](#-the-codegen-nothing-else-comes-close) · [🎛️ App mode & vars](#-app-mode--vars-knobs-on-everything) · [🖥️ TUI](#-the-tui) · [🌐 Web panel](#-the-web-panel) · [⌨️ CLI](#-the-cli) · [🌍 Comfy Cloud & hosts](#-hosts-local-lan-comfy-cloud-any-provider) · [🔌 Ecosystem](#-ecosystem-discovery-and-install) · [🤖 Agents](#-for-ai-agents) · [📚 Examples](#-examples) · [🧱 Trust](#-a-lib-you-can-trust-made-to-last)
 
 ## What's inside
 
@@ -15,6 +15,7 @@ _the ultimate ComfyUI toolkit for TypeScript: `SDK` + `CLI` + `TUI` + agent guid
 | 🧩 **the SDK**      | build and run workflows in code, typed down to the model names of your exact machine      |
 | ⌨️ **the CLI**      | one command codegens a full typed SDK for any host, local or remote cloud                 |
 | 🖥️ **the TUI**      | drive every workflow from the terminal: knobs, drafts, queue, live latent previews        |
+| 🌐 **the web panel** | the same workflows as a browser form, phone included, with an LLM prompt refiner built in |
 | 🤖 **agent tools**  | typed discovery and install across the whole custom node ecosystem, built for automation  |
 | 🔁 **JSON, both ways** | import and export `api.json` and `workflow.json`, drag your code onto the Comfy canvas |
 
@@ -342,16 +343,18 @@ curl -X POST http://127.0.0.1:8288/generate/txt2img/moody \
   -H 'accept: image/*' -d '{"seed": 42}' -o out.png   # raw image bytes
 ```
 
-Draft values are the defaults, the JSON body overrides per request, and every value is validated before anything is queued (wrong choice? the 400 lists the allowed ones). `GET /drafts` self-describes every workflow, draft and var — enough for a frontend to render a form. `Accept: image/*` returns the image bytes directly (`curl … -H 'accept: image/*' -o out.png`). Drafts are re-read on every request: keep the TUI open, tweak, next call uses the new values. Binds to localhost only unless you say otherwise (`--bind`, `--port`).
+Draft values are the defaults, the JSON body overrides per request, and every value is validated before anything is queued (wrong choice? the 400 lists the allowed ones). `GET /drafts` self-describes every workflow, draft and var — enough for a frontend to render a form. `Accept: image/*` returns the image bytes directly (`curl … -H 'accept: image/*' -o out.png`). Drafts are re-read on every request: keep the TUI open, tweak, next call uses the new values. Binds to localhost only unless you say otherwise (`--host`, `--port`).
 
-### The web panel
+## 🌐 The web panel
 
-Open the same url in a **browser** and you get a full control panel — no frontend to write:
+Open that same url in a **browser** and you get a full control panel — no frontend to write, nothing to build, no extra dependency:
 
-- every var as its real control: prompt textarea (`//` comments, `- ` negative lines), sliders, seed mode buttons (fixed / +1 / -1 / random) with 🎲, size presets, image upload with preview, and a lora picker popup — a searchable gallery of preview cards with human model names and trigger words from the [lora mirror](#loras), active loras pinned on top with per-lora model/clip strengths
-- edits **autosave into the selected draft**, exactly like the TUI (the two stay in sync live); duplicate a draft from the header
-- generate with a live progress bar and latent preview, results in a gallery — click any image for the lightbox (copy to clipboard / open / delete)
-- works on a phone: collapsible menu, everything touch-sized; lora images and titles can be hidden with one persistent toggle each
+- every var as its real control: prompt textarea (`//` comments, `- ` negative lines), sliders, seed mode buttons (fixed / +1 / -1 / random) with 🎲, size presets, image upload with preview, and a lora palette — click a card to pause or resume that lora in place, with per-lora model/clip strengths, and browse the rest as a gallery of preview cards carrying human model names and trigger words from the [lora mirror](#loras)
+- edits **autosave into the selected draft**, exactly like the TUI (the two stay in sync live); duplicate or delete a draft from the header
+- every click on generate **queues** another prompt; the queue lists them and drops any pending one
+- live progress bar and latent preview while it runs, results in a gallery — click any image for the lightbox (copy to clipboard / open / delete)
+- **works on a phone**: collapsible menu, everything touch-sized. `--host 0.0.0.0` and the startup print hands you the LAN and tailnet urls
+- ✨ **prompt refiner** on every prompt var: rewrite the prompt with a thinking model, streaming both the answer and the model's reasoning, then apply it — or not, nothing touches your prompt until you say so. Cloud through **OpenRouter**, or a local model through **Open WebUI** (a local model's `<think>` block is routed to the reasoning pane, never into your prompt). Your key stays in the browser and never reaches the serve process. The master prompts are markdown files in `.comfy-ts/prompt-enhancers/`, one per image model, editable from the panel or from your editor
 
 The JSON api above is unchanged — the panel is just another client of it.
 
@@ -478,7 +481,9 @@ One folder of local state per consumer repo: `hosts/` (schema dumps + the genera
 | export api.json + autolayouted workflow.json                   |   ✅   |
 | import api.json into a live workflow                           |   ✅   |
 | import workflow.json (litegraph → api conversion)              |   ✅   |
-| sidekick CLI (`gen`, `outline`, `tui`)                         |   ✅   |
+| sidekick CLI (`gen`, `outline`, `tui`, `serve`)                |   ✅   |
+| serve web panel: every var as a control, queue, gallery, phone |   ✅   |
+| prompt refiner in the panel (OpenRouter or local Open WebUI)   |   ✅   |
 | cloud hosts: `url` + `X-API-Key` auth, Comfy Cloud ran live    |   ✅   |
 | ComfyUI-Manager registry mirror + Known\* ecosystem unions     |   ✅   |
 | install custom nodes / models via ComfyUI-Manager (v2 API)     |   🔶   |
