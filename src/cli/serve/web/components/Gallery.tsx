@@ -6,12 +6,11 @@ import { Icon } from 'src/cli/serve/web/components/Icon.tsx'
 import { observer, useLocalObservable } from 'mobx-react-lite'
 import { useEffect } from 'react'
 import { runPreviewSrc } from 'src/cli/serve/web/api.ts'
+import { lightboxView, type LightboxTarget } from 'src/cli/serve/web/state/lightbox.ts'
 import { copyImageToClipboard } from 'src/cli/serve/web/clipboard.ts'
 import type { WebSt } from 'src/cli/serve/web/state/WebSt.ts'
 
 const canCopy = typeof navigator !== 'undefined' && navigator.clipboard != null
-
-type LightboxTarget = { url: string; title: string; promptId: string | null }
 
 type GalleryLocal = {
    copyNote: { url: string; text: string } | null
@@ -74,15 +73,24 @@ function useGalleryLocal(): GalleryLocal {
 }
 
 const Lightbox = observer(function Lightbox(p: { st: WebSt; local: GalleryLocal }) {
-   const box = p.local.lightbox
+   const target = p.local.lightbox
+   const box =
+      target == null
+         ? null
+         : lightboxView({
+              target,
+              isRunning: p.st.run.isRunning,
+              previewTick: p.st.run.previewTick,
+              results: p.st.run.results,
+           })
    useEffect(() => {
-      if (box == null) return
+      if (target == null) return
       const onKey = (e: KeyboardEvent): void => {
          if (e.key === 'Escape') p.local.closeLightbox()
       }
       window.addEventListener('keydown', onKey)
       return () => window.removeEventListener('keydown', onKey)
-   }, [box, p.local])
+   }, [target, p.local])
    if (box == null) return null
    const copy = (): void => {
       copyImageToClipboard(box.url)
@@ -190,7 +198,7 @@ const RunningCard = observer(function RunningCard(p: { st: WebSt; local: Gallery
                <button
                   type="button"
                   className="img-button"
-                  onClick={() => p.local.openLightbox({ url: previewUrl, title: 'latent preview', promptId: null })}
+                  onClick={() => p.local.openLightbox({ kind: 'latent', module: moduleKey })}
                >
                   <img src={previewUrl} alt="latent preview" />
                </button>
@@ -238,7 +246,12 @@ export const Gallery = observer(function Gallery(p: { st: WebSt; compact?: boole
                            data-tip={img.filename}
                            onClick={() => {
                               if (img.url != null)
-                                 local.openLightbox({ url: img.url, title: img.filename, promptId: r.promptId })
+                                 local.openLightbox({
+                                    kind: 'image',
+                                    url: img.url,
+                                    title: img.filename,
+                                    promptId: r.promptId,
+                                 })
                            }}
                         >
                            <img src={img.url} alt={img.filename} />
