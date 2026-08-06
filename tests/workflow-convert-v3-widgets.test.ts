@@ -61,7 +61,7 @@ const expectConvertError = (raw: RawWf, code: WorkflowConvertError['code']): voi
 }
 
 describe('V3 widget spellings: COMBO with options config', () => {
-   it('SaveVideo consumes [filename_prefix, format, codec] positionally (his canonical repro)', () => {
+   it('SaveVideo consumes [filename_prefix, format, codec] positionally', () => {
       const prompt = convert(
          doc(
             {
@@ -103,7 +103,7 @@ describe('V3 widget spellings: COMBO with options config', () => {
 })
 
 describe('trailing widget growth: schema-default fill', () => {
-   it('CreateVideo bit_depth (2026 growth past the serialized array) fills the schema default (his corpus repro)', () => {
+   it('CreateVideo bit_depth (2026 growth past the serialized array) fills the schema default ', () => {
       const prompt = convert(
          doc(
             {
@@ -186,7 +186,7 @@ describe('COMFY_DYNAMICCOMBO_V3: key + selected branch consumed inline', () => {
 })
 
 describe('COMFY_AUTOGROW_V3: dynamic container, zero widget values', () => {
-   it('ComfyMathExpression: values.a link satisfies the container; expression consumes the only positional (his corpus repro)', () => {
+   it('ComfyMathExpression: values.a link satisfies the container; expression consumes the only positional ', () => {
       const prompt = convert(
          doc(
             {
@@ -336,7 +336,7 @@ describe('config-driven consumption details', () => {
    })
 })
 
-describe('LOAD_3D: empty-config frontend widget (his corpus repro, api_hunyuan3d_model2uv)', () => {
+describe('LOAD_3D: empty-config frontend widget (api_hunyuan3d_model2uv)', () => {
    // the frontend LOAD_3D handler addWidget()s 3 buttons THEN the scene
    // widget (ComfyUI_frontend src/extensions/core/load3d.ts), so the
    // serialized run is [btn, btn, btn, value] and the real value sits LAST

@@ -120,7 +120,7 @@ export class TreeSt {
       this.ix = ix === -1 ? 0 : ix
    }
 
-   // ---- viewport (his small-terminal overflow repro 2026-07-31) ----
+   // ---- viewport (a small terminal clipped the selection off-screen) ----
 
    /** measured height of the tree panel Box (TreePanel measureElement); 0 = not measured yet */
    viewH: number = 0

@@ -77,7 +77,7 @@ describe('localOutputPath (pure): dir intent + timestamp, never the raw server n
       ).toBe('my/place/20260731-154210_00001.png')
    })
 
-   it('two runs with different timestamps never collide (his overwrite repro)', () => {
+   it('two runs with different timestamps never collide', () => {
       const run = (ts: string) =>
          localOutputPath({ filenamePrefix: 'foo/krea/', subfolder: 'foo', filename: 'krea_00001_.png', timestamp: ts })
       expect(run('20260731-154210')).not.toBe(run('20260731-154299'))

@@ -100,8 +100,8 @@ src/cli/tui/               ink+mobx TUI, per build/app-state-tree doctrine:
                            drafts, fold/unfold, `/` substring filter, one color
                            per family (first `-` word of the basename, palette
                            cycled in first-appearance order; a loaded module's
-                           spec.color overrides). VIEWPORT (2026-07-31, his
-                           small-terminal overflow repro): the panel never
+                           spec.color overrides). VIEWPORT (a small terminal
+                           clipped the selection off-screen): the panel never
                            renders more rows than fit — TreePanel measures its
                            clipped Box (ink measureElement, overflow hidden as
                            backstop) into TreeSt.setViewH; TreeSt.window
@@ -138,8 +138,9 @@ src/cli/tui/               ink+mobx TUI, per build/app-state-tree doctrine:
    state/ExecSt.ts         run/progress/outputs/notice/clipboard/open; c/C
                            copy ends in a POPUP (overlay-copy: what was
                            copied, node count, json head — and the ERROR on
-                           failure; ⏎/esc closes) — a silent copy was his
-                           2026-07-30 complaint, the notice line was too quiet
+                           failure; ⏎/esc closes) — a silent copy is
+                           indistinguishable from a dead button, and a notice
+                           line alone was too quiet
    state/PreviewSt.ts      preview renders, panel sizing, `p` settings menu (panel/renderer/while-running)
    components/*.tsx        stateless views: TuiApp (layout+keys), VarsPanel,
                            overlays, PreviewPanel, StatusBar

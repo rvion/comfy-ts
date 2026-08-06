@@ -122,7 +122,7 @@ describe('converter: virtual-node skip', () => {
 })
 
 describe('converter: bypass (mode 4) passthrough', () => {
-   it('rewires the consumer through a bypassed node to the type-matching upstream (his silent-wrong-output repro)', () => {
+   it('rewires the consumer through a bypassed node to the type-matching upstream', () => {
       // the CORRECT graph: bypassed LatentUpscale disappears, KSampler.latent_image goes back to EmptyLatentImage
       expect(convert(withLatentUpscale({ mode: 4 }))).toEqual(expectedSimple())
    })
