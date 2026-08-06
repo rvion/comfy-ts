@@ -17,6 +17,7 @@
 
 ### The web panel
 
+- **Fixed: ⌘A / ctrl+A selects the text of the field you are in** (the prompt box, the lora search) instead of doing nothing. The panel installs several window-level key handlers and a drag layer over the rows; the select-all is now performed explicitly whenever focus is in a text field, and left to the browser everywhere else.
 - **The label is the drag handle.** The grip that appeared on hover at the start of each var label is gone; the label itself reorders the row.
 - **The page is slimmer.** Inputs, buttons and button groups lost padding, and the run button is a normal-sized button that shows its `⌘⏎` shortcut instead of only tooltipping it.
 - **Lora previews toggle between fit and fill.** A third button beside 🖼/🏷 crops the preview to the card or fits the whole image inside it; the choice persists like the other two.
