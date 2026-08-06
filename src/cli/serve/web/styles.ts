@@ -85,16 +85,11 @@ button.danger:hover { color: var(--red); border-color: var(--red); }
 .var-row {
    display: grid; grid-template-columns: 150px 1fr; grid-column: 1 / -1;
    grid-template-columns: subgrid; gap: 8px; align-items: start;
-   padding: 5px 0; border-bottom: 1px solid var(--border);
+   padding: 3px 0; border-bottom: 1px solid var(--border);
 }
-.var-label { padding-top: 4px; overflow-wrap: break-word; }
-/* the grip appears on hover: a permanent one on every row is noise */
-.drag-handle {
-   display: inline-flex; vertical-align: -0.15em; margin-right: 4px; cursor: grab;
-   color: var(--dim); opacity: 0; transition: opacity 0.12s;
-}
-.var-row:hover .drag-handle, .drag-handle:focus-visible { opacity: 1; }
-.drag-handle:active { cursor: grabbing; }
+/* the label IS the drag handle for its row: no separate grip to reveal or aim at */
+.var-label { padding-top: 3px; overflow-wrap: break-word; cursor: grab; }
+.var-label:active { cursor: grabbing; }
 .lora-chip[draggable='true'] { cursor: grab; }
 /* the card drags from anywhere, so its own controls must keep their cursor */
 .lora-chip input, .lora-chip label, .lora-chip button { cursor: pointer; }
@@ -106,7 +101,7 @@ button.danger:hover { color: var(--red); border-color: var(--red); }
 
 input[type='text'], input[type='number'], textarea, select {
    background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
-   border-radius: 6px; padding: 6px 8px; font: inherit; max-width: 100%;
+   border-radius: 6px; padding: 3px 7px; font: inherit; max-width: 100%;
 }
 input[type='text'] { width: 100%; }
 input[type='number'] { width: 110px; }
@@ -118,15 +113,23 @@ input[type='checkbox'] { accent-color: var(--accent); width: 16px; height: 16px;
 
 button {
    background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
-   border-radius: 6px; padding: 5px 10px; font: inherit; cursor: pointer;
+   border-radius: 6px; padding: 3px 8px; font: inherit; cursor: pointer;
 }
 button:hover { border-color: var(--accent); }
 button:disabled { opacity: 0.5; cursor: default; }
-button.primary { background: var(--accent); border-color: var(--accent); color: #0d1117; font-weight: 600; padding: 8px 22px; }
+/* the run button is the loudest thing on the page, it does not need to be the biggest */
+button.primary {
+   background: var(--accent); border-color: var(--accent); color: #0d1117; font-weight: 600;
+   padding: 5px 14px; display: inline-flex; align-items: center; gap: 6px;
+}
+.kbd-hint {
+   font-size: 10px; opacity: 0.65; border: 1px solid currentColor; border-radius: 4px;
+   padding: 0 4px; line-height: 1.4;
+}
 button.link { border: 0; background: none; color: var(--accent); padding: 0; }
 button.link.danger { color: var(--dim); }
 button.link.danger:hover { color: var(--red); }
-button.mode { padding: 4px 8px; font-size: 12px; }
+button.mode { padding: 2px 7px; font-size: 12px; }
 button.mode.sel { background: var(--accent-dim); border-color: var(--accent); color: #fff; }
 
 .runbar {
@@ -274,7 +277,10 @@ button.mode.sel { background: var(--accent-dim); border-color: var(--accent); co
 }
 .lora-card:hover { border-color: var(--accent); }
 /* CONTAIN, never cover: a cropped preview hides exactly what the lora looks like */
+/* contain by default (nothing of the art is hidden); FILL crops to the card, which reads far
+   better for style loras — the toggle lives in the loras row and persists */
 .lora-thumb { width: 100%; height: 110px; object-fit: contain; border-radius: 6px; display: block; background: var(--bg); }
+.lora-thumb.fill { object-fit: cover; }
 .lora-active-row .lora-thumb { width: 48px; height: 48px; flex-shrink: 0; }
 div.lora-thumb.none {
    display: flex; align-items: center; justify-content: center;
@@ -497,10 +503,13 @@ button .icon + * { margin-left: 4px; }
 /* phone: label over control, 16px inputs (below that iOS zooms the page on focus) */
 @media (max-width: 640px) {
    .main { padding: 10px 10px 48px; }
-   /* the row stops being a subgrid here: label OVER control, one column across both
-      parent tracks (it still spans them via grid-column) */
-   .var-row { grid-template-columns: 1fr; gap: 4px; }
-   .var-label { padding-top: 0; }
+   /* labels stay BESIDE their control on a phone too: stacking them doubled the height of
+      every row and read as a wall. The column just gets narrower. A row that needs the whole
+      width (loras) opts out with .wide */
+   .vars { grid-template-columns: fit-content(96px) 1fr; }
+   .var-row { gap: 6px; }
+   .var-row.wide { grid-template-columns: 1fr; gap: 3px; }
+   .var-label { padding-top: 3px; font-size: 12px; }
    input[type='text'], input[type='number'], textarea, select { font-size: 16px; }
    input[type='number'] { width: 96px; }
    /* repeated at row specificity: the base 12px rule outranks the bare selector above,

@@ -57,7 +57,9 @@ const VarRow = observer(function VarRow(p: {
 }) {
    return (
       <div
-         className="var-row"
+         /* loras and prompts need the whole width on a phone; every other kind keeps its
+            label beside the control, which is what makes the form readable at a glance */
+         className={p.v.desc.kind === 'loras' || p.v.desc.kind === 'prompt' ? 'var-row wide' : 'var-row'}
          onDragOver={(e) => {
             // only a row drag: a file dropped on an image var must still reach its own handler
             if (e.dataTransfer.types.includes('application/x-comfy-var')) e.preventDefault()
@@ -71,23 +73,19 @@ const VarRow = observer(function VarRow(p: {
                p.st.moveVar({ module: p.module, names: p.names, from, to: p.index })
          }}
       >
-         <div className="var-label">
-            {/* the handle appears on hover: a permanent grip on every row is noise, and the
-                rest of the label must stay selectable text */}
-            <span
-               className="drag-handle"
-               draggable
-               data-tip="drag to reorder this field"
-               onDragStart={(e) => {
-                  e.dataTransfer.effectAllowed = 'move'
-                  e.dataTransfer.setData('application/x-comfy-var', String(p.index))
-               }}
-            >
-               <Icon name="grip" size={0.9} />
-            </span>
+         {/* the LABEL is the handle: a separate grip was one more piece of permanent chrome
+             for something the label itself can carry */}
+         <div
+            className="var-label"
+            draggable
+            onDragStart={(e) => {
+               e.dataTransfer.effectAllowed = 'move'
+               e.dataTransfer.setData('application/x-comfy-var', String(p.index))
+            }}
+         >
             {/* the kind is a TOOLTIP, not a second line: printed under every label it was a
                 column of noise you read past, and it only ever answers a question you ask once */}
-            <span data-tip={p.v.desc.kind}>{p.v.desc.label ?? p.v.name}</span>
+            <span data-tip={`${p.v.desc.kind}\ndrag the label to reorder`}>{p.v.desc.label ?? p.v.name}</span>
             {p.v.dirty ? (
                <button
                   type="button"
@@ -233,12 +231,14 @@ export const GenerateButton = observer(function GenerateButton(p: { st: WebSt })
          data-tip="⌘⏎ / ctrl+⏎ — click again to queue another"
          onClick={() => p.st.generate()}
       >
-         <Icon name="play" size={0.9} />{' '}
+         <Icon name="play" size={0.85} />{' '}
          {p.st.run.isRunning
             ? p.st.run.progressPercent != null
                ? `generating… ${Math.round(p.st.run.progressPercent)}%`
                : 'generating…'
             : 'generate'}
+         {/* the shortcut is SAID, not only tooltipped: nobody hovers a button they can click */}
+         {p.st.run.isRunning ? null : <span className="kbd-hint">⌘⏎</span>}
       </button>
    )
 })

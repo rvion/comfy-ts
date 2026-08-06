@@ -26,6 +26,8 @@ export type IconName =
    | 'copy-plus'
    | 'pen'
    | 'broom'
+   | 'expand'
+   | 'shrink'
    | 'power'
    | 'warn'
    | 'grip'
@@ -96,6 +98,8 @@ const PATHS: Record<IconName, ReactNode> = {
    'copy-plus': <path d="M9 9h10v10H9zM5 15V5h10M14 12v4M12 14h4" />,
    pen: <path d="M4 20h4L20 8l-4-4L4 16zM14 6l4 4" />,
    broom: <path d="M19 4l-7 7M9.5 8.5l6 6-5 5-6-6zM4.5 13.5L2 21l7.5-2.5" />,
+   expand: <path d="M4 9V4h5M20 15v5h-5M15 4h5v5M9 20H4v-5" />,
+   shrink: <path d="M9 4v5H4M15 20v-5h5M20 9h-5V4M4 15h5v5" />,
    power: <path d="M12 3v9M7.5 6.5a7 7 0 109 0" />,
    warn: <path d="M12 4l9 16H3zM12 10v4M12 17h.01" />,
    link: (

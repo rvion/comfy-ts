@@ -53,6 +53,8 @@ type StoredSelection = {
    sidebar?: boolean
    loraImages?: boolean
    loraTitles?: boolean
+   /** lora previews fill their card (cover) instead of fitting inside it (contain) */
+   loraFill?: boolean
    layout?: string
    latent?: boolean
    logs?: boolean
@@ -97,6 +99,8 @@ export class WebSt {
    /** lora image/title visibility, EVERY lora surface (row cards + popup) — the hide toggles are NSFW screens */
    showLoraImages: boolean
    showLoraTitles: boolean
+   /** cover vs contain for every lora preview: art crops well, a character sheet does not */
+   loraFill: boolean
    run: RunSt
    /** prompt refiner: own store, own localStorage blob (the openrouter key never leaves the browser) */
    enhancer: EnhancerSt
@@ -148,6 +152,7 @@ export class WebSt {
       this.sidebarOpen = stored.sidebar ?? !isNarrowScreen()
       this.showLoraImages = stored.loraImages ?? true
       this.showLoraTitles = stored.loraTitles ?? true
+      this.loraFill = stored.loraFill ?? true
       this.showLatent = stored.latent ?? true
       this.varOrder = stored.varOrder ?? {}
       // logs start CLOSED whatever was stored: a panel that polls must be asked for
@@ -173,6 +178,10 @@ export class WebSt {
 
    toggleLoraTitles(): void {
       this.showLoraTitles = !this.showLoraTitles
+   }
+
+   toggleLoraFill(): void {
+      this.loraFill = !this.loraFill
       this.persist()
    }
 
@@ -189,6 +198,7 @@ export class WebSt {
                sidebar: this.sidebarOpen,
                loraImages: this.showLoraImages,
                loraTitles: this.showLoraTitles,
+               loraFill: this.loraFill,
                layout: this.layout,
                latent: this.showLatent,
                varOrder: this.varOrder,

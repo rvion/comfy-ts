@@ -268,7 +268,7 @@ export const LorasControl = observer(function LorasControl(p: {
       ) : (
          <img
             key={name}
-            className="lora-thumb"
+            className={p.st.loraFill ? 'lora-thumb fill' : 'lora-thumb'}
             loading="lazy"
             src={loraPreviewSrc({ host: p.host, name })}
             alt={label(name)}
@@ -295,6 +295,18 @@ export const LorasControl = observer(function LorasControl(p: {
          >
             <Icon name="tag" />
          </button>
+         {/* cover vs contain: a style lora's art crops beautifully and a character sheet does
+             not, so which one is right is per collection, not something to decide here */}
+         {showImages ? (
+            <button
+               type="button"
+               className={p.st.loraFill ? 'mode sel' : 'mode'}
+               data-tip={p.st.loraFill ? 'fit the whole preview inside the card' : 'fill the card with the preview'}
+               onClick={() => p.st.toggleLoraFill()}
+            >
+               <Icon name={p.st.loraFill ? 'shrink' : 'expand'} />
+            </button>
+         ) : null}
       </>
    )
 

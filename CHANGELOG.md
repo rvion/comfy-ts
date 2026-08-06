@@ -17,6 +17,10 @@
 
 ### The web panel
 
+- **The label is the drag handle.** The grip that appeared on hover at the start of each var label is gone; the label itself reorders the row.
+- **The page is slimmer.** Inputs, buttons and button groups lost padding, and the run button is a normal-sized button that shows its `⌘⏎` shortcut instead of only tooltipping it.
+- **Lora previews toggle between fit and fill.** A third button beside 🖼/🏷 crops the preview to the card or fits the whole image inside it; the choice persists like the other two.
+- **On a phone, labels stay beside their control.** Stacking label-over-control doubled the height of every row; the label column just gets narrower now. Prompts and loras still take the full width, because they need it.
 - **Dead CSS removed** (`.form-head`, `.head-actions`, `.img-cell`, `.img-actions`): rules no element had used since the header was redrawn.
 - **Fixed: an edit made while a save was in flight could be lost.** The panel only remembered what the server had CONFIRMED, so undoing a change back to that value during an open request wrote nothing and the value you had just undone landed on disk, under a "saved" label.
 - **Fixed: the lora keywords listed above a prompt were in the wrong order.** They followed the order you dragged the cards into, while the run injects them in the var's option order, so the preview and the prompt disagreed the moment you reordered.
