@@ -18,10 +18,13 @@ import { extractErrorMessage } from 'src/utils/extractErrorMessage.ts'
 const DEFAULT_PORT = 8288
 const BODY_CAP = 10_000_000
 
-export function parseArgs(args: string[]): { target?: string; port: number; bind: string } | { error: string } {
+export function parseArgs(
+   args: string[],
+): { target?: string; port: number; bind: string; cors: boolean } | { error: string } {
    let target: string | undefined
    let port = DEFAULT_PORT
    let bind = '127.0.0.1'
+   let cors = false
    for (let i = 0; i < args.length; i++) {
       const a = args[i]
       if (a === '--port') {
@@ -33,24 +36,34 @@ export function parseArgs(args: string[]): { target?: string; port: number; bind
          const b = args[++i]
          if (b == null) return { error: `${a} expects an address (0.0.0.0 to reach it from another machine)` }
          bind = b
-      } else if (a != null && a.startsWith('--')) return { error: `unknown flag '${a}'` }
+      } else if (a === '--cors') cors = true
+      else if (a != null && a.startsWith('--')) return { error: `unknown flag '${a}'` }
       else if (a != null) {
          if (target != null) return { error: `one target only (got '${target}' and '${a}')` }
          target = a
       }
    }
-   return { target, port, bind }
+   return { target, port, bind, cors }
 }
 
 /** node:http glue around ServeApp.handle — exported so tests can drive a real socket */
-export function makeRequestListener(app: ServeApp): (req: IncomingMessage, res: ServerResponse) => void {
+/** the panel is SAME-ORIGIN, so it needs no CORS at all. `*` on a no-auth server means any
+ * page you happen to open can drive this api from your browser and READ the replies: delete a
+ * draft, restart a host, start a generation, list your workflow paths. Opt in with --cors when
+ * you really are calling serve from a page on another origin. */
+export function makeRequestListener(
+   app: ServeApp,
+   opts: { cors?: boolean } = {},
+): (req: IncomingMessage, res: ServerResponse) => void {
+   const cors =
+      opts.cors === true
+         ? {
+              'access-control-allow-origin': '*',
+              'access-control-allow-methods': 'GET, POST, PUT, DELETE, OPTIONS',
+              'access-control-allow-headers': 'content-type, accept',
+           }
+         : {}
    return (req, res) => {
-      // local bridge, no auth by design: open CORS so browser frontends can call it
-      const cors = {
-         'access-control-allow-origin': '*',
-         'access-control-allow-methods': 'GET, POST, PUT, DELETE, OPTIONS',
-         'access-control-allow-headers': 'content-type, accept',
-      }
       const chunks: Buffer[] = []
       let size = 0
       let overflow = false
@@ -137,7 +150,7 @@ export async function runServe(args: string[]): Promise<number> {
    const app = new ServeApp(modules, { loadErrors, webJs: loadOrBuildWebJs })
    printStartup(app, parsed.bind, parsed.port)
 
-   const server = createServer(makeRequestListener(app))
+   const server = createServer(makeRequestListener(app, { cors: parsed.cors }))
 
    server.on('error', (e) => {
       console.error(`[comfy-ts serve] server error: ${extractErrorMessage(e)}`)

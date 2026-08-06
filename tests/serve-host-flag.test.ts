@@ -3,9 +3,21 @@ import { parseArgs, reachableAddresses, type Nic } from 'src/cli/serve/run-serve
 
 describe('comfy-ts serve --host', () => {
    it('binds loopback by default and takes --host, with --bind kept as an alias', () => {
-      expect(parseArgs([])).toEqual({ target: undefined, port: 8288, bind: '127.0.0.1' })
-      expect(parseArgs(['--host', '0.0.0.0'])).toEqual({ target: undefined, port: 8288, bind: '0.0.0.0' })
-      expect(parseArgs(['--bind', '100.64.0.7'])).toEqual({ target: undefined, port: 8288, bind: '100.64.0.7' })
+      expect(parseArgs([])).toEqual({ target: undefined, port: 8288, bind: '127.0.0.1', cors: false })
+      expect(parseArgs(['--host', '0.0.0.0'])).toEqual({
+         target: undefined,
+         port: 8288,
+         bind: '0.0.0.0',
+         cors: false,
+      })
+      // cross-origin access is opt-in, never the default
+      expect(parseArgs(['--cors'])).toEqual({ target: undefined, port: 8288, bind: '127.0.0.1', cors: true })
+      expect(parseArgs(['--bind', '100.64.0.7'])).toEqual({
+         target: undefined,
+         port: 8288,
+         bind: '100.64.0.7',
+         cors: false,
+      })
    })
 
    it('a flag with no value fails loudly instead of eating the next argument', () => {
@@ -19,6 +31,7 @@ describe('comfy-ts serve --host', () => {
          target: './flows',
          port: 9000,
          bind: '0.0.0.0',
+         cors: false,
       })
    })
 })

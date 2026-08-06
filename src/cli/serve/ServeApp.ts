@@ -74,6 +74,10 @@ export type ServeReply = {
    headers?: Record<string, string>
 }
 
+/** an image var pointing at a url downloads it: capped, because the inbound BODY cap does not
+ * apply to what serve fetches on your behalf, and one url at a big file would OOM the process */
+const INPUT_DOWNLOAD_CAP = 50_000_000
+
 /** the panel is REBUILT per serve process, so a cached copy is always the wrong one. With no
  * cache header at all a browser applies heuristic freshness and reuses app.js across reloads,
  * which makes every fix look like it never landed */
@@ -1170,12 +1174,25 @@ export class ServeApp {
          if (err != null) return { status: 400, error: err }
       }
 
-      // 3. image vars must point at real files BEFORE anything is queued
+      // 3. image vars must point at a real FILE of a declared type BEFORE anything is queued.
+      // The path a request hands us is read off this box and uploaded to the ComfyUI host, so
+      // the extension list the descriptor advertises is enforced here, not merely advertised:
+      // a var that accepts .png must not be talked into reading a key or a config file
       for (const [k, varDef] of varMap) {
          if (varDef.kind !== 'image') continue
          const img = varDef as ImageVar
-         if (img.isSet() && !existsSync(img.absPath()))
-            return { status: 400, error: `image var '${k}': file not found: ${img.absPath()}` }
+         if (!img.isSet()) continue
+         const abs = img.absPath()
+         if (!existsSync(abs)) return { status: 400, error: `image var '${k}': file not found: ${abs}` }
+         if (!statSync(abs).isFile()) return { status: 400, error: `image var '${k}': not a file: ${abs}` }
+         // ImageVar declares them WITHOUT a dot ('png'), extname gives one ('.png')
+         const allowed = img.extensions.map((e) => e.toLowerCase().replace(/^\./, ''))
+         const ext = extname(abs).toLowerCase().replace(/^\./, '')
+         if (allowed.length > 0 && !allowed.includes(ext))
+            return {
+               status: 400,
+               error: `image var '${k}': '${ext || 'no extension'}' is not one of ${allowed.join(', ')}`,
+            }
       }
 
       // 4. seed policy (architecture item 12): payload wins; '?' rerolls;
@@ -1235,9 +1252,19 @@ export class ServeApp {
 
    /** payload image urls land as local files under outputs/serve-inputs/ */
    private async downloadInput(url: string): Promise<string> {
-      const res = await fetch(url)
-      if (!res.ok) throw new Error(`download failed (http ${res.status}): ${url}`)
+      const res = await fetch(url, { redirect: 'follow' })
+      // the upstream STATUS is not reported back: reflecting it turns an image var into a port
+      // and route scanner for everything this box can reach (loopback, tailnet, metadata
+      // endpoints). The caller learns the fetch failed, not what answered
+      if (!res.ok) {
+         console.error(`[serve] input download failed (http ${res.status}): ${url}`)
+         throw new Error(`download failed: ${url} (the server log has the status)`)
+      }
+      const declared = Number(res.headers.get('content-length') ?? '0')
+      if (declared > INPUT_DOWNLOAD_CAP) throw new Error(`download too large (${declared} bytes): ${url}`)
       const bytes = new Uint8Array(await res.arrayBuffer())
+      // checked AGAIN after reading: content-length is a claim, and a chunked reply has none
+      if (bytes.length > INPUT_DOWNLOAD_CAP) throw new Error(`download too large (${bytes.length} bytes): ${url}`)
       const name = basename(new URL(url).pathname) || 'input'
       const abs = join(this.outputRoot, 'serve-inputs', `${nanoid(6)}-${name}`)
       mkdirSync(dirname(abs), { recursive: true })

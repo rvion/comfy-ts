@@ -248,8 +248,75 @@ describe('ServeApp generate', () => {
    })
 })
 
+describe('image vars are a file gate, not a file reader', () => {
+   // the path in a payload is read off THIS box and uploaded to the ComfyUI host, which for a
+   // cloud host is a third party. The descriptor advertises the extensions it takes, so they
+   // are ENFORCED: an unauthenticated caller must not be able to name an arbitrary file
+   it('refuses a real file whose extension the var never advertised', async () => {
+      const secret = join(root, 'id_rsa')
+      writeFileSync(secret, 'PRIVATE KEY')
+      const seen: Record<string, unknown>[] = []
+      const app = new ServeApp([makeModule('wf-img-ext')], {
+         outputRoot: join(root, 'out'),
+         starter: snapshottingStarter(seen),
+      })
+      const reply = await app.handle({
+         method: 'POST',
+         url: '/generate/wf-img-ext/default',
+         body: JSON.stringify({ source: secret }),
+      })
+      expect(reply.status).toBe(400)
+      expect(JSON.parse(String(reply.body)).error).toContain('is not one of')
+      expect(seen).toHaveLength(0) // nothing was queued, so nothing was uploaded
+   })
+
+   it('refuses a directory, which existsSync alone happily accepts', async () => {
+      const app = new ServeApp([makeModule('wf-img-dir')], { outputRoot: join(root, 'out') })
+      const reply = await app.handle({
+         method: 'POST',
+         url: '/generate/wf-img-dir/default',
+         body: JSON.stringify({ source: root }),
+      })
+      expect(reply.status).toBe(400)
+      expect(JSON.parse(String(reply.body)).error).toContain('not a file')
+   })
+
+   it('an advertised extension still passes', async () => {
+      const png = join(root, 'ok.png')
+      writeFileSync(png, 'not really a png, but the name is what is gated')
+      const seen: Record<string, unknown>[] = []
+      const app = new ServeApp([makeModule('wf-img-ok')], {
+         outputRoot: join(root, 'out'),
+         starter: snapshottingStarter(seen),
+      })
+      const reply = await app.handle({
+         method: 'POST',
+         url: '/generate/wf-img-ok/default',
+         body: JSON.stringify({ source: png }),
+      })
+      expect(reply.status).toBe(200)
+      expect(seen).toHaveLength(1)
+   })
+})
+
 describe('http layer (makeRequestListener over a real socket)', () => {
-   it('serves the index, answers OPTIONS with CORS, 413s an oversized body', async () => {
+   it('--cors is what grants another origin, and it is off by default', async () => {
+      const app = new ServeApp([makeModule('wf-cors')], { outputRoot: join(root, 'out') })
+      const server = createServer(makeRequestListener(app, { cors: true }))
+      await new Promise<void>((r) => server.listen(0, '127.0.0.1', r))
+      const addr = server.address()
+      if (addr == null || typeof addr === 'string') throw new Error('no port')
+      try {
+         const res = await fetch(`http://127.0.0.1:${addr.port}/drafts`, {
+            headers: { origin: 'https://elsewhere.example' },
+         })
+         expect(res.headers.get('access-control-allow-origin')).toBe('*')
+      } finally {
+         server.close()
+      }
+   })
+
+   it('serves the index, answers OPTIONS, 413s an oversized body', async () => {
       const mod = makeModule('wf-http')
       const app = new ServeApp([mod], { outputRoot: join(root, 'out') })
       const server = createServer(makeRequestListener(app))
@@ -260,11 +327,13 @@ describe('http layer (makeRequestListener over a real socket)', () => {
       try {
          const index = await fetch(`${base}/drafts`)
          expect(index.status).toBe(200)
-         expect(index.headers.get('access-control-allow-origin')).toBe('*')
+         // NO cross-origin grant by default: the panel is same-origin, and `*` on a no-auth
+         // server lets any page you open drive this api and read the replies
+         expect(index.headers.get('access-control-allow-origin')).toBeNull()
          const preflight = await fetch(`${base}/generate/x`, { method: 'OPTIONS' })
          expect(preflight.status).toBe(204)
-         expect(preflight.headers.get('access-control-allow-methods')).toContain('POST')
-         // reviewer's repro: the old overflow path destroyed the socket without answering
+         expect(preflight.headers.get('access-control-allow-methods')).toBeNull()
+         // the overflow path must ANSWER, never just destroy the socket
          const big = await fetch(`${base}/generate/wf-http/default`, {
             method: 'POST',
             headers: { 'content-type': 'application/json' },
