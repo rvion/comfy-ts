@@ -16,6 +16,12 @@ describe('web stylesheet', () => {
       expect(opens).toBe(STYLES.split('}').length - 1)
    })
 
+   it('carries no backtick', () => {
+      // the whole sheet is ONE template literal: a backtick in a comment ends it early and
+      // turns the rest of the file into code, which is a build error far from the cause
+      expect(STYLES).not.toContain('`')
+   })
+
    it('the lora ✕ is positioned against the PICTURE, and out of flow', () => {
       // it sat in flow above the thumb whenever its containing block was not what we assumed
       expect(ruleBody('.chip-media {')).toContain('position: relative')

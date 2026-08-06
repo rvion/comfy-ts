@@ -29,22 +29,23 @@ const STORAGE_KEY = 'comfy-ts-serve-ui'
 /** where the results live. 'auto' keeps the width rule (side ≥1100px, bottom under it);
  * 'pinned' floats the newest image over the bottom of the screen, so a phone shows the
  * knobs and what they produced without scrolling between them */
-export type ResultsLayout = 'auto' | 'off' | 'bottom' | 'side' | 'pinned'
+export type ResultsLayout = 'auto' | 'off' | 'bottom' | 'left' | 'side' | 'pinned'
 
 /** icon names live in Icon.tsx; this list stays a plain description of the modes */
 export const LAYOUTS: {
    id: ResultsLayout
-   icon: 'panel-off' | 'panel-bottom' | 'panel-side' | 'pin'
+   icon: 'panel-off' | 'panel-bottom' | 'panel-left' | 'panel-side' | 'panel-corner'
    title: string
 }[] = [
    { id: 'off', icon: 'panel-off', title: 'no preview: the form only' },
    { id: 'bottom', icon: 'panel-bottom', title: 'results below the form' },
-   { id: 'side', icon: 'panel-side', title: 'results beside the form' },
-   { id: 'pinned', icon: 'pin', title: 'newest image pinned over the bottom, form scrolls under it' },
+   { id: 'left', icon: 'panel-left', title: 'results left of the form' },
+   { id: 'side', icon: 'panel-side', title: 'results right of the form' },
+   { id: 'pinned', icon: 'panel-corner', title: 'newest image in the bottom right corner, form scrolls under it' },
 ]
 
 function isLayout(raw: unknown): raw is ResultsLayout {
-   return raw === 'auto' || raw === 'off' || raw === 'bottom' || raw === 'side' || raw === 'pinned'
+   return raw === 'auto' || raw === 'off' || raw === 'bottom' || raw === 'left' || raw === 'side' || raw === 'pinned'
 }
 
 type StoredSelection = {
@@ -292,7 +293,7 @@ export class WebSt {
    /** side and pinned show the results next to (or over) the form, so the run button belongs
     * there: in pinned it stays on screen while the form scrolls */
    get generateInResults(): boolean {
-      return this.layout === 'side' || this.layout === 'pinned'
+      return this.layout === 'side' || this.layout === 'left' || this.layout === 'pinned'
    }
 
    setLayout(next: ResultsLayout): void {

@@ -17,10 +17,11 @@ export type IconName =
    | 'pause'
    | 'save'
    | 'ghost'
-   | 'pin'
    | 'panel-off'
    | 'panel-bottom'
    | 'panel-side'
+   | 'panel-left'
+   | 'panel-corner'
    | 'swap'
    | 'plus'
    | 'copy-plus'
@@ -72,7 +73,6 @@ const PATHS: Record<IconName, ReactNode> = {
    pause: <path d="M8 5v14M16 5v14" />,
    save: <path d="M5 4h11l3 3v13H5zM8 4v6h7V4M8 20v-6h8v6" />,
    ghost: <path d="M5 20V10a7 7 0 0114 0v10l-2.3-2-2.4 2-2.3-2-2.4 2zM9.5 10h.01M14.5 10h.01" />,
-   pin: <path d="M9 3h6l-1 6 4 4H6l4-4z M12 13v8" />,
    'panel-off': (
       <>
          <rect x="3" y="4" width="18" height="16" rx="2" />
@@ -91,6 +91,21 @@ const PATHS: Record<IconName, ReactNode> = {
          <rect x="3" y="4" width="18" height="16" rx="2" />
          <path d="M14 4v16" />
          <rect x="15.5" y="5.5" width="4" height="13" fill="currentColor" stroke="none" opacity="0.85" />
+      </>
+   ),
+   'panel-left': (
+      <>
+         <rect x="3" y="4" width="18" height="16" rx="2" />
+         <path d="M10 4v16" />
+         <rect x="4.5" y="5.5" width="4" height="13" fill="currentColor" stroke="none" opacity="0.85" />
+      </>
+   ),
+   /* same frame as the other placements, filled in the corner it actually occupies — a pin
+      said "sticky" while every sibling said WHERE */
+   'panel-corner': (
+      <>
+         <rect x="3" y="4" width="18" height="16" rx="2" />
+         <rect x="12.5" y="12.5" width="7" height="6" fill="currentColor" stroke="none" opacity="0.85" />
       </>
    ),
    swap: <path d="M4 8h13l-3-3M20 16H7l3 3" />,

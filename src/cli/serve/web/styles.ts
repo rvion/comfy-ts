@@ -48,7 +48,10 @@ body {
 .main h2 b { color: var(--text); }
 
 /* the TUI header on the web: one labelled box per thing you are editing, actions below */
-.head-boxes { display: flex; gap: 8px; flex-wrap: wrap; margin: 4px 0 0; }
+/* they GROW to fill their row: wrapped onto two lines they used to keep their content width
+   and leave a ragged gap, which read as a mistake rather than as a layout */
+.head-boxes { display: flex; gap: 8px 10px; flex-wrap: wrap; margin: 4px 0 0; align-items: stretch; }
+.head-boxes > .head-box { flex: 1 1 auto; min-width: 150px; }
 .head-box {
    position: relative; border: 1px solid var(--border); border-radius: 8px;
    padding: 5px 9px; background: var(--panel); min-width: 0;
@@ -81,7 +84,8 @@ button.danger:hover { color: var(--red); border-color: var(--red); }
    start right after them. Rows are subgrids of .vars so the column still lines up across
    rows — a per-row grid would give every row its own width. The 150px track is the
    pre-subgrid fallback, kept first so an old engine still gets aligned columns */
-.vars { display: grid; grid-template-columns: fit-content(150px) 1fr; }
+/* the form needs air under the head boxes: the first var sat flush against them */
+.vars { display: grid; grid-template-columns: fit-content(150px) 1fr; margin-top: 14px; }
 .var-row {
    display: grid; grid-template-columns: 150px 1fr; grid-column: 1 / -1;
    grid-template-columns: subgrid; gap: 8px; align-items: start;
@@ -344,6 +348,17 @@ div.lora-thumb.none {
 .work.layout-side .form-col { flex: 1; min-width: 0; }
 .work.layout-side .results-col { width: min(380px, 45vw); flex-shrink: 0; }
 .work.layout-side .results-col .gallery { margin-top: 0; }
+/* results LEFT of the form: same column, the other side. flex order rather than
+   row-reverse, so the dom order (form first) stays the reading and tab order */
+.work.layout-left { display: flex; gap: 18px; align-items: flex-start; }
+.work.layout-left .form-col { flex: 1; min-width: 0; order: 2; }
+.work.layout-left .results-col { width: min(380px, 45vw); flex-shrink: 0; order: 1; }
+.work.layout-left .results-col .gallery { margin-top: 0; }
+.work.layout-left .results-col {
+   position: sticky; top: 0; align-self: flex-start;
+   max-height: calc(100vh - 24px); overflow-y: auto; overscroll-behavior: contain;
+}
+
 /* A COLUMN OF RESULTS IS NEVER TALLER THAN THE PAGE. Left to itself it grows with the run
    history and drags the document down, so reading a var meant scrolling past a stack of
    images. It sticks to the top of .main (the scroll container) and scrolls INSIDE itself,
