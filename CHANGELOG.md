@@ -1,6 +1,6 @@
 # comfy-ts
 
-## Unreleased (minor)
+## 2.9.0
 
 ### The web panel
 
