@@ -24,7 +24,16 @@ import { logWebError } from 'src/cli/serve/web/logWeb.ts'
 import { asSeedForm } from 'src/cli/serve/web/state/payload.ts'
 import { readUrlSelection, resolveSelection, writeUrlSelection } from 'src/cli/serve/web/state/urlSelection.ts'
 import { RunSt } from 'src/cli/serve/web/state/RunSt.ts'
-import { isEmbedded, parseFromHost, readUrlPrompt, type HostButton, type ToHost } from 'src/cli/serve/web/state/host.ts'
+import {
+   coerceHostValue,
+   isEmbedded,
+   parseFromHost,
+   readUrlPrompt,
+   resolveHostSelection,
+   type FromHost,
+   type HostButton,
+   type ToHost,
+} from 'src/cli/serve/web/state/host.ts'
 
 /** selection + drawer survive a reload: hand-tuned state persists and restores */
 const STORAGE_KEY = 'comfy-ts-serve-ui'
@@ -174,6 +183,9 @@ export class WebSt {
    hostActions: HostButton[] = []
    /** the embedding page's origin, pinned from its first message — replies go there only */
    private hostOrigin: string | null = null
+   /** host messages run one after another, behind the boot: a message that lands while the
+    * index is still loading needs a form, and dropping it was the silent failure */
+   private hostChain: Promise<void> = Promise.resolve()
 
    constructor() {
       this.run = new RunSt()
@@ -198,12 +210,13 @@ export class WebSt {
       this.showLatent = stored.latent ?? true
       this.varOrder = stored.varOrder ?? {}
       this.showLogs = stored.logs ?? false
-      makeAutoObservable<WebSt, 'hostOrigin'>(this, {
+      makeAutoObservable<WebSt, 'hostOrigin' | 'hostChain'>(this, {
          run: false,
          enhancer: false,
          form: observableRef,
          modules: observableShallow,
          hostOrigin: false,
+         hostChain: false,
       })
       // inside a host page → listen for what it asks; a plain tab never sees a message
       if (isEmbedded()) window.addEventListener('message', (e) => this.onHostMessage(e))
@@ -214,7 +227,8 @@ export class WebSt {
          // keepalive is unchained by necessity and could land before an older one
          if (document.visibilityState === 'hidden') void this.form?.save()
       })
-      void this.boot()
+      // boot catches its own failures; the chain only has to outlive them
+      this.hostChain = this.boot().catch((e: unknown) => logWebError('panel boot failed', e))
    }
 
    toggleSidebar(): void {
@@ -386,13 +400,14 @@ export class WebSt {
       }
       try {
          const reply = await fetchDraftValues(p)
+         // a newer select owns the screen now: telling the host about this one would be a lie
+         if (token !== this.selectToken) return
          runInAction(() => {
-            if (token !== this.selectToken) return
             this.form = new FormSt(p.module, p.draft, mod, reply.values ?? {})
             this.persist()
             this.syncUrl()
          })
-         this.postHost({ comfyTs: 'selection', module: p.module, draft: p.draft })
+         this.postSelection()
       } catch (e) {
          runInAction(() => {
             if (token !== this.selectToken) return
@@ -433,16 +448,78 @@ export class WebSt {
       }
    }
 
+   /** set vars by name, each through coerceHostValue; an unknown name or a rejected value
+    * leaves that field as it was and says so in the console */
+   setValues(values: Record<string, unknown>): void {
+      const form = this.form
+      if (form == null) return
+      runInAction(() => {
+         for (const [name, raw] of Object.entries(values)) {
+            const varSt = form.vars.find((v) => v.name === name)
+            if (varSt == null) {
+               logWebError('host set-values', `no var named '${name}' on ${form.moduleKey}`)
+               continue
+            }
+            const coerced = coerceHostValue(varSt.desc, raw, varSt.value)
+            if (coerced.ok) varSt.set(coerced.value)
+            else logWebError('host set-values', `'${name}' (${varSt.desc.kind}) rejected ${JSON.stringify(raw)}`)
+         }
+      })
+   }
+
+   private postState(): void {
+      const form = this.form
+      if (form == null) return
+      this.postHost({ comfyTs: 'state', module: form.moduleKey, draft: form.draft, values: form.valuesJSON() })
+   }
+
+   /** what is open now, twice: `selection` (the old message) then `state` (with the values) */
+   private postSelection(): void {
+      const form = this.form
+      if (form == null) return
+      this.postHost({ comfyTs: 'selection', module: form.moduleKey, draft: form.draft })
+      this.postState()
+   }
+
    private onHostMessage(e: MessageEvent): void {
       const msg = parseFromHost(e.data)
       if (msg == null) return
       if (this.hostOrigin == null) this.hostOrigin = e.origin
       else if (e.origin !== this.hostOrigin) return
-      if (msg.comfyTs === 'host-actions') {
-         runInAction(() => {
-            this.hostActions = msg.actions
-         })
-      } else if (msg.comfyTs === 'set-prompt') this.setPromptText(msg.text)
+      this.hostChain = this.hostChain
+         .then(() => this.applyHostMessage(msg))
+         .catch((err: unknown) => logWebError(`host message '${msg.comfyTs}' failed`, err))
+   }
+
+   private async applyHostMessage(msg: FromHost): Promise<void> {
+      switch (msg.comfyTs) {
+         case 'host-actions':
+            runInAction(() => {
+               this.hostActions = msg.actions
+            })
+            return
+         case 'set-prompt':
+            this.setPromptText(msg.text)
+            return
+         case 'set-selection': {
+            const target = resolveHostSelection({ want: msg, modules: this.modules })
+            const form = this.form
+            const isOpen =
+               form != null && target != null && form.moduleKey === target.module && form.draft === target.draft
+            // select() answers on success; an unknown module, or the draft already open, still
+            // gets an answer, so a host waiting on one is never left hanging
+            if (target != null && !isOpen) await this.select(target)
+            else this.postSelection()
+            return
+         }
+         case 'set-values':
+            this.setValues(msg.values)
+            this.postState()
+            return
+         case 'get-state':
+            this.postState()
+            return
+      }
    }
 
    /** a host button on a result: tell the page which image, and the prompt it came from */
