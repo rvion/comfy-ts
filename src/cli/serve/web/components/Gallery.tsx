@@ -166,6 +166,24 @@ const Lightbox = observer(function Lightbox(p: { st: WebSt; local: GalleryLocal 
                <a href={box.url} target="_blank" rel="noreferrer">
                   open ↗
                </a>
+               {box.promptId != null
+                  ? p.st.hostActions.map((a) => {
+                       const run = p.st.run.results.find((r) => r.promptId === box.promptId)
+                       const ix = run?.images.findIndex((i) => i.url === box.url) ?? -1
+                       if (run == null || ix < 0) return null
+                       return (
+                          <button
+                             key={a.id}
+                             type="button"
+                             className="host-action"
+                             data-tip={a.title}
+                             onClick={() => p.st.postResultAction(a.id, run, { url: box.url, filename: box.title }, ix)}
+                          >
+                             {a.label}
+                          </button>
+                       )
+                    })
+                  : null}
                {box.promptId != null ? (
                   <button
                      type="button"
@@ -359,25 +377,59 @@ export const Gallery = observer(function Gallery(p: { st: WebSt; compact?: boole
                   </button>
                </div>
                <div className="imgs">
-                  {r.images.map((img) =>
+                  {r.images.map((img, ix) =>
                      img.url != null ? (
-                        <button
-                           key={img.filename}
-                           type="button"
-                           className="img-button"
-                           data-tip={img.filename}
-                           onClick={() => {
-                              if (img.url != null)
-                                 local.openLightbox({
-                                    kind: 'image',
-                                    url: img.url,
-                                    title: img.filename,
-                                    promptId: r.promptId,
-                                 })
-                           }}
-                        >
-                           <img src={img.url} alt={img.filename} />
-                        </button>
+                        <div key={img.filename} className="img-cell">
+                           <button
+                              type="button"
+                              className="img-button"
+                              data-tip={img.filename}
+                              onClick={() => {
+                                 if (img.url != null)
+                                    local.openLightbox({
+                                       kind: 'image',
+                                       url: img.url,
+                                       title: img.filename,
+                                       promptId: r.promptId,
+                                    })
+                              }}
+                           >
+                              <img src={img.url} alt={img.filename} />
+                           </button>
+                           {/* the EMBEDDING page's buttons (host protocol): what it does with the
+                               image is its business — send it somewhere, keep it as something */}
+                           {p.st.hostActions.length > 0 ? (
+                              <div className="host-actions">
+                                 {p.st.hostActions.map((a) => (
+                                    <button
+                                       key={a.id}
+                                       type="button"
+                                       className="host-action"
+                                       data-tip={a.title}
+                                       onClick={() => {
+                                          if (img.url != null)
+                                             p.st.postResultAction(
+                                                a.id,
+                                                r,
+                                                { url: img.url, filename: img.filename },
+                                                ix,
+                                             )
+                                       }}
+                                    >
+                                       {a.label}
+                                    </button>
+                                 ))}
+                                 <button
+                                    type="button"
+                                    className="host-action danger"
+                                    data-tip="remove this result"
+                                    onClick={() => p.st.run.remove(r.promptId)}
+                                 >
+                                    ✕
+                                 </button>
+                              </div>
+                           ) : null}
+                        </div>
                      ) : (
                         <div key={img.filename} className="noimg">
                            {img.filename} (not saved locally — no preview)

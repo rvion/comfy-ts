@@ -19,11 +19,12 @@ import {
    type ServeSettings,
 } from 'src/cli/serve/web/api.ts'
 import { EnhancerSt } from 'src/cli/serve/web/state/EnhancerSt.ts'
-import { FormSt } from 'src/cli/serve/web/state/FormSt.ts'
+import { FormSt, type VarSt } from 'src/cli/serve/web/state/FormSt.ts'
 import { logWebError } from 'src/cli/serve/web/logWeb.ts'
 import { asSeedForm } from 'src/cli/serve/web/state/payload.ts'
 import { readUrlSelection, resolveSelection, writeUrlSelection } from 'src/cli/serve/web/state/urlSelection.ts'
 import { RunSt } from 'src/cli/serve/web/state/RunSt.ts'
+import { isEmbedded, parseFromHost, readUrlPrompt, type HostButton, type ToHost } from 'src/cli/serve/web/state/host.ts'
 
 /** selection + drawer survive a reload: hand-tuned state persists and restores */
 const STORAGE_KEY = 'comfy-ts-serve-ui'
@@ -168,6 +169,11 @@ export class WebSt {
    /** hosts this process knows + where each module runs (server-owned, like the drafts) */
    hosts: HostsPayload = { hosts: [], defaults: {}, overrides: {} }
    hostError: string | null = null
+   /** buttons the EMBEDDING page asked for on every result (host protocol, host.ts). Empty
+    * when the panel is a plain tab, so nothing here changes the standalone panel */
+   hostActions: HostButton[] = []
+   /** the embedding page's origin, pinned from its first message — replies go there only */
+   private hostOrigin: string | null = null
 
    constructor() {
       this.run = new RunSt()
@@ -192,7 +198,15 @@ export class WebSt {
       this.showLatent = stored.latent ?? true
       this.varOrder = stored.varOrder ?? {}
       this.showLogs = stored.logs ?? false
-      makeAutoObservable(this, { run: false, enhancer: false, form: observableRef, modules: observableShallow })
+      makeAutoObservable<WebSt, 'hostOrigin'>(this, {
+         run: false,
+         enhancer: false,
+         form: observableRef,
+         modules: observableShallow,
+         hostOrigin: false,
+      })
+      // inside a host page → listen for what it asks; a plain tab never sees a message
+      if (isEmbedded()) window.addEventListener('message', (e) => this.onHostMessage(e))
       // a closing/hidden tab must not lose an edit still inside the autosave debounce
       window.addEventListener('beforeunload', () => this.form?.flushKeepalive())
       document.addEventListener('visibilitychange', () => {
@@ -318,6 +332,11 @@ export class WebSt {
          })
          if (opening == null) return
          await this.select(opening)
+         // a host opens the panel with the prompt already typed (`?prompt=`)
+         const urlPrompt = readUrlPrompt(window.location.search)
+         if (urlPrompt != null) this.setPromptText(urlPrompt)
+         // last: the host replies with its buttons + its prompt, and both need a form
+         this.postHost({ comfyTs: 'ready' })
       } catch (e) {
          runInAction(() => {
             this.phase = 'error'
@@ -373,6 +392,7 @@ export class WebSt {
             this.persist()
             this.syncUrl()
          })
+         this.postHost({ comfyTs: 'selection', module: p.module, draft: p.draft })
       } catch (e) {
          runInAction(() => {
             if (token !== this.selectToken) return
@@ -387,6 +407,64 @@ export class WebSt {
             if (token === this.selectToken) this.formLoading = false
          })
       }
+   }
+
+   // ── the host protocol (host.ts) ──────────────────────────────────────────
+   /** the form's prompt var: the one declared `kind:'prompt'`, else a var NAMED like one */
+   promptVar(): VarSt | null {
+      const vars = this.form?.vars ?? []
+      return vars.find((v) => v.desc.kind === 'prompt') ?? vars.find((v) => /prompt/i.test(v.name)) ?? null
+   }
+
+   setPromptText(text: string): void {
+      const v = this.promptVar()
+      if (v == null) return
+      runInAction(() => v.set(text))
+   }
+
+   private postHost(msg: ToHost): void {
+      if (!isEmbedded()) return
+      try {
+         // `ready` and `selection` carry nothing secret, so they may go out before the host has
+         // spoken; once it has, everything is pinned to that one origin
+         window.parent.postMessage(msg, this.hostOrigin ?? '*')
+      } catch (e) {
+         logWebError('could not post to the host page', e)
+      }
+   }
+
+   private onHostMessage(e: MessageEvent): void {
+      const msg = parseFromHost(e.data)
+      if (msg == null) return
+      if (this.hostOrigin == null) this.hostOrigin = e.origin
+      else if (e.origin !== this.hostOrigin) return
+      if (msg.comfyTs === 'host-actions') {
+         runInAction(() => {
+            this.hostActions = msg.actions
+         })
+      } else if (msg.comfyTs === 'set-prompt') this.setPromptText(msg.text)
+   }
+
+   /** a host button on a result: tell the page which image, and the prompt it came from */
+   postResultAction(
+      actionId: string,
+      r: { promptId: string; module: string; draft: string; seeds: Record<string, number> },
+      img: { url: string; filename: string },
+      ix: number,
+   ): void {
+      const pv = this.promptVar()
+      this.postHost({
+         comfyTs: 'result-action',
+         id: actionId,
+         promptId: r.promptId,
+         ix,
+         url: img.url,
+         filename: img.filename,
+         module: r.module,
+         draft: r.draft,
+         seeds: r.seeds,
+         prompt: pv != null && typeof pv.value === 'string' ? pv.value : null,
+      })
    }
 
    /** side and pinned show the results next to (or over) the form, so the run button belongs

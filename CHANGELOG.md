@@ -1,5 +1,11 @@
 # comfy-ts
 
+## Unreleased (minor)
+
+### The web panel
+
+- **The panel can be embedded, and the embedding page can talk to it.** Inside an `<iframe>` the panel speaks a small `postMessage` protocol (every message carries a `comfyTs` discriminator). Out: `ready` once booted, `selection` with `{module, draft}` on every change, and `result-action` when one of the host's buttons on a result card is pressed, carrying the image url, filename, index, module, draft, seeds and the prompt text at click time. In: `host-actions` with `[{id, label, title?}]`, which the panel draws on every result card and in the lightbox, and `set-prompt` with the text to put in the form's prompt var. `?prompt=<text>` on the panel url fills it at open. A plain tab sees none of this: nothing is drawn and no listener is installed unless there is a parent window.
+
 ## 2.8.0
 
 ### Run a local LLM from TypeScript

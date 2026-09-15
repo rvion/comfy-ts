@@ -213,6 +213,15 @@ button.mode.sel { background: var(--accent-dim); border-color: var(--accent); co
 .run-card { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; }
 .run-card .meta { color: var(--dim); font-size: 12px; margin-bottom: 8px; display: flex; justify-content: space-between; gap: 8px; }
 .run-card .imgs { display: flex; flex-wrap: wrap; gap: 10px; }
+.img-cell { display: flex; flex-direction: column; gap: 4px; }
+/* the embedding page's buttons on a result (host protocol) — loud on purpose: they ARE the
+   reason the panel is inside that page */
+.host-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.host-action { border: 1px solid var(--accent); background: var(--accent); color: #fff; border-radius: 6px; padding: 4px 12px; font-size: 13px; font-weight: 600; cursor: pointer; }
+.host-action:hover { filter: brightness(1.12); }
+.host-action.danger { background: none; color: var(--dim); border-color: var(--dim); font-weight: 400; }
+.host-action.danger:hover { color: var(--red); border-color: var(--red); }
+.lightbox-bar .host-action { padding: 4px 10px; }
 .run-card img { max-width: min(320px, 100%); max-height: 320px; border-radius: 6px; display: block; }
 .run-card .noimg { color: var(--dim); font-style: italic; }
 .run-card.running { border-color: var(--accent-dim); }
