@@ -124,7 +124,7 @@ export const localLlmTextGen = host.defineWorkflow({
          // the six above, plus every master prompt in `.comfy-ts/prompt-enhancers/` — the same
          // library the web panel's ✨ button uses. One place to tune a paragraph, two surfaces
          // offering it. The folder is empty in a fresh checkout, and the inline six still stand
-         presets: { ...INSTRUCTIONS, ...promptEnhancerPresets() },
+         presets: { ...promptEnhancerPresets(), ...INSTRUCTIONS },
       }),
       subject: v.text('a cat on a roof', {
          label: 'subject',
