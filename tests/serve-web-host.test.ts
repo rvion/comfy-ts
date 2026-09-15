@@ -7,8 +7,11 @@ import {
    coerceHostValue,
    isEmbedded,
    parseFromHost,
+   pickPromptVar,
+   postTarget,
    readUrlPrompt,
    resolveHostSelection,
+   safeStringify,
 } from 'src/cli/serve/web/state/host.ts'
 
 describe('messages from the host', () => {
@@ -24,6 +27,26 @@ describe('messages from the host', () => {
             ],
          }),
       ).toEqual({ comfyTs: 'host-actions', actions: [{ id: 'keep', label: 'send to chat', title: 'DM it' }] })
+   })
+
+   it('host-actions refuses an empty label and keeps the first of two equal ids', () => {
+      expect(
+         parseFromHost({
+            comfyTs: 'host-actions',
+            actions: [
+               { id: 'a', label: '' },
+               { id: 'b', label: 'first b' },
+               { id: 'b', label: 'second b' },
+               { id: 'a', label: 'a, labelled' },
+            ],
+         }),
+      ).toEqual({
+         comfyTs: 'host-actions',
+         actions: [
+            { id: 'b', label: 'first b' },
+            { id: 'a', label: 'a, labelled' },
+         ],
+      })
    })
 
    it('set-prompt needs a string', () => {
@@ -175,5 +198,53 @@ describe('a host value goes through the same rules as an edit', () => {
       ).toEqual({ ok: true, value: { 'a.safetensors': 0.8, 'b.safetensors': [1, 0.5] } })
       expect(coerceHostValue(loras, { 'a.safetensors': 'strong' }, {})).toEqual({ ok: false })
       expect(coerceHostValue(loras, ['a.safetensors'], {})).toEqual({ ok: false })
+   })
+})
+
+describe('which var set-prompt fills', () => {
+   const v = (name: string, kind: VarDescriptor['kind']): { name: string; desc: VarDescriptor } => ({
+      name,
+      desc: { kind, payload: '', default: null },
+   })
+
+   it('the var declared kind prompt wins, wherever it sits', () => {
+      expect(pickPromptVar([v('prompt_text', 'text'), v('scene', 'prompt')])?.name).toBe('scene')
+   })
+
+   it('the name fallback skips non-text kinds and negative prompts', () => {
+      // a float NAMED like a prompt, and a negative prompt declared first, used to be picked
+      expect(
+         pickPromptVar([v('prompt_strength', 'float'), v('negative_prompt', 'text'), v('main_prompt', 'text')])?.name,
+      ).toBe('main_prompt')
+      expect(pickPromptVar([v('prompt_strength', 'float'), v('neg_prompt', 'text')])).toBeNull()
+   })
+})
+
+describe('where a panel message may be posted', () => {
+   const state = { comfyTs: 'state', module: 'wf', draft: 'default', values: { prompt: 'x' } } as const
+
+   it('before the pin only ready, selection and the boot error go out, to any origin', () => {
+      expect(postTarget({ comfyTs: 'ready' }, null)).toBe('*')
+      expect(postTarget({ comfyTs: 'selection', module: 'wf', draft: 'default' }, null)).toBe('*')
+      expect(postTarget({ comfyTs: 'error', code: 'boot', message: 'down' }, null)).toBe('*')
+      expect(postTarget(state, null)).toBeNull()
+      expect(postTarget({ comfyTs: 'error', code: 'no-form', message: 'x', request: 'get-state' }, null)).toBeNull()
+   })
+
+   it('after the pin everything goes to the pinned origin, and an opaque one is posted with *', () => {
+      expect(postTarget(state, 'http://host.test')).toBe('http://host.test')
+      expect(postTarget({ comfyTs: 'ready' }, 'http://host.test')).toBe('http://host.test')
+      expect(postTarget(state, 'null')).toBe('*')
+   })
+})
+
+describe('logging a refused value', () => {
+   it('never throws, whatever the host sent', () => {
+      const cyclic: Record<string, unknown> = {}
+      cyclic.self = cyclic
+      expect(safeStringify({ a: 1 })).toBe('{"a":1}')
+      expect(safeStringify(10n)).toBe('10n')
+      expect(typeof safeStringify(cyclic)).toBe('string')
+      expect(safeStringify(undefined)).toBe('undefined')
    })
 })

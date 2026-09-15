@@ -11,3 +11,15 @@ import { createMemoryStorage, setDefaultComfyStorage } from 'src/storage/ComfySt
 setDefaultComfyStorage(createMemoryStorage())
 
 export * from 'src/coreExports.ts'
+
+// the serve web panel's postMessage host protocol, TYPES ONLY: a page embedding the panel in an
+// <iframe> types what it sends and receives, and no runtime enters the browser graph
+export type {
+   HostToPanel,
+   PanelError,
+   PanelHostAction,
+   PanelRequest,
+   PanelResultAction,
+   PanelState,
+   PanelToHost,
+} from 'src/cli/serve/hostProtocol.ts'

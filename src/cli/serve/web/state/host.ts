@@ -1,58 +1,20 @@
-// the HOST protocol: the panel inside an <iframe>, talking to the page that embeds it.
-// A host cannot read a cross-origin frame (url, dom, storage), so everything it learns is
-// something the panel SAYS. All messages are postMessage with a `comfyTs` discriminator, so an
-// unrelated message on the same window is ignored.
+// the HOST protocol: the panel inside an <iframe>, talking to the page that embeds it. A host
+// cannot read a cross-origin frame (url, dom, storage), so everything it learns is something the
+// panel SAYS. Every message carries a `comfyTs` discriminator, so an unrelated message on the
+// window is ignored. The message types live in src/cli/serve/hostProtocol.ts (re-exported as
+// types by `comfy-ts/web`); the full contract is agent/architecture.md → HOST PROTOCOL.
 //
-//   panel → host   { comfyTs: 'ready' }                            once, when the boot is done
-//                  { comfyTs: 'selection', module, draft }          after every selection change
-//                  { comfyTs: 'state', module, draft, values }      after every selection change,
-//                                                                  after set-values, on get-state
-//                  { comfyTs: 'result-action', id, ... }            a host button on a result
-//   host → panel   { comfyTs: 'host-actions', actions: [{id,label,title?}] }
-//                  { comfyTs: 'set-prompt', text }
-//                  { comfyTs: 'set-selection', module, draft }
-//                  { comfyTs: 'set-values', values: {<var name>: value} }
-//                  { comfyTs: 'get-state' }
+// WHO IS THE HOST: only `window.parent`. A message whose `source` is another window is ignored,
+// and the parent's origin is pinned from its first host message (WebSt.onHostMessage).
+// WHAT GOES OUT BEFORE THE PIN: `ready`, `selection` and `error {code:'boot'}` only, to '*'. They
+// carry no draft value. `state` and everything else waits for the host to speak (postTarget).
 //
 // Host messages run IN ORDER, and not before the boot is done: a message that lands while the
 // panel is still loading waits for the form instead of being dropped (WebSt.hostChain).
 // PURE and DOM-free below `isEmbedded`: the parsers are headless-tested.
 import type { VarDescriptor } from 'src/cli/serve/describeVar.ts'
+import type { HostToPanel, PanelHostAction, PanelToHost } from 'src/cli/serve/hostProtocol.ts'
 import { asSeedForm, pruneLorasRecord } from 'src/cli/serve/web/state/payload.ts'
-
-export type HostButton = { id: string; label: string; title?: string }
-
-export type ResultActionMsg = {
-   comfyTs: 'result-action'
-   id: string
-   promptId: string
-   ix: number
-   /** the image url, relative to the panel's own origin (`/images/<promptId>/<ix>` or `/outputs/…`) */
-   url: string
-   filename: string
-   module: string
-   draft: string
-   seeds: Record<string, number>
-   /** the prompt var's text at click time, when the form has one */
-   prompt: string | null
-}
-
-/** the form as it is now: var name → value in the draft file's shape (seed `{mode,value}`,
- * size `{width,height}`, loras `{name: strength}`) */
-export type StateMsg = { comfyTs: 'state'; module: string; draft: string; values: Record<string, unknown> }
-
-export type ToHost =
-   | { comfyTs: 'ready' }
-   | { comfyTs: 'selection'; module: string; draft: string }
-   | StateMsg
-   | ResultActionMsg
-
-export type FromHost =
-   | { comfyTs: 'host-actions'; actions: HostButton[] }
-   | { comfyTs: 'set-prompt'; text: string }
-   | { comfyTs: 'set-selection'; module: string; draft: string }
-   | { comfyTs: 'set-values'; values: Record<string, unknown> }
-   | { comfyTs: 'get-state' }
 
 function isRecord(v: unknown): v is Record<string, unknown> {
    return v != null && typeof v === 'object'
@@ -64,16 +26,18 @@ function isPlainRecord(v: unknown): v is Record<string, unknown> {
 
 /** a host message, or null for anything else on the window (other frames, devtools, ads).
  * Never throws: a malformed message is simply not ours */
-export function parseFromHost(data: unknown): FromHost | null {
+export function parseFromHost(data: unknown): HostToPanel | null {
    if (!isRecord(data)) return null
    switch (data.comfyTs) {
       case 'set-prompt':
          return typeof data.text === 'string' ? { comfyTs: 'set-prompt', text: data.text } : null
       case 'host-actions': {
          if (!Array.isArray(data.actions)) return null
-         const actions: HostButton[] = []
+         const actions: PanelHostAction[] = []
          for (const a of data.actions) {
             if (!isRecord(a) || typeof a.id !== 'string' || a.id === '' || typeof a.label !== 'string') continue
+            // a button with no label is invisible, and a second id would make a click ambiguous
+            if (a.label === '' || actions.some((x) => x.id === a.id)) continue
             actions.push({ id: a.id, label: a.label, ...(typeof a.title === 'string' ? { title: a.title } : {}) })
          }
          return { comfyTs: 'host-actions', actions }
@@ -177,6 +141,48 @@ export function coerceHostValue(desc: VarDescriptor, raw: unknown, current: unkn
       }
       default:
          return REJECT
+   }
+}
+
+/** the var `set-prompt` and `?prompt=` fill: the one declared `kind:'prompt'`, else a TEXT var
+ * named like a prompt that is not the negative one. A name alone is not enough: a float
+ * `prompt_strength` or a `negative_prompt` declared first must never receive the prompt */
+export function pickPromptVar<V extends { name: string; desc: VarDescriptor }>(vars: readonly V[]): V | null {
+   return (
+      vars.find((v) => v.desc.kind === 'prompt') ??
+      vars.find(
+         (v) => (v.desc.kind === 'text' || v.desc.kind === 'prompt') && /prompt/i.test(v.name) && !/neg/i.test(v.name),
+      ) ??
+      null
+   )
+}
+
+/** the targetOrigin a panel message goes out with, or null when it must not go out yet.
+ * Before the host origin is pinned only messages carrying no draft value may leave, to '*'.
+ * An opaque parent origin ("null") cannot be a targetOrigin (postMessage throws), so it is
+ * posted with '*': the post goes to window.parent only, which is the window that pinned it */
+export function postTarget(msg: PanelToHost, pinnedOrigin: string | null): string | null {
+   if (pinnedOrigin == null) {
+      const unpinnedOk =
+         msg.comfyTs === 'ready' || msg.comfyTs === 'selection' || (msg.comfyTs === 'error' && msg.code === 'boot')
+      return unpinnedOk ? '*' : null
+   }
+   return pinnedOrigin === 'null' ? '*' : pinnedOrigin
+}
+
+/** a host value for a log line. JSON.stringify throws on a BigInt or a cycle, and a throw
+ * there used to abort the whole message, reply included */
+export function safeStringify(v: unknown): string {
+   try {
+      const out = JSON.stringify(v, (_k, x: unknown) => (typeof x === 'bigint' ? `${x}n` : x))
+      if (typeof v === 'bigint') return `${v}n`
+      return out ?? String(v)
+   } catch {
+      try {
+         return String(v)
+      } catch {
+         return '[unprintable]'
+      }
    }
 }
 

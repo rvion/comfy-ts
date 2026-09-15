@@ -69,6 +69,9 @@ export class FormSt {
    private lastQueued: string
    /** identity of the newest queued write, so a rollback cannot claim someone else's */
    private queueSeq = 0
+   /** called on the autosave debounce, right after the save is queued: the embedding host
+    * mirrors the form from it (WebSt), one call per settled burst of edits, never per key */
+   onSettled: (() => void) | null = null
 
    constructor(
       public readonly moduleKey: string,
@@ -95,12 +98,16 @@ export class FormSt {
          lastSaved: false,
          lastQueued: false,
          queueSeq: false,
+         onSettled: false,
       })
       // the persistence idiom: the values json is change-detector AND payload
       this.disposers.push(
          reaction(
             () => JSON.stringify(this.valuesJSON()),
-            () => void this.save(),
+            () => {
+               void this.save()
+               this.onSettled?.()
+            },
             { delay: 500 },
          ),
       )

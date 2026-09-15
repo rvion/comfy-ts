@@ -28,12 +28,13 @@ import {
    coerceHostValue,
    isEmbedded,
    parseFromHost,
+   pickPromptVar,
+   postTarget,
    readUrlPrompt,
    resolveHostSelection,
-   type FromHost,
-   type HostButton,
-   type ToHost,
+   safeStringify,
 } from 'src/cli/serve/web/state/host.ts'
+import type { HostToPanel, PanelHostAction, PanelRequest, PanelToHost } from 'src/cli/serve/hostProtocol.ts'
 
 /** selection + drawer survive a reload: hand-tuned state persists and restores */
 const STORAGE_KEY = 'comfy-ts-serve-ui'
@@ -180,9 +181,15 @@ export class WebSt {
    hostError: string | null = null
    /** buttons the EMBEDDING page asked for on every result (host protocol, host.ts). Empty
     * when the panel is a plain tab, so nothing here changes the standalone panel */
-   hostActions: HostButton[] = []
-   /** the embedding page's origin, pinned from its first message — replies go there only */
+   hostActions: PanelHostAction[] = []
+   /** the parent window's origin, pinned from its first host message — replies go there only */
    private hostOrigin: string | null = null
+   /** module + draft + values of the last `state` posted, so the debounced mirror does not
+    * repeat what a reply (or the previous mirror) already told the host */
+   private lastPostedState: string | null = null
+   /** in-flight selection changes (select, delete, lora refresh): a host request waits for
+    * them to settle instead of answering against a form that is null for a moment */
+   private switches = new Set<Promise<unknown>>()
    /** host messages run one after another, behind the boot: a message that lands while the
     * index is still loading needs a form, and dropping it was the silent failure */
    private hostChain: Promise<void> = Promise.resolve()
@@ -210,13 +217,15 @@ export class WebSt {
       this.showLatent = stored.latent ?? true
       this.varOrder = stored.varOrder ?? {}
       this.showLogs = stored.logs ?? false
-      makeAutoObservable<WebSt, 'hostOrigin' | 'hostChain'>(this, {
+      makeAutoObservable<WebSt, 'hostOrigin' | 'hostChain' | 'lastPostedState' | 'switches'>(this, {
          run: false,
          enhancer: false,
          form: observableRef,
          modules: observableShallow,
          hostOrigin: false,
          hostChain: false,
+         lastPostedState: false,
+         switches: false,
       })
       // inside a host page → listen for what it asks; a plain tab never sees a message
       if (isEmbedded()) window.addEventListener('message', (e) => this.onHostMessage(e))
@@ -274,6 +283,7 @@ export class WebSt {
             varSt.setFromRun({ mode: current.mode, value: used })
          }
       })
+      this.mirrorState()
    }
 
    /** the address bar follows the selection, so the url on screen is always the one to share.
@@ -344,25 +354,57 @@ export class WebSt {
             stored: { module: stored.module ?? null, draft: stored.draft ?? null },
             modules: this.modules,
          })
-         if (opening == null) return
+         // `ready` means "booted with a selection": without one the host must hear that the
+         // panel is dead, or it cannot tell dead from still loading
+         if (opening == null) {
+            this.postHost({ comfyTs: 'error', code: 'boot', message: 'no workflows are served' })
+            return
+         }
          await this.select(opening)
+         if (this.form == null) {
+            this.postHost({
+               comfyTs: 'error',
+               code: 'boot',
+               message: `the opening draft could not be read: ${this.formError ?? 'unknown error'}`,
+            })
+            return
+         }
          // a host opens the panel with the prompt already typed (`?prompt=`)
          const urlPrompt = readUrlPrompt(window.location.search)
          if (urlPrompt != null) this.setPromptText(urlPrompt)
          // last: the host replies with its buttons + its prompt, and both need a form
          this.postHost({ comfyTs: 'ready' })
       } catch (e) {
+         const message = e instanceof Error ? e.message : String(e)
          runInAction(() => {
             this.phase = 'error'
-            this.bootError = e instanceof Error ? e.message : String(e)
+            this.bootError = message
          })
+         this.postHost({ comfyTs: 'error', code: 'boot', message })
       }
    }
 
    /** latest-wins guard for rapid draft clicks: only the newest select may write form state */
    private selectToken = 0
 
-   async select(p: { module: string; draft: string }): Promise<void> {
+   /** `mirror: false` when a host request will answer with its own `state` right after */
+   select(p: { module: string; draft: string }, o: { mirror?: boolean } = {}): Promise<void> {
+      return this.trackSwitch(this.selectNow(p, o.mirror ?? true))
+   }
+
+   private trackSwitch<T>(op: Promise<T>): Promise<T> {
+      this.switches.add(op)
+      const done = (): void => void this.switches.delete(op)
+      op.then(done, done)
+      return op
+   }
+
+   /** resolves once no selection change is in flight (a nested one included) */
+   private async switchSettled(): Promise<void> {
+      while (this.switches.size > 0) await Promise.allSettled(this.switches)
+   }
+
+   private async selectNow(p: { module: string; draft: string }, mirror: boolean): Promise<void> {
       const mod = this.moduleByKey(p.module)
       if (mod == null) return
       // re-picking the draft you are IN is a no-op, not a reload: a pending autosave would
@@ -402,12 +444,16 @@ export class WebSt {
          const reply = await fetchDraftValues(p)
          // a newer select owns the screen now: telling the host about this one would be a lie
          if (token !== this.selectToken) return
+         const form = new FormSt(p.module, p.draft, mod, reply.values ?? {})
+         // the host mirrors user edits on the autosave's own debounce (pinned only)
+         form.onSettled = (): void => this.mirrorState()
          runInAction(() => {
-            this.form = new FormSt(p.module, p.draft, mod, reply.values ?? {})
+            this.form = form
             this.persist()
             this.syncUrl()
          })
-         this.postSelection()
+         this.postHost({ comfyTs: 'selection', module: form.moduleKey, draft: form.draft })
+         if (mirror) this.mirrorState()
       } catch (e) {
          runInAction(() => {
             if (token !== this.selectToken) return
@@ -424,64 +470,102 @@ export class WebSt {
       }
    }
 
-   // ── the host protocol (host.ts) ──────────────────────────────────────────
-   /** the form's prompt var: the one declared `kind:'prompt'`, else a var NAMED like one */
+   // ── the host protocol (host.ts, types in hostProtocol.ts) ────────────────
    promptVar(): VarSt | null {
-      const vars = this.form?.vars ?? []
-      return vars.find((v) => v.desc.kind === 'prompt') ?? vars.find((v) => /prompt/i.test(v.name)) ?? null
+      return pickPromptVar(this.form?.vars ?? [])
    }
 
+   /** `set-prompt` and `?prompt=`: through the same coercion as set-values */
    setPromptText(text: string): void {
       const v = this.promptVar()
       if (v == null) return
-      runInAction(() => v.set(text))
+      const coerced = coerceHostValue(v.desc, text, v.value)
+      if (!coerced.ok) {
+         logWebError('host set-prompt', `'${v.name}' (${v.desc.kind}) rejected the text`)
+         return
+      }
+      runInAction(() => v.set(coerced.value))
    }
 
-   private postHost(msg: ToHost): void {
+   private postHost(msg: PanelToHost): void {
       if (!isEmbedded()) return
+      // host.ts owns the rule: before the pin only value-free messages leave, to '*'
+      const target = postTarget(msg, this.hostOrigin)
+      if (target == null) return
       try {
-         // `ready` and `selection` carry nothing secret, so they may go out before the host has
-         // spoken; once it has, everything is pinned to that one origin
-         window.parent.postMessage(msg, this.hostOrigin ?? '*')
+         window.parent.postMessage(msg, target)
       } catch (e) {
          logWebError('could not post to the host page', e)
       }
    }
 
-   /** set vars by name, each through coerceHostValue; an unknown name or a rejected value
-    * leaves that field as it was and says so in the console */
-   setValues(values: Record<string, unknown>): void {
+   /** set vars by name, each through coerceHostValue. Returns the names NOT applied (no such
+    * var, or a value its control cannot produce); those fields stay as they were */
+   setValues(values: Record<string, unknown>): string[] {
       const form = this.form
-      if (form == null) return
+      if (form == null) return Object.keys(values)
+      const rejected: string[] = []
       runInAction(() => {
          for (const [name, raw] of Object.entries(values)) {
             const varSt = form.vars.find((v) => v.name === name)
             if (varSt == null) {
+               rejected.push(name)
                logWebError('host set-values', `no var named '${name}' on ${form.moduleKey}`)
                continue
             }
             const coerced = coerceHostValue(varSt.desc, raw, varSt.value)
             if (coerced.ok) varSt.set(coerced.value)
-            else logWebError('host set-values', `'${name}' (${varSt.desc.kind}) rejected ${JSON.stringify(raw)}`)
+            else {
+               rejected.push(name)
+               logWebError('host set-values', `'${name}' (${varSt.desc.kind}) rejected ${safeStringify(raw)}`)
+            }
          }
+      })
+      return rejected
+   }
+
+   private stateOf(form: FormSt): { key: string; values: Record<string, unknown> } {
+      const values = form.valuesJSON()
+      return { key: safeStringify([form.moduleKey, form.draft, values]), values }
+   }
+
+   /** the reply to a request: always posted (the host is pinned, it just spoke) */
+   private replyState(form: FormSt, request: PanelRequest, rejected?: string[]): void {
+      const { key, values } = this.stateOf(form)
+      this.lastPostedState = key
+      this.postHost({
+         comfyTs: 'state',
+         module: form.moduleKey,
+         draft: form.draft,
+         values,
+         request,
+         ...(rejected != null ? { rejected } : {}),
       })
    }
 
-   private postState(): void {
+   /** volunteered state (a user edit or switch, run seeds): only to a pinned host, and only
+    * when it differs from the last state the host was told */
+   private mirrorState(): void {
       const form = this.form
-      if (form == null) return
-      this.postHost({ comfyTs: 'state', module: form.moduleKey, draft: form.draft, values: form.valuesJSON() })
+      if (form == null || this.hostOrigin == null) return
+      const { key, values } = this.stateOf(form)
+      if (key === this.lastPostedState) return
+      this.lastPostedState = key
+      this.postHost({ comfyTs: 'state', module: form.moduleKey, draft: form.draft, values })
    }
 
-   /** what is open now, twice: `selection` (the old message) then `state` (with the values) */
-   private postSelection(): void {
-      const form = this.form
-      if (form == null) return
-      this.postHost({ comfyTs: 'selection', module: form.moduleKey, draft: form.draft })
-      this.postState()
+   private replyError(
+      request: PanelRequest,
+      code: 'unknown-module' | 'select-failed' | 'superseded' | 'no-form',
+      message: string,
+   ): void {
+      this.postHost({ comfyTs: 'error', code, message, request })
    }
 
    private onHostMessage(e: MessageEvent): void {
+      // the host is the parent window, nobody else: a sibling or child frame posting first used
+      // to pin ITS origin and lock the real host out
+      if (e.source !== window.parent) return
       const msg = parseFromHost(e.data)
       if (msg == null) return
       if (this.hostOrigin == null) this.hostOrigin = e.origin
@@ -491,7 +575,19 @@ export class WebSt {
          .catch((err: unknown) => logWebError(`host message '${msg.comfyTs}' failed`, err))
    }
 
-   private async applyHostMessage(msg: FromHost): Promise<void> {
+   /** every request (`set-selection`, `set-values`, `get-state`) answers exactly once, with
+    * `state` or `error`; the catch below keeps that true when something throws */
+   private async applyHostMessage(msg: HostToPanel): Promise<void> {
+      try {
+         await this.applyHostMessageNow(msg)
+      } catch (e) {
+         if (msg.comfyTs === 'set-selection' || msg.comfyTs === 'set-values' || msg.comfyTs === 'get-state')
+            this.replyError(msg.comfyTs, 'no-form', e instanceof Error ? e.message : String(e))
+         throw e
+      }
+   }
+
+   private async applyHostMessageNow(msg: HostToPanel): Promise<void> {
       switch (msg.comfyTs) {
          case 'host-actions':
             runInAction(() => {
@@ -499,27 +595,56 @@ export class WebSt {
             })
             return
          case 'set-prompt':
+            await this.switchSettled()
             this.setPromptText(msg.text)
             return
          case 'set-selection': {
+            await this.switchSettled()
             const target = resolveHostSelection({ want: msg, modules: this.modules })
+            if (target == null) {
+               this.replyError('set-selection', 'unknown-module', `no workflow named '${msg.module}' is served`)
+               return
+            }
+            const open = this.form
+            if (open == null || open.moduleKey !== target.module || open.draft !== target.draft) {
+               await this.select(target, { mirror: false })
+               await this.switchSettled()
+            }
             const form = this.form
-            const isOpen =
-               form != null && target != null && form.moduleKey === target.module && form.draft === target.draft
-            // select() answers on success; an unknown module, or the draft already open, still
-            // gets an answer, so a host waiting on one is never left hanging
-            if (target != null && !isOpen) await this.select(target)
-            else this.postSelection()
+            if (form == null) {
+               const why = this.formError ?? 'the draft could not be read'
+               this.replyError('set-selection', 'select-failed', why)
+            } else if (form.moduleKey !== target.module || form.draft !== target.draft)
+               this.replyError(
+                  'set-selection',
+                  'superseded',
+                  `the panel switched to ${form.moduleKey}/${form.draft} while ${target.module}/${target.draft} was loading`,
+               )
+            else this.replyState(form, 'set-selection')
             return
          }
-         case 'set-values':
-            this.setValues(msg.values)
-            this.postState()
+         case 'set-values': {
+            await this.switchSettled()
+            const form = this.form
+            if (form == null) {
+               this.replyError('set-values', 'no-form', this.noFormMessage())
+               return
+            }
+            this.replyState(form, 'set-values', this.setValues(msg.values))
             return
-         case 'get-state':
-            this.postState()
+         }
+         case 'get-state': {
+            await this.switchSettled()
+            const form = this.form
+            if (form == null) this.replyError('get-state', 'no-form', this.noFormMessage())
+            else this.replyState(form, 'get-state')
             return
+         }
       }
+   }
+
+   private noFormMessage(): string {
+      return this.formError != null ? `no draft is open: ${this.formError}` : 'no draft is open'
    }
 
    /** a host button on a result: tell the page which image, and the prompt it came from */
@@ -637,6 +762,10 @@ export class WebSt {
          this.loraSyncing = true
       })
       await this.hostAction('refresh-loras')
+      await this.trackSwitch(this.reloadIndexAndForm())
+   }
+
+   private async reloadIndexAndForm(): Promise<void> {
       // the option lists (and the manager-only union) live in the descriptors: re-read them,
       // then re-select the same draft so the form is rebuilt against the new options
       try {
@@ -850,7 +979,11 @@ export class WebSt {
    /** delete the draft FILE, then fall back to another draft (DraftsSt.deleteDraft's rule).
     * ORDER: the form is dropped WITHOUT flushing FIRST, its autosave would otherwise
     * re-create the file the server is about to delete */
-   async deleteDraft(p: { module: string; draft: string }): Promise<void> {
+   deleteDraft(p: { module: string; draft: string }): Promise<void> {
+      return this.trackSwitch(this.deleteDraftNow(p))
+   }
+
+   private async deleteDraftNow(p: { module: string; draft: string }): Promise<void> {
       const form = this.form
       if (form != null && form.moduleKey === p.module && form.draft === p.draft) {
          form.dispose({ flush: false })

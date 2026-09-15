@@ -3,6 +3,8 @@
 // show. (1) the url deep link opens the named draft even when this browser stored another one
 // and the workflow list answers late. (2) a host message that lands while the panel is still
 // booting is APPLIED once there is a form, never silently dropped (set-prompt was dropped).
+// The fake parent records the targetOrigin of every post and throws on one a browser refuses,
+// so the origin rules are asserted as sent, not assumed.
 import { afterEach, describe, expect, it } from 'bun:test'
 import type { ModuleDescription } from 'src/cli/serve/web/api.ts'
 import { WebSt } from 'src/cli/serve/web/state/WebSt.ts'
@@ -27,6 +29,18 @@ const MODULES: ModuleDescription[] = [
       drafts: ['default'],
       vars: { prompt: { kind: 'prompt', payload: '', default: '' } },
    },
+   {
+      // no kind:'prompt' var: the name fallback must skip the float and the negative prompt
+      module: 'named',
+      file: '/x/named.cflow.ts',
+      host: 'h',
+      drafts: ['default', 'broken'],
+      vars: {
+         prompt_strength: { kind: 'float', payload: '', default: 0.5 },
+         negative_prompt: { kind: 'text', payload: '', default: '' },
+         main_prompt: { kind: 'text', payload: '', default: '' },
+      },
+   },
 ]
 
 const HOST_ORIGIN = 'http://host.test'
@@ -45,23 +59,35 @@ afterEach(() => {
 })
 
 type Posted = Record<string, unknown> & { comfyTs: string }
+type Post = { msg: Posted; target: string }
+type Source = { postMessage: (msg: Posted, target: string) => void }
 
 function json(body: unknown): Response {
    return new Response(JSON.stringify(body), { status: 200 })
 }
 
+/** what a browser accepts as a postMessage targetOrigin: '*', '/', or a parseable url.
+ * "null" is not one, so an opaque parent origin must never be used as a target */
+function assertTargetOrigin(target: string): void {
+   if (target === '*' || target === '/') return
+   new URL(target)
+}
+
 /** a panel inside a frame, with the index held until release() */
-function boot(p: { search: string; stored?: Record<string, unknown> }): {
+function boot(p: { search: string; stored?: Record<string, unknown>; index?: 'ok' | 'empty' | 'fail' }): {
    st: WebSt
    posted: Posted[]
-   send: (data: unknown, origin?: string) => void
+   posts: Post[]
+   parent: Source
+   send: (data: unknown, o?: { origin?: string; source?: unknown }) => void
    release: () => void
    storage: Map<string, string>
    loc: { search: string }
    puts: { url: string; body: string }[]
 } {
+   const posts: Post[] = []
    const posted: Posted[] = []
-   const listeners: ((e: { data: unknown; origin: string }) => void)[] = []
+   const listeners: ((e: { data: unknown; origin: string; source: unknown }) => void)[] = []
    const storage = new Map<string, string>()
    if (p.stored != null) storage.set('comfy-ts-serve-ui', JSON.stringify(p.stored))
    const loc = { search: p.search, pathname: '/', hash: '' }
@@ -72,10 +98,18 @@ function boot(p: { search: string; stored?: Record<string, unknown> }): {
       'wf/default': { prompt: 'default prompt', seed: { mode: '+', value: 1 } },
       'wf/two': { prompt: 'second', seed: { mode: '=', value: 7 }, mode: 'b' },
       'other/default': { prompt: 'other' },
+      'named/default': {},
+   }
+   const parent: Source = {
+      postMessage: (msg: Posted, target: string): void => {
+         assertTargetOrigin(target)
+         posts.push({ msg, target })
+         posted.push(msg)
+      },
    }
    Object.assign(globalThis, {
       window: {
-         parent: { postMessage: (msg: Posted): void => void posted.push(msg) },
+         parent,
          location: loc,
          history: {
             replaceState: (_s: unknown, _t: string, url: string): void => {
@@ -83,7 +117,10 @@ function boot(p: { search: string; stored?: Record<string, unknown> }): {
             },
          },
          matchMedia: () => ({ matches: false }),
-         addEventListener: (type: string, fn: (e: { data: unknown; origin: string }) => void): void => {
+         addEventListener: (
+            type: string,
+            fn: (e: { data: unknown; origin: string; source: unknown }) => void,
+         ): void => {
             if (type === 'message') listeners.push(fn)
          },
       },
@@ -99,10 +136,12 @@ function boot(p: { search: string; stored?: Record<string, unknown> }): {
          }
          if (url === '/drafts') {
             await indexGate
-            return json({ workflows: MODULES })
+            if (p.index === 'fail') return new Response('{"error":"index exploded"}', { status: 500 })
+            return json({ workflows: p.index === 'empty' ? [] : MODULES })
          }
          if (url.startsWith('/drafts/')) {
             const key = url.slice('/drafts/'.length).split('/').map(decodeURIComponent).join('/')
+            if (key === 'named/broken') return new Response('{"error":"draft unreadable"}', { status: 500 })
             return json({ values: drafts[key] ?? {} })
          }
          if (url === '/hosts') return json({ hosts: [], defaults: {}, overrides: {} })
@@ -116,8 +155,10 @@ function boot(p: { search: string; stored?: Record<string, unknown> }): {
    return {
       st,
       posted,
-      send: (data, origin = HOST_ORIGIN): void => {
-         for (const fn of listeners) fn({ data, origin })
+      posts,
+      parent,
+      send: (data, o = {}): void => {
+         for (const fn of listeners) fn({ data, origin: o.origin ?? HOST_ORIGIN, source: o.source ?? parent })
       },
       release: releaseIndex,
       storage,
@@ -184,21 +225,43 @@ describe('a host message during the boot', () => {
    })
 })
 
-describe('procedural control once booted', () => {
-   async function ready(search = '?workflow=wf&draft=default'): Promise<ReturnType<typeof boot>> {
-      const t = boot({ search })
-      t.release()
-      await until('ready', () => last(t.posted, 'ready') != null)
-      return t
-   }
+/** the replies to host requests: `state` or `error` carrying `request` */
+const replies = (posted: Posted[]): Posted[] =>
+   posted.filter((m) => (m.comfyTs === 'state' || m.comfyTs === 'error') && m.request != null)
 
-   it('set-selection switches, then says so with selection AND state', async () => {
-      const t = await ready()
+/** long enough for the 500ms autosave debounce to have fired, so a late extra reply shows */
+const settle = (): Promise<void> => new Promise((r) => setTimeout(r, 700))
+
+async function ready(search = '?workflow=wf&draft=default'): Promise<ReturnType<typeof boot>> {
+   const t = boot({ search })
+   t.release()
+   await until('ready', () => last(t.posted, 'ready') != null)
+   return t
+}
+
+/** a host that has spoken once: the origin is pinned, and the mark is where its replies start */
+async function pinned(search?: string): Promise<ReturnType<typeof boot> & { mark: number }> {
+   const t = await ready(search)
+   t.send({ comfyTs: 'get-state' })
+   await until('pinning reply', () => last(t.posted, 'state') != null)
+   return { ...t, mark: t.posted.length }
+}
+
+describe('procedural control once booted', () => {
+   it('set-selection switches, says so with selection, and answers with exactly one state', async () => {
+      const t = await pinned()
       t.send({ comfyTs: 'set-selection', module: 'wf', draft: 'two' })
       await until('state for two', () => last(t.posted, 'state')?.draft === 'two')
+      await settle()
       expect(t.st.form?.draft).toBe('two')
-      expect(last(t.posted, 'selection')).toEqual({ comfyTs: 'selection', module: 'wf', draft: 'two' })
+      const after = t.posted.slice(t.mark)
+      expect(after.filter((m) => m.comfyTs === 'selection')).toEqual([
+         { comfyTs: 'selection', module: 'wf', draft: 'two' },
+      ])
+      expect(replies(after)).toHaveLength(1)
+      expect(after.filter((m) => m.comfyTs === 'state')).toHaveLength(1)
       expect(last(t.posted, 'state')).toMatchObject({
+         request: 'set-selection',
          module: 'wf',
          draft: 'two',
          values: { prompt: 'second', seed: { mode: '=', value: 7 }, mode: 'b' },
@@ -212,36 +275,55 @@ describe('procedural control once booted', () => {
       expect(t.st.form?.draft).toBe('default')
    })
 
-   it('an unknown module changes nothing and answers with the current selection', async () => {
-      const t = await ready()
-      const before = t.posted.length
+   it('an unknown module changes nothing and answers with an error', async () => {
+      const t = await pinned()
       t.send({ comfyTs: 'set-selection', module: 'nope', draft: 'two' })
-      await until('an answer', () => t.posted.length > before)
+      await until('an answer', () => replies(t.posted.slice(t.mark)).length > 0)
+      await settle()
       expect([t.st.form?.moduleKey, t.st.form?.draft]).toEqual(['wf', 'default'])
-      expect(t.posted.slice(before)).toContainEqual({ comfyTs: 'selection', module: 'wf', draft: 'default' })
+      expect(replies(t.posted.slice(t.mark))).toEqual([
+         { comfyTs: 'error', code: 'unknown-module', message: expect.any(String), request: 'set-selection' },
+      ])
    })
 
-   it('re-selecting the open draft still answers, so a host waiting on it is not left hanging', async () => {
-      const t = await ready()
-      const before = t.posted.length
+   it('re-selecting the open draft still answers, once, so a host waiting on it is not left hanging', async () => {
+      const t = await pinned()
       t.send({ comfyTs: 'set-selection', module: 'wf', draft: 'default' })
-      await until('an answer', () => t.posted.slice(before).some((m) => m.comfyTs === 'selection'))
+      await until('an answer', () => replies(t.posted.slice(t.mark)).length > 0)
+      await settle()
+      expect(replies(t.posted.slice(t.mark))).toEqual([
+         expect.objectContaining({ comfyTs: 'state', request: 'set-selection', module: 'wf', draft: 'default' }),
+      ])
    })
 
-   it('set-values validates each value, ignores unknown names, and reports the result', async () => {
-      const t = await ready()
+   it('set-values validates each value, lists what it refused, and answers once', async () => {
+      const t = await pinned()
       t.send({
          comfyTs: 'set-values',
          values: { prompt: 'a red fox', seed: 99, size: '768x1344', mode: 'not-a-choice', ghost: 1 },
       })
-      await until('state after values', () => last(t.posted, 'state') != null)
+      await until('state after values', () => replies(t.posted.slice(t.mark)).length > 0)
       expect(valueOf(t.st, 'prompt')).toBe('a red fox')
       expect(valueOf(t.st, 'seed')).toEqual({ mode: '+', value: 99 })
       expect(valueOf(t.st, 'size')).toEqual({ width: 768, height: 1344 })
       expect(valueOf(t.st, 'mode')).toBe('a')
-      expect(last(t.posted, 'state')?.values).not.toHaveProperty('ghost')
-      // the autosave writes it like a typed edit
+      const reply = last(t.posted, 'state')
+      expect(reply).toMatchObject({ request: 'set-values', rejected: ['mode', 'ghost'] })
+      expect(reply?.values).not.toHaveProperty('ghost')
+      // the autosave writes it like a typed edit, and the host already has these values
       await until('autosave', () => t.puts.some((x) => x.body.includes('a red fox')))
+      await settle()
+      expect(t.posted.slice(t.mark).filter((m) => m.comfyTs === 'state')).toHaveLength(1)
+   })
+
+   it('a value that JSON cannot print is refused without losing the reply', async () => {
+      const t = await pinned()
+      const cyclic: Record<string, unknown> = {}
+      cyclic.self = cyclic
+      t.send({ comfyTs: 'set-values', values: { mode: 10n, size: cyclic, prompt: 'still here' } })
+      await until('a reply', () => replies(t.posted.slice(t.mark)).length > 0)
+      expect(last(t.posted, 'state')).toMatchObject({ request: 'set-values', rejected: ['mode', 'size'] })
+      expect(valueOf(t.st, 'prompt')).toBe('still here')
    })
 
    it('set-selection then set-values back to back: the values land on the NEW draft', async () => {
@@ -257,6 +339,7 @@ describe('procedural control once booted', () => {
       await until('state', () => last(t.posted, 'state') != null)
       expect(last(t.posted, 'state')).toEqual({
          comfyTs: 'state',
+         request: 'get-state',
          module: 'wf',
          draft: 'default',
          values: {
@@ -268,20 +351,157 @@ describe('procedural control once booted', () => {
       })
    })
 
-   it('a user switching drafts in the panel is mirrored to the host', async () => {
-      const t = await ready()
+   it('a user switching drafts in the panel is mirrored to a host that has spoken', async () => {
+      const t = await pinned()
       await t.st.select({ module: 'other', draft: 'default' })
       expect(last(t.posted, 'selection')).toEqual({ comfyTs: 'selection', module: 'other', draft: 'default' })
-      expect(last(t.posted, 'state')).toMatchObject({ module: 'other', draft: 'default', values: { prompt: 'other' } })
+      expect(last(t.posted, 'state')).toEqual({
+         comfyTs: 'state',
+         module: 'other',
+         draft: 'default',
+         values: { prompt: 'other' },
+      })
    })
 
-   it('a message from a second origin is ignored once the host has spoken', async () => {
-      const t = await ready()
-      t.send({ comfyTs: 'get-state' })
-      await until('state', () => last(t.posted, 'state') != null)
-      t.send({ comfyTs: 'set-selection', module: 'wf', draft: 'two' }, 'http://evil.test')
-      t.send({ comfyTs: 'set-values', values: { prompt: 'injected' } }, 'http://evil.test')
-      await tick()
+   it('a message from a second origin is ignored once the parent has pinned its own', async () => {
+      const t = await pinned()
+      t.send({ comfyTs: 'set-selection', module: 'wf', draft: 'two' }, { origin: 'http://evil.test' })
+      t.send({ comfyTs: 'set-values', values: { prompt: 'injected' } }, { origin: 'http://evil.test' })
+      await settle()
       expect([t.st.form?.draft, valueOf(t.st, 'prompt')]).toEqual(['default', 'default prompt'])
+      expect(t.posted.length).toBe(t.mark)
+   })
+})
+
+describe('who may speak for the host', () => {
+   it('a frame that is not the parent, speaking FIRST, is ignored and does not pin; the parent then works', async () => {
+      const t = await ready()
+      const sibling: Source = { postMessage: (): void => {} }
+      t.send(
+         { comfyTs: 'set-values', values: { prompt: 'from a sibling' } },
+         { origin: 'http://evil.test', source: sibling },
+      )
+      t.send({ comfyTs: 'get-state' }, { origin: 'http://evil.test', source: sibling })
+      await settle()
+      expect(valueOf(t.st, 'prompt')).toBe('default prompt')
+      expect(replies(t.posted)).toHaveLength(0)
+      t.send({ comfyTs: 'get-state' })
+      await until('the parent is answered', () => replies(t.posted).length > 0)
+      expect(t.posts.at(-1)).toEqual({ msg: expect.objectContaining({ comfyTs: 'state' }), target: HOST_ORIGIN })
+   })
+
+   it('before the host speaks, only ready and selection go out, to *; after, replies go to the pinned origin', async () => {
+      const t = await ready()
+      // a user edit and a user switch before any host message: neither may leak values
+      t.st.form?.vars.find((v) => v.name === 'prompt')?.set('typed before the pin')
+      await t.st.select({ module: 'other', draft: 'default' })
+      await settle()
+      const before = t.posts.slice()
+      expect(before.length).toBeGreaterThan(0)
+      expect(before.every((x) => x.target === '*')).toBe(true)
+      expect(before.map((x) => x.msg.comfyTs).every((k) => k === 'ready' || k === 'selection')).toBe(true)
+      t.send({ comfyTs: 'get-state' })
+      await until('reply', () => replies(t.posted).length > 0)
+      const after = t.posts.slice(before.length)
+      expect(after.length).toBeGreaterThan(0)
+      expect(after.every((x) => x.target === HOST_ORIGIN)).toBe(true)
+   })
+
+   it('an opaque parent origin ("null") still gets its replies', async () => {
+      const t = await ready()
+      t.send({ comfyTs: 'get-state' }, { origin: 'null' })
+      await until('reply', () => replies(t.posted).length > 0)
+      expect(t.posts.at(-1)).toEqual({ msg: expect.objectContaining({ comfyTs: 'state' }), target: '*' })
+   })
+})
+
+describe('every request gets exactly one answer', () => {
+   it('with no form (the draft could not be read), each request answers with an error', async () => {
+      const t = await pinned()
+      t.send({ comfyTs: 'set-selection', module: 'named', draft: 'broken' })
+      await until('select reply', () => replies(t.posted.slice(t.mark)).length > 0)
+      expect(t.st.form).toBeNull()
+      expect(replies(t.posted.slice(t.mark))).toEqual([
+         { comfyTs: 'error', code: 'select-failed', message: expect.any(String), request: 'set-selection' },
+      ])
+      t.send({ comfyTs: 'set-values', values: { main_prompt: 'x' } })
+      t.send({ comfyTs: 'get-state' })
+      await until('two more replies', () => replies(t.posted.slice(t.mark)).length === 3)
+      await settle()
+      expect(replies(t.posted.slice(t.mark)).slice(1)).toEqual([
+         { comfyTs: 'error', code: 'no-form', message: expect.any(String), request: 'set-values' },
+         { comfyTs: 'error', code: 'no-form', message: expect.any(String), request: 'get-state' },
+      ])
+   })
+
+   it('a request landing mid-switch waits for the switch and answers with the new form', async () => {
+      const t = await pinned()
+      // a user click: the form goes null synchronously while the next draft loads
+      const switching = t.st.select({ module: 'other', draft: 'default' })
+      expect(t.st.form).toBeNull()
+      t.send({ comfyTs: 'get-state' })
+      await switching
+      await until('reply', () => replies(t.posted.slice(t.mark)).length > 0)
+      await settle()
+      expect(replies(t.posted.slice(t.mark))).toEqual([
+         { comfyTs: 'state', request: 'get-state', module: 'other', draft: 'default', values: { prompt: 'other' } },
+      ])
+   })
+})
+
+describe('a boot that cannot finish says so', () => {
+   it('an index that fails posts error boot, and no ready', async () => {
+      const t = boot({ search: '', index: 'fail' })
+      t.release()
+      await until('boot error', () => last(t.posted, 'error') != null)
+      expect(last(t.posted, 'error')).toEqual({ comfyTs: 'error', code: 'boot', message: expect.any(String) })
+      expect(t.posts.at(-1)?.target).toBe('*')
+      expect(last(t.posted, 'ready')).toBeUndefined()
+   })
+
+   it('zero workflows served posts error boot, and no ready', async () => {
+      const t = boot({ search: '', index: 'empty' })
+      t.release()
+      await until('boot error', () => last(t.posted, 'error') != null)
+      expect(last(t.posted, 'error')).toMatchObject({ code: 'boot' })
+      expect(last(t.posted, 'ready')).toBeUndefined()
+   })
+})
+
+describe('set-prompt picks a real prompt var', () => {
+   it('without a kind prompt var, a float or a negative prompt named like one is left alone', async () => {
+      const t = await ready('?workflow=named&draft=default')
+      t.send({ comfyTs: 'set-prompt', text: 'a fox' })
+      await until('prompt set', () => valueOf(t.st, 'main_prompt') === 'a fox')
+      expect(valueOf(t.st, 'prompt_strength')).toBe(0.5)
+      expect(valueOf(t.st, 'negative_prompt')).toBe('')
+   })
+})
+
+describe('the host can mirror the form without polling', () => {
+   it('a user edit posts state once, after the autosave debounce', async () => {
+      const t = await pinned()
+      const prompt = t.st.form?.vars.find((v) => v.name === 'prompt')
+      prompt?.set('t')
+      prompt?.set('ty')
+      prompt?.set('typed')
+      expect(t.posted.length).toBe(t.mark)
+      await until('mirrored', () => {
+         const values = last(t.posted, 'state')?.values as Record<string, unknown> | undefined
+         return values?.prompt === 'typed'
+      })
+      await settle()
+      const states = t.posted.slice(t.mark).filter((m) => m.comfyTs === 'state')
+      expect(states).toHaveLength(1)
+      expect(states[0]).not.toHaveProperty('request')
+   })
+
+   it('seeds a finished run wrote back are mirrored', async () => {
+      const t = await pinned()
+      t.st.run.onSeeds?.({ module: 'wf', draft: 'default', seeds: { seed: 1234 } })
+      await until('mirrored seed', () => {
+         const values = last(t.posted, 'state')?.values as Record<string, unknown> | undefined
+         return (values?.seed as { value?: number } | undefined)?.value === 1234
+      })
    })
 })
