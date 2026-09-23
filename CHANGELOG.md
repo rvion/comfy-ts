@@ -1,10 +1,12 @@
 # comfy-ts
 
-## Unreleased
+## 2.11.0
 
 ### The web panel
 
 - **The loras popup sorts three ways**: by folder (grouped, the host's order), by name, or by date added (newest first, from the lora manager's file date). The choice is kept in the browser, and the sort runs before the card limit, so a lora added today is never cut by it.
+- **The panel tells you when the host changed under it.** A new lora, a removed model or a new node type on the box lights the refetch button with what changed (`⟳ +5 loras`). The panel checks at start, after a refetch or a restart, whenever the host answers again after going quiet (a restart you did yourself), and lightly every minute while the tab is open. Hosts whose catalog is committed, like Comfy Cloud, are left alone. The TUI shows the same on its header's host line, and a re-codegen clears it.
+- **The panel has a favicon**: the comfy-ts icon.
 - **Trigger words show under every lora card in the form**, and a missing one says why: the words, `no trigger words` (civitai was asked and lists none), `never fetched` with a button that asks the lora manager to fetch that lora from civitai, `not on civitai` with a retry (civitai has no version of that file, a private or local lora), or `not in the lora manager mirror` with a sync button. Hiding lora titles hides the words too, never the state.
 
 ### Examples
