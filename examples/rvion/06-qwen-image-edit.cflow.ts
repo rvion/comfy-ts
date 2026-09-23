@@ -2,6 +2,7 @@
 // mirrors the official image_qwen_image_edit_2511 template, single reference
 // image; the lightning toggle switches the 4-step Lightning lora (cfg 1) vs
 // full sampling (cfg 4 — raise steps to ~40 yourself when you flip it off)
+// box inventory: qwen-image-edit-2511-Q2_K.gguf (ComfyUI-GGUF), Qwen-Image-Edit-2511-Lightning-4steps-V1.0-fp32 lora
 // run directly:  bun examples/rvion/06-qwen-image-edit.cflow.ts [path/to/image.png] ["edit instruction"]
 import { asAbsolutePath, ComfyTS, exampleImagePath, MediaImage, v } from 'comfy-ts'
 
@@ -28,7 +29,7 @@ export const qwenImageEdit = host.defineWorkflow({
       const loaded = await img.loadInWorkflow_viaLoadImageNode(wf)
       const scaled = b.FluxKontextImageScale({ image: loaded })
 
-      const unet = b.UNETLoader({ unet_name: 'qwen_image_edit_2511_bf16.safetensors', weight_dtype: 'default' })
+      const unet = b['GGUF.UnetLoaderGGUF']({ unet_name: 'qwen-image-edit-2511-Q2_K.gguf' })
       const clip = b.CLIPLoader({
          clip_name: 'qwen_2.5_vl_7b_fp8_scaled.safetensors',
          type: 'qwen_image',
@@ -44,7 +45,7 @@ export const qwenImageEdit = host.defineWorkflow({
       if (vars.lightning) {
          model = b.LoraLoaderModelOnly({
             model,
-            lora_name: 'Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors',
+            lora_name: 'Qwen-Image-Edit-2511-Lightning-4steps-V1.0-fp32.safetensors',
             strength_model: 1,
          })._MODEL
       }
