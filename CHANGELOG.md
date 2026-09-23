@@ -1,5 +1,17 @@
 # comfy-ts
 
+## Unreleased
+
+### The web panel
+
+- **The loras popup sorts three ways**: by folder (grouped, the host's order), by name, or by date added (newest first, from the lora manager's file date). The choice is kept in the browser, and the sort runs before the card limit, so a lora added today is never cut by it.
+- **Trigger words show under every lora card in the form**, and a missing one says why: the words, `no trigger words` (civitai was asked and lists none), `never fetched` with a button that asks the lora manager to fetch that lora from civitai, `not on civitai` with a retry (civitai has no version of that file, a private or local lora), or `not in the lora manager mirror` with a sync button. Hiding lora titles hides the words too, never the state.
+
+### Examples
+
+- **`wan22-t2v`, `wan22-i2v`, `wan22-5b-t2v` and `capybara-i2v` typecheck again** against the cloud catalog shipped in 2.10.0, which made the `SaveVideo` format required. They always ran; only the types rejected them.
+- **`07-local-llm-text-gen` follows ComfyUI 0.37**, where `TextGenerate` gained a second text output (`thinking`): the answer is read from `generated_text`.
+
 ## 2.10.0
 
 ### Examples
