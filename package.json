@@ -97,7 +97,8 @@
       "serve": "bun src/cli/comfy-ts-cli.ts serve",
       "serve:watch": "bun --watch src/cli/comfy-ts-cli.ts serve",
       "serve:0000": "bun src/cli/comfy-ts-cli.ts serve --host 0.0.0.0",
-      "serve:0000:rvion": "bun src/cli/comfy-ts-cli.ts serve --host 0.0.0.0 examples/rvion"
+      "serve:0000:rvion": "bun src/cli/comfy-ts-cli.ts serve --host 0.0.0.0 examples/rvion",
+      "serve:rvion": "bun --watch src/cli/comfy-ts-cli.ts serve examples/rvion"
    },
    "rvt": {
       "skip": [

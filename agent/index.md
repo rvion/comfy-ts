@@ -15,6 +15,7 @@ Push discipline: normal house rules (commit own work, push after committing). Pu
 - `bun run templates:check` — compat sweep of that corpus against our litegraph schemas; the failure ranking is the format-grind worklist
 - `bun run tui` opens the TUI over `**/*.cflow.ts` under cwd (tweak & re-run)
 - `bun run serve` exposes drafts as a local HTTP API (`POST /generate/<module>/<draft>`)
+- `bun run serve:rvion` = the web panel over `examples/rvion` at http://127.0.0.1:8288, under `bun --watch` (an edited module restarts it). `.vscode/tasks.json` starts it with the TSC watcher on folder open (master task `starts everything`)
 - `bun run hooks:install` activates the banned-keywords commit guard (`.githooks/`)
 - examples in `examples/` are `*.cflow.ts` workflow modules: they import offline from the schema cache, connect to a live ComfyUI host on first run
 

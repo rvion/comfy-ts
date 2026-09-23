@@ -4,7 +4,14 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "👁 TSC",
+            "label": "starts everything",
+            "dependsOn": ["👁  TSC", "🤖  comfy panel"],
+            "group": { "kind": "build", "isDefault": true },
+            "runOptions": { "runOn": "folderOpen", "instanceLimit": 1 },
+            "problemMatcher": []
+        },
+        {
+            "label": "👁  TSC",
             "detail": "Get all typescript errors in problems pane",
             "type": "process",
             "options": { "env": { "NODE_OPTIONS": "--max-old-space-size=8192" } },
@@ -12,9 +19,22 @@
             "args": ["--watch", "--noEmit", "--preserveWatchOutput", "--incremental"],
             "isBackground": true,
             "problemMatcher": "$tsc-watch",
-            "presentation": { "reveal": "never" },
-            "group": { "kind": "build", "isDefault": true },
-            "runOptions": { "runOn": "folderOpen", "instanceLimit": 1 }
+            "presentation": { "reveal": "never", "clear": true },
+            "group": "build",
+            "runOptions": { "instanceLimit": 1 }
+        },
+        {
+            "label": "🤖  comfy panel",
+            "detail": "comfy-ts web panel over examples/rvion at http://127.0.0.1:8288 (restarts when a module changes)",
+            "type": "process",
+            "command": "bun",
+            "args": ["run", "serve:rvion"],
+            "options": { "cwd": "${workspaceFolder}" },
+            "isBackground": true,
+            "problemMatcher": [],
+            "presentation": { "reveal": "always", "close": false },
+            "group": "build",
+            "runOptions": { "instanceLimit": 1 }
         }
     ]
 }
