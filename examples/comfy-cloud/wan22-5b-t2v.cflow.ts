@@ -52,6 +52,8 @@ export const wan225bT2v = host.defineWorkflow({
       b.SaveVideo({
          video: b.CreateVideo({ images: b.VAEDecode({ samples, vae }), fps: vars.fps }),
          filename_prefix: 'comfy-ts-zoo/wan22-5b-t2v',
+         format: 'auto',
+         codec: 'auto',
       })
    },
 })

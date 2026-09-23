@@ -90,6 +90,8 @@ export const wan22I2v = host.defineWorkflow({
       b.SaveVideo({
          video: b.CreateVideo({ images: b.VAEDecode({ samples, vae }), fps: vars.fps }),
          filename_prefix: 'comfy-ts-zoo/wan22-i2v',
+         format: 'auto',
+         codec: 'auto',
       })
    },
 })

@@ -73,6 +73,8 @@ export const capybaraI2v = host.defineWorkflow({
       b.SaveVideo({
          video: b.CreateVideo({ images: b.VAEDecode({ samples, vae }), fps: vars.fps }),
          filename_prefix: 'comfy-ts-zoo/capybara-i2v',
+         format: 'auto',
+         codec: 'auto',
       })
    },
 })
