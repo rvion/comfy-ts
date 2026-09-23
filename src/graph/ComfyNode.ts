@@ -4,7 +4,7 @@ import type { ComfyNodeSchema } from 'src/sdk-generator/ComfyNodeSchema.ts'
 import type { ComfyApiNodeJson } from 'src/sdk-generator/comfy-api-json.ts'
 import type { NodeInputExt, NodeOutputExt } from 'src/sdk-generator/comfyui-types.ts'
 import { ComfyDefaultNodeWhenUnknown_Name } from 'src/sdk-generator/Primitives.ts'
-import { classifySchemaInput, defaultValueForWidget } from 'src/sdk-generator/inputWidgetKind.ts'
+import { classifySchemaInput, containerInstanceSlotType, defaultValueForWidget } from 'src/sdk-generator/inputWidgetKind.ts'
 import type { DynamicComboOption } from 'src/sdk-generator/inputWidgetKind.ts'
 import type { Maybe } from 'src/types/index.ts'
 import { comfyColors } from 'src/utils/ComfyColors.ts'
@@ -440,8 +440,17 @@ export class ComfyNode<
 
    private _getExpectedTypeForField(name: string): string {
       const input = this.$schema.inputs.find((i: NodeInputExt) => i.nameInComfy === name)
-      if (input == null) throw new Error('🔴 input not found asdf')
-      return input.typeName
+      if (input != null) return input.typeName
+      // autogrow instance key `decl.<instance>`: the container template carries the slot type
+      const dot = name.indexOf('.')
+      const decl = dot > 0 ? this.$schema.inputs.find((i: NodeInputExt) => i.nameInComfy === name.slice(0, dot)) : undefined
+      if (decl != null) {
+         const kind = classifySchemaInput(decl)
+         const slotType = containerInstanceSlotType(decl.opts)
+         if (kind.kind === 'dynamic-container' && kind.instanceNames.includes(name.slice(dot + 1)) && slotType != null)
+            return slotType
+      }
+      throw new Error(`🔴 no input "${name}" on ${this.$schema.nodeKey}: cannot tell which output of the linked node to use`)
    }
 
    private _getOutputForTypeOrCrash(type: string): ComfyNodeOutput<any> {
