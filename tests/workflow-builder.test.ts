@@ -950,7 +950,9 @@ describe('autogrow containers (builder face)', () => {
             required: {
                images: [
                   'COMFY_AUTOGROW_V3',
-                  { template: { input: { required: { image: ['IMAGE', {}] } }, names: ['image_1', 'image_2'], min: 0 } },
+                  {
+                     template: { input: { required: { image: ['IMAGE', {}] } }, names: ['image_1', 'image_2'], min: 0 },
+                  },
                ],
             },
          },

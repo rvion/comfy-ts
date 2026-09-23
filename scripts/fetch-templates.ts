@@ -45,7 +45,12 @@ const REPOS: RepoSpec[] = [
    },
 ]
 
-async function downloadAndExtract(p: { repo: string; branch: string; members: string[]; workDir: string }): Promise<string> {
+async function downloadAndExtract(p: {
+   repo: string
+   branch: string
+   members: string[]
+   workDir: string
+}): Promise<string> {
    const url = `https://codeload.github.com/${p.repo}/tar.gz/refs/heads/${p.branch}`
    console.log(`[templates] ⏬ ${url}`)
    const res = await fetch(url)
@@ -63,7 +68,9 @@ async function downloadAndExtract(p: { repo: string; branch: string; members: st
       throw new Error(`[templates] 🔴 tar extract failed for ${url}: ${await new Response(tar.stderr).text()}`)
    const tops = readdirSync(extractDir)
    if (tops.length !== 1 || tops[0] !== top)
-      throw new Error(`[templates] 🔴 expected exactly one top-level dir ${top} in ${extractDir}, got [${tops.join(', ')}]`)
+      throw new Error(
+         `[templates] 🔴 expected exactly one top-level dir ${top} in ${extractDir}, got [${tops.join(', ')}]`,
+      )
    return join(extractDir, top)
 }
 
