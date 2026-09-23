@@ -87,6 +87,7 @@
       "sdk:outline": "bun scripts/sdk-outline.ts",
       "loras": "bun src/cli/comfy-ts-cli.ts loras",
       "examples:images": "bun scripts/fetch-example-images.ts",
+      "gen:favicon": "bun scripts/gen-favicon.ts",
       "templates:fetch": "bun scripts/fetch-templates.ts",
       "templates:check": "bun scripts/check-templates.ts",
       "hooks:install": "git config core.hooksPath .githooks",

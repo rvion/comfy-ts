@@ -22,6 +22,20 @@ describe('serve web ui routes', () => {
       expect(String(reply.body)).toContain('id="root"')
    })
 
+   it('the shell carries the project icon as an inlined png favicon', async () => {
+      const app = makeApp({ webJs: () => Promise.resolve('js!') })
+      const body = String((await app.handle({ method: 'GET', url: '/', accept: 'text/html' })).body)
+      const href = body.match(
+         /<link rel="icon" type="image\/png" href="data:image\/png;base64,([A-Za-z0-9+/=]+)">/,
+      )?.[1]
+      expect(href).toBeDefined()
+      const bytes = Buffer.from(href ?? '', 'base64')
+      // the png signature, then a 64x64 IHDR
+      expect([...bytes.subarray(0, 8)]).toEqual([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+      expect(bytes.readUInt32BE(16)).toBe(64)
+      expect(bytes.readUInt32BE(20)).toBe(64)
+   })
+
    // no-store cannot save a browser that already cached app.js under the plain url in an
    // earlier run: the CONTENT HASH in the src is what guarantees a changed bundle is fetched
    it('the script url carries a build id that follows the bundle content', async () => {

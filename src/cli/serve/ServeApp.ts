@@ -19,6 +19,7 @@ import { applyVarPayload } from 'src/cli/serve/applyVarPayload.ts'
 import { describeVar, type VarDescriptor } from 'src/cli/serve/describeVar.ts'
 import { deletePromptEnhancer, listPromptEnhancers, writePromptEnhancer } from 'src/promptEnhancers.ts'
 import { managerOnlyLoraOptions } from 'src/cli/serve/managerOnlyLoras.ts'
+import { FAVICON_DATA_URI } from 'src/cli/serve/favicon.ts'
 import { validSavePrefix, validStoreName } from 'src/utils/safeName.ts'
 import { readServeSettings, writeServeSettings, type ServeSettings } from 'src/cli/serve/serveSettings.ts'
 import { assembleLogChunks } from 'src/cli/tui/state/LogsSt.ts'
@@ -290,6 +291,7 @@ const WEB_SHELL = `<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>comfy-ts serve</title>
+<link rel="icon" type="image/png" href="${FAVICON_DATA_URI}">
 <style>html{background:#101217;color:#e8eaf0}</style>
 </head>
 <body>
