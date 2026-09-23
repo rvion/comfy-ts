@@ -8,6 +8,7 @@ import {
    lmFolder,
    lmItemKey,
    lmModelName,
+   lmModified,
    lmPreviewUrl,
    lmTags,
    lmTrainedWords,
@@ -191,6 +192,12 @@ export function getLoraTriggerWords(name: string, hostId?: string): string[] {
 export function getLoraDisplayName(name: string, hostId?: string): string {
    const info = getLoraInfo(name, hostId)
    return (info == null ? null : lmModelName(info)) ?? loraBasename(name)
+}
+
+/** when the lora file landed on the host (epoch seconds), null when unsynced/unknown */
+export function getLoraAddedAt(name: string, hostId?: string): number | null {
+   const info = getLoraInfo(name, hostId)
+   return info == null ? null : lmModified(info)
 }
 
 /** server-relative preview url from the mirror, null when unsynced/unknown */

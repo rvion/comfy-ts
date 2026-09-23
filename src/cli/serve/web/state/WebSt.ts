@@ -24,6 +24,7 @@ import { logWebError } from 'src/cli/serve/web/logWeb.ts'
 import { asSeedForm } from 'src/cli/serve/web/state/payload.ts'
 import { readUrlSelection, resolveSelection, writeUrlSelection } from 'src/cli/serve/web/state/urlSelection.ts'
 import { RunSt } from 'src/cli/serve/web/state/RunSt.ts'
+import { asLoraSort, type LoraSort } from 'src/cli/serve/web/state/loraSort.ts'
 import {
    coerceHostValue,
    isEmbedded,
@@ -73,6 +74,7 @@ type StoredSelection = {
    loraTitles?: boolean
    /** lora previews fill their card (cover) instead of fitting inside it (contain) */
    loraFill?: boolean
+   loraSort?: string
    /** how many lora cards the popup draws before it stops */
    loraCap?: number
    /** the one-shot 60 → 200 default bump already happened for this browser */
@@ -134,6 +136,7 @@ export class WebSt {
    showLoraTitles: boolean
    /** cover vs contain for every lora preview: art crops well, a character sheet does not */
    loraFill: boolean
+   loraSort: LoraSort
    /** how many lora cards the popup draws. A cap exists because each card is an image
     * request; how many is a MACHINE question (your box, your collection), so it is yours */
    loraCap: number
@@ -210,6 +213,7 @@ export class WebSt {
       this.showLoraImages = stored.loraImages ?? true
       this.showLoraTitles = stored.loraTitles ?? true
       this.loraFill = stored.loraFill ?? true
+      this.loraSort = asLoraSort(stored.loraSort)
       // marked in the blob, so the bump happens once and a deliberate 60 sticks after it
       this.loraCap = clampLoraCap(
          stored.loraCapMigrated !== true && stored.loraCap === LEGACY_LORA_CAP ? DEFAULT_LORA_CAP : stored.loraCap,
@@ -252,6 +256,11 @@ export class WebSt {
 
    toggleLoraTitles(): void {
       this.showLoraTitles = !this.showLoraTitles
+      this.persist()
+   }
+
+   setLoraSort(mode: LoraSort): void {
+      this.loraSort = mode
       this.persist()
    }
 
@@ -319,6 +328,7 @@ export class WebSt {
                loraImages: this.showLoraImages,
                loraTitles: this.showLoraTitles,
                loraFill: this.loraFill,
+               loraSort: this.loraSort,
                loraCap: this.loraCap,
                loraCapMigrated: true,
                layout: this.layout,

@@ -358,6 +358,9 @@ button.mode.sel { background: var(--accent-dim); border-color: var(--accent); co
 .lora-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
 
 .lora-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; }
+.lora-sort-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px; }
+.lora-sort { display: inline-flex; align-items: center; gap: 4px; text-transform: none; letter-spacing: 0; }
+.lora-sort .mode { font-size: 11px; padding: 2px 8px; }
 .lora-card {
    display: flex; flex-direction: column; gap: 6px; padding: 6px; text-align: left;
    background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; min-width: 0;

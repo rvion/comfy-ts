@@ -25,6 +25,7 @@ import { assembleLogChunks } from 'src/cli/tui/state/LogsSt.ts'
 import { draftsDirForFile, listDraftsForFile } from 'src/cli/tui/state/DraftsSt.ts'
 import {
    buildLoraMirror,
+   getLoraAddedAt,
    getLoraDisplayName,
    getLoraInfo,
    getLoraPreviewUrl,
@@ -520,6 +521,12 @@ export class ServeApp {
                if (kw !== '') keywords[option] = kw
             }
             if (Object.keys(keywords).length > 0) desc.optionKeywords = keywords
+            const addedAt: Record<string, number> = {}
+            for (const option of desc.options) {
+               const t = getLoraAddedAt(option, hostId)
+               if (t != null) addedAt[option] = t
+            }
+            if (Object.keys(addedAt).length > 0) desc.optionAddedAt = addedAt
          }
          vars[name] = desc
       }

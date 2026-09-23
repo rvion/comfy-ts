@@ -58,6 +58,12 @@ export function lmSha256(item: LmLoraItem): string | null {
    return readString(item, 'sha256')
 }
 
+/** when the file landed on the host (epoch seconds): the lora manager's own "date added" sort reads it */
+export function lmModified(item: LmLoraItem): number | null {
+   const raw = item['modified']
+   return typeof raw === 'number' && Number.isFinite(raw) ? raw : null
+}
+
 export function lmFileSize(item: LmLoraItem): number | null {
    const raw = item['file_size']
    return typeof raw === 'number' && Number.isFinite(raw) ? raw : null

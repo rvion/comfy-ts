@@ -41,6 +41,9 @@ export type VarDescriptor = {
     * the picker with a warning, because a lora present on disk usually runs even when the
     * server has not rescanned its list, filled by ServeApp.describeModule */
    managerOnlyOptions?: readonly string[]
+   /** loras: when each file landed on the host (epoch seconds, the lora manager's date), entries
+    * only where the mirror has one. The popup's `date added` sort reads it */
+   optionAddedAt?: Record<string, number>
    /** text: this one wants a box, not a line (`v.text(…, { multiline: true })`) */
    multiline?: boolean
    /** text + prompt: named starting texts (`{ presets: { label: text } }`). NOT `presets`, which

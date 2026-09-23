@@ -19,6 +19,7 @@ import { fetchLoraAbout, fetchLoraInfo, loraPreviewSrc, type LoraAbout, type Lor
 import type { LoraStrength } from 'src/vars/ComfyVars.ts'
 import type { VarSt } from 'src/cli/serve/web/state/FormSt.ts'
 import type { WebSt } from 'src/cli/serve/web/state/WebSt.ts'
+import { LORA_SORTS, sortLoraMatches } from 'src/cli/serve/web/state/loraSort.ts'
 import {
    loraIsOn,
    paletteOrder,
@@ -224,7 +225,12 @@ export const LorasControl = observer(function LorasControl(p: {
    const needle = local.filter.toLowerCase()
    const matchesFilter = (name: string): boolean =>
       name.toLowerCase().includes(needle) || label(name).toLowerCase().includes(needle)
-   const matches = options.filter(matchesFilter)
+   const matches = sortLoraMatches({
+      names: options.filter(matchesFilter),
+      mode: p.st.loraSort,
+      label,
+      addedAt: p.v.desc.optionAddedAt ?? {},
+   })
    const cardCap = p.st.loraCap
    const cards = matches.filter((o) => !isInPalette(o)).slice(0, cardCap)
    /** the enum value IS a path (`krea2\styles\x.safetensors`, separators vary by host and by
@@ -234,6 +240,7 @@ export const LorasControl = observer(function LorasControl(p: {
       return parts.length <= 1 ? '' : parts.slice(0, -1).join('/')
    }
    const groupedCards = (() => {
+      if (p.st.loraSort !== 'folder') return [{ folder: null, names: cards }]
       const byFolder = new Map<string, string[]>()
       for (const name of cards) {
          const folder = folderOf(name)
@@ -543,12 +550,30 @@ export const LorasControl = observer(function LorasControl(p: {
                            })}
                         </div>
                      ) : null}
-                     <div className="section-title">all loras — tap to add to the palette</div>
+                     <div className="section-title lora-sort-head">
+                        all loras — tap to add to the palette
+                        <span className="lora-sort">
+                           sort
+                           {LORA_SORTS.map((s) => (
+                              <button
+                                 key={s.mode}
+                                 type="button"
+                                 className={p.st.loraSort === s.mode ? 'mode sel' : 'mode'}
+                                 data-tip={s.tip}
+                                 onClick={() => p.st.setLoraSort(s.mode)}
+                              >
+                                 {s.label}
+                              </button>
+                           ))}
+                        </span>
+                     </div>
                      {groupedCards.map((group) => (
-                        <div key={group.folder}>
-                           <div className="section-title">
-                              {group.folder === '' ? 'loose (no folder)' : `${group.folder}/`} · {group.names.length}
-                           </div>
+                        <div key={group.folder ?? '*'}>
+                           {group.folder == null ? null : (
+                              <div className="section-title">
+                                 {group.folder === '' ? 'loose (no folder)' : `${group.folder}/`} · {group.names.length}
+                              </div>
+                           )}
                            <div className="lora-grid">
                               {group.names.map((name) => (
                                  <button
