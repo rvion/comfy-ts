@@ -1,5 +1,12 @@
 # comfy-ts
 
+## Unreleased (minor)
+
+### The web panel
+
+- **The prompt refiner talks to any OpenAI-compatible server**: llama.cpp's `llama-server`, ollama, vllm. Pick `llama.cpp / ollama / vllm` as the provider and give it the base URL including `/v1` (for example `http://localhost:8080/v1`). The key is optional.
+- **Thinking can be turned off on those servers.** Effort `off` asks the model's chat template to skip reasoning, and any other value asks it to think first. A local thinking model left on can spend the whole token budget reasoning and return an empty answer.
+
 ## 2.11.0
 
 ### The web panel

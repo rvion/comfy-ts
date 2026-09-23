@@ -28,9 +28,10 @@ const STORAGE_KEY = 'comfy-ts-serve-enhancer'
 const DEFAULT_MODEL: Record<ProviderId, string> = {
    openrouter: 'anthropic/claude-sonnet-5',
    openwebui: '',
+   openai: '',
 }
 
-export const PROVIDERS: ProviderId[] = ['openrouter', 'openwebui']
+export const PROVIDERS: ProviderId[] = ['openrouter', 'openwebui', 'openai']
 
 export type EnhancerSettings = {
    provider: ProviderId
@@ -47,7 +48,7 @@ export type EnhancerSettings = {
 }
 
 function isProvider(raw: unknown): raw is ProviderId {
-   return raw === 'openrouter' || raw === 'openwebui'
+   return raw === 'openrouter' || raw === 'openwebui' || raw === 'openai'
 }
 
 function isEffort(raw: unknown): raw is ReasoningEffort {
@@ -63,7 +64,12 @@ export function normalizeSettings(raw: unknown): EnhancerSettings {
    return {
       provider: isProvider(o.provider) ? o.provider : 'openrouter',
       keyByProvider: stringMap(o.keyByProvider),
-      baseUrlByProvider: { openrouter: defaultBaseUrl('openrouter'), openwebui: defaultBaseUrl('openwebui'), ...bases },
+      baseUrlByProvider: {
+         openrouter: defaultBaseUrl('openrouter'),
+         openwebui: defaultBaseUrl('openwebui'),
+         openai: defaultBaseUrl('openai'),
+         ...bases,
+      },
       modelByProvider: { ...DEFAULT_MODEL, ...models },
       effort: isEffort(o.effort) ? o.effort : 'medium',
       thinkingOnly: o.thinkingOnly !== false,

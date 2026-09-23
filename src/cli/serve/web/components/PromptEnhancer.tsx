@@ -13,11 +13,18 @@ const EFFORTS: ReasoningEffort[] = ['off', 'low', 'medium', 'high']
 const PROVIDER_LABEL: Record<ProviderId, string> = {
    openrouter: 'openrouter (cloud)',
    openwebui: 'open webui (local)',
+   openai: 'llama.cpp / ollama / vllm (openai /v1)',
+}
+
+const BASE_PLACEHOLDER: Record<ProviderId, string> = {
+   openrouter: '',
+   openwebui: 'http://localhost:3000',
+   openai: 'http://localhost:8080/v1',
 }
 
 const Settings = observer(function Settings(p: { e: EnhancerSt }) {
    const models = p.e.visibleModels
-   const local = p.e.provider === 'openwebui'
+   const local = p.e.provider !== 'openrouter'
    return (
       <div>
          <div className="section-title">provider · keys stay in this browser</div>
@@ -32,7 +39,7 @@ const Settings = observer(function Settings(p: { e: EnhancerSt }) {
             {local ? (
                <input
                   type="text"
-                  placeholder="http://localhost:3000"
+                  placeholder={BASE_PLACEHOLDER[p.e.provider]}
                   value={p.e.baseUrl}
                   onChange={(ev) => p.e.setBaseUrl(ev.target.value)}
                   style={{ flex: 1, minWidth: 180 }}
@@ -40,7 +47,7 @@ const Settings = observer(function Settings(p: { e: EnhancerSt }) {
             ) : null}
             <input
                type="password"
-               placeholder={local ? 'open webui api key (blank if none)' : 'sk-or-v1-… (localStorage only)'}
+               placeholder={local ? 'api key (blank if none)' : 'sk-or-v1-… (localStorage only)'}
                value={p.e.apiKey}
                onChange={(ev) => p.e.setApiKey(ev.target.value)}
                style={{ flex: 1, minWidth: 160 }}
@@ -75,8 +82,15 @@ const Settings = observer(function Settings(p: { e: EnhancerSt }) {
                <input type="checkbox" checked={p.e.thinkingOnly} onChange={() => p.e.toggleThinkingOnly()} />
                <span className="hint">thinking only</span>
             </label>
-            {local ? null : (
-               <label className="row-inline" data-tip="reasoning effort sent to the model">
+            {p.e.provider === 'openwebui' ? null : (
+               <label
+                  className="row-inline"
+                  data-tip={
+                     local
+                        ? 'off = no thinking (chat template switch), anything else = think first'
+                        : 'reasoning effort sent to the model'
+                  }
+               >
                   <span className="hint">effort</span>
                   <select value={p.e.effort} onChange={(ev) => p.e.setEffort(ev.target.value)}>
                      {EFFORTS.map((x) => (

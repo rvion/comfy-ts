@@ -64,6 +64,23 @@ describe('provider endpoints', () => {
       expect(buildRefineBody({ ...REQ, provider: 'openwebui' }).reasoning).toBeUndefined()
       expect(buildRefineBody({ ...REQ, effort: 'off', provider: 'openrouter' }).reasoning).toBeUndefined()
    })
+
+   it('an openai-compatible server (llama.cpp, ollama, vllm) takes a base url that already carries /v1', () => {
+      const LLAMA: Endpoint = { provider: 'openai', baseUrl: 'https://box.ts.net:8081/v1/', key: '' }
+      expect(modelsUrl(LLAMA)).toBe('https://box.ts.net:8081/v1/models')
+      expect(chatUrl(LLAMA)).toBe('https://box.ts.net:8081/v1/chat/completions')
+      expect(chatUrl({ ...LLAMA, baseUrl: '' })).toBe('http://localhost:8080/v1/chat/completions')
+   })
+
+   it('thinking on an openai-compatible server rides the chat template switch, never `reasoning`', () => {
+      const off = buildRefineBody({ ...REQ, effort: 'off', provider: 'openai' })
+      expect(off.chat_template_kwargs).toEqual({ enable_thinking: false })
+      expect(off.reasoning).toBeUndefined()
+      expect(buildRefineBody({ ...REQ, provider: 'openai' }).chat_template_kwargs).toEqual({ enable_thinking: true })
+      // open webui and openrouter never get the llama.cpp field
+      expect(buildRefineBody({ ...REQ, effort: 'off', provider: 'openwebui' }).chat_template_kwargs).toBeUndefined()
+      expect(buildRefineBody({ ...REQ, effort: 'off', provider: 'openrouter' }).chat_template_kwargs).toBeUndefined()
+   })
 })
 
 describe('model list parsing (an external api drifts: shape-check, never trust)', () => {
@@ -275,6 +292,11 @@ describe('enhancer settings blob', () => {
       expect(s.modelByProvider.openrouter).toBe('anthropic/claude-sonnet-5')
       expect(s.effort).toBe('medium')
       expect(s.thinkingOnly).toBe(false)
+   })
+
+   it('the openai-compatible provider round-trips and gets its own default base url', () => {
+      expect(normalizeSettings({ provider: 'openai' }).provider).toBe('openai')
+      expect(normalizeSettings({}).baseUrlByProvider.openai).toBe('http://localhost:8080/v1')
    })
 
    it('an unknown provider falls back instead of pointing the ui at nothing', () => {

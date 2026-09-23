@@ -1,33 +1,38 @@
-// browser → an OpenAI-wire LLM. Two providers: openrouter (cloud) and open webui
-// (a local box). The second http module after api.ts, and the only one that leaves
+// browser → an OpenAI-wire LLM. Three providers: openrouter (cloud), open webui
+// (a local box), and any openai-compatible server (llama.cpp, ollama, vllm). The second http module after api.ts, and the only one that leaves
 // this origin. Keys are parameters, never module state: they live in localStorage
 // (EnhancerSt) and never reach the serve process.
 // parsing is pure and DOM-free so tests/serve-web-enhancer.test.ts covers it.
 
-export type ProviderId = 'openrouter' | 'openwebui'
+export type ProviderId = 'openrouter' | 'openwebui' | 'openai'
 
 export type Endpoint = { provider: ProviderId; baseUrl: string; key: string }
 
 export const OPENROUTER_BASE = 'https://openrouter.ai/api/v1'
 export const OPENWEBUI_BASE = 'http://localhost:3000'
+export const OPENAI_COMPAT_BASE = 'http://localhost:8080/v1'
 
 export function defaultBaseUrl(provider: ProviderId): string {
-   return provider === 'openrouter' ? OPENROUTER_BASE : OPENWEBUI_BASE
+   if (provider === 'openrouter') return OPENROUTER_BASE
+   return provider === 'openwebui' ? OPENWEBUI_BASE : OPENAI_COMPAT_BASE
 }
 
 function trimSlash(url: string): string {
    return url.trim().replace(/\/+$/, '')
 }
 
-/** open webui hangs its OpenAI-compatible api under /api, openrouter's base already carries /v1 */
-export function modelsUrl(e: Endpoint): string {
+/** open webui hangs its OpenAI-compatible api under /api, every other base already carries /v1 */
+function apiBase(e: Endpoint): string {
    const base = trimSlash(e.baseUrl) === '' ? defaultBaseUrl(e.provider) : trimSlash(e.baseUrl)
-   return e.provider === 'openrouter' ? `${base}/models` : `${base}/api/models`
+   return e.provider === 'openwebui' ? `${base}/api` : base
+}
+
+export function modelsUrl(e: Endpoint): string {
+   return `${apiBase(e)}/models`
 }
 
 export function chatUrl(e: Endpoint): string {
-   const base = trimSlash(e.baseUrl) === '' ? defaultBaseUrl(e.provider) : trimSlash(e.baseUrl)
-   return e.provider === 'openrouter' ? `${base}/chat/completions` : `${base}/api/chat/completions`
+   return `${apiBase(e)}/chat/completions`
 }
 
 /** reasoning: true = says so · false = says it cannot · null = the provider does not tell
@@ -96,10 +101,16 @@ function authHeaders(e: Endpoint): Record<string, string> {
 
 export type RefineRequest = { model: string; system: string; user: string; effort: ReasoningEffort }
 
-/** the chat body. `reasoning` rides OPENROUTER only: a local backend rejects the unknown field,
- * and its thinking models think on their own (see ThinkSplitter) */
+/** the chat body. `reasoning` rides OPENROUTER only: a local backend rejects the unknown field.
+ * an openai-compatible server gets the chat template's thinking switch instead: a local thinking
+ * model left on can spend the whole budget reasoning and answer nothing */
 export function buildRefineBody(p: RefineRequest & { provider: ProviderId }): Record<string, unknown> {
-   const reasoning = p.provider === 'openrouter' && p.effort !== 'off' ? { reasoning: { effort: p.effort } } : {}
+   const reasoning =
+      p.provider === 'openrouter' && p.effort !== 'off'
+         ? { reasoning: { effort: p.effort } }
+         : p.provider === 'openai'
+           ? { chat_template_kwargs: { enable_thinking: p.effort !== 'off' } }
+           : {}
    return {
       model: p.model,
       stream: true,

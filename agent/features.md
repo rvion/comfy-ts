@@ -73,5 +73,5 @@ Images that never persist: `SaveImageWebsocket` outputs stream over the ws and n
 ## Non-goals
 
 - no app-scale UI (CushyStudio's job). The TUI and the serve web panel are sidekick surfaces over drafts; `comfy-ts serve` stays a thin LOCAL bridge — no auth, no multi-tenant, no hosted product.
-- no LLM calls FROM THE LIBRARY. Two explicit exceptions: the panel's prompt enhancer talks to OpenRouter or a local Open WebUI from the BROWSER, with a key that never reaches the serve process (`src/cli/serve/web/llm.ts`), and a workflow may run ComfyUI's own text nodes on the host (`execution.texts`). Nothing in `src/` calls a hosted model on its own.
+- no LLM calls FROM THE LIBRARY. Two explicit exceptions: the panel's prompt enhancer talks to OpenRouter, a local Open WebUI, or any OpenAI-compatible server (llama.cpp, ollama, vllm) from the BROWSER, with a key that never reaches the serve process (`src/cli/serve/web/llm.ts`), and a workflow may run ComfyUI's own text nodes on the host (`execution.texts`). Nothing in `src/` calls a hosted model on its own.
 - no support matrix beyond ComfyUI's own API surface.
