@@ -411,13 +411,24 @@ export const VarsForm = observer(function VarsForm(p: { st: WebSt }) {
                         >
                            <Icon name="trash" />
                         </button>
-                        <button
-                           type="button"
-                           data-tip="refetch object_info from the host and rewrite sdk.d.ts (the var lists widen in place)"
-                           onClick={() => void p.st.hostAction('refresh-schema')}
-                        >
-                           <Icon name="refresh" />
-                        </button>
+                        {p.st.drift != null && p.st.drift.host === p.st.hostFor(form.moduleKey) ? (
+                           <button
+                              type="button"
+                              className="attention"
+                              data-tip={`the host changed since this panel loaded its schema (${p.st.drift.summary}): refetch to use it`}
+                              onClick={() => void p.st.hostAction('refresh-schema')}
+                           >
+                              <Icon name="refresh" /> {p.st.drift.summary}
+                           </button>
+                        ) : (
+                           <button
+                              type="button"
+                              data-tip="refetch object_info from the host and rewrite sdk.d.ts (the var lists widen in place)"
+                              onClick={() => void p.st.hostAction('refresh-schema')}
+                           >
+                              <Icon name="refresh" />
+                           </button>
+                        )}
                         <button
                            type="button"
                            className="danger"

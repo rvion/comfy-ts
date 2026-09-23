@@ -20,6 +20,7 @@ import { describeVar, type VarDescriptor } from 'src/cli/serve/describeVar.ts'
 import { deletePromptEnhancer, listPromptEnhancers, writePromptEnhancer } from 'src/promptEnhancers.ts'
 import { managerOnlyLoraOptions } from 'src/cli/serve/managerOnlyLoras.ts'
 import { FAVICON_DATA_URI } from 'src/cli/serve/favicon.ts'
+import { driftChanged, summarizeDrift } from 'src/host/schemaDrift.ts'
 import { validSavePrefix, validStoreName } from 'src/utils/safeName.ts'
 import { readServeSettings, writeServeSettings, type ServeSettings } from 'src/cli/serve/serveSettings.ts'
 import { assembleLogChunks } from 'src/cli/tui/state/LogsSt.ts'
@@ -260,6 +261,7 @@ const USAGE = [
    'DELETE /drafts/<module>/<draft> — delete that draft file',
    'GET  /run/<module> — live run status · /run/<module>/preview — latent preview bytes',
    'POST /upload with {"name","dataBase64"} — store a browser file for an image var',
+   'GET  /hosts/<hostId>/drift[?full=1] — what changed on the host since the schema was loaded (model files; node types with full=1)',
    'GET  /lora-info/<hostId>/<lora> — display name + trigger words (local mirror)',
    'POST /hosts/<hostId>/lora-civitai/<lora> — fetch its civitai metadata (trigger words) through the lora manager, then re-sync the mirror',
    'GET  /lora-preview/<hostId>/<lora> — preview image bytes',
@@ -392,6 +394,8 @@ export class ServeApp {
                return await this.replyHostLogs(segs[1])
             if (segs[0] === 'hosts' && segs.length === 3 && segs[1] != null && segs[2] === 'ping')
                return await this.replyHostPing(segs[1])
+            if (segs[0] === 'hosts' && segs.length === 3 && segs[1] != null && segs[2] === 'drift')
+               return await this.replyHostDrift(segs[1], req.url.includes('full=1'))
             if (segs[0] === 'images' && segs.length === 3 && segs[1] != null && segs[2] != null)
                return this.replyMemoryImage(`${segs[1]}/${segs[2]}`)
             if (segs[0] === 'outputs') return this.replyOutput(segs.slice(1))
@@ -883,6 +887,29 @@ export class ServeApp {
               ? `civitai lists no trigger words for '${lora}'`
               : `civitai has no metadata for '${lora}'`
       return json(200, { ok: true, host: hostId, lora, triggers: t, note })
+   }
+
+   /** has the host changed since this process loaded its schema: new or removed model files (and
+    * node types on a full check). A host whose catalog is COMMITTED rather than live-synced
+    * (sdkAutoWrite: false, the cloud catalog) is not compared: its live list moves on purpose */
+   private async replyHostDrift(hostId: string, full: boolean): Promise<ServeReply> {
+      const host = comfyts.hosts.get(hostId)
+      if (host == null) return json(404, { error: `unknown host '${hostId}'` })
+      if (host.data.sdkAutoWrite === false)
+         return json(200, { host: hostId, checked: false, changed: false, summary: '' })
+      try {
+         const drift = await host.checkSchemaDrift({ full })
+         return json(200, {
+            host: hostId,
+            checked: true,
+            full,
+            changed: driftChanged(drift),
+            summary: summarizeDrift(drift),
+            drift,
+         })
+      } catch (e) {
+         return json(502, { error: `${hostId} unreachable: ${extractErrorMessage(e)}` })
+      }
    }
 
    /** is the host answering RIGHT NOW: what the panel polls while a restart is in flight, so

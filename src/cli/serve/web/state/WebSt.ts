@@ -11,6 +11,7 @@ import {
    pingHost,
    postHostAction,
    postLoraCivitai,
+   fetchHostDrift,
    saveDraft,
    saveSettings,
    setModuleHost,
@@ -385,6 +386,7 @@ export class WebSt {
          if (urlPrompt != null) this.setPromptText(urlPrompt)
          // last: the host replies with its buttons + its prompt, and both need a form
          this.postHost({ comfyTs: 'ready' })
+         this.startDriftWatch()
       } catch (e) {
          const message = e instanceof Error ? e.message : String(e)
          runInAction(() => {
@@ -776,6 +778,40 @@ export class WebSt {
       await this.trackSwitch(this.reloadIndexAndForm())
    }
 
+   /** what changed on a host since the server loaded its schema, shown on the refetch button of
+    * that host only. A light check (the loaders, a few KB) runs every minute while the tab is
+    * visible; a full one (node types too) at boot, after a refetch or a restart, and when a host
+    * that stopped answering answers again, which is how a restart nobody announced is noticed */
+   drift: { host: string; summary: string } | null = null
+   driftDown = false
+
+   private startDriftWatch(): void {
+      void this.checkDrift(true)
+      setInterval(() => {
+         if (document.visibilityState === 'visible') void this.checkDrift(false)
+      }, 60_000)
+   }
+
+   async checkDrift(full: boolean): Promise<void> {
+      const host = this.form == null ? null : this.hostFor(this.form.moduleKey)
+      if (host == null || host === '') return
+      try {
+         const r = await fetchHostDrift({ host, full })
+         const cameBack = this.driftDown
+         runInAction(() => {
+            this.driftDown = false
+            // a clean LIGHT check cannot clear what a full one found (node types it does not see)
+            if (r.changed) this.drift = { host, summary: r.summary }
+            else if (full || this.drift?.host !== host) this.drift = null
+         })
+         if (cameBack && !full) await this.checkDrift(true)
+      } catch {
+         runInAction(() => {
+            this.driftDown = true
+         })
+      }
+   }
+
    /** loras whose civitai fetch is in flight: their card says so instead of offering it twice */
    loraFetching = new Set<string>()
 
@@ -864,6 +900,7 @@ export class WebSt {
             this.hostWatch = 'back'
             this.hostNote = `${host} is back up`
          })
+         void this.checkDrift(true)
          setTimeout(() => runInAction(() => (this.hostWatch = 'idle')), 4000)
          return
       }
@@ -884,6 +921,7 @@ export class WebSt {
          })
          // a reboot is the one action whose result arrives LATER: watch for it
          if (action === 'restart') void this.watchHostComeBack()
+         if (action === 'refresh-schema') await this.checkDrift(true)
       } catch (e) {
          runInAction(() => {
             this.hostError = e instanceof Error ? e.message : String(e)

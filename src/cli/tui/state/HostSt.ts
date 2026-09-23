@@ -2,12 +2,15 @@ import { makeAutoObservable, reaction, runInAction } from 'mobx'
 import { extractErrorMessage } from 'src/utils/extractErrorMessage.ts'
 import type { ComfyHost } from 'src/host/ComfyHost.ts'
 import type { TuiSt } from 'src/cli/tui/state/TuiSt.ts'
+import { summarizeDrift } from 'src/host/schemaDrift.ts'
 
 type HostAction = { key: 'refresh' | 'restart' | 'clear-queue' | 'interrupt'; label: string }
 
 export type HostStatus = 'unknown' | 'up' | 'down'
 
 const PROBE_EVERY_MS = 5000
+/** a light drift check (the loaders only) at most this often while the host is up */
+const DRIFT_EVERY_MS = 60_000
 const PROBE_TIMEOUT_MS = 3000
 /** ws message younger than this = the host is alive, whatever http says */
 export const WS_ALIVE_MS = 10_000
@@ -55,6 +58,7 @@ export class HostSt {
                   this.status = 'unknown'
                   this.statusVia = null
                   this.lastProbeError = null // the previous host's failure must not show under the new one
+                  this.drift = ''
                })
                this.probeGen++
                if (this.loopTimer != null) clearTimeout(this.loopTimer)
@@ -148,6 +152,7 @@ export class HostSt {
          }
       }
       if (this.host !== host) return // workflow switched mid-flight: stale verdict
+      const before = this.status
       const verdict = probeVerdict({
          httpOk: ok,
          wsOpen: host.isConnected,
@@ -159,6 +164,34 @@ export class HostSt {
          this.statusVia = verdict.via
          this.lastProbeError = probeError
       })
+      // first seen up, or back from down (a restart nobody announced): a full check. Otherwise a
+      // light one now and then, so a lora added under a running TUI still shows
+      if (verdict.status === 'up') {
+         if (before !== 'up') void this.checkDrift(true)
+         else if (Date.now() - this.driftAt > DRIFT_EVERY_MS) void this.checkDrift(false)
+      }
+   }
+
+   /** what changed on the host since its schema was loaded (`+5 loras`), '' when nothing is known
+    * to have changed. A committed catalog (sdkAutoWrite: false, the cloud) is never compared */
+   drift = ''
+   driftAt = 0
+
+   private async checkDrift(full: boolean): Promise<void> {
+      const host = this.host
+      if (host.data.sdkAutoWrite === false) return
+      this.driftAt = Date.now()
+      try {
+         const summary = summarizeDrift(await host.checkSchemaDrift({ full }))
+         if (this.host !== host) return
+         runInAction(() => {
+            // a clean LIGHT check cannot clear what a full one found (node types it does not see)
+            if (summary !== '') this.drift = summary
+            else if (full) this.drift = ''
+         })
+      } catch {
+         // reachability is the probe loop's job, and it already says so: a failed check just waits
+      }
    }
 
    ix: number = 0
@@ -278,6 +311,7 @@ export class HostSt {
          runInAction(() => {
             const schema = this.host.schema
             this.st.exec.notice = `SDK regenerated: ${schema.nodes.length} node types, ${schema.getLoras().length} loras`
+            this.drift = ''
          })
       } catch (e) {
          runInAction(() => {

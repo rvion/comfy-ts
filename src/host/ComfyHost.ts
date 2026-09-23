@@ -36,6 +36,7 @@ import type { Requirements } from 'src/host/Requirements.ts'
 import { ResilientWebSocketClient, type WsMessageEvent } from 'src/host/ResilientWebsocket.ts'
 import { DefinedWorkflow, type DefineWorkflowSpec } from 'src/vars/DefinedWorkflow.ts'
 import type { VarsSpec } from 'src/vars/ComfyVars.ts'
+import { diffSchemas, MODEL_LISTS, type SchemaDrift } from 'src/host/schemaDrift.ts'
 
 export type ComfyHostID = Tagged<string, { HostID: true }>
 export type ComfyHostData = {
@@ -676,6 +677,20 @@ export class ComfyHost<ID extends string = string> {
          { apiPrefix: false },
       )
       if (!res.ok) throw new Error(`PATCH /internal/logs/subscribe failed: ${res.status}`)
+   }
+
+   /** what changed on the host since this schema was loaded (src/host/schemaDrift.ts). `full: false`
+    * asks only the loaders the schema has, a few KB, so it can run on a timer. Throws when the host
+    * cannot be reached, which is itself the signal a caller watches for a restart */
+   checkSchemaDrift = async (p: { full: boolean }): Promise<SchemaDrift> => {
+      const loaded: Record<string, unknown> = this.schema.data.spec
+      const live: Record<string, unknown> = {}
+      if (p.full) Object.assign(live, await this.fetchJSON_<Record<string, unknown>>('/object_info'))
+      else
+         for (const m of MODEL_LISTS)
+            if (loaded[m.node] != null)
+               Object.assign(live, await this.fetchJSON_<Record<string, unknown>>(`/object_info/${m.node}`))
+      return diffSchemas({ loaded, live, full: p.full })
    }
 
    /** GET a JSON route through host.fetch (/api preferred, bare fallback) */

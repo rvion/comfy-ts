@@ -100,6 +100,8 @@ body {
 }
 .head-value.as-link:hover { color: var(--accent); text-decoration: underline; }
 button.danger { color: var(--dim); }
+/* a button that asks to be pressed: the host changed under the panel */
+button.attention { color: var(--accent); border-color: var(--accent); background: var(--accent-dim); font-size: 11px; white-space: nowrap; }
 button.danger:hover { color: var(--red); border-color: var(--red); }
 
 /* the sidebar is a tree: folder → workflows → drafts, the branch line makes the nesting readable */

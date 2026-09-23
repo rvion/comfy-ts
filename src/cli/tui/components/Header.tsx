@@ -50,6 +50,8 @@ export const Header = observer((p: { st: TuiSt }) => {
                {s.hostOverride != null && s.hostOverride !== s.wf.host && (
                   <Text color="yellow"> ⇄ overrides {s.wf.host.data.id}</Text>
                )}
+               {/* the host changed under the loaded schema: say what, and where the fix is */}
+               {s.host.drift !== '' && <Text color="yellow"> ⚠ changed: {s.host.drift} · a → re-codegen</Text>}
                {/* while down, show the probe loop living: spinner in flight, countdown between tries */}
                {s.host.status === 'down' && (
                   <Text color="red"> {s.host.probing ? s.host.spinner : `↻ ${s.host.retryInS}s`}</Text>
