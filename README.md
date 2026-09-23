@@ -448,8 +448,10 @@ Start with the didactic sequence in [`examples/rvion/`](examples/rvion/):
 | [`05-comfy-cloud`](examples/rvion/05-comfy-cloud.cflow.ts)                                     | the same code on Comfy Cloud: `url` + `apiKey` host, typechecked against the committed catalog SDK |
 | [`06-qwen-image-edit`](examples/rvion/06-qwen-image-edit.cflow.ts)                             | Qwen Image Edit 2511, lightning 4-step lora toggle                          |
 | [`07-local-llm-text-gen`](examples/rvion/07-local-llm-text-gen.cflow.ts)                       | a local LLM through core `TextGenerate`, text back in `execution.text`; `--sweep` probes every text encoder on the host |
+| [`08-qwen-image-21-t2i`](examples/rvion/08-qwen-image-21-t2i.cflow.ts)                         | Qwen Image 2.1 text to image: int8 model, Qwen3-VL 8b encoder                |
+| [`09-qwen-image-21-edit`](examples/rvion/09-qwen-image-21-edit.cflow.ts)                       | Qwen Image 2.1 edit: the reference image feeds an autogrow slot, output keeps its size; a remove-background preset |
 
-### The model zoo: 46 cloud workflows, 32 model families
+### The model zoo: 49 cloud workflows, 34 model families
 
 [`examples/comfy-cloud/`](examples/comfy-cloud/) holds one runnable example per family × mode (`<family>-<mode>.cflow.ts`), each transcribed from the official ComfyUI template of that model, typechecked against the committed cloud catalog, and runnable on [Comfy Cloud](https://cloud.comfy.org) with one env var (`COMFY_CLOUD_API_KEY`). Image, video and audio:
 
@@ -457,9 +459,9 @@ Start with the didactic sequence in [`examples/rvion/`](examples/rvion/):
 | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | **t2i** text→image  | sd15 (= example 05), sdxl, sd35, flux1, flux2, qwen-image, z-image, chroma, hidream, omnigen2, kandinsky5, capybara, krea2, lens, ernie, longcat, ovis, pixeldit, anima, newbie, ideogram4 |
 | **i2i** image edit  | flux1, flux2, qwen-image, hidream, omnigen2, capybara, longcat, boogu, firered                                                        |
-| **t2v** text→video  | wan21, wan22, wan22-5b, ltxv, hunyuan-video, kandinsky5                                                                               |
-| **i2v** image→video | wan21, wan22, ltxv, hunyuan-video, kandinsky5, capybara, svd                                                                          |
-| **t2a** text→audio  | ace-step (song), stable-audio (sfx/music), chatterbox (tts)                                                                           |
+| **t2v** text→video  | wan21, wan22, wan22-5b, ltxv, ltx25 (with sound), hunyuan-video, kandinsky5                                                           |
+| **i2v** image→video | wan21, wan22, ltxv, ltx25 (with sound), hunyuan-video, kandinsky5, capybara, svd                                                      |
+| **t2a** text→audio  | ace-step (song), minimax-music3 (song), stable-audio (sfx/music), chatterbox (tts)                                                    |
 
 Every zoo file imports offline and headless (no key, no cache needed — CI proves it), builds a validated graph, and doubles as a TUI app with typed knobs: prompt, seed, steps, size, input image, …
 

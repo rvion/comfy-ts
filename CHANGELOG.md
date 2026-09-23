@@ -1,5 +1,16 @@
 # comfy-ts
 
+## Unreleased
+
+### Examples
+
+- **Qwen Image 2.1, locally.** [`08-qwen-image-21-t2i`](examples/rvion/08-qwen-image-21-t2i.cflow.ts) and [`09-qwen-image-21-edit`](examples/rvion/09-qwen-image-21-edit.cflow.ts) mirror the official templates (ComfyUI 0.37 or newer, three model files from `Comfy-Org/Qwen-Image-2.1`). The edit example keeps the reference image's size, and its `remove background` preset is the official background removal template.
+- **Three new zoo rows on Comfy Cloud.** [`ltx25-t2v`](examples/comfy-cloud/ltx25-t2v.cflow.ts) and [`ltx25-i2v`](examples/comfy-cloud/ltx25-i2v.cflow.ts) (LTX-2.5: a half resolution pass, a 2x latent upscale and a refine, with a soundtrack generated alongside the video), and [`minimax-music3-t2a`](examples/comfy-cloud/minimax-music3-t2a.cflow.ts) (a full song from a structured caption and tagged lyrics). The committed cloud catalog is regenerated.
+
+### Fixes
+
+- **A node passed to an autogrow input no longer throws at build.** The generated types accept a whole node for an instance key such as `'images.image_1'`, like any IMAGE input, but building threw `input not found`. The node now links through its output of the slot's type. Passing an explicit output always worked.
+
 ## 2.9.0
 
 ### The web panel

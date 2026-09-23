@@ -14,6 +14,8 @@ examples/
       05-comfy-cloud.cflow.ts    cloud intro = the zoo's sd15/t2i row (reference impl)
       06-qwen-image-edit.cflow.ts   local edit model on windows-1 (edit 2511)
       07-local-llm-text-gen.cflow.ts  core TextGenerate: a local LLM, no image. `--sweep` probes every text encoder on the box
+      08-qwen-image-21-t2i.cflow.ts   qwen image 2.1 on windows-1 (image_qwen_image_2_1_t2i), not on the cloud catalog yet
+      09-qwen-image-21-edit.cflow.ts  qwen image 2.1 edit, one reference in the `images.image_1` autogrow slot; the `remove background` preset = image_qwen_image_2_1_background_removal
                                     the `streaming` toggle swaps in extra/comfyui-textgen-stream's node when the host has it (feature-detected), so the answer is watched as it is written
    comfy-cloud/
       sdk.d.ts                   committed cloud catalog (gen:sdk:cloud)
@@ -128,7 +130,7 @@ Machine enforcement (2026-07-30, the final sweep): bars 1-2 are tests, not promi
 
 ## Build matrix (family × mode ← source template)
 
-Cross of `.comfy-ts/templates/workflow-templates/index.json` (779 files, non-API templates only) with the committed cloud catalog: every row below has ALL its model files in the sdk unions AND converts clean against the cloud object_info (swept 2026-07-30; the committed machine bar is `tests/zoo-build.test.ts`, the original sweep recipe lived in gitignored tmp/).
+Cross of `.comfy-ts/templates/workflow-templates/index.json` (779 files, non-API templates only) with the committed cloud catalog: every row below has ALL its model files in the sdk unions AND converts clean against the cloud object_info (swept 2026-07-30; the committed machine bar is `tests/zoo-build.test.ts`, the original sweep recipe lived in gitignored tmp/). Delta sweep 2026-09-23: the 96 templates dated after 2026-07-30 against a regenerated catalog added ltx25 (t2v, i2v) and minimax-music3 (t2a); the new skips are listed below. ltx25-i2v resizes its start image with `ImageScaleToMaxDimension` where the template uses `ResizeImageMaskNode` (same lanczos, longest side 1536): that node's `COMFY_MATCHTYPE_V3` slots are typed as the literal tag, so its output cannot feed an IMAGE input yet.
 
 Wave 1 — core families:
 
@@ -148,9 +150,11 @@ Wave 1 — core families:
 | wan21         |                              |                                           | `text_to_video_wan`              | `image_to_video_wan`             |                            |
 | wan22         |                              |                                           | `video_wan2_2_14B_t2v`           | `video_wan2_2_14B_i2v`           |                            |
 | ltxv          |                              |                                           | `ltxv_text_to_video`             | `ltxv_image_to_video`            |                            |
+| ltx25         |                              |                                           | `video_ltx2_5_t2v` (video + generated audio) | `video_ltx2_5_i2v`   |                            |
 | hunyuan-video |                              |                                           | `video_hunyuan_video_1.5_720p_t2v` | `video_hunyuan_video_1.5_720p_i2v` |                        |
 | svd           |                              |                                           |                                  | `txt_to_image_to_video` (simplify to LoadImage→SVD) |         |
 | ace-step      |                              |                                           |                                  |                                  | `audio_ace_step_1_t2a_song` |
+| minimax-music3 |                             |                                           |                                  |                                  | `audio_minimax_music_3`    |
 | stable-audio  |                              |                                           |                                  |                                  | `audio_stable_audio_example` |
 
 Wave 2 — long tail (same bar, lower priority):
@@ -186,6 +190,14 @@ Wave 2 — long tail (same bar, lower priority):
 - **Specialty video variants** (wan2.2 Animate, Wan2.1 VACE/InfiniteTalk/ SCAIL/ATI/wanmove/causal-forcing, HuMo, animate-diff/IP Adapter, Bernini-R, VOID, SCAIL-2) — control-driven or niche variants of covered families; candidates for later waves, not zoo core.
 - **LLM category, Gemma 4, Qwen 3.0/3.5 helper templates** — text generation, API-backed.
 - **`None` model rows** — node-basics teaching templates, no model family.
+- **Delta sweep 2026-09-23**:
+  - **MiniMax H3** (t2v, i2v, r2v, continuation, multiframe reference, fun controlnet, FastVideo fasth3) — `minimax_h3_video_vae_int8_convrot.safetensors` absent from the cloud catalog (fasth3 also misses its unet).
+  - **YuE2** (text2music, music cover) — `yue2_3b_int8_convrot.safetensors` absent from the cloud catalog.
+  - **Qwen Image 2.1** (t2i, edit, background removal) — all three model files absent from the cloud catalog; covered locally by rvion 08/09 instead.
+  - **LTX-2.5 flf2v** — converts clean, but first-last-frame is outside the closed mode vocabulary.
+  - **Wan Animate 2** (+ distilled) — control-driven variant, same class as wan2.2 Animate.
+  - **Marigold v2** (depth, albedo, normals), **MoGe 3**, **SAM 3D Body**, **Pixal3D / TRELLIS.2** — utility or 3D output.
+  - every new `api_*` row (Qwen Image 3.0 Pro, Seedance 2.5, Flux.3 Video, Wan3.0, Gemini Omni 1.1, GPT Image 2.5, Mai Image 2.6, Muse Image, HY Image 3.5, Fish Audio, Tripo P2, Meshy 7, …).
 - **Use-case/`template_*`/`templates-*` rows** — recipes on top of covered families (multiangle, relight, storyboard, …), not new families.
 
 Refetch corpus: `bun run templates:fetch`. Regenerate catalog: `bun run gen:sdk:cloud` (privacy rule in architecture.md applies).
