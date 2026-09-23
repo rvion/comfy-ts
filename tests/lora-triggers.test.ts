@@ -15,14 +15,14 @@ describe('trigger word state of a mirror item', () => {
    })
 
    it('unfetched when there is no civitai block, or an empty one', () => {
-      expect(loraTriggersOf({ from_civitai: false })).toEqual({ state: 'unfetched' })
+      expect(loraTriggersOf({ file_name: 'x' })).toEqual({ state: 'unfetched' })
       expect(loraTriggersOf({ civitai: {} })).toEqual({ state: 'unfetched' })
    })
 })
 
 describe('a recorded civitai miss', () => {
    it('turns an unfetched lora into not-on-civitai, and never overrides words or a linked none', () => {
-      expect(loraTriggersOf({ from_civitai: false }, { civitaiMiss: true })).toEqual({ state: 'not-on-civitai' })
+      expect(loraTriggersOf({ file_name: 'x' }, { civitaiMiss: true })).toEqual({ state: 'not-on-civitai' })
       expect(loraTriggersOf({ civitai: { id: 1, name: 'v1' } }, { civitaiMiss: true })).toEqual({ state: 'none' })
       expect(loraTriggersOf({ civitai: { id: 1, trainedWords: ['x'] } }, { civitaiMiss: true })).toEqual({
          state: 'words',
