@@ -938,6 +938,45 @@ describe('autogrow containers (builder face)', () => {
       expect(math?.inputs['values.a']).toEqual([prod.uid, 4])
       expect(Object.keys(math?.inputs ?? {})).not.toContain('values')
    })
+
+   it('a whole NODE in a dotted instance key resolves to its output of the template slot type', async () => {
+      // why we think it is actually a bug, and not just meaning spec should change: the generated sdk types an autogrow instance key as Accepts['IMAGE'], which admits a node with an IMAGE output exactly like a plain IMAGE input does, and a plain input resolves such a node to its IMAGE slot. The same value in `images.image_1` throws at build time, so the types promise a call the runtime rejects (TextEncodeQwenImage21 with a LoadImage node)
+      const { bang } = await import('src/utils/bang.ts')
+      const hostV3 = comfy.host({ id: 'test-host-v3-autogrow-node', host: '127.0.0.1', port: 65502 })
+      const spec = JSON.parse(readFileSync('tests/fixtures/object_info-v3-widgets.json', 'utf-8'))
+      // same container shape as TextEncodeQwenImage21.images: IMAGE template, named instances, min 0
+      spec.TestImageAutogrow = {
+         input: {
+            required: {
+               images: [
+                  'COMFY_AUTOGROW_V3',
+                  { template: { input: { required: { image: ['IMAGE', {}] } }, names: ['image_1', 'image_2'], min: 0 } },
+               ],
+            },
+         },
+         output: ['CONDITIONING'],
+         output_is_list: [false],
+         output_name: ['positive'],
+         name: 'TestImageAutogrow',
+         display_name: 'TestImageAutogrow',
+         description: 'synthetic: IMAGE autogrow container',
+         python_module: 'nodes',
+         category: 'test',
+         output_node: false,
+      }
+      hostV3.schema.update({ spec, embeddings: [] })
+
+      const wf = hostV3.workflow({ id: 'autogrow-node-test' })
+      const bb = wf.builderBase
+      const prod = bang(bb.TestProducer, 'fixture has TestProducer')({})
+      bang(bb.TestImageAutogrow, 'spec has TestImageAutogrow')({ 'images.image_1': prod })
+
+      const prompt = wf.toApiJson('use_stringified_numbers_only')
+      const node = Object.values(prompt).find((n) => n.class_type === 'TestImageAutogrow')
+      // TestProducer's IMAGE output is slot 1
+      expect(node?.inputs['images.image_1']).toEqual([prod.uid, 1])
+      expect(wf.problems).toEqual([])
+   })
 })
 
 describe('export/import control-widget parity (v3 config spellings)', () => {
