@@ -1,7 +1,7 @@
 // mirror the official ComfyUI template/blueprint corpora into .comfy-ts/templates/<source>/
 // one codeload tarball per repo, wipe-and-rewrite per source, re-run any time
 // usage: bun scripts/fetch-templates.ts
-import { mkdirSync, mkdtempSync, readdirSync, rmSync, copyFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readdirSync, rmSync, copyFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'pathe'
 
@@ -45,23 +45,25 @@ const REPOS: RepoSpec[] = [
    },
 ]
 
-async function downloadAndExtract(p: { repo: string; branch: string; workDir: string }): Promise<string> {
+async function downloadAndExtract(p: { repo: string; branch: string; members: string[]; workDir: string }): Promise<string> {
    const url = `https://codeload.github.com/${p.repo}/tar.gz/refs/heads/${p.branch}`
    console.log(`[templates] ⏬ ${url}`)
    const res = await fetch(url)
    if (!res.ok) throw new Error(`[templates] 🔴 download failed (${res.status} ${res.statusText}): ${url}`)
-   const bytes = new Uint8Array(await res.arrayBuffer())
-   const slug = p.repo.replace('/', '-')
-   const tarPath = join(p.workDir, `${slug}.tar.gz`)
-   writeFileSync(tarPath, bytes)
-   const extractDir = join(p.workDir, slug)
+   const extractDir = join(p.workDir, p.repo.replace('/', '-'))
    mkdirSync(extractDir, { recursive: true })
-   const tar = Bun.spawnSync(['tar', '-xzf', tarPath, '-C', extractDir])
-   if (tar.exitCode !== 0) throw new Error(`[templates] 🔴 tar extract failed for ${tarPath}: ${tar.stderr.toString()}`)
+   // streamed, never buffered: the workflow_templates tarball is ~4 GB of media. codeload names the top dir <repo name>-<branch>
+   const top = `${p.repo.split('/')[1]}-${p.branch}`
+   const tar = Bun.spawn(['tar', '-xzf', '-', '-C', extractDir, ...p.members.map((m) => `${top}/${m}`)], {
+      stdin: res,
+      stderr: 'pipe',
+   })
+   const exitCode = await tar.exited
+   if (exitCode !== 0)
+      throw new Error(`[templates] 🔴 tar extract failed for ${url}: ${await new Response(tar.stderr).text()}`)
    const tops = readdirSync(extractDir)
-   const top = tops[0]
-   if (top == null || tops.length !== 1)
-      throw new Error(`[templates] 🔴 expected exactly one top-level dir in ${extractDir}, got [${tops.join(', ')}]`)
+   if (tops.length !== 1 || tops[0] !== top)
+      throw new Error(`[templates] 🔴 expected exactly one top-level dir ${top} in ${extractDir}, got [${tops.join(', ')}]`)
    return join(extractDir, top)
 }
 
@@ -93,7 +95,8 @@ const summary: { name: string; kept: number; skipped: number }[] = []
 
 try {
    for (const repoSpec of REPOS) {
-      const repoRoot = await downloadAndExtract({ repo: repoSpec.repo, branch: repoSpec.branch, workDir })
+      const members = repoSpec.sources.flatMap((source) => [source.repoDir, ...source.rootFiles])
+      const repoRoot = await downloadAndExtract({ repo: repoSpec.repo, branch: repoSpec.branch, members, workDir })
       for (const source of repoSpec.sources) {
          const dest = join(destRoot, source.name)
          rmSync(dest, { recursive: true, force: true })
