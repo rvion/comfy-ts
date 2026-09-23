@@ -10,6 +10,7 @@ import {
    fetchSettings,
    pingHost,
    postHostAction,
+   postLoraCivitai,
    saveDraft,
    saveSettings,
    setModuleHost,
@@ -773,6 +774,36 @@ export class WebSt {
       })
       await this.hostAction('refresh-loras')
       await this.trackSwitch(this.reloadIndexAndForm())
+   }
+
+   /** loras whose civitai fetch is in flight: their card says so instead of offering it twice */
+   loraFetching = new Set<string>()
+
+   /** one lora's trigger words, fetched from civitai by the lora manager, then the mirror and
+    * the descriptors re-read so the card shows what came back (words, or a definite none) */
+   async fetchLoraTriggers(lora: string): Promise<void> {
+      const host = this.form == null ? null : this.hostFor(this.form.moduleKey)
+      if (host == null || host === '' || this.loraFetching.has(lora)) return
+      runInAction(() => {
+         this.loraFetching.add(lora)
+         this.hostError = null
+         this.hostNote = null
+      })
+      try {
+         const reply = await postLoraCivitai({ host, lora })
+         runInAction(() => {
+            this.hostNote = reply.note
+         })
+         await this.trackSwitch(this.reloadIndexAndForm())
+      } catch (e) {
+         runInAction(() => {
+            this.hostError = e instanceof Error ? e.message : String(e)
+         })
+      } finally {
+         runInAction(() => {
+            this.loraFetching.delete(lora)
+         })
+      }
    }
 
    private async reloadIndexAndForm(): Promise<void> {

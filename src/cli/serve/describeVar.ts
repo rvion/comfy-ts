@@ -16,6 +16,7 @@ import type {
    VarKind,
 } from 'src/vars/ComfyVars.ts'
 import type { VarPreset } from 'src/vars/presets.ts'
+import type { LoraTriggers } from 'src/host/loraInfoCache.ts'
 
 export type VarDescriptor = {
    kind: VarKind
@@ -44,6 +45,9 @@ export type VarDescriptor = {
    /** loras: when each file landed on the host (epoch seconds, the lora manager's date), entries
     * only where the mirror has one. The popup's `date added` sort reads it */
    optionAddedAt?: Record<string, number>
+   /** loras: trigger words per option as the mirror knows them (words, fetched and empty, or
+    * civitai never asked). An option ABSENT from this record is not in the mirror at all */
+   optionTriggers?: Record<string, LoraTriggers>
    /** text: this one wants a box, not a line (`v.text(…, { multiline: true })`) */
    multiline?: boolean
    /** text + prompt: named starting texts (`{ presets: { label: text } }`). NOT `presets`, which

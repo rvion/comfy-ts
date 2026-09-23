@@ -26,6 +26,9 @@ import { draftsDirForFile, listDraftsForFile } from 'src/cli/tui/state/DraftsSt.
 import {
    buildLoraMirror,
    getLoraAddedAt,
+   getLoraTriggers,
+   type LoraTriggers,
+   recordCivitaiMiss,
    getLoraDisplayName,
    getLoraInfo,
    getLoraPreviewUrl,
@@ -35,6 +38,7 @@ import {
    writeLoraMirror,
 } from 'src/host/loraInfoCache.ts'
 import {
+   fetchLoraCivitai,
    fetchLoraDescription,
    fetchLoraExampleImages,
    fetchLoraList,
@@ -256,6 +260,7 @@ const USAGE = [
    'GET  /run/<module> — live run status · /run/<module>/preview — latent preview bytes',
    'POST /upload with {"name","dataBase64"} — store a browser file for an image var',
    'GET  /lora-info/<hostId>/<lora> — display name + trigger words (local mirror)',
+   'POST /hosts/<hostId>/lora-civitai/<lora> — fetch its civitai metadata (trigger words) through the lora manager, then re-sync the mirror',
    'GET  /lora-preview/<hostId>/<lora> — preview image bytes',
    'GET  /lora-about/<hostId>/<lora> — civitai description + example images (live from the extension)',
    'GET  /prompt-enhancers — the web ui master prompts (.comfy-ts/prompt-enhancers/*.md)',
@@ -405,6 +410,15 @@ export class ServeApp {
             return this.replySetHost(segs[1], req)
          if (req.method === 'POST' && segs[0] === 'hosts' && segs.length === 3 && segs[1] != null && segs[2] != null)
             return await this.replyHostAction(segs[1], segs[2])
+         if (
+            req.method === 'POST' &&
+            segs[0] === 'hosts' &&
+            segs.length === 4 &&
+            segs[1] != null &&
+            segs[2] === 'lora-civitai' &&
+            segs[3] != null
+         )
+            return await this.replyLoraCivitaiFetch(segs[1], segs[3])
          if (req.method === 'PUT' && segs[0] === 'prompt-enhancers' && segs.length === 2 && segs[1] != null)
             return this.replySavePromptEnhancer(segs[1], req)
          if (req.method === 'DELETE' && segs[0] === 'prompt-enhancers' && segs.length === 2 && segs[1] != null)
@@ -527,6 +541,12 @@ export class ServeApp {
                if (t != null) addedAt[option] = t
             }
             if (Object.keys(addedAt).length > 0) desc.optionAddedAt = addedAt
+            const triggers: Record<string, LoraTriggers> = {}
+            for (const option of desc.options) {
+               const t = getLoraTriggers(option, hostId)
+               if (t != null) triggers[option] = t
+            }
+            if (Object.keys(triggers).length > 0) desc.optionTriggers = triggers
          }
          vars[name] = desc
       }
@@ -823,6 +843,44 @@ export class ServeApp {
          count: mirror.count,
          note: `${mirror.count} loras synced`,
       })
+   }
+
+   /** fetch ONE lora's civitai metadata through the lora manager, then re-sync the mirror so its
+    * trigger words reach every surface. The extension keys the request by the file path ON THE
+    * HOST, which only the mirror knows, so a lora outside the mirror needs a sync first */
+   private async replyLoraCivitaiFetch(hostId: string, lora: string): Promise<ServeReply> {
+      const host = comfyts.hosts.get(hostId)
+      if (host == null) return json(404, { error: `unknown host '${hostId}'` })
+      const info = getLoraInfo(lora, hostId)
+      const filePath = info == null ? null : lmFilePath(info)
+      if (filePath == null)
+         return json(404, { error: `'${lora}' is not in the lora manager mirror of ${hostId}: sync the mirror first` })
+      const fetched = await fetchLoraCivitai(host, filePath)
+      const sha256 = info == null ? null : lmSha256(info)
+      // civitai ANSWERED that it has no version for this hash: a definite result, kept so the
+      // card stops offering a fetch. Any other failure (network, the extension) stays an error
+      if (!fetched.ok && /no version data found/i.test(fetched.reason) && sha256 != null) {
+         recordCivitaiMiss({ hostId, sha256, miss: true })
+         return json(200, {
+            ok: true,
+            host: hostId,
+            lora,
+            triggers: { state: 'not-on-civitai' },
+            note: `civitai does not know '${lora}' (a private or local lora): no trigger words to fetch`,
+         })
+      }
+      if (!fetched.ok) return json(502, { error: `civitai fetch failed for '${lora}': ${fetched.reason}` })
+      if (sha256 != null) recordCivitaiMiss({ hostId, sha256, miss: false })
+      const synced = await this.refreshLoraMirror(hostId, host)
+      if (synced.status !== 200) return synced
+      const t = getLoraTriggers(lora, hostId)
+      const note =
+         t?.state === 'words'
+            ? `trigger words: ${t.words.join(', ')}`
+            : t?.state === 'none'
+              ? `civitai lists no trigger words for '${lora}'`
+              : `civitai has no metadata for '${lora}'`
+      return json(200, { ok: true, host: hostId, lora, triggers: t, note })
    }
 
    /** is the host answering RIGHT NOW: what the panel polls while a restart is in flight, so

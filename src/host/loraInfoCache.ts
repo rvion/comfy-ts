@@ -10,6 +10,7 @@ import {
    lmModelName,
    lmModified,
    lmPreviewUrl,
+   lmSha256,
    lmTags,
    lmTrainedWords,
    loraBasename,
@@ -192,6 +193,62 @@ export function getLoraTriggerWords(name: string, hostId?: string): string[] {
 export function getLoraDisplayName(name: string, hostId?: string): string {
    const info = getLoraInfo(name, hostId)
    return (info == null ? null : lmModelName(info)) ?? loraBasename(name)
+}
+
+/** what the mirror knows about a lora's trigger words. The extension drops an EMPTY
+ * `trainedWords` when it slims the civitai block (model_scanner.py `if trained_words:`), so a
+ * block linked to civitai (an `id`) with no words means fetched and empty, while no block at
+ * all means civitai was never asked. null = the lora is not in the mirror */
+export type LoraTriggers =
+   | { state: 'words'; words: string[] }
+   | { state: 'none' }
+   | { state: 'unfetched' }
+   /** civitai was asked and has no version for this file (a private or local lora) */
+   | { state: 'not-on-civitai' }
+
+export function loraTriggersOf(item: LmLoraItem, p: { civitaiMiss?: boolean } = {}): LoraTriggers {
+   const words = lmTrainedWords(item)
+   if (words.length > 0) return { state: 'words', words }
+   const civitai = item['civitai']
+   if (isRecord(civitai) && (typeof civitai['id'] === 'number' || typeof civitai['modelId'] === 'number'))
+      return { state: 'none' }
+   return p.civitaiMiss === true ? { state: 'not-on-civitai' } : { state: 'unfetched' }
+}
+
+export function getLoraTriggers(name: string, hostId?: string): LoraTriggers | null {
+   const info = getLoraInfo(name, hostId)
+   if (info == null) return null
+   const sha = lmSha256(info)
+   return loraTriggersOf(info, { civitaiMiss: hostId != null && sha != null && readCivitaiMisses(hostId)[sha] != null })
+}
+
+// the lora manager records nothing when civitai has no version for a file, so the answer is kept
+// here, keyed by content hash (a rename keeps it): without it such a lora would offer a fetch
+// that fails the same way forever
+function civitaiMissesPath(hostId: string): AbsolutePath {
+   return comfyts.resolveFromHosts(join(hostId, 'lora-civitai-misses.json'))
+}
+
+/** sha256 → when civitai said it has no version for that file */
+export function readCivitaiMisses(hostId: string): Record<string, string> {
+   const text = getComfyStorage().readTextIfExists(civitaiMissesPath(hostId))
+   if (text == null) return {}
+   try {
+      const raw: unknown = JSON.parse(text)
+      const out: Record<string, string> = {}
+      if (isRecord(raw)) for (const [sha, at] of Object.entries(raw)) if (typeof at === 'string') out[sha] = at
+      return out
+   } catch (e) {
+      logError(`[loraInfoCache] unreadable ${civitaiMissesPath(hostId)}: ${String(e)}`)
+      return {}
+   }
+}
+
+export function recordCivitaiMiss(p: { hostId: string; sha256: string; miss: boolean }): void {
+   const misses = readCivitaiMisses(p.hostId)
+   if (p.miss) misses[p.sha256] = new Date().toISOString()
+   else delete misses[p.sha256]
+   getComfyStorage().writeText(civitaiMissesPath(p.hostId), JSON.stringify(misses, null, 2))
 }
 
 /** when the lora file landed on the host (epoch seconds), null when unsynced/unknown */

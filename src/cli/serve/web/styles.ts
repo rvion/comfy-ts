@@ -279,6 +279,16 @@ button.mode.sel { background: var(--accent-dim); border-color: var(--accent); co
 .lora-chip:not(.card) .lora-toggle { flex-direction: row; align-items: center; gap: 6px; }
 .lora-toggle:hover .chip-title { color: var(--accent); }
 .chip-controls { display: flex; flex-direction: column; gap: 3px; }
+/* trigger words under a row card: the words wrap, a missing state carries its fix */
+.chip-triggers { font-size: 11px; line-height: 1.35; color: var(--text); overflow-wrap: anywhere; user-select: text; }
+.chip-triggers.none, .chip-triggers.missing { color: var(--dim); font-style: italic; }
+.chip-triggers.missing { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.lora-chip .chip-triggers .trigger-fetch {
+   font-style: normal; font-size: 11px; padding: 1px 8px; border-radius: 6px;
+   border: 1px solid var(--border); background: var(--panel); color: var(--accent);
+}
+.lora-chip .chip-triggers .trigger-fetch:hover { color: var(--accent); border-color: var(--accent); }
+.lora-chip .chip-triggers .trigger-fetch:disabled { color: var(--dim); cursor: default; }
 /* a line: label button, slider, number. The label toggles m+c ↔ m / c */
 .st-line { display: flex; gap: 5px; align-items: center; }
 .st-line .st-label {

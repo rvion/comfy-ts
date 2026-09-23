@@ -136,6 +136,76 @@ export const LorasControl = observer(function LorasControl(p: {
     * ones ComfyUI has no entry for until it rescans its models */
    const managerOnlyInUse = selectedNames.filter((n) => managerOnly.has(n))
    const showImages = p.st.showLoraImages
+   const triggers = p.v.desc.optionTriggers ?? {}
+   /** the trigger words under a row card, in one of FOUR states that never look alike: the
+    * words, a definite none (civitai was asked), never fetched (a button asks it), or not in
+    * the mirror at all (a button syncs it). Titles hidden hides the words, never the state */
+   const triggerLine = (name: string): ReactNode => {
+      const t = triggers[name]
+      if (t == null)
+         return (
+            <span className="chip-triggers missing">
+               not in the lora manager mirror
+               <button
+                  type="button"
+                  className="trigger-fetch"
+                  disabled={p.st.loraSyncing}
+                  data-tip="re-download the lora manager's list for this host (names, trigger words, previews)"
+                  onClick={() => void p.st.refreshLoras()}
+               >
+                  {p.st.loraSyncing ? 'syncing…' : 'sync'}
+               </button>
+            </span>
+         )
+      if (t.state === 'unfetched') {
+         const busy = p.st.loraFetching.has(name)
+         return (
+            <span className="chip-triggers missing">
+               trigger words never fetched
+               <button
+                  type="button"
+                  className="trigger-fetch"
+                  disabled={busy}
+                  data-tip="ask the lora manager to fetch this lora's civitai metadata, trigger words included"
+                  onClick={() => void p.st.fetchLoraTriggers(name)}
+               >
+                  {busy ? 'fetching…' : 'fetch'}
+               </button>
+            </span>
+         )
+      }
+      if (t.state === 'not-on-civitai') {
+         const busy = p.st.loraFetching.has(name)
+         return (
+            <span
+               className="chip-triggers missing"
+               data-tip="civitai was asked and has no version for this file: a private or local lora, so no trigger words exist there"
+            >
+               not on civitai
+               <button
+                  type="button"
+                  className="trigger-fetch"
+                  disabled={busy}
+                  data-tip="ask civitai again (it may have been published since)"
+                  onClick={() => void p.st.fetchLoraTriggers(name)}
+               >
+                  {busy ? 'asking…' : 'retry'}
+               </button>
+            </span>
+         )
+      }
+      if (t.state === 'none')
+         return (
+            <span className="chip-triggers none" data-tip="civitai was asked, and this lora has no trigger words">
+               no trigger words
+            </span>
+         )
+      return (
+         <span className="chip-triggers words" data-tip={showTitles ? t.words.join('\n') : 'titles are hidden'}>
+            {showTitles ? t.words.join(', ') : `${t.words.length} trigger word${t.words.length === 1 ? '' : 's'}`}
+         </span>
+      )
+   }
    const showTitles = p.st.showLoraTitles
 
    /** add to the palette (a strength) or REMOVE from it entirely (null) */
@@ -473,6 +543,7 @@ export const LorasControl = observer(function LorasControl(p: {
                         {warnBadge(name)}
                      </span>
                      <span className="chip-controls">{strengthInputs(name)}</span>
+                     {triggerLine(name)}
                   </span>
                ))
             )}

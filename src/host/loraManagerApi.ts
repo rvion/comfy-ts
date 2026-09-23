@@ -146,6 +146,27 @@ export type LoraSweep =
    /** the host itself could not be reached (down, refused, auth) */
    | { status: 'unreachable'; reason: string }
 
+/** asks the extension to (re)fetch civitai metadata for ONE lora file, trigger words included.
+ * The reply says why when civitai has nothing for it (a private or deleted model) */
+export async function fetchLoraCivitai(
+   host: ComfyHost,
+   filePath: string,
+): Promise<{ ok: true } | { ok: false; reason: string }> {
+   try {
+      const res = await host.fetch('/lm/loras/fetch-civitai', {
+         method: 'POST',
+         headers: { 'content-type': 'application/json' },
+         body: JSON.stringify({ file_path: filePath }),
+      })
+      const raw: unknown = await res.json().catch(() => null)
+      const error = isRecord(raw) && typeof raw['error'] === 'string' ? raw['error'] : null
+      if (res.ok && isRecord(raw) && raw['success'] !== false) return { ok: true }
+      return { ok: false, reason: error ?? `the lora manager answered ${res.status}` }
+   } catch (e) {
+      return { ok: false, reason: extractErrorMessage(e) }
+   }
+}
+
 /** civitai's model description for ONE lora, as PLAIN TEXT. The extension answers html, and
  * html from a third party is never rendered: tags are stripped here, at the seam.
  * null = the extension has no description for it (or does not expose the route) */

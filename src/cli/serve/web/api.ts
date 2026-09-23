@@ -176,6 +176,12 @@ export function postHostAction(p: { host: string; action: HostAction }): Promise
    return jsonFetch(`/hosts/${encodeURIComponent(p.host)}/${p.action}`, { method: 'POST' })
 }
 
+export function postLoraCivitai(p: { host: string; lora: string }): Promise<{ ok: true; note: string }> {
+   return jsonFetch(`/hosts/${encodeURIComponent(p.host)}/lora-civitai/${encodeURIComponent(p.lora)}`, {
+      method: 'POST',
+   })
+}
+
 export function fetchHostLogs(p: { host: string }): Promise<{ lines: string[] }> {
    return jsonFetch(`/hosts/${encodeURIComponent(p.host)}/logs`)
 }
