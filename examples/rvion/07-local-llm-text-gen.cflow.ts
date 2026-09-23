@@ -38,7 +38,6 @@ const GENERATIVE = [
 const SWEEP_CANDIDATES = [
    ...GENERATIVE,
    'qwen_3_8b_fp8mixed.safetensors',
-   'mistral_3_small_flux2_bf16.safetensors',
    'qwen_2.5_vl_7b_fp8_scaled.safetensors',
    'clip_l.safetensors',
    't5\\t5xxl_fp8_e4m3fn_scaled.safetensors',
@@ -108,7 +107,8 @@ const buildTextGen = (b: Comfy.Windows1.Builder, p: TextGenParams): void => {
       'sampling_mode.seed': p.seed,
    } as const
    const generated = p.streaming ? b[STREAMING_NODE_KEY]({ ...shared, stream_every: 4 }) : b.TextGenerate({ ...shared })
-   b.PreviewAny({ source: generated._STRING })
+   // TextGenerate has TWO string outputs (generated_text, thinking), so there is no `_STRING`
+   b.PreviewAny({ source: generated.outputs.generated_text })
 }
 
 export const localLlmTextGen = host.defineWorkflow({
