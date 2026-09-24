@@ -63,7 +63,7 @@ export class EditorSt {
       const sel = this.st.selected?.[1]
       if (sel == null) return
       this.st.mode = 'overlay-text'
-      this.buffer = String(sel.value)
+      this.buffer = sel.toEditBuffer()
       this.cursor = [...this.buffer].length
       this.invalid = false
    }

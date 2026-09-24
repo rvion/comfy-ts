@@ -2,15 +2,8 @@ import type { ComfyHost } from 'src/host/ComfyHost.ts'
 import type { ComfyExecution } from 'src/runner/ComfyExecution.ts'
 import type { ComfyWorkflow, RunSettings } from 'src/runner/ComfyWorkflow.ts'
 import type { SdkForHost } from 'src/types/comfy-sdk.ts'
-import {
-   type AnyVar,
-   type LorasVar,
-   type LoraStrength,
-   v,
-   type VarsSpec,
-   type VarValues,
-   varValues,
-} from 'src/vars/ComfyVars.ts'
+import type { LorasInput } from 'src/vars/lanes.ts'
+import { type AnyVar, type LorasVar, v, type VarsSpec, type VarValues, varValues } from 'src/vars/ComfyVars.ts'
 
 /** the host's generated lora-name union (plain string when no sdk is generated) */
 export type LoraNameOf<ID extends string> = 'E_LoraName' extends keyof SdkForHost<ID>['Union']
@@ -22,16 +15,8 @@ export type LoraNameOf<ID extends string> = 'E_LoraName' extends keyof SdkForHos
  * `v.loras(regex)` yields the host's lora-name union (resolved via bindHost)
  */
 export type BoundVars<ID extends string> = Omit<typeof v, 'loras'> & {
-   loras(
-      options: RegExp,
-      initial?: Partial<Record<LoraNameOf<ID>, LoraStrength>>,
-      label?: string,
-   ): LorasVar<LoraNameOf<ID>>
-   loras<T extends string>(
-      options: readonly T[],
-      initial?: Partial<Record<T, LoraStrength>>,
-      label?: string,
-   ): LorasVar<T>
+   loras(options: RegExp, initial?: LorasInput<LoraNameOf<ID>>, label?: string): LorasVar<LoraNameOf<ID>>
+   loras<T extends string>(options: readonly T[], initial?: LorasInput<T>, label?: string): LorasVar<T>
 }
 
 export type DefineWorkflowSpec<ID extends string, V extends VarsSpec> = {
@@ -80,6 +65,14 @@ export class DefinedWorkflow<ID extends string = string, V extends VarsSpec = Va
          varDef.name = key
          varDef.bindHost?.(this.host)
       }
+      // a condition naming a var that does not exist would silently never enable its field
+      const names = this.entries().map(([key]) => key)
+      for (const [key, varDef] of this.entries())
+         for (const other of Object.keys(varDef.uiOpts.activeWhen ?? {}))
+            if (!names.includes(other))
+               throw new Error(
+                  `workflow '${spec.id ?? '?'}': var '${key}' is activeWhen '${other}', which is not one of its vars (${names.join(', ')})`,
+               )
    }
 
    /** [name, var] pairs, for drivers that enumerate the knobs */

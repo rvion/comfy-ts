@@ -74,8 +74,9 @@ describe('serve payload application', () => {
       expect(size.value).toEqual({ width: 1024, height: 768 })
       expect(applyVarPayload(size, '640x480')).toBeNull()
       expect(size.value).toEqual({ width: 640, height: 480 })
+      // a 512 workflow carries the 512 family, so its square is 512
       expect(applyVarPayload(size, '1:1 square')).toBeNull()
-      expect(size.value).toEqual({ width: 1024, height: 1024 })
+      expect(size.value).toEqual({ width: 512, height: 512 })
       expect(applyVarPayload(size, { width: 'w' })).toContain('expects {"width"')
    })
 

@@ -6,6 +6,20 @@ import { action, makeObservable, observable } from 'mobx'
 import { basename, isAbsolute, join, resolve } from 'pathe'
 import { getComfyStorage } from 'src/storage/ComfyStorage.ts'
 import { getLoraKeyword } from 'src/vars/loraKeywords.ts'
+import {
+   flattenLoras,
+   isLorasInput,
+   isPromptLanes,
+   promptLanesFromText,
+   promptLanesToText,
+   promptText,
+   updateLora,
+   type LoraRecord,
+   type LorasInput,
+   type PromptInput,
+} from 'src/vars/lanes.ts'
+import { keptKeyword, loraIsOn, loraMuted, loraStrengths, withLora, type LoraStrength } from 'src/vars/loraEntry.ts'
+import { logError } from 'src/utils/log.ts'
 import { toPresetList, type VarPreset, type VarPresetSpec } from 'src/vars/presets.ts'
 
 /**
@@ -24,10 +38,38 @@ export type VarKind = 'text' | 'prompt' | 'int' | 'float' | 'seed' | 'toggle' | 
  * the one Out-specialized var (string in, PromptValue out); the split keeps
  * outValue() cast-free.
  */
+/** how a var LOOKS in the panel, set by the workflow: `v.int(8).ui({ icon, color, description })`.
+ * Every slot is optional, a color is any css color */
+export type VarUi = {
+   /** shown as a (?) after the label, the text is its tooltip */
+   description?: string
+   /** a 24×24 svg path drawn in the icon color, or a whole `<svg …>` string */
+   icon?: string
+   /** the icon's color */
+   color?: string
+   labelColor?: string
+   /** the whole row, drawn without moving anything in it */
+   background?: string
+   /** vars that go together: consecutive vars with the same group share one tinted block */
+   group?: string
+   /** the block's tint, read from the first var of the group that sets it */
+   groupColor?: string
+   border?: string
+   /** choice vars: a look per option, keyed by the option value. The lit option is filled
+    * with its own color */
+   options?: Record<string, { icon?: string; color?: string }>
+   /** the field is shown but disabled unless every named var holds one of the listed values:
+    * `{ model: ['aesthetic', 'base'] }`. Checked against the var names when the workflow loads.
+    * Display only: a disabled var's value still reaches the build */
+   activeWhen?: Record<string, readonly (string | number | boolean)[]>
+}
+
 export abstract class ComfyVarBase<T, Out> {
    abstract readonly kind: VarKind
    /** the vars-spec key, stamped by DefinedWorkflow at define time — error messages name the var with it */
    name?: string
+   /** panel looks, see VarUi. Never part of the value, never in a draft */
+   uiOpts: VarUi = {}
    value: T
    constructor(
       public readonly defaultValue: T,
@@ -42,6 +84,11 @@ export abstract class ComfyVarBase<T, Out> {
    }
    set(value: T): this {
       this.value = value
+      return this
+   }
+   /** chainable: `v.choice([...], 'a').ui({ icon: 'M4 12h16', color: '#e0af68' })` */
+   ui(p: VarUi): this {
+      this.uiOpts = { ...this.uiOpts, ...p }
       return this
    }
    /** what drafts persist for this var (subclasses may add fields, e.g. seed mode) */
@@ -118,7 +165,12 @@ const negativeLineRe = /^\s*- (.*)$/
  * `hostId` scopes the keyword lookup: the same file name on two hosts is often a
  * different model, and injecting the other host's trigger words is a silently
  * wrong generation. */
-export type ActiveLoraSource = { activeNames(): string[]; hostId?: string }
+export type ActiveLoraSource = {
+   activeNames(): string[]
+   hostId?: string
+   /** the parts of a lora's keyword left out of the prompt (LorasVar: the `mute` list) */
+   mutedWords?(name: string): string[]
+}
 
 /** what a prompt CONTRIBUTES to build: `vars.prompt.positive` / `.negative` */
 export type PromptValue = { positive: string; negative: string }
@@ -133,12 +185,12 @@ export type PromptValue = { positive: string; negative: string }
  *     (src/vars/loraKeywords.ts, ⌃K in the TUI) prefix `.positive` —
  *     `injectedKeywords()` is public so the TUI can PREVIEW the injection.
  */
-export class PromptVar extends ComfyVarBase<string, PromptValue> {
+export class PromptVar extends ComfyVarBase<PromptInput, PromptValue> {
    readonly kind = 'prompt' as const
    /** normalized `promptOpts.presets`, in authored order (TextVarOpts.presets owns the WHY) */
    readonly presets: VarPreset[]
    constructor(
-      defaultValue: string,
+      defaultValue: PromptInput,
       public promptOpts: {
          label?: string
          loraKeywordsFrom?: ActiveLoraSource
@@ -148,9 +200,22 @@ export class PromptVar extends ComfyVarBase<string, PromptValue> {
       super(defaultValue, promptOpts.label)
       this.presets = toPresetList(promptOpts.presets)
    }
+   /** in lanes mode the text carries `# name` headers, so a lane survives a round trip */
    parse(raw: string): boolean {
-      this.set(raw)
+      this.set(isPromptLanes(this.value) ? promptLanesFromText(raw) : raw)
       return true
+   }
+   override toEditBuffer(): string {
+      return isPromptLanes(this.value) ? promptLanesToText(this.value) : this.value
+   }
+   /** a var list shows the lanes by name, the inactive ones in parentheses */
+   override display(): string {
+      if (!isPromptLanes(this.value)) return super.display()
+      return `${this.value.lanes.length} lanes: ${this.value.lanes.map((l) => (l.active ? l.name : `(${l.name})`)).join(', ')}`
+   }
+   /** the text the build reads: the plain string, or the active lanes joined in order */
+   get text(): string {
+      return promptText(this.value)
    }
    static isCommentLine(line: string): boolean {
       return commentLineRe.test(line)
@@ -166,7 +231,7 @@ export class PromptVar extends ComfyVarBase<string, PromptValue> {
          ...new Set(
             src
                .activeNames()
-               .map((name) => getLoraKeyword(name, src.hostId))
+               .map((name) => keptKeyword(getLoraKeyword(name, src.hostId), src.mutedWords?.(name) ?? []))
                .filter((k) => k !== ''),
          ),
       ]
@@ -174,7 +239,7 @@ export class PromptVar extends ComfyVarBase<string, PromptValue> {
    outValue(): PromptValue {
       const pos: string[] = []
       const neg: string[] = []
-      for (const line of this.value.split('\n')) {
+      for (const line of this.text.split('\n')) {
          if (commentLineRe.test(line)) continue
          const m = negativeLineRe.exec(line)
          if (m != null) {
@@ -327,8 +392,12 @@ export class ToggleVar extends ComfyVar<boolean> {
    }
 }
 
+/** how many options a choice holds: exactly one (the default), one or none, or any number */
+export type ChoiceSelect = 'one' | 'zero-or-one' | 'many'
+
 export class ChoiceVar<T extends string> extends ComfyVar<T> {
    readonly kind = 'choice' as const
+   readonly select = 'one' as const
    constructor(
       public readonly choices: readonly T[],
       defaultValue: T,
@@ -349,20 +418,129 @@ export class ChoiceVar<T extends string> extends ComfyVar<T> {
    }
 }
 
-/**
- * per-lora setting: false = off, true = 1/1, number = both strengths,
- * [strength_model, strength_clip] = each explicitly
- */
-export type LoraStrength = boolean | number | [strengthModel: number, strengthClip: number]
+/** one option or none: `null` is "nothing picked", clicking the lit option clears it */
+export class OptionalChoiceVar<T extends string> extends ComfyVar<T | null> {
+   readonly kind = 'choice' as const
+   readonly select = 'zero-or-one' as const
+   constructor(
+      public readonly choices: readonly T[],
+      defaultValue: T | null,
+      label?: string,
+   ) {
+      super(defaultValue, label)
+   }
+   /** pick `c`, or clear it when it is already the one picked */
+   toggle(c: T): this {
+      return this.set(this.value === c ? null : c)
+   }
+   /** the TUI text form: a choice, or an empty line for none */
+   parse(raw: string): boolean {
+      if (raw.trim() === '') {
+         this.set(null)
+         return true
+      }
+      const hit = this.choices.find((c) => c === raw.trim())
+      if (hit == null) return false
+      this.set(hit)
+      return true
+   }
+   override toEditBuffer(): string {
+      return this.value ?? ''
+   }
+   override display(): string {
+      return this.value ?? 'none'
+   }
+}
+
+/** any number of options, kept in the order the choices list them */
+export class MultiChoiceVar<T extends string> extends ComfyVar<T[]> {
+   readonly kind = 'choice' as const
+   readonly select = 'many' as const
+   constructor(
+      public readonly choices: readonly T[],
+      defaultValue: readonly T[],
+      label?: string,
+   ) {
+      super([...defaultValue], label)
+   }
+   toggle(c: T): this {
+      const on = this.value.includes(c)
+      return this.set(this.choices.filter((x) => (x === c ? !on : this.value.includes(x))))
+   }
+   /** the TUI text form: `a, b` */
+   parse(raw: string): boolean {
+      const wanted = raw
+         .split(',')
+         .map((w) => w.trim())
+         .filter((w) => w !== '')
+      const picked = this.choices.filter((c) => wanted.includes(c))
+      if (picked.length !== new Set(wanted).size) return false
+      this.set(picked)
+      return true
+   }
+   override toEditBuffer(): string {
+      return this.value.join(', ')
+   }
+   override display(): string {
+      return this.value.length === 0 ? 'none' : this.value.join(', ')
+   }
+}
+
+/** the three choice shapes, told apart by `select` */
+export type AnyChoiceVar<T extends string = string> = ChoiceVar<T> | OptionalChoiceVar<T> | MultiChoiceVar<T>
+
+type ChoiceOpts<S extends ChoiceSelect> = { label?: string; select: S }
+
+/** Array.isArray does not narrow a READONLY array out of a union, this does */
+function isChoiceList<T extends string>(v: T | null | readonly T[]): v is readonly T[] {
+   return Array.isArray(v)
+}
+
+function choice<const T extends string>(
+   choices: readonly T[],
+   defaultValue: T,
+   label?: string | { label?: string; select?: 'one' },
+): ChoiceVar<T>
+function choice<const T extends string>(
+   choices: readonly T[],
+   defaultValue: T | null,
+   opts: ChoiceOpts<'zero-or-one'>,
+): OptionalChoiceVar<T>
+function choice<const T extends string>(
+   choices: readonly T[],
+   defaultValue: readonly T[],
+   opts: ChoiceOpts<'many'>,
+): MultiChoiceVar<T>
+function choice<const T extends string>(
+   choices: readonly T[],
+   defaultValue: T | null | readonly T[],
+   opts?: string | { label?: string; select?: ChoiceSelect },
+): AnyChoiceVar<T> {
+   const o = typeof opts === 'string' ? { label: opts } : (opts ?? {})
+   const select = o.select ?? 'one'
+   if (select === 'many') {
+      if (!isChoiceList(defaultValue))
+         throw new Error(`a 'many' choice takes a list as its default, got ${String(defaultValue)}`)
+      return new MultiChoiceVar(choices, defaultValue, o.label)
+   }
+   if (isChoiceList(defaultValue)) throw new Error(`a '${select}' choice takes one value as its default, not a list`)
+   if (select === 'zero-or-one') return new OptionalChoiceVar(choices, defaultValue, o.label)
+   if (defaultValue == null) throw new Error("a 'one' choice needs a default: use { select: 'zero-or-one' } for none")
+   return new ChoiceVar(choices, defaultValue, o.label)
+}
+
+/** per-lora setting, every spelling documented in src/vars/loraEntry.ts */
+export type { LoraStrength } from 'src/vars/loraEntry.ts'
 
 export type ActiveLora<T extends string> = { lora_name: T; strength_model: number; strength_clip: number }
 
 /** normalize a loras record into what a standard LoraLoader chain consumes */
-export function activeLoras<T extends string>(loras: Partial<Record<T, LoraStrength>>): ActiveLora<T>[] {
+export function activeLoras<T extends string>(loras: LorasInput<T>): ActiveLora<T>[] {
    const out: ActiveLora<T>[] = []
-   for (const [lora_name, s] of Object.entries(loras) as [T, LoraStrength | undefined][]) {
-      if (s == null || s === false) continue
-      const [strength_model, strength_clip] = Array.isArray(s) ? s : s === true ? [1, 1] : [s, s]
+   for (const [lora_name, s] of Object.entries(flattenLoras(loras).record) as [T, LoraStrength | undefined][]) {
+      // a paused lora ({ off: true }) is in the palette, never in the graph
+      if (!loraIsOn(s)) continue
+      const [strength_model, strength_clip] = loraStrengths(s)
       out.push({ lora_name, strength_model, strength_clip })
    }
    return out
@@ -377,7 +555,12 @@ export type LorasHost = { data?: { id?: string }; schema: { getLoras(filter?: Re
  * or feed it host discovery (`host.schema.getLoras(regex?)`) directly; never
  * a hardcoded inventory. Selection is empty by default.
  */
-export class LorasVar<T extends string> extends ComfyVar<Partial<Record<T, LoraStrength>>> {
+/**
+ * the value is EITHER a plain record OR `{ lanes: [...] }` (src/vars/lanes.ts): named groups the
+ * build merges in listed order, skipping inactive ones. Every method reads the merged record and
+ * writes into the lane that holds the lora, so the TUI never needs to know lanes exist
+ */
+export class LorasVar<T extends string> extends ComfyVarBase<LorasInput<T>, LoraRecord<T>> {
    readonly kind = 'loras' as const
    /** last non-false strength per lora, so untick → re-tick restores it */
    private prev: Partial<Record<T, LoraStrength>> = {}
@@ -388,7 +571,7 @@ export class LorasVar<T extends string> extends ComfyVar<Partial<Record<T, LoraS
 
    constructor(
       private readonly optionsSource: readonly T[] | RegExp,
-      initial: Partial<Record<T, LoraStrength>> = {},
+      initial: LorasInput<T> = {},
       label?: string,
    ) {
       super(initial, label)
@@ -423,46 +606,78 @@ export class LorasVar<T extends string> extends ComfyVar<Partial<Record<T, LoraS
       return [...this.options]
    }
 
+   /** the loras the build reads: the plain record, or the active lanes merged in order */
+   get record(): LoraRecord<T> {
+      return flattenLoras(this.value).record
+   }
+
+   /** what the graph consumes. A lora in two active lanes runs once, with its FIRST setting */
+   outValue(): LoraRecord<T> {
+      const flat = flattenLoras(this.value)
+      if (flat.duplicates.length > 0)
+         logError(
+            `loras var '${this.name ?? this.label ?? '?'}': ${flat.duplicates.join(', ')} sit in two active lanes, the first lane's setting is used`,
+         )
+      return flat.record
+   }
+
+   /** rewrite one lora wherever it lives: the plain record, or the lane that holds it */
+   private write(name: T, next: LoraStrength | null): this {
+      return this.set(updateLora(this.value, name, next))
+   }
+
+   /** the parts of this lora's prompt keyword left out of the prompt */
+   mutedWords(name: string): string[] {
+      return loraMuted(this.record[name as T])
+   }
+
    /** loras currently ON (PromptVar keyword prefixing consumes this) */
    activeNames(): T[] {
       return this.names.filter((n) => this.isOn(n))
    }
 
    isOn(name: T): boolean {
-      const s = this.value[name]
-      return s != null && s !== false
+      return loraIsOn(this.record[name])
    }
 
    toggleItem(name: T): this {
-      const cur = this.value[name]
-      if (cur == null || cur === false) return this.set({ ...this.value, [name]: this.prev[name] ?? true })
+      const cur = this.record[name]
+      if (cur == null || cur === false) return this.write(name, this.prev[name] ?? true)
+      // a paused palette entry resumes in place, strengths kept
+      if (!loraIsOn(cur)) return this.write(name, withLora(cur, { on: true }))
       this.prev[name] = cur
-      return this.set({ ...this.value, [name]: false })
+      return this.write(name, false)
    }
 
    /** step both strengths by delta (true becomes 1 first); no-op when off */
    adjustItem(name: T, delta: number): this {
-      const cur = this.value[name]
-      if (cur == null || cur === false) return this
+      const cur = this.record[name]
+      if (!loraIsOn(cur)) return this
       const step = (n: number): number => Math.max(0, Math.round((n + delta) * 100) / 100)
-      const next: LoraStrength = Array.isArray(cur) ? [step(cur[0]), step(cur[1])] : step(cur === true ? 1 : cur)
-      return this.set({ ...this.value, [name]: next })
+      // the short spellings stay short: only a palette entry needs the object form
+      const next: LoraStrength =
+         typeof cur === 'number' || cur === true
+            ? step(cur === true ? 1 : cur)
+            : Array.isArray(cur)
+              ? [step(cur[0]), step(cur[1])]
+              : withLora(cur, { strength: [step(loraStrengths(cur)[0]), step(loraStrengths(cur)[1])] })
+      return this.write(name, next)
    }
 
    /** compact per-item strength label for lists */
    strengthLabel(name: T): string {
-      const s = this.value[name]
-      if (s == null || s === false) return ''
-      if (s === true) return '1.00'
-      if (Array.isArray(s)) return `m:${s[0].toFixed(2)} c:${s[1].toFixed(2)}`
-      return s.toFixed(2)
+      const s = this.record[name]
+      if (!loraIsOn(s)) return ''
+      const [m, c] = loraStrengths(s)
+      return m === c ? m.toFixed(2) : `m:${m.toFixed(2)} c:${c.toFixed(2)}`
    }
 
    parse(raw: string): boolean {
       try {
          const parsed: unknown = JSON.parse(raw)
-         if (typeof parsed !== 'object' || parsed == null || Array.isArray(parsed)) return false
-         this.set(parsed as Partial<Record<T, LoraStrength>>)
+         if (!isLorasInput(parsed)) return false
+         // cast: whitelist family 1, the names are this host's lora enum, checked by the build
+         this.set(parsed as LorasInput<T>)
          return true
       } catch {
          return false
@@ -476,14 +691,17 @@ export class LorasVar<T extends string> extends ComfyVar<Partial<Record<T, LoraS
 
    /** tick (true) or untick (false) every lora in `names` (default: all options) */
    setAll(on: boolean, names: readonly T[] = this.options): this {
-      const next = { ...this.value }
+      const record = this.record
+      let next = this.value
       for (const name of names) {
-         const cur = next[name]
+         const cur = record[name]
          if (on) {
-            if (cur == null || cur === false) next[name] = this.prev[name] ?? true
+            if (cur == null || cur === false) next = updateLora(next, name, this.prev[name] ?? true)
+            // a paused palette entry resumes in place, strengths kept
+            else if (!loraIsOn(cur)) next = updateLora(next, name, withLora(cur, { on: true }))
          } else {
-            if (cur != null && cur !== false) this.prev[name] = cur
-            next[name] = false
+            if (loraIsOn(cur)) this.prev[name] = cur
+            next = updateLora(next, name, false)
          }
       }
       return this.set(next)
@@ -510,6 +728,27 @@ export const DEFAULT_SIZE_PRESETS: SizePreset[] = [
    { label: '9:16 tall', width: 768, height: 1344 },
 ]
 
+/** the same aspect ratios around 512, for SD1.5-era models trained at ~0.25MP */
+export const SD15_SIZE_PRESETS: SizePreset[] = [
+   { label: '1:1 square', width: 512, height: 512 },
+   { label: '4:3 landscape', width: 576, height: 448 },
+   { label: '3:4 portrait', width: 448, height: 576 },
+   { label: '3:2 landscape', width: 576, height: 384 },
+   { label: '2:3 portrait', width: 384, height: 576 },
+   { label: '16:9 widescreen', width: 704, height: 384 },
+   { label: '9:16 tall', width: 384, height: 704 },
+]
+
+/** starred presets are one click away in the panel, before the full list */
+export const DEFAULT_STARRED_SIZES = ['1:1 square', '3:4 portrait', '4:3 landscape']
+
+/** the family that matches a workflow's own default: a 512×512 workflow is an SD1.5-era one,
+ * and offering it 1024 buckets would be offering sizes it was never trained at */
+export function sizePresetsFor(defaultValue: SizeValue | undefined): SizePreset[] {
+   if (defaultValue == null) return DEFAULT_SIZE_PRESETS
+   return defaultValue.width * defaultValue.height <= 600 * 600 ? SD15_SIZE_PRESETS : DEFAULT_SIZE_PRESETS
+}
+
 /** width/height picker: presets + free `WxH` entry + optionally the LIVE
  * size of a linked image var (the widget shows
  * `WxH  size of image '<name>'` as a pickable row) */
@@ -520,6 +759,8 @@ export class SizeVar extends ComfyVar<SizeValue> {
       public readonly presets: SizePreset[] = DEFAULT_SIZE_PRESETS,
       label?: string,
       public readonly imageVar?: ImageVar,
+      /** preset LABELS starred by default; a user's own stars live in the panel */
+      public readonly starred: readonly string[] = DEFAULT_STARRED_SIZES,
    ) {
       super(defaultValue, label)
    }
@@ -646,7 +887,8 @@ export const v = {
    text: (defaultValue: string, opts: TextVarOpts | string = {}): TextVar =>
       new TextVar(defaultValue, typeof opts === 'string' ? { label: opts } : opts),
    prompt: (
-      defaultValue: string,
+      /** a string, or `{ lanes: [{ name, prompt, active }] }` merged in listed order */
+      defaultValue: PromptInput,
       opts: { label?: string; loraKeywordsFrom?: ActiveLoraSource; presets?: VarPresetSpec } = {},
    ): PromptVar => new PromptVar(defaultValue, opts),
    int: (defaultValue: number, opts: { min?: number; max?: number; label?: string } = {}): IntVar =>
@@ -658,15 +900,20 @@ export const v = {
    seed: (defaultValue: number = 0, opts: string | { label?: string; mode?: SeedMode } = {}): SeedVar =>
       new SeedVar(defaultValue, opts),
    toggle: (defaultValue: boolean, label?: string): ToggleVar => new ToggleVar(defaultValue, label),
-   choice: <const T extends string>(choices: readonly T[], defaultValue: T, label?: string): ChoiceVar<T> =>
-      new ChoiceVar(choices, defaultValue, label),
+   /** exactly one option (the default), `{ select: 'zero-or-one' }` for one or none (value
+    * `T | null`), `{ select: 'many' }` for any number (value `T[]`) */
+   choice,
    loras: <T extends string = string>(
       options: readonly T[] | RegExp,
-      initial: Partial<Record<T, LoraStrength>> = {},
+      /** a record, or `{ lanes: [{ name, active, loras }] }` merged in listed order */
+      initial: LorasInput<T> = {},
       label?: string,
    ): LorasVar<T> => new LorasVar(options, initial, label),
-   size: (defaultValue?: SizeValue, opts: { presets?: SizePreset[]; label?: string; image?: ImageVar } = {}): SizeVar =>
-      new SizeVar(defaultValue, opts.presets, opts.label, opts.image),
+   size: (
+      defaultValue?: SizeValue,
+      opts: { presets?: SizePreset[]; starred?: readonly string[]; label?: string; image?: ImageVar } = {},
+   ): SizeVar =>
+      new SizeVar(defaultValue, opts.presets ?? sizePresetsFor(defaultValue), opts.label, opts.image, opts.starred),
    image: (defaultValue: string, opts: ImageVarOpts = {}): ImageVar => new ImageVar(defaultValue, opts),
 }
 
@@ -682,6 +929,7 @@ export type AnyVar = {
    readonly label?: string
    /** the vars-spec key — DefinedWorkflow writes it at define time */
    name?: string
+   readonly uiOpts: VarUi
    parse(raw: string): boolean
    loadJSON(value: unknown): unknown
    reset(): unknown

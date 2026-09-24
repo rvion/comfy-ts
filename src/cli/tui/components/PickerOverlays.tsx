@@ -26,11 +26,18 @@ export const ChoiceOverlay = observer((p: { st: TuiSt }) => {
             node: (
                <Text key={opt} inverse={ix === pk.ix}>
                   {ix === pk.ix ? '▸ ' : '  '}
+                  {pk.isPicked(opt) ? '● ' : '○ '}
                   {opt}
                </Text>
             ),
          }))}
-         footer={options.length === 0 ? <Text color="red">no match</Text> : undefined}
+         footer={
+            options.length === 0 ? (
+               <Text color="red">no match</Text>
+            ) : pk.choiceIsMany ? (
+               <Text color="gray">⏎ toggles · esc done</Text>
+            ) : undefined
+         }
       />
    )
 })
@@ -41,7 +48,7 @@ export const PresetOverlay = observer((p: { st: TuiSt }) => {
    const s = p.st
    const pk = s.picker
    const options = pk.presetOptions
-   const current = pk.presetVar?.value.trim() ?? ''
+   const current = pk.presetVar?.toEditBuffer().trim() ?? ''
    return (
       <OverlayList
          title={

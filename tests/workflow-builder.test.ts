@@ -565,6 +565,20 @@ describe('prompt editor line ops', () => {
 })
 
 describe('lora keywords → prompt prefix', () => {
+   it('a muted part of a keyword stays out of the prompt, the rest still goes in', async () => {
+      const { v } = await import('src/vars/ComfyVars.ts')
+      const { setLoraKeyword } = await import('src/vars/loraKeywords.ts')
+      setLoraKeyword('mute/a.safetensors', 'flat colors, thick lines,  pastel ')
+      const loras = v.loras(['mute/a.safetensors'], {
+         'mute/a.safetensors': { strength: [1, 1], mute: ['thick lines'] },
+      })
+      const prompt = v.prompt('a cat', { loraKeywordsFrom: loras })
+      expect(prompt.outValue().positive).toBe('flat colors, pastel, a cat')
+      // every part muted = nothing added, not an empty comma
+      loras.set({ 'mute/a.safetensors': { strength: [1, 1], mute: ['flat colors', 'thick lines', 'pastel'] } })
+      expect(prompt.outValue().positive).toBe('a cat')
+   })
+
    it('prefixes ACTIVE loras keywords, dedupes, skips empties; empty keyword clears', async () => {
       const { v } = await import('src/vars/ComfyVars.ts')
       const { getLoraKeyword, setLoraKeyword } = await import('src/vars/loraKeywords.ts')
@@ -1023,5 +1037,19 @@ describe('running an unconnected host', () => {
       wf.builderBase.EmptyLatentImage({})
       expect(host.ws).toBe(null)
       await expect(wf.start()).rejects.toThrow(/never connected/)
+   })
+})
+
+describe('activeWhen', () => {
+   it('a condition on a var the workflow does not have fails when the workflow loads', async () => {
+      const { v } = await import('src/vars/ComfyVars.ts')
+      const make = (cond: Record<string, string[]>): unknown =>
+         host.defineWorkflow({
+            id: 'active-when',
+            vars: { model: v.choice(['a', 'b'], 'a'), cfg: v.float(4).ui({ activeWhen: cond }) },
+            build: () => {},
+         })
+      expect(() => make({ modle: ['b'] })).toThrow("activeWhen 'modle'")
+      expect(() => make({ model: ['b'] })).not.toThrow()
    })
 })

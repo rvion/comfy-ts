@@ -3,7 +3,8 @@
 import { ansi } from 'src/utils/ansi.ts'
 import type {
    AnyVar,
-   ChoiceVar,
+   AnyChoiceVar,
+   ChoiceSelect,
    FloatVar,
    ImageVar,
    IntVar,
@@ -14,6 +15,7 @@ import type {
    SizeVar,
    TextVar,
    VarKind,
+   VarUi,
 } from 'src/vars/ComfyVars.ts'
 import type { VarPreset } from 'src/vars/presets.ts'
 import type { LoraTriggers } from 'src/host/loraInfoCache.ts'
@@ -24,6 +26,10 @@ export type VarDescriptor = {
    /** what a POST payload accepts for this var, human-readable */
    payload: string
    default: unknown
+   /** choice vars: exactly one, one or none (value may be null), or many (value is a list) */
+   select?: ChoiceSelect
+   /** how the workflow wants this var to look (VarUi): icon, colors, description */
+   ui?: VarUi
    choices?: readonly string[]
    /** loras: the resolved option list */
    options?: readonly string[]
@@ -56,6 +62,8 @@ export type VarDescriptor = {
    min?: number
    max?: number
    presets?: SizePreset[]
+   /** size: preset labels starred by default (quick buttons before the list) */
+   starredPresets?: string[]
    extensions?: readonly string[]
 }
 
@@ -70,7 +78,13 @@ function rangeText(opts: { min?: number; max?: number }): string {
 }
 
 export function describeVar(varDef: AnyVar): VarDescriptor {
-   const base = { kind: varDef.kind, label: varDef.label, default: varDef.defaultValue }
+   const base = {
+      kind: varDef.kind,
+      label: varDef.label,
+      default: varDef.defaultValue,
+      // absent unless the workflow set something: most vars carry no looks
+      ...(Object.keys(varDef.uiOpts).length > 0 ? { ui: varDef.uiOpts } : {}),
+   }
    // kind, never instanceof: the cli bundle and the consumer's `comfy-ts` import hold
    // different copies of every class (VarKind owns the WHY). Casts are the sanctioned
    // kind-narrowing family (agent/coding.md cast whitelist 6)
@@ -109,8 +123,15 @@ export function describeVar(varDef: AnyVar): VarDescriptor {
       case 'toggle':
          return { ...base, payload: 'true or false' }
       case 'choice': {
-         const v = varDef as ChoiceVar<string>
-         return { ...base, payload: `one of: ${v.choices.join(' | ')}`, choices: v.choices }
+         const v = varDef as AnyChoiceVar<string>
+         const list = v.choices.join(' | ')
+         const payload =
+            v.select === 'many'
+               ? `a list of: ${list}`
+               : v.select === 'zero-or-one'
+                 ? `null or one of: ${list}`
+                 : `one of: ${list}`
+         return { ...base, payload, choices: v.choices, select: v.select }
       }
       case 'loras': {
          const v = varDef as LorasVar<string>
@@ -124,7 +145,12 @@ export function describeVar(varDef: AnyVar): VarDescriptor {
       }
       case 'size': {
          const v = varDef as SizeVar
-         return { ...base, payload: '{"width":W,"height":H} or "WxH" or a preset label', presets: v.presets }
+         return {
+            ...base,
+            payload: '{"width":W,"height":H} or "WxH" or a preset label',
+            presets: v.presets,
+            starredPresets: [...v.starred],
+         }
       }
       case 'image': {
          const v = varDef as ImageVar

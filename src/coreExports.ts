@@ -85,11 +85,16 @@ export {
    SeedVar,
    ToggleVar,
    ChoiceVar,
+   OptionalChoiceVar,
+   MultiChoiceVar,
    LorasVar,
    SizeVar,
    ImageVar,
    ImageVarEmptyError,
    DEFAULT_SIZE_PRESETS,
+   SD15_SIZE_PRESETS,
+   DEFAULT_STARRED_SIZES,
+   sizePresetsFor,
    DEFAULT_IMAGE_EXTENSIONS,
    activeLoras,
 } from 'src/vars/ComfyVars.ts'
@@ -97,6 +102,9 @@ export type {
    AnyVar,
    VarKind,
    VarsSpec,
+   VarUi,
+   AnyChoiceVar,
+   ChoiceSelect,
    VarValues,
    PromptValue,
    ActiveLoraSource,
@@ -109,6 +117,16 @@ export type {
    TextVarOpts,
 } from 'src/vars/ComfyVars.ts'
 export { toPresetList, activePresetLabel, type VarPreset, type VarPresetSpec } from 'src/vars/presets.ts'
+export type {
+   PromptInput,
+   PromptLane,
+   PromptLanes,
+   LorasInput,
+   LoraLane,
+   LoraLanes,
+   LoraRecord,
+} from 'src/vars/lanes.ts'
+export type { LoraEntry } from 'src/vars/loraEntry.ts'
 export { DefinedWorkflow, type DefineWorkflowSpec, type BoundVars, type LoraNameOf } from 'src/vars/DefinedWorkflow.ts'
 export {
    clearLoraKeywordOverride,

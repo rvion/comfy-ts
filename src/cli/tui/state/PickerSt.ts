@@ -1,6 +1,6 @@
 import { makeAutoObservable } from 'mobx'
 import { fuzzyMatch } from 'src/utils/fuzzyMatch.ts'
-import type { ChoiceVar, PromptVar, SizeVar, TextVar } from 'src/vars/ComfyVars.ts'
+import type { AnyChoiceVar, PromptVar, SizeVar, TextVar } from 'src/vars/ComfyVars.ts'
 import type { VarPreset } from 'src/vars/presets.ts'
 import type { TuiSt } from 'src/cli/tui/state/TuiSt.ts'
 
@@ -25,9 +25,21 @@ export class PickerSt {
    imageSizeRow: string | null = null
 
    // kind-narrowing casts sanctioned (agent/coding.md), `kind` is the tag
-   private get choiceVar(): ChoiceVar<string> | null {
+   private get choiceVar(): AnyChoiceVar<string> | null {
       const sel = this.st.selected?.[1]
-      return sel?.kind === 'choice' ? (sel as ChoiceVar<string>) : null
+      return sel?.kind === 'choice' ? (sel as AnyChoiceVar<string>) : null
+   }
+
+   /** is this option currently picked (one, one or none, or one of many) */
+   isPicked(option: string): boolean {
+      const cv = this.choiceVar
+      if (cv == null) return false
+      return cv.select === 'many' ? cv.value.includes(option) : cv.value === option
+   }
+
+   /** a many-choice stays open after ⏎: you toggle several, esc leaves */
+   get choiceIsMany(): boolean {
+      return this.choiceVar?.select === 'many'
    }
 
    private get sizeVar(): SizeVar | null {
@@ -76,7 +88,8 @@ export class PickerSt {
       this.st.mode = 'overlay-choice'
       this.filter = ''
       this.invalid = false
-      this.ix = Math.max(0, cv.choices.indexOf(cv.value))
+      const first = cv.select === 'many' ? cv.value[0] : cv.value
+      this.ix = Math.max(0, first == null ? 0 : cv.choices.indexOf(first))
    }
 
    /** `P` on a text/prompt var that declares presets. A var without any stays on `nav`:
@@ -87,7 +100,7 @@ export class PickerSt {
       this.st.mode = 'overlay-preset'
       this.filter = ''
       this.invalid = false
-      const value = pv.value.trim()
+      const value = pv.toEditBuffer().trim()
       const ix = pv.presets.findIndex((x) => x.text.trim() === value)
       this.ix = ix === -1 ? 0 : ix
    }
@@ -142,9 +155,14 @@ export class PickerSt {
       }
       const cv = this.choiceVar
       if (cv != null) {
-         const hit = this.options[this.ix]
+         const hit = cv.choices.find((c) => c === this.options[this.ix])
          if (hit == null) return
-         cv.set(hit)
+         if (cv.select === 'many') {
+            cv.toggle(hit)
+            return
+         }
+         if (cv.select === 'zero-or-one') cv.toggle(hit)
+         else cv.set(hit)
          this.st.mode = 'nav'
          return
       }

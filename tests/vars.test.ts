@@ -125,6 +125,21 @@ describe('vars', () => {
       expect(loras.strengthLabel('c')).toBe('m:0.75 c:0.55')
    })
 
+   it('tick-all resumes a paused palette entry instead of leaving it paused', () => {
+      const loras = v.loras(['a', 'b'], { a: { strength: [0.6, 0.6], off: true }, b: false })
+      loras.setAll(true)
+      expect(loras.activeNames()).toEqual(['a', 'b'])
+      expect(loras.value.a).toEqual([0.6, 0.6])
+   })
+
+   it('the palette form: a paused lora never reaches the graph, a muted keyword never changes what runs', () => {
+      const active = activeLoras({
+         paused: { strength: [0.7, 0.7], off: true },
+         muted: { strength: [0.5, 0.4], mute: ['x'] },
+      })
+      expect(active).toEqual([{ lora_name: 'muted', strength_model: 0.5, strength_clip: 0.4 }])
+   })
+
    it('activeLoras normalizes every strength form for a LoraLoader chain', () => {
       const active = activeLoras({ a: true, b: 0.65, c: [0.8, 0.6], d: false, e: undefined })
       expect(active).toEqual([
@@ -132,6 +147,22 @@ describe('vars', () => {
          { lora_name: 'b', strength_model: 0.65, strength_clip: 0.65 },
          { lora_name: 'c', strength_model: 0.8, strength_clip: 0.6 },
       ])
+   })
+
+   it('size: the preset family follows the default, 512 workflows get 512 sizes', () => {
+      expect(v.size({ width: 512, height: 512 }).presets[0]).toEqual({ label: '1:1 square', width: 512, height: 512 })
+      expect(v.size({ width: 1024, height: 1024 }).presets[0]).toEqual({
+         label: '1:1 square',
+         width: 1024,
+         height: 1024,
+      })
+      // an explicit list always wins, and so do explicit stars
+      const own = v.size(
+         { width: 512, height: 512 },
+         { presets: [{ label: 'x', width: 1, height: 2 }], starred: ['x'] },
+      )
+      expect(own.presets).toEqual([{ label: 'x', width: 1, height: 2 }])
+      expect(own.starred).toEqual(['x'])
    })
 
    it('size: parses WxH, matches presets in display', () => {

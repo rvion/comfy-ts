@@ -9,11 +9,10 @@
 // below are the sanctioned kind-narrowing family (agent/coding.md cast whitelist 6).
 import type {
    AnyVar,
-   ChoiceVar,
+   AnyChoiceVar,
    FloatVar,
    ImageVar,
    IntVar,
-   LoraStrength,
    LorasVar,
    PromptVar,
    SeedVar,
@@ -21,15 +20,11 @@ import type {
    TextVar,
    ToggleVar,
 } from 'src/vars/ComfyVars.ts'
+import { isLoraLanes, isLorasInput, isPromptInput } from 'src/vars/lanes.ts'
+import { isLoraStrength } from 'src/vars/loraEntry.ts'
 
 function isFiniteNumber(x: unknown): x is number {
    return typeof x === 'number' && Number.isFinite(x)
-}
-
-function isLoraStrength(x: unknown): x is LoraStrength {
-   if (typeof x === 'boolean') return true
-   if (isFiniteNumber(x)) return true
-   return Array.isArray(x) && x.length === 2 && isFiniteNumber(x[0]) && isFiniteNumber(x[1])
 }
 
 /** cap long option lists in error messages */
@@ -49,10 +44,16 @@ export function applyVarPayload(
    const name = varDef.name ?? varDef.label ?? varDef.kind
 
    switch (varDef.kind) {
-      case 'text':
-      case 'prompt': {
+      case 'text': {
          if (typeof raw !== 'string') return `var '${name}' expects a string`
-         ;(varDef as TextVar | PromptVar).set(raw)
+         ;(varDef as TextVar).set(raw)
+         return null
+      }
+
+      case 'prompt': {
+         if (!isPromptInput(raw))
+            return `var '${name}' expects a string or {"lanes": [{"name": string, "prompt": string, "active": boolean}]}`
+         ;(varDef as PromptVar).set(raw)
          return null
       }
 
@@ -97,23 +98,45 @@ export function applyVarPayload(
       }
 
       case 'choice': {
-         const v = varDef as ChoiceVar<string>
-         if (typeof raw === 'string' && v.parse(raw)) return null
+         const v = varDef as AnyChoiceVar<string>
+         const known = (x: unknown): x is string => typeof x === 'string' && v.choices.includes(x)
+         if (v.select === 'many') {
+            if (Array.isArray(raw) && raw.every(known)) {
+               v.set(v.choices.filter((c) => raw.includes(c)))
+               return null
+            }
+            return `var '${name}' expects a list of: ${listSome(v.choices)}`
+         }
+         if (v.select === 'zero-or-one') {
+            if (raw === null || known(raw)) {
+               v.set(raw)
+               return null
+            }
+            return `var '${name}' expects null or one of: ${listSome(v.choices)}`
+         }
+         if (known(raw)) {
+            v.set(raw)
+            return null
+         }
          return `var '${name}' expects one of: ${listSome(v.choices)}`
       }
 
       case 'loras': {
          const v = varDef as LorasVar<string>
-         if (raw == null || typeof raw !== 'object' || Array.isArray(raw))
-            return `var '${name}' expects {"<lora name>": false | true | strength | [model, clip]}`
-         const record = raw as Record<string, unknown>
+         const SHAPE = `{"<lora name>": false | true | strength | [model, clip] | {strength, off?, mute?}} or {"lanes": [{"name", "active", "loras": {…}}]}`
+         if (raw == null || typeof raw !== 'object' || Array.isArray(raw)) return `var '${name}' expects ${SHAPE}`
+         const records = isLoraLanes(raw) ? raw.lanes.map((l) => l.loras) : [raw as Record<string, unknown>]
          const known = new Set<string>([...v.options, ...(opts.extraLoraOptions ?? [])])
-         const unknownNames = Object.keys(record).filter((k) => !known.has(k))
-         if (unknownNames.length > 0)
-            return `var '${name}': unknown lora(s) ${unknownNames.join(', ')} — available: ${listSome([...known])}`
-         for (const [k, st] of Object.entries(record))
-            if (!isLoraStrength(st)) return `var '${name}': '${k}' must be false | true | number | [model, clip]`
-         v.set(record as Partial<Record<string, LoraStrength>>) // every entry validated just above
+         for (const record of records) {
+            const unknownNames = Object.keys(record).filter((k) => !known.has(k))
+            if (unknownNames.length > 0)
+               return `var '${name}': unknown lora(s) ${unknownNames.join(', ')} — available: ${listSome([...known])}`
+            for (const [k, st] of Object.entries(record))
+               if (!isLoraStrength(st))
+                  return `var '${name}': '${k}' must be false | true | number | [model, clip] | { strength: [model, clip], off?, mute? }`
+         }
+         if (!isLorasInput(raw)) return `var '${name}' expects ${SHAPE}`
+         v.set(raw) // every lane and entry validated just above
          return null
       }
 
