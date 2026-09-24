@@ -1,10 +1,9 @@
 // ✨ on a prompt row → the refine modal: the LLM configs and the master prompts as two lists of
-// vertical tabs on the left, the job (yours → rewrite) first on the right, then the selected
-// LLM's settings and master prompt text. Nothing touches the var until APPLY.
+// vertical tabs on the left, the job (yours → rewrite) alone on the right. A tab's pen opens its
+// editor over the job. Nothing touches the var until APPLY.
 import { Icon } from 'src/cli/serve/web/components/Icon.tsx'
 import { observer } from 'mobx-react-lite'
 import { useEffect, type ReactNode } from 'react'
-import { MenuButton, MenuItem } from 'src/cli/serve/web/components/MenuButton.tsx'
 import { MOD_KEY } from 'src/cli/serve/web/components/modKey.ts'
 import type { ProviderId, ReasoningEffort } from 'src/cli/serve/web/llm.ts'
 import { PROVIDERS, type EnhancerSt, type SaveState } from 'src/cli/serve/web/state/EnhancerSt.ts'
@@ -26,7 +25,7 @@ const BASE_PLACEHOLDER: Record<ProviderId, string> = {
 }
 
 /** one library of named files (LLM configs, master prompts) as VERTICAL TABS: click a tab to
- * select it, its ⋯ holds duplicate / rename / delete, `+ new` closes the list. On a narrow
+ * select it, its pen opens its editor over the job, `+ new` closes the list. On a narrow
  * screen the same list is a dropdown (css swaps them) */
 const TabList = observer(function TabList(p: {
    title: string
@@ -36,24 +35,17 @@ const TabList = observer(function TabList(p: {
    newName: string
    save: SaveState
    saveError: string
+   /** its editor is open over the job */
+   editing: boolean
+   onEdit(): void
    /** a dot before the name (the LLM's up/down), absent = none */
    status?: (name: string) => { cls: string; tip: string } | null
    onSelect(name: string): void
    onCreate(name: string): void
-   onDuplicate(): void
-   onRename(name: string): void
-   onDelete(): void
 }) {
    const create = (): void => {
       const name = window.prompt(`name the new ${p.kind}`, p.newName)
       if (name != null) p.onCreate(name)
-   }
-   const rename = (): void => {
-      const name = window.prompt(`rename this ${p.kind} (renames the file)`, p.selected)
-      if (name != null) p.onRename(name)
-   }
-   const remove = (): void => {
-      if (window.confirm(`delete ${p.kind} '${p.selected}'? its file is removed.`)) p.onDelete()
    }
    const dot = (name: string): ReactNode => {
       const st = p.status?.(name) ?? null
@@ -85,33 +77,14 @@ const TabList = observer(function TabList(p: {
                      <span className="enh-tab-name">{n}</span>
                   </button>
                   {n === p.selected ? (
-                     <MenuButton tip={`${p.kind}: duplicate, rename, delete`}>
-                        {(close) => (
-                           <>
-                              <MenuItem
-                                 label="duplicate"
-                                 onClick={() => {
-                                    close()
-                                    p.onDuplicate()
-                                 }}
-                              />
-                              <MenuItem
-                                 label="rename"
-                                 onClick={() => {
-                                    close()
-                                    rename()
-                                 }}
-                              />
-                              <MenuItem
-                                 label="delete"
-                                 onClick={() => {
-                                    close()
-                                    remove()
-                                 }}
-                              />
-                           </>
-                        )}
-                     </MenuButton>
+                     <button
+                        type="button"
+                        className={p.editing ? 'enh-tab-edit sel' : 'enh-tab-edit'}
+                        data-tip={p.editing ? 'close the editor' : `edit this ${p.kind}`}
+                        onClick={() => p.onEdit()}
+                     >
+                        <Icon name="pen" />
+                     </button>
                   ) : null}
                </div>
             ))}
@@ -132,7 +105,9 @@ const Side = observer(function Side(p: { e: EnhancerSt }) {
          {entry == null ? (
             <div className="enh-tabs">
                <div className="enh-tabs-title">llm</div>
-               <div className="enh-empty">no llm config yet: set one up on the right, it is saved as you type</div>
+               <button type="button" className="enh-tab-new" onClick={() => e.setEditing('llm')}>
+                  <Icon name="plus" /> set up an llm
+               </button>
             </div>
          ) : (
             <TabList
@@ -143,6 +118,8 @@ const Side = observer(function Side(p: { e: EnhancerSt }) {
                newName="my-llm"
                save={e.configSaveState}
                saveError={e.configSaveError}
+               editing={e.editing === 'llm'}
+               onEdit={() => e.setEditing(e.editing === 'llm' ? null : 'llm')}
                status={(name) => {
                   const st = e.configStatus.get(name)
                   if (st == null) return null
@@ -153,10 +130,10 @@ const Side = observer(function Side(p: { e: EnhancerSt }) {
                   }
                }}
                onSelect={(n) => e.selectConfig(n)}
-               onCreate={(n) => e.addConfig(n)}
-               onDuplicate={() => e.duplicateConfig()}
-               onRename={(n) => void e.renameConfig(n)}
-               onDelete={() => void e.deleteConfig()}
+               onCreate={(n) => {
+                  e.addConfig(n)
+                  e.setEditing('llm')
+               }}
             />
          )}
          {preset == null ? (
@@ -175,26 +152,68 @@ const Side = observer(function Side(p: { e: EnhancerSt }) {
                newName="refine-<model>-prompt"
                save={e.saveState}
                saveError={e.saveError}
+               editing={e.editing === 'preset'}
+               onEdit={() => e.setEditing(e.editing === 'preset' ? null : 'preset')}
                onSelect={(n) => e.selectPreset(n)}
-               onCreate={(n) => e.addPreset(n)}
-               onDuplicate={() => e.duplicatePreset()}
-               onRename={(n) => void e.renamePreset(n)}
-               onDelete={() => void e.deletePreset()}
+               onCreate={(n) => {
+                  e.addPreset(n)
+                  e.setEditing('preset')
+               }}
             />
          )}
       </nav>
    )
 })
 
-/** a numbered section with a title you can read from across the room */
-function Section(p: { n: number; title: ReactNode; tip?: string; children: ReactNode }): ReactNode {
+/** the editor over the job: a title with the entry's name, its file actions, its fields */
+function EditPanel(p: {
+   kind: string
+   name: string | null
+   tip?: string
+   onRename(name: string): void
+   onDuplicate(): void
+   onDelete(): void
+   onClose(): void
+   children: ReactNode
+}): ReactNode {
+   const rename = (): void => {
+      if (p.name == null) return
+      const name = window.prompt(`rename this ${p.kind} (renames the file)`, p.name)
+      if (name != null) p.onRename(name)
+   }
+   const remove = (): void => {
+      if (p.name == null) return
+      if (window.confirm(`delete ${p.kind} '${p.name}'? its file is removed.`)) p.onDelete()
+   }
    return (
-      <section className="enh-section">
-         <h3 className="enh-h" data-tip={p.tip}>
-            <span className="enh-num">{p.n}</span>
-            {p.title}
-         </h3>
-         {p.children}
+      <section className="enh-edit">
+         <div className="enh-edit-head">
+            <h3 className="enh-h" data-tip={p.tip}>
+               {p.kind} <span className="enh-h-name">{p.name ?? 'new'}</span>
+            </h3>
+            {p.name == null ? null : (
+               <span className="btn-group">
+                  <button type="button" onClick={() => p.onDuplicate()}>
+                     duplicate
+                  </button>
+                  <button type="button" onClick={rename}>
+                     rename
+                  </button>
+                  <button type="button" className="quiet-danger" onClick={remove}>
+                     <Icon name="trash" /> delete
+                  </button>
+               </span>
+            )}
+            <button
+               type="button"
+               className="enh-edit-close"
+               data-tip="done (esc), everything is already saved"
+               onClick={() => p.onClose()}
+            >
+               done
+            </button>
+         </div>
+         <div className="enh-edit-body">{p.children}</div>
       </section>
    )
 }
@@ -205,18 +224,18 @@ const LlmSettings = observer(function LlmSettings(p: { e: EnhancerSt }) {
    const local = e.provider !== 'openrouter'
    const entry = e.configEntry
    return (
-      <Section
-         n={2}
-         title={
-            <>
-               llm <span className="enh-h-name">{entry?.name ?? 'new'}</span>
-            </>
-         }
+      <EditPanel
+         kind="llm"
+         name={entry?.name ?? null}
          tip={
             entry == null
                ? 'any edit creates the config file'
                : `.comfy-ts/llm-configs/${entry.name}.json, saved as you type`
          }
+         onRename={(n) => void e.renameConfig(n)}
+         onDuplicate={() => e.duplicateConfig()}
+         onDelete={() => void e.deleteConfig()}
+         onClose={() => e.setEditing(null)}
       >
          <div className="enh-grid">
             <label>provider</label>
@@ -304,21 +323,21 @@ const LlmSettings = observer(function LlmSettings(p: { e: EnhancerSt }) {
          </div>
          {e.modelsError !== '' ? <div className="error">🔴 {e.modelsError}</div> : null}
          {e.configsError !== '' ? <div className="error">🔴 {e.configsError}</div> : null}
-      </Section>
+      </EditPanel>
    )
 })
 
 const MasterPrompt = observer(function MasterPrompt(p: { e: EnhancerSt }) {
    const preset = p.e.preset
    return (
-      <Section
-         n={3}
-         title={
-            <>
-               master prompt <span className="enh-h-name">{preset?.name ?? ''}</span>
-            </>
-         }
+      <EditPanel
+         kind="master prompt"
+         name={preset?.name ?? null}
          tip={preset == null ? undefined : `.comfy-ts/prompt-enhancers/${preset.name}.md, saved as you type`}
+         onRename={(n) => void p.e.renamePreset(n)}
+         onDuplicate={() => p.e.duplicatePreset()}
+         onDelete={() => void p.e.deletePreset()}
+         onClose={() => p.e.setEditing(null)}
       >
          {preset == null ? (
             <div className="enh-empty">
@@ -326,14 +345,14 @@ const MasterPrompt = observer(function MasterPrompt(p: { e: EnhancerSt }) {
             </div>
          ) : (
             <textarea
-               className="enh-text"
-               rows={10}
+               className="enh-text enh-master"
+               rows={18}
                value={preset.text}
                onChange={(ev) => p.e.setPresetText(ev.target.value)}
             />
          )}
          {p.e.presetsError !== '' ? <div className="error">🔴 {p.e.presetsError}</div> : null}
-      </Section>
+      </EditPanel>
    )
 })
 
@@ -341,7 +360,8 @@ const Job = observer(function Job(p: { e: EnhancerSt }) {
    const e = p.e
    const running = e.phase === 'running'
    return (
-      <Section n={1} title="your prompt → rewrite">
+      <section className="enh-section">
+         <h3 className="enh-h">your prompt → rewrite</h3>
          <div className="enh-cols">
             <div>
                <div className="enh-label">yours, what gets sent (the form is untouched)</div>
@@ -391,7 +411,7 @@ const Job = observer(function Job(p: { e: EnhancerSt }) {
                <div className="enh-think">{e.thinking}</div>
             </details>
          ) : null}
-      </Section>
+      </section>
    )
 })
 
@@ -399,7 +419,11 @@ const Modal = observer(function Modal(p: { e: EnhancerSt }) {
    const e = p.e
    useEffect(() => {
       const onKey = (ev: KeyboardEvent): void => {
-         if (ev.key === 'Escape') e.close()
+         // esc closes the editor first, the modal only when nothing is open over the job
+         if (ev.key === 'Escape') {
+            if (e.editing != null) e.setEditing(null)
+            else e.close()
+         }
          if (ev.key === 'Enter' && (ev.metaKey || ev.ctrlKey)) {
             // inside the modal ⌘⏎ refines; VarsForm's generate shortcut stands down while it is open
             ev.preventDefault()
@@ -427,10 +451,13 @@ const Modal = observer(function Modal(p: { e: EnhancerSt }) {
             </div>
             <div className="enh-layout">
                <Side e={e} />
-               <div className="modal-body enh-main">
-                  <Job e={e} />
-                  <LlmSettings e={e} />
-                  <MasterPrompt e={e} />
+               <div className="enh-right">
+                  <div className="modal-body enh-main">
+                     <Job e={e} />
+                  </div>
+                  {/* over the job, never beside it: the job keeps its place and size */}
+                  {e.editing === 'llm' ? <LlmSettings e={e} /> : null}
+                  {e.editing === 'preset' ? <MasterPrompt e={e} /> : null}
                </div>
             </div>
          </div>

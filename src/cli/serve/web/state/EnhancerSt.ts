@@ -130,6 +130,10 @@ export class EnhancerSt {
    modelsState: 'idle' | 'loading' | 'error' = 'idle'
    modelsError = ''
 
+   /** the editor open over the job: the selected LLM's settings, or the master prompt's text.
+    * null = the modal shows only yours → rewrite */
+   editing: 'llm' | 'preset' | null = null
+
    /** the prompt var being refined — non-null IS the modal being open */
    target: VarSt | null = null
    /** in lanes mode, the lane being refined; null = the whole prompt */
@@ -606,7 +610,12 @@ export class EnhancerSt {
       this.lastSaved = JSON.stringify(this.preset)
    }
 
+   setEditing(v: 'llm' | 'preset' | null): void {
+      this.editing = v
+   }
+
    close(): void {
+      this.editing = null
       this.cancel()
       this.target = null
       this.targetLane = null

@@ -620,6 +620,20 @@ div.lora-thumb.none {
    color: var(--dim); padding: 6px 8px; border-radius: 6px; font-size: 13px; cursor: pointer; text-align: left;
 }
 .enh-tab-new:hover { color: var(--accent); border-color: var(--accent); }
+.enh-tab-edit { background: none; border: 0; color: var(--dim); padding: 4px 8px; cursor: pointer; }
+.enh-tab-edit:hover, .enh-tab-edit.sel { color: var(--accent); }
+.enh-right { position: relative; min-height: 0; display: flex; flex-direction: column; }
+.enh-right > .enh-main { flex: 1; }
+/* the editor covers the job, inside the modal: nothing clips it, nothing beside it moves */
+.enh-edit {
+   position: absolute; inset: 0; z-index: 2; display: flex; flex-direction: column;
+   background: var(--panel); border-left: 3px solid var(--accent);
+}
+.enh-edit-head { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+.enh-edit-head .enh-h { flex: 1; min-width: 0; }
+button.enh-edit-close { background: var(--accent); border-color: var(--accent); color: #0d1117; font-weight: 600; padding: 5px 16px; }
+.enh-edit-body { flex: 1; min-height: 0; overflow-y: auto; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; font-size: 14px; }
+.enh-master { flex: 1; min-height: 240px; resize: none; }
 .enh-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; background: var(--dim); }
 .enh-dot.up { background: var(--green); }
 .enh-dot.down { background: var(--red); }
@@ -627,10 +641,6 @@ div.lora-thumb.none {
 .enh-empty { color: var(--dim); font-size: 13px; padding: 4px; }
 .enh-section { display: flex; flex-direction: column; gap: 10px; }
 .enh-h { display: flex; align-items: center; gap: 10px; margin: 0; font-size: 16px; font-weight: 700; color: var(--text); }
-.enh-num {
-   width: 24px; height: 24px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
-   background: var(--accent); color: #0d1117; font-size: 13px; font-weight: 700; flex-shrink: 0;
-}
 .enh-h-name { color: var(--accent); font-weight: 600; }
 .enh-label { font-size: 13px; color: var(--dim); margin-bottom: 4px; }
 .enh-text { width: 100%; font-size: 14px; line-height: 1.5; }
