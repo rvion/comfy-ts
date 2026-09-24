@@ -274,6 +274,8 @@ button.primary {
 }
 /* running: the fill sweeps across a dim track, the text stays, so nothing beside it moves */
 button.primary.running { color: #fff; border-color: var(--accent); }
+/* the run button: one short word, so a compact button */
+.run-line > button.primary { padding: 4px 11px; font-size: 13px; }
 .kbd-hint {
    font-size: 10px; opacity: 0.65; border: 1px solid currentColor; border-radius: 4px;
    padding: 0 4px; line-height: 1.4;

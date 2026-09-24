@@ -17,7 +17,7 @@ describe('the generate button never changes size during a run', () => {
 
    it('a run with no percent yet fills nothing but still runs', () => {
       expect(generateButtonLook({ isRunning: true, percent: null })).toEqual({
-         label: 'generate',
+         label: 'Run',
          fill: 0,
          running: true,
       })

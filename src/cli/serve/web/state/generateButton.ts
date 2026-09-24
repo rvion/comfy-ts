@@ -9,7 +9,7 @@ export function generateButtonLook(p: { isRunning: boolean; percent: number | nu
    running: boolean
 } {
    return {
-      label: 'generate',
+      label: 'Run',
       fill: p.isRunning ? Math.max(0, Math.min(100, Math.round(p.percent ?? 0))) : null,
       running: p.isRunning,
    }
