@@ -3,7 +3,7 @@
 // editor over the job. Nothing touches the var until APPLY.
 import { Icon } from 'src/cli/serve/web/components/Icon.tsx'
 import { observer } from 'mobx-react-lite'
-import { useEffect, type ReactNode } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
 import { MOD_KEY } from 'src/cli/serve/web/components/modKey.ts'
 import { HistoryButton } from 'src/cli/serve/web/components/HistoryPicker.tsx'
 import type { ProviderId, ReasoningEffort } from 'src/cli/serve/web/llm.ts'
@@ -368,6 +368,15 @@ const MasterPrompt = observer(function MasterPrompt(p: { e: EnhancerSt }) {
 const Job = observer(function Job(p: { e: EnhancerSt; st: WebSt }) {
    const e = p.e
    const running = e.phase === 'running'
+   // opening the enhancer puts you IN the input, the cursor after its last character: the next
+   // thing you do is type or press ⌘E
+   const inputRef = useRef<HTMLTextAreaElement>(null)
+   useEffect(() => {
+      const el = inputRef.current
+      if (el == null) return
+      el.focus()
+      el.setSelectionRange(el.value.length, el.value.length)
+   }, [])
    const act = actions(e)
    const kbd = (s: EnhancerShortcut): ReactNode => (
       <span className="kbd-hint">
@@ -425,7 +434,12 @@ const Job = observer(function Job(p: { e: EnhancerSt; st: WebSt }) {
                <HistoryButton entries={e.inputHistory} what="enhance input" onPick={(h) => e.setOriginal(h.value)} />
             </span>
          </div>
-         <textarea className="enh-text enh-box" value={e.original} onChange={(ev) => e.setOriginal(ev.target.value)} />
+         <textarea
+            ref={inputRef}
+            className="enh-text enh-box"
+            value={e.original}
+            onChange={(ev) => e.setOriginal(ev.target.value)}
+         />
          <div className="enh-label">
             {running ? `rewriting… ${e.result.length} chars` : 'rewrite, editable before you apply'}
             {e.thinking === '' ? null : (
