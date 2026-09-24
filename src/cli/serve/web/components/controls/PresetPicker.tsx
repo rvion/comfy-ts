@@ -22,7 +22,7 @@ export const PresetPicker = observer(function PresetPicker(p: { v: VarSt }) {
       <div className="preset-box" onKeyDown={(e) => (e.key === 'Escape' ? setOpen(false) : undefined)}>
          <button
             type="button"
-            className="preset-btn"
+            className="preset-btn mini"
             aria-expanded={open}
             data-tip="named starting texts — picking one replaces the field"
             onClick={() => setOpen(!open)}

@@ -267,7 +267,7 @@ export const PromptEnhancer = observer(function PromptEnhancer(p: {
       <>
          <button
             type="button"
-            className="link"
+            className={p.compact === true ? 'link' : 'mini'}
             data-tip="rewrite this prompt with an llm"
             onClick={() => e.openFor({ v: p.v, module: p.module, lane: p.lane })}
          >

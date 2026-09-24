@@ -191,7 +191,12 @@ input[type='checkbox'] { accent-color: var(--accent); width: 16px; height: 16px;
 .lane-box:hover .lane-tools, .lora-section:hover .lane-tools, .lane-tools:focus-within { opacity: 1; }
 .lane-box.off textarea, .lane-box.off .prompt-editor, .lora-section.off .lora-lane { opacity: 0.4; }
 /* the prompt editor's own colors live in its CodeMirror theme (web/promptEditor/); here only the footer */
-.pe-foot { display: flex; gap: 10px; justify-content: flex-end; font-size: 11px; color: var(--dim); padding: 2px 2px 0; }
+.prompt-editor { position: relative; }
+.pe-foot {
+   position: absolute; right: 6px; bottom: 3px; display: flex; gap: 10px; font-size: 10px; color: var(--dim);
+   background: var(--panel-2); padding: 0 4px; border-radius: 4px; opacity: 0; pointer-events: none; transition: opacity 0.12s;
+}
+.prompt-editor:focus-within .pe-foot, .pe-foot.has-error { opacity: 1; pointer-events: auto; }
 .pe-keys, .pe-tokens { cursor: help; }
 .pe-error { color: var(--red); margin-right: auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lane-foot { gap: 14px; }
@@ -278,6 +283,10 @@ button.mode.sel { background: var(--accent); border-color: var(--accent); color:
 /* the actions that START something (new draft, add loras): accent outline, so the eye finds
    them before the neutral ones. The lit segment of a group is a solid accent fill */
 button.accent { color: var(--accent); border-color: var(--accent-dim); }
+/* small secondary actions under a field (presets, enhance, lanes): one size, each its own box */
+button.mini { height: 24px; padding: 0 8px; font-size: 12px; display: inline-flex; align-items: center; gap: 4px; color: var(--dim); }
+button.mini:hover { color: var(--text); }
+.prompt-actions { gap: 6px; margin-top: 4px; }
 button.accent:hover { background: var(--accent-dim); color: #fff; }
 
 /* the run line: button, queue count, result count — one row, each part appearing only when
@@ -665,7 +674,7 @@ div.lora-thumb.none {
 /* ONE height for every button a var row shows in a group or an action line: a choice, the
    lora toggles, a lane header, the seed modes. Before, each kind had its own padding and a
    choice sat visibly smaller than the toggles beside it */
-.var-control .btn-group > button, .var-control .row-inline > button:not(.link):not(.lora-add-card),
+.var-control .btn-group > button, .var-control .row-inline > button:not(.link):not(.lora-add-card):not(.mini),
 .var-control .lora-actions > button {
    height: 28px; min-width: 28px; font-size: 13px;
    display: inline-flex; align-items: center; justify-content: center; gap: 4px;

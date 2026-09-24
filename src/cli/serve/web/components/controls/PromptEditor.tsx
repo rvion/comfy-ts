@@ -90,7 +90,9 @@ export const PromptEditor = observer(function PromptEditor(p: {
    return (
       <div className="prompt-editor">
          <div ref={host} />
-         <div className="pe-foot">
+         {/* keys and the token count are reference, not something to watch: they float in the
+             corner and show only while the editor has focus. A tag error always shows */}
+         <div className={tagError == null ? 'pe-foot' : 'pe-foot has-error'}>
             {tagError == null ? null : (
                <span className="pe-error" data-tip={tagError}>
                   tags: {tagError}

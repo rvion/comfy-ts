@@ -236,12 +236,13 @@ export const PromptControl = observer(function PromptControl(p: { v: VarSt; st: 
       <div>
          <KeywordGroups v={p.v} st={p.st} />
          <PromptEditor v={p.v} st={p.st} module={p.module} value={text} onChange={(t) => p.v.set(t)} minLines={4} />
-         <div className="row-inline">
+         {/* three small separate actions under the box, the same size, none dressed as a link */}
+         <div className="row-inline prompt-actions">
             <PresetPicker v={p.v} />
             <PromptEnhancer v={p.v} st={p.st} module={p.module} />
             <button
                type="button"
-               className="link"
+               className="mini"
                data-tip="split this prompt into named lanes, merged in the order they are listed"
                onClick={() => p.v.set(toPromptLanes(text))}
             >
