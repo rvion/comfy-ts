@@ -10,9 +10,7 @@ import { stringMap } from 'src/utils/stringMap.ts'
 import {
    deleteLlmConfig,
    deletePromptEnhancer,
-   fetchEnhancerInput,
    fetchLlmConfigs,
-   saveEnhancerInput,
    fetchPromptEnhancers,
    saveLlmConfig,
    savePromptEnhancer,
@@ -33,7 +31,8 @@ import {
    type ProviderId,
    type ReasoningEffort,
 } from 'src/cli/serve/web/llm.ts'
-import type { VarSt } from 'src/cli/serve/web/state/FormSt.ts'
+import type { FormSt, VarSt } from 'src/cli/serve/web/state/FormSt.ts'
+import { intentKey } from 'src/cli/draftMeta.ts'
 import { finishRewrite, splitKeptLines } from 'src/cli/serve/web/state/keptLines.ts'
 import { pushHistory, type HistoryEntry } from 'src/cli/serve/web/state/history.ts'
 import { isPromptLanes, patchLane } from 'src/vars/lanes.ts'
@@ -178,7 +177,6 @@ export class EnhancerSt {
    /** in lanes mode, the lane being refined; null = the whole prompt */
    targetLane: number | null = null
    targetModule = ''
-   original = ''
    result = ''
    thinking = ''
    phase: 'idle' | 'running' | 'done' | 'error' = 'idle'
@@ -189,26 +187,20 @@ export class EnhancerSt {
     * library (or switching entry) never writes the file back unchanged */
    private lastSaved = ''
    private lastSavedConfig = ''
-   private lastSavedInput = ''
-   /** no save before the saved input was read: a first empty value must not wipe it */
-   private inputLoaded = false
 
-   constructor() {
+   /** the open draft: the input is ITS intent, stored in its file */
+   constructor(private getForm: () => FormSt | null = () => null) {
       const s = readStored()
       this.keyByProvider = s.keyByProvider
       this.configName = s.configName
       this.presetName = s.presetName
       this.presetByModule = s.presetByModule
-      makeAutoObservable<
-         EnhancerSt,
-         'abort' | 'disposers' | 'lastSaved' | 'lastSavedConfig' | 'lastSavedInput' | 'inputLoaded'
-      >(this, {
+      makeAutoObservable<EnhancerSt, 'abort' | 'disposers' | 'lastSaved' | 'lastSavedConfig' | 'getForm'>(this, {
          abort: false,
          disposers: false,
          lastSaved: false,
          lastSavedConfig: false,
-         lastSavedInput: false,
-         inputLoaded: false,
+         getForm: false,
       })
       // both libraries autosave to their file, the live-drafts model (the json is change
       // detector AND payload, the house persistence idiom)
@@ -235,40 +227,7 @@ export class EnhancerSt {
             },
             { delay: 600 },
          ),
-         // the input is saved as you type, so a reload (or the app window) opens on it
-         reaction(
-            () => this.original,
-            (text) => {
-               if (!this.inputLoaded || text === this.lastSavedInput) return
-               this.lastSavedInput = text
-               saveEnhancerInput({ text }).catch((e: unknown) =>
-                  runInAction(() => {
-                     this.error = `the input was not saved: ${e instanceof Error ? e.message : String(e)}`
-                  }),
-               )
-            },
-            { delay: 500 },
-         ),
       ]
-      void this.loadInput()
-   }
-
-   /** the saved input arrives once per page; an input typed before it did wins over it */
-   private async loadInput(): Promise<void> {
-      try {
-         const reply = await fetchEnhancerInput()
-         runInAction(() => {
-            if (this.original === '') this.original = reply.text
-            this.lastSavedInput = reply.text
-            this.inputLoaded = true
-         })
-      } catch (e) {
-         // no server (tests) or an unreadable file: the modal still works, it starts empty
-         runInAction(() => {
-            this.inputLoaded = true
-         })
-         console.error('[enhancer] the saved input could not be read:', e)
-      }
    }
 
    dispose(): void {
@@ -659,9 +618,7 @@ export class EnhancerSt {
       this.target = p.v
       this.targetLane = p.lane ?? null
       this.targetModule = p.module
-      // the input and the last rewrite stay across opens: iterating on one sketch must not mean
-      // retyping it. `use the prompt` copies the prompt in on demand
-      this.original = openingInput({ previous: this.original, prompt: promptTextOf(p.v.value, p.lane ?? null) })
+      // the input is the draft's own intent for this prompt (`original`), the last rewrite stays
       this.error = ''
       const remembered = this.presetByModule[p.module]
       if (remembered != null) this.presetName = remembered
@@ -692,10 +649,26 @@ export class EnhancerSt {
       return generateOverride({ open: this.isOpen, target: this.target, lane: this.targetLane, result: this.result })
    }
 
-   /** the input becomes the prompt being refined (its lane in lanes mode) */
+   /** where this prompt's intent lives in the draft's `$enhance`, null while closed */
+   get intentKey(): string | null {
+      return this.target == null ? null : intentKey(this.target.name, this.targetLane)
+   }
+
+   /** the input: the intent the DRAFT keeps for this prompt (or lane), saved with it, so each
+    * draft has its own and a reload opens on it. None yet = the prompt itself */
+   get original(): string {
+      const key = this.intentKey
+      if (key == null || this.target == null) return ''
+      return openingInput({
+         previous: this.getForm()?.intentFor(key) ?? '',
+         prompt: promptTextOf(this.target.value, this.targetLane),
+      })
+   }
+
+   /** back to the prompt: the intent is cleared, so the input follows the prompt again */
    usePrompt(): void {
-      if (this.target == null) return
-      this.original = promptTextOf(this.target.value, this.targetLane)
+      const key = this.intentKey
+      if (key != null) this.getForm()?.setIntent(key, '')
    }
 
    close(): void {
@@ -713,7 +686,8 @@ export class EnhancerSt {
    /** what gets SENT is editable too: sharpen the sketch, then refine, without closing the
     * modal. It stays a copy, only apply() writes the var */
    setOriginal(v: string): void {
-      this.original = v
+      const key = this.intentKey
+      if (key != null) this.getForm()?.setIntent(key, v)
    }
 
    async loadModels(): Promise<void> {

@@ -173,23 +173,24 @@ describe('llm configs as files (.comfy-ts/llm-configs/*.json)', () => {
    })
 })
 
-describe('the enhancer input survives a reload (.comfy-ts/enhancer-input.md)', () => {
-   it('GET is empty before anything was saved, PUT writes the file, GET reads it back', async () => {
+describe('the enhancer intent lives in the draft ($enhance)', () => {
+   it('a draft saves its intents beside the values, and reads them back', async () => {
       const app = makeApp()
-      expect(body(await app.handle({ method: 'GET', url: '/enhancer-input' })).text).toBe('')
       const put = await app.handle({
          method: 'PUT',
-         url: '/enhancer-input',
-         body: JSON.stringify({ text: 'my sketch\n- blurry' }),
+         url: '/drafts/wf/sketchy',
+         body: JSON.stringify({ prompt: 'a cat', $enhance: { prompt: 'my sketch' } }),
       })
       expect(put.status).toBe(200)
-      expect(readFileSync(join(comfy.baseFolder, 'enhancer-input.md'), 'utf8')).toBe('my sketch\n- blurry')
-      expect(body(await app.handle({ method: 'GET', url: '/enhancer-input' })).text).toBe('my sketch\n- blurry')
+      const got = body(await app.handle({ method: 'GET', url: '/drafts/wf/sketchy' }))
+      expect((got.values as Record<string, unknown>).$enhance).toEqual({ prompt: 'my sketch' })
    })
 
-   it('a body without a text string is refused', async () => {
+   it('a malformed $enhance is refused, and another $ key is still an unknown var', async () => {
       const app = makeApp()
-      expect((await app.handle({ method: 'PUT', url: '/enhancer-input', body: '{"text":3}' })).status).toBe(400)
-      expect((await app.handle({ method: 'PUT', url: '/enhancer-input', body: 'nope' })).status).toBe(400)
+      const bad = await app.handle({ method: 'PUT', url: '/drafts/wf/x', body: JSON.stringify({ $enhance: ['no'] }) })
+      expect(bad.status).toBe(400)
+      const other = await app.handle({ method: 'PUT', url: '/drafts/wf/x', body: JSON.stringify({ $other: 1 }) })
+      expect(other.status).toBe(400)
    })
 })

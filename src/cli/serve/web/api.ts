@@ -241,19 +241,6 @@ export function deletePromptEnhancer(p: { name: string }): Promise<{ ok: true; e
    return jsonFetch(`/prompt-enhancers/${encodeURIComponent(p.name)}`, { method: 'DELETE' })
 }
 
-/** the enhancer's input as you left it, `.comfy-ts/enhancer-input.md` */
-export function fetchEnhancerInput(): Promise<{ text: string }> {
-   return jsonFetch('/enhancer-input')
-}
-
-export function saveEnhancerInput(p: { text: string }): Promise<{ ok: true }> {
-   return jsonFetch('/enhancer-input', {
-      method: 'PUT',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ text: p.text }),
-   })
-}
-
 /** the enhancer's LLM configs, files under `.comfy-ts/llm-configs/` (server-owned) */
 export function fetchLlmConfigs(): Promise<{ configs: LlmConfigEntry[] }> {
    return jsonFetch('/llm-configs')

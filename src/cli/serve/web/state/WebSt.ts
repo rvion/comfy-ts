@@ -251,7 +251,7 @@ export class WebSt {
       // a finished run reports the seed it used; the form shows it, and the autosave carries it
       // into the draft, which is also what the server continues from, so `+` keeps stepping
       this.run.onSeeds = (p): void => this.applyRunSeeds(p)
-      this.enhancer = new EnhancerSt()
+      this.enhancer = new EnhancerSt(() => this.form)
       this.omnibox = new OmniboxSt(this)
       const stored = readStoredSelection()
       // a stored 'auto' from before the mode was removed resolves to what it MEANT on a
@@ -613,7 +613,7 @@ export class WebSt {
    }
 
    private stateOf(form: FormSt): { key: string; values: Record<string, unknown> } {
-      const values = form.valuesJSON()
+      const values = form.varValues()
       return { key: safeStringify([form.moduleKey, form.draft, values]), values }
    }
 

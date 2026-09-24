@@ -6,11 +6,11 @@ describe('the enhancer input across opens', () => {
    // why we think it is actually a bug, and not just meaning spec should change: an input you
    // edited and enhanced was wiped by the prompt's text on every open, so iterating on one
    // sketch meant retyping it
-   it('a reopen keeps the previous input', () => {
+   it('a saved intent is the input', () => {
       expect(openingInput({ previous: 'my sketch', prompt: 'the prompt' })).toBe('my sketch')
    })
 
-   it('control: the first open starts from the prompt', () => {
+   it('control: with no intent saved, the input is the prompt', () => {
       expect(openingInput({ previous: '', prompt: 'the prompt' })).toBe('the prompt')
    })
 

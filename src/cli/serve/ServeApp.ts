@@ -18,14 +18,9 @@ import { basename, dirname, extname, join, resolve } from 'pathe'
 import { applyVarPayload } from 'src/cli/serve/applyVarPayload.ts'
 import { describeVar, type VarDescriptor } from 'src/cli/serve/describeVar.ts'
 import { deletePromptEnhancer, listPromptEnhancers, writePromptEnhancer } from 'src/promptEnhancers.ts'
-import {
-   deleteLlmConfig,
-   listLlmConfigs,
-   readEnhancerInput,
-   writeEnhancerInput,
-   writeLlmConfig,
-} from 'src/cli/serve/llmConfigs.ts'
+import { deleteLlmConfig, listLlmConfigs, writeLlmConfig } from 'src/cli/serve/llmConfigs.ts'
 import { normalizeLlmConfig } from 'src/cli/serve/llmConfigShape.ts'
+import { ENHANCE_KEY, isDraftMetaKey } from 'src/cli/draftMeta.ts'
 import { managerOnlyLoraOptions } from 'src/cli/serve/managerOnlyLoras.ts'
 import { resolveTagSource, TagSources } from 'src/cli/serve/tagSource.ts'
 import { FAVICON_DATA_URI } from 'src/cli/serve/favicon.ts'
@@ -284,7 +279,6 @@ const USAGE = [
    'GET  /prompt-enhancers — the web ui master prompts (.comfy-ts/prompt-enhancers/*.md)',
    'PUT  /prompt-enhancers/<name> with {"text"} — write one · DELETE /prompt-enhancers/<name> — remove it',
    'GET  /llm-configs — the enhancer LLM configs (.comfy-ts/llm-configs/*.json)',
-   'GET  /enhancer-input · PUT /enhancer-input with {"text"} — the enhancer input, kept across reloads',
    'PUT  /llm-configs/<name> with {provider, baseUrl, model, effort, thinkingOnly} · DELETE /llm-configs/<name>',
    'GET  /settings — { saveToDisk } · PUT /settings with {"saveToDisk"} — write outputs to disk, or keep them in memory',
    'GET  /hosts — every host this process knows · PUT /hosts/<module> with {"host"} — run that workflow elsewhere',
@@ -405,7 +399,6 @@ export class ServeApp {
                return await this.replyLoraAbout(segs[1], segs[2])
             if (segs[0] === 'prompt-enhancers' && segs.length === 1) return this.replyPromptEnhancers()
             if (segs[0] === 'llm-configs' && segs.length === 1) return this.replyLlmConfigs()
-            if (segs[0] === 'enhancer-input' && segs.length === 1) return this.replyEnhancerInput()
             if (segs[0] === 'tags' && segs.length === 3 && segs[1] != null && segs[2] != null)
                return await this.replyTags(segs[1], segs[2], req.url)
             if (segs[0] === 'settings' && segs.length === 1) return this.replySettings()
@@ -451,8 +444,6 @@ export class ServeApp {
             return this.replySavePromptEnhancer(segs[1], req)
          if (req.method === 'DELETE' && segs[0] === 'prompt-enhancers' && segs.length === 2 && segs[1] != null)
             return this.replyDeletePromptEnhancer(segs[1])
-         if (req.method === 'PUT' && segs[0] === 'enhancer-input' && segs.length === 1)
-            return this.replySaveEnhancerInput(req)
          if (req.method === 'PUT' && segs[0] === 'llm-configs' && segs.length === 2 && segs[1] != null)
             return this.replySaveLlmConfig(segs[1], req)
          if (req.method === 'DELETE' && segs[0] === 'llm-configs' && segs.length === 2 && segs[1] != null)
@@ -727,7 +718,17 @@ export class ServeApp {
          return json(400, { error: 'body must be a json object: { "<var>": value, … }' })
       const values = parsed as Record<string, unknown>
       const known = new Set(mod.dw.entries().map(([k]) => k))
-      const unknown = Object.keys(values).filter((k) => !known.has(k))
+      // `$enhance` rides beside the values (src/cli/draftMeta.ts): a string map, checked whole
+      if (ENHANCE_KEY in values) {
+         const raw = values[ENHANCE_KEY]
+         const ok =
+            raw != null &&
+            typeof raw === 'object' &&
+            !Array.isArray(raw) &&
+            Object.values(raw).every((v) => typeof v === 'string')
+         if (!ok) return json(400, { error: `${ENHANCE_KEY} must be { "<prompt var>": "<intent>" }` })
+      }
+      const unknown = Object.keys(values).filter((k) => !known.has(k) && !isDraftMetaKey(k))
       if (unknown.length > 0)
          return json(400, { error: `unknown var(s) ${unknown.join(', ')} — vars: ${[...known].join(', ')}` })
       // values are written VERBATIM (toJSON shapes, loadJSON re-validates on read) —
@@ -1208,31 +1209,6 @@ export class ServeApp {
       }
       console.log(`[serve] prompt enhancer deleted: ${name}`)
       return json(200, { ok: true, name, enhancers: listPromptEnhancers() })
-   }
-
-   private replyEnhancerInput(): ServeReply {
-      try {
-         return json(200, { text: readEnhancerInput() })
-      } catch (e) {
-         return json(500, { error: `enhancer input unreadable: ${extractErrorMessage(e)}` })
-      }
-   }
-
-   private replySaveEnhancerInput(req: ServeRequest): ServeReply {
-      let parsed: unknown
-      try {
-         parsed = JSON.parse(req.body ?? '')
-      } catch (e) {
-         return json(400, { error: `body is not valid json: ${extractErrorMessage(e)}` })
-      }
-      const text = parsed != null && typeof parsed === 'object' ? (parsed as Record<string, unknown>).text : null
-      if (typeof text !== 'string') return json(400, { error: 'body must be { "text": "<input>" }' })
-      try {
-         writeEnhancerInput(text)
-      } catch (e) {
-         return json(500, { error: `could not write the enhancer input: ${extractErrorMessage(e)}` })
-      }
-      return json(200, { ok: true })
    }
 
    private replyLlmConfigs(): ServeReply {

@@ -13,6 +13,7 @@ import { dirname, join } from 'pathe'
 import { moduleName } from 'src/cli/tui/treeRows.ts'
 import { extractErrorMessage } from 'src/utils/extractErrorMessage.ts'
 import type { TuiMode, TuiSt } from 'src/cli/tui/state/TuiSt.ts'
+import { isDraftRecord, preserveDraftMeta } from 'src/cli/draftMeta.ts'
 
 /** module basename (`01-txt2img`) keys the draft folder — knowable for EVERY tree file without importing it */
 export function draftKeyForFile(file: string): string {
@@ -73,10 +74,11 @@ export class DraftsSt {
       return Object.fromEntries(this.st.entries.map(([k, varDef]) => [k, varDef.toJSON()]))
    }
 
+   // the TUI knows only the var values: what the panel stored beside them ($enhance) stays
    private write(name: string, json: string): void {
       const path = join(this.dir, `${name}.json`)
       mkdirSync(dirname(path), { recursive: true })
-      writeFileSync(path, json)
+      writeFileSync(path, keepDraftMeta(path, json))
       this.version++
    }
 
@@ -270,4 +272,18 @@ export class DraftsSt {
       this.st.exec.notice = `draft: ${name} (autosaves)`
       this.st.mode = 'nav'
    }
+}
+
+/** the new json, plus the `$` keys the file on disk already carried (src/cli/draftMeta.ts) */
+function keepDraftMeta(path: string, json: string): string {
+   if (!existsSync(path)) return json
+   let previous: unknown
+   try {
+      previous = JSON.parse(readFileSync(path, 'utf8'))
+   } catch {
+      return json
+   }
+   const next: unknown = JSON.parse(json)
+   if (!isDraftRecord(previous) || !isDraftRecord(next)) return json
+   return JSON.stringify(preserveDraftMeta(previous, next), null, 2)
 }

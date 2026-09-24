@@ -16,6 +16,7 @@ import {
    type LorasInput,
 } from 'src/vars/lanes.ts'
 import { keywordParts, loraMuted, withLora } from 'src/vars/loraEntry.ts'
+import { ENHANCE_KEY, readIntents } from 'src/cli/draftMeta.ts'
 
 /** one var row: value in toJSON shape, replaced whole on every edit */
 export class VarSt {
@@ -102,10 +103,13 @@ export class FormSt {
       this.vars = Object.entries(mod.vars).map(
          ([name, desc]) => new VarSt(name, desc, normalizeInitial(desc, values[name])),
       )
+      this.intents = readIntents(values[ENHANCE_KEY])
       // seeded from the RAW reply, not the normalized values: when normalizeInitial heals
       // something (a stale lora key), the form is already out of sync with the file and the
       // next save() must actually send, otherwise the server keeps building the stale record
-      this.lastSaved = JSON.stringify(Object.fromEntries(this.vars.map((v) => [v.name, values[v.name]])))
+      this.lastSaved = JSON.stringify(
+         withIntents(Object.fromEntries(this.vars.map((v) => [v.name, values[v.name]])), this.intents),
+      )
       this.lastQueued = this.lastSaved
       makeAutoObservable<FormSt, 'disposers' | 'saveChain' | 'lastSaved' | 'lastQueued' | 'queueSeq' | 'previewAbort'>(
          this,
@@ -140,7 +144,7 @@ export class FormSt {
       if (previewNames.length > 0)
          this.disposers.push(
             reaction(
-               () => JSON.stringify(this.valuesJSON()),
+               () => JSON.stringify(this.varValues()),
                () => void this.refreshPreviews(),
                { delay: timing.previewMs, fireImmediately: true },
             ),
@@ -152,7 +156,7 @@ export class FormSt {
       const abort = new AbortController()
       this.previewAbort = abort
       try {
-         const reply = await fetchPreviews({ module: this.moduleKey, values: this.valuesJSON(), signal: abort.signal })
+         const reply = await fetchPreviews({ module: this.moduleKey, values: this.varValues(), signal: abort.signal })
          runInAction(() => {
             this.previews = reply.previews
             this.previewError = null
@@ -206,7 +210,30 @@ export class FormSt {
       )
    }
 
+   /** the draft file's `$enhance`: the enhancer's input per prompt (src/cli/draftMeta.ts) */
+   intents: Record<string, string> = {}
+
+   intentFor(key: string): string | undefined {
+      return this.intents[key]
+   }
+
+   /** '' clears it: the input then follows the prompt again */
+   setIntent(key: string, text: string): void {
+      const next = { ...this.intents }
+      if (text === '') delete next[key]
+      else next[key] = text
+      this.intents = next
+   }
+
+   /** what the draft FILE holds: the values, and the intents beside them. Saved together, so an
+    * intent is autosaved like any edit */
    valuesJSON(): Record<string, unknown> {
+      return withIntents(this.varValues(), this.intents)
+   }
+
+   /** the var values alone: what previews compute from and what an embedding page is told.
+    * An intent typed in the enhancer changes neither */
+   varValues(): Record<string, unknown> {
       return Object.fromEntries(this.vars.map((v) => [v.name, v.value]))
    }
 
@@ -366,4 +393,8 @@ export class FormSt {
    revertAll(): void {
       for (const v of this.vars) v.revert()
    }
+}
+
+function withIntents(values: Record<string, unknown>, intents: Record<string, string>): Record<string, unknown> {
+   return Object.keys(intents).length === 0 ? values : { ...values, [ENHANCE_KEY]: intents }
 }
