@@ -45,7 +45,7 @@ const MODULES: ModuleDescription[] = [
 
 const HOST_ORIGIN = 'http://host.test'
 // the real debounces, shrunk: the order of events is what is under test, never the 500ms
-const TIMING = { autosaveMs: 20, previewMs: 10 }
+const TIMING = { autosaveMs: 5, previewMs: 2 }
 const GLOBALS = ['window', 'document', 'localStorage', 'fetch'] as const
 const saved = new Map<string, unknown>(GLOBALS.map((k) => [k, Reflect.get(globalThis, k)]))
 const live: WebSt[] = []
@@ -173,11 +173,11 @@ async function until(what: string, pred: () => boolean): Promise<void> {
    const deadline = Date.now() + 2000
    while (!pred()) {
       if (Date.now() > deadline) throw new Error(`timed out waiting for: ${what}`)
-      await new Promise((r) => setTimeout(r, 5))
+      await new Promise((r) => setTimeout(r, 0))
    }
 }
 
-const tick = (): Promise<void> => new Promise((r) => setTimeout(r, 20))
+const tick = (): Promise<void> => new Promise((r) => setTimeout(r, 5))
 const valueOf = (st: WebSt, name: string): unknown => st.form?.vars.find((v) => v.name === name)?.value
 const last = (posted: Posted[], kind: string): Posted | undefined => posted.filter((m) => m.comfyTs === kind).at(-1)
 
