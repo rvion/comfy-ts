@@ -9,10 +9,11 @@ const src = readFileSync('src/cli/serve/web/state/WebSt.ts', 'utf8')
 const PERSISTED = [
    { key: 'logs', toggle: 'toggleLogs' },
    { key: 'latent', toggle: 'toggleLatent' },
+   { key: 'blur', toggle: 'toggleBlur' },
    { key: 'loraImages', toggle: 'toggleLoraImages' },
    { key: 'loraTitles', toggle: 'toggleLoraTitles' },
    { key: 'loraFill', toggle: 'toggleLoraFill' },
-   { key: 'sidebar', toggle: 'toggleSidebar' },
+   { key: 'loraTriggers', toggle: 'toggleLoraTriggers' },
 ]
 
 describe('ui preferences survive a reload', () => {

@@ -4,6 +4,7 @@ import {
    asSeedForm,
    loraStrengthPair,
    normalizeInitial,
+   normalizeLorasInput,
    payloadSnapshot,
    loraIsOn,
    paletteOrder,
@@ -48,22 +49,33 @@ describe('web form value normalization', () => {
 })
 
 describe('loras record transitions (LorasVar semantics, web side)', () => {
-   it('pausing marks the lora false and KEEPS its slot — deleting it moved the card in the row', () => {
-      const off = setLoraEnabled({ 'a.safetensors': [0.8, 0.6], 'b.safetensors': 1 }, 'a.safetensors', false)
-      expect(off).toEqual({ 'a.safetensors': false, 'b.safetensors': 1 })
-      // `false` is LorasVar's own "selected but off": every reader skips it, and
-      // normalizeInitial prunes it on load, so a draft still never accumulates dead keys
-      expect(Object.keys(off)).toEqual(['a.safetensors', 'b.safetensors'])
-      expect(loraIsOn(off['a.safetensors'])).toBe(false)
+   it('a paused lora survives a reload: still in the palette, still off, strengths kept', () => {
+      // why we think it is actually a bug, and not just meaning spec should change: pausing is
+      // "a few images without it, then back", and a reload in between silently dropped the lora
+      const options = ['a.safetensors', 'b.safetensors']
+      const paused = setLoraEnabled({ 'a.safetensors': [0.8, 0.6], 'b.safetensors': 1 }, 'a.safetensors', false)
+      const reloaded = normalizeInitial(desc('loras', { options }), JSON.parse(JSON.stringify(paused)))
+      expect(paletteOrder({ record: reloaded as Record<string, unknown>, options })).toEqual([
+         'a.safetensors',
+         'b.safetensors',
+      ])
+      const entry = (reloaded as Record<string, unknown>)['a.safetensors']
+      expect(loraIsOn(entry)).toBe(false)
+      expect(loraStrengthPair(entry)).toEqual({ model: 0.8, clip: 0.6 })
    })
 
-   it('resuming restores the remembered strength, not a bare 1', () => {
-      const on = setLoraEnabled({}, 'a.safetensors', true, { model: 0.8, clip: 0.6 })
-      expect(on).toEqual({ 'a.safetensors': [0.8, 0.6] })
+   it('resuming brings back the strengths it had, not a bare 1', () => {
+      const paused = setLoraEnabled({ a: [0.8, 0.6] }, 'a', false)
+      expect(setLoraEnabled(paused, 'a', true)).toEqual({ a: [0.8, 0.6] })
+   })
+
+   it('a plain on lora keeps the short spelling, so an ordinary draft reads as before', () => {
+      expect(setLoraEnabled({}, 'a', true)).toEqual({ a: [1, 1] })
+      expect(setLoraStrength({ a: true }, 'a', { model: 1.2, clip: 0.4 })).toEqual({ a: [1.2, 0.4] })
    })
 
    it('a draft full of `false` leftovers must not fill the palette', () => {
-      // a real draft after ticking/unticking in the TUI: 4 keys, 1 on
+      // a real draft after ticking/unticking in the TUI: 4 keys, 1 on. `false` is not a pause
       const draft = {
          'a.safetensors': false,
          'b.safetensors': [0.7, 0.7],
@@ -78,11 +90,46 @@ describe('loras record transitions (LorasVar semantics, web side)', () => {
       expect(loraStrengthPair([0.5, 0.25])).toEqual({ model: 0.5, clip: 0.25 })
       expect(loraStrengthPair(0.7)).toEqual({ model: 0.7, clip: 0.7 })
       expect(loraStrengthPair(true)).toEqual({ model: 1, clip: 1 })
-      expect(loraStrengthPair(false)).toEqual({ model: 1, clip: 1 })
+      expect(loraStrengthPair({ strength: [0.3, 0.2], off: true })).toEqual({ model: 0.3, clip: 0.2 })
    })
 
-   it('setLoraStrength writes both strengths as a pair', () => {
-      expect(setLoraStrength({ a: true }, 'a', { model: 1.2, clip: 0.4 })).toEqual({ a: [1.2, 0.4] })
+   it('editing the strength of a paused lora keeps it paused', () => {
+      const paused = setLoraEnabled({ a: 1 }, 'a', false)
+      const edited = setLoraStrength(paused, 'a', { model: 0.5, clip: 0.5 })
+      expect(loraIsOn(edited.a)).toBe(false)
+      expect(loraStrengthPair(edited.a)).toEqual({ model: 0.5, clip: 0.5 })
+   })
+})
+
+describe('lora palette order', () => {
+   const options = ['a', 'b', 'c', 'd']
+
+   it('a lora you add lands at the END of the row, so nothing already there moves', () => {
+      // why we think it is actually a bug, and not just meaning spec should change: adding put
+      // the new card first and shifted every card you were looking at
+      expect(paletteOrder({ record: { a: 1, b: 1, c: 1 }, options })).toEqual(['a', 'b', 'c'])
+      expect(paletteOrder({ record: { a: 1, b: 1, c: 1, d: 1 }, options }).slice(0, 3)).toEqual(['a', 'b', 'c'])
+   })
+
+   it('pausing and resuming keep the position', () => {
+      const record = { a: 1, b: 1, c: 1 }
+      const paused = setLoraEnabled(record, 'b', false)
+      expect(paletteOrder({ record: paused, options })).toEqual(['a', 'b', 'c'])
+      expect(paletteOrder({ record: setLoraEnabled(paused, 'b', true), options })).toEqual(['a', 'b', 'c'])
+   })
+
+   it('reordering rewrites the record key order, which IS the stored order', () => {
+      const record = { a: 1, b: 1, c: 1 }
+      const displayed = paletteOrder({ record, options })
+      const moved = reorderLoras({ record, displayed, from: 0, to: 2 }) // a goes last
+      expect(paletteOrder({ record: moved, options })).toEqual(['b', 'c', 'a'])
+      expect(moved).toEqual({ b: 1, c: 1, a: 1 })
+   })
+
+   it('an out of range move changes nothing', () => {
+      const record = { a: 1, b: 1 }
+      const displayed = paletteOrder({ record, options })
+      expect(reorderLoras({ record, displayed, from: 5, to: 0 })).toEqual(record)
    })
 })
 
@@ -98,42 +145,27 @@ describe('queued run payload', () => {
    })
 })
 
-describe('lora palette order', () => {
-   const options = ['a', 'b', 'c', 'd']
-
-   it('shows the record newest first', () => {
-      expect(paletteOrder({ record: { a: 1, b: 1, c: 1 }, options, paused: new Set() })).toEqual(['c', 'b', 'a'])
+describe('loras lanes on load', () => {
+   it('every lane is pruned like a plain record, the lanes and their order stay', () => {
+      const options = ['a', 'b']
+      const loaded = normalizeLorasInput(
+         {
+            lanes: [
+               { name: 'style', active: true, loras: { a: 1, gone: 1, b: false } },
+               { name: 'detail', active: false, loras: { b: { strength: [0.5, 0.5], off: true } } },
+            ],
+         },
+         options,
+      )
+      expect(loaded).toEqual({
+         lanes: [
+            { name: 'style', active: true, loras: { a: 1 } },
+            { name: 'detail', active: false, loras: { b: { strength: [0.5, 0.5], off: true } } },
+         ],
+      })
    })
 
-   it('PAUSING KEEPS THE POSITION: the whole point of writing false instead of deleting', () => {
-      const record = { a: 1, b: 1, c: 1 }
-      const before = paletteOrder({ record, options, paused: new Set() })
-      const paused = setLoraEnabled(record, 'b', false)
-      const after = paletteOrder({ record: paused, options, paused: new Set(['b']) })
-      expect(before).toEqual(['c', 'b', 'a'])
-      expect(after).toEqual(['c', 'b', 'a'])
-      expect(paused.b).toBe(false)
-      // resuming keeps it there too
-      const resumed = setLoraEnabled(paused, 'b', true)
-      expect(paletteOrder({ record: resumed, options, paused: new Set() })).toEqual(['c', 'b', 'a'])
-   })
-
-   it('a lora paused in a previous life (no longer in the record) still shows, at the end', () => {
-      expect(paletteOrder({ record: { a: 1 }, options, paused: new Set(['d']) })).toEqual(['d', 'a'])
-   })
-
-   it('reordering rewrites the record key order, which IS the stored order', () => {
-      const record = { a: 1, b: 1, c: 1 }
-      const displayed = paletteOrder({ record, options, paused: new Set() }) // c, b, a
-      const moved = reorderLoras({ record, displayed, from: 0, to: 2 }) // c goes last
-      expect(paletteOrder({ record: moved, options, paused: new Set() })).toEqual(['b', 'a', 'c'])
-      // the values ride along untouched
-      expect(moved).toEqual({ c: 1, a: 1, b: 1 })
-   })
-
-   it('an out of range move changes nothing', () => {
-      const record = { a: 1, b: 1 }
-      const displayed = paletteOrder({ record, options, paused: new Set() })
-      expect(reorderLoras({ record, displayed, from: 5, to: 0 })).toEqual(record)
+   it('control: a plain record still loads as a plain record', () => {
+      expect(normalizeLorasInput({ a: [1, 1], b: false }, ['a', 'b'])).toEqual({ a: [1, 1] })
    })
 })

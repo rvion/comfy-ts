@@ -21,6 +21,7 @@ import {
    type ServeSettings,
 } from 'src/cli/serve/web/api.ts'
 import { EnhancerSt } from 'src/cli/serve/web/state/EnhancerSt.ts'
+import { OmniboxSt } from 'src/cli/serve/web/state/OmniboxSt.ts'
 import { FormSt, type VarSt } from 'src/cli/serve/web/state/FormSt.ts'
 import { logWebError } from 'src/cli/serve/web/logWeb.ts'
 import { asSeedForm } from 'src/cli/serve/web/state/payload.ts'
@@ -71,11 +72,14 @@ function isLayout(raw: unknown): raw is ResultsLayout {
 type StoredSelection = {
    module?: string
    draft?: string
-   sidebar?: boolean
    loraImages?: boolean
    loraTitles?: boolean
    /** lora previews fill their card (cover) instead of fitting inside it (contain) */
    loraFill?: boolean
+   /** trigger words under the lora cards */
+   loraTriggers?: boolean
+   /** the label column width, px */
+   labelWidth?: number
    loraSort?: string
    /** how many lora cards the popup draws before it stops */
    loraCap?: number
@@ -83,9 +87,13 @@ type StoredSelection = {
    loraCapMigrated?: boolean
    layout?: string
    latent?: boolean
+   /** results blurred until hovered */
+   blur?: boolean
    logs?: boolean
    /** module key → the var names in the order you dragged them into */
    varOrder?: Record<string, string[]>
+   /** starred size presets per `module/var`, once you star or unstar one yourself */
+   sizeStars?: Record<string, string[]>
 }
 
 /** varOrder is the one stored field a reader INDEXES rather than merely reads, so a blob of
@@ -97,6 +105,13 @@ export const DEFAULT_LORA_CAP = 200
 const LEGACY_LORA_CAP = 60
 /** an upper bound, not a policy: 2000 cards is 2000 image requests, and a number typed by
  * hand (or restored from an older blob) must not be able to hang the page */
+export const DEFAULT_LABEL_WIDTH = 120
+
+export function clampLabelWidth(raw: unknown): number {
+   const n = typeof raw === 'number' && Number.isFinite(raw) ? Math.round(raw) : DEFAULT_LABEL_WIDTH
+   return Math.min(360, Math.max(60, n))
+}
+
 export function clampLoraCap(raw: unknown): number {
    const n = typeof raw === 'number' && Number.isFinite(raw) ? Math.floor(raw) : DEFAULT_LORA_CAP
    return Math.min(2000, Math.max(1, n))
@@ -113,14 +128,10 @@ function readVarOrder(raw: unknown): Record<string, string[]> {
 function readStoredSelection(): StoredSelection {
    try {
       const raw = (JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}') ?? {}) as StoredSelection
-      return { ...raw, varOrder: readVarOrder(raw.varOrder) }
+      return { ...raw, varOrder: readVarOrder(raw.varOrder), sizeStars: readVarOrder(raw.sizeStars) }
    } catch {
       return {}
    }
-}
-
-function isNarrowScreen(): boolean {
-   return window.matchMedia('(max-width: 800px)').matches
 }
 
 export class WebSt {
@@ -131,13 +142,13 @@ export class WebSt {
    form: FormSt | null = null
    formLoading = false
    formError: string | null = null
-   /** drawer on narrow screens, collapsible column on wide ones — stored toggle wins over the width default */
-   sidebarOpen: boolean
    /** lora image/title visibility, EVERY lora surface (row cards + popup) — the hide toggles are NSFW screens */
    showLoraImages: boolean
    showLoraTitles: boolean
    /** cover vs contain for every lora preview: art crops well, a character sheet does not */
    loraFill: boolean
+   /** trigger words under each lora card: off by default, the words are reference, not a control */
+   showLoraTriggers: boolean
    loraSort: LoraSort
    /** how many lora cards the popup draws. A cap exists because each card is an image
     * request; how many is a MACHINE question (your box, your collection), so it is yours */
@@ -145,6 +156,8 @@ export class WebSt {
    run: RunSt
    /** prompt refiner: own store, own localStorage blob (the openrouter key never leaves the browser) */
    enhancer: EnhancerSt
+   /** ⌘K / ⌘J: every workflow and draft, fuzzy matched */
+   omnibox: OmniboxSt
    /** SERVER settings, not browser ones: they decide whether a generation writes files at all
     * and where, so they are shared by every client and read back from GET /settings */
    settings: ServeSettings = { saveToDisk: true, hostOverride: {}, savePrefix: {}, effectivePrefix: {} }
@@ -158,10 +171,16 @@ export class WebSt {
    }
    /** where the results go — hand-tuned, so it persists and restores */
    layout: ResultsLayout
+   /** where `show preview` brings the panel back to, after `off` hid it with its own buttons */
+   lastShownLayout: ResultsLayout = DEFAULT_LAYOUT
    /** var row order per module. A UI preference, so it lives in the browser blob: the draft
     * file is the var VALUES contract shared with the TUI, and a layout key there would have to
     * be filtered out by every reader of it */
    varOrder: Record<string, string[]> = {}
+   /** your own starred size presets per `module/var`; absent = the var's defaults */
+   sizeStars: Record<string, string[]> = {}
+   /** the label column width, dragged by its edge */
+   labelWidth = DEFAULT_LABEL_WIDTH
 
    /** the form's vars in YOUR order, with anything unknown (a new var) kept at the end */
    orderedVars(moduleKey: string, names: readonly string[]): string[] {
@@ -205,27 +224,30 @@ export class WebSt {
       // into the draft, which is also what the server continues from, so `+` keeps stepping
       this.run.onSeeds = (p): void => this.applyRunSeeds(p)
       this.enhancer = new EnhancerSt()
+      this.omnibox = new OmniboxSt(this)
       const stored = readStoredSelection()
       // a stored 'auto' from before the mode was removed resolves to what it MEANT on a
       // wide screen, which is where it spent most of its life
       this.layout = isLayout(stored.layout) ? stored.layout : DEFAULT_LAYOUT
-      // CLOSED by default, on every width: the panel is a form, and a workflow tree taking a
-      // column of it before you have asked for one is chrome. It reopens from the workflow box
-      this.sidebarOpen = stored.sidebar ?? false
       this.showLoraImages = stored.loraImages ?? true
       this.showLoraTitles = stored.loraTitles ?? true
       this.loraFill = stored.loraFill ?? true
+      this.showLoraTriggers = stored.loraTriggers ?? false
       this.loraSort = asLoraSort(stored.loraSort)
       // marked in the blob, so the bump happens once and a deliberate 60 sticks after it
       this.loraCap = clampLoraCap(
          stored.loraCapMigrated !== true && stored.loraCap === LEGACY_LORA_CAP ? DEFAULT_LORA_CAP : stored.loraCap,
       )
       this.showLatent = stored.latent ?? true
+      this.blurResults = stored.blur ?? false
       this.varOrder = stored.varOrder ?? {}
+      this.sizeStars = stored.sizeStars ?? {}
+      this.labelWidth = clampLabelWidth(stored.labelWidth)
       this.showLogs = stored.logs ?? false
       makeAutoObservable<WebSt, 'hostOrigin' | 'hostChain' | 'lastPostedState' | 'switches'>(this, {
          run: false,
          enhancer: false,
+         omnibox: false,
          form: observableRef,
          modules: observableShallow,
          hostOrigin: false,
@@ -246,8 +268,19 @@ export class WebSt {
       this.hostChain = this.boot().catch((e: unknown) => logWebError('panel boot failed', e))
    }
 
-   toggleSidebar(): void {
-      this.sidebarOpen = !this.sidebarOpen
+   /** live while dragging, persisted once on release: a write per pointer move is wasted work */
+   setLabelWidth(px: number, persist: boolean): void {
+      this.labelWidth = clampLabelWidth(px)
+      if (persist) this.persist()
+   }
+
+   setSizeStars(key: string, stars: string[]): void {
+      this.sizeStars[key] = stars
+      this.persist()
+   }
+
+   toggleLoraTriggers(): void {
+      this.showLoraTriggers = !this.showLoraTriggers
       this.persist()
    }
 
@@ -318,7 +351,7 @@ export class WebSt {
 
    private persist(): void {
       try {
-         // merge, never rebuild: toggling the sidebar before a draft loads must not
+         // merge, never rebuild: toggling a setting before a draft loads must not
          // erase the stored selection (this.form is null then)
          const stored = readStoredSelection()
          localStorage.setItem(
@@ -326,17 +359,20 @@ export class WebSt {
             JSON.stringify({
                ...stored,
                ...(this.form != null ? { module: this.form.moduleKey, draft: this.form.draft } : {}),
-               sidebar: this.sidebarOpen,
                loraImages: this.showLoraImages,
                loraTitles: this.showLoraTitles,
                loraFill: this.loraFill,
+               loraTriggers: this.showLoraTriggers,
                loraSort: this.loraSort,
                loraCap: this.loraCap,
                loraCapMigrated: true,
                layout: this.layout,
                latent: this.showLatent,
+               blur: this.blurResults,
                logs: this.showLogs,
                varOrder: this.varOrder,
+               sizeStars: this.sizeStars,
+               labelWidth: this.labelWidth,
             }),
          )
       } catch (e) {
@@ -423,9 +459,6 @@ export class WebSt {
       // re-picking the draft you are IN is a no-op, not a reload: a pending autosave would
       // lose the race against the fetch and the typed edit would vanish from the form
       if (this.form?.moduleKey === p.module && this.form.draft === p.draft) {
-         runInAction(() => {
-            if (isNarrowScreen()) this.sidebarOpen = false
-         })
          return
       }
       const token = ++this.selectToken
@@ -435,8 +468,6 @@ export class WebSt {
          this.enhancer.close()
          this.formLoading = true
          this.formError = null
-         // picking a draft is the drawer's exit on a phone
-         if (isNarrowScreen()) this.sidebarOpen = false
       })
       // flush the outgoing form BEFORE reading the next one, so a switch never races its own save
       const outgoing = this.form
@@ -690,8 +721,13 @@ export class WebSt {
 
    setLayout(next: ResultsLayout): void {
       // a click SETS the mode. cycling back to a width rule lands where no button is showing
+      if (this.layout !== 'off') this.lastShownLayout = this.layout
       this.layout = next
       this.persist()
+   }
+
+   showPreview(): void {
+      this.setLayout(this.lastShownLayout === 'off' ? DEFAULT_LAYOUT : this.lastShownLayout)
    }
 
    /** the host a module's runs go to right now (override if any, else the module's own) */
@@ -731,10 +767,17 @@ export class WebSt {
    hostNote: string | null = null
    /** the latent frames during a run: on by default, off when you only want the final image */
    showLatent = true
+   /** results blurred until the pointer is on them: a screen someone else may see */
+   blurResults = false
    private logsTimer: ReturnType<typeof setInterval> | null = null
 
    toggleLatent(): void {
       this.showLatent = !this.showLatent
+      this.persist()
+   }
+
+   toggleBlur(): void {
+      this.blurResults = !this.blurResults
       this.persist()
    }
 
@@ -1087,12 +1130,28 @@ export class WebSt {
    /** duplicate = save the current values under a new name, then switch to it */
    async duplicateDraft(rawName: string): Promise<void> {
       const form = this.form
+      if (form == null) return
+      await this.createDraft(rawName, form.valuesJSON())
+   }
+
+   /** a new draft from the workflow's OWN values (the ones in its code), not the open draft's */
+   async newDraft(rawName: string): Promise<void> {
+      const form = this.form
+      const mod = form == null ? null : this.moduleByKey(form.moduleKey)
+      if (mod == null) return
+      const values: Record<string, unknown> = {}
+      for (const [name, desc] of Object.entries(mod.vars)) values[name] = desc.default
+      await this.createDraft(rawName, values)
+   }
+
+   private async createDraft(rawName: string, values: Record<string, unknown>): Promise<void> {
+      const form = this.form
       const name = rawName.trim()
       if (form == null || name === '') return
       const existing = this.moduleByKey(form.moduleKey)?.drafts.includes(name) === true
       if (existing && !window.confirm(`draft '${name}' already exists — overwrite it?`)) return
       try {
-         const reply = await saveDraft({ module: form.moduleKey, draft: name, values: form.valuesJSON() })
+         const reply = await saveDraft({ module: form.moduleKey, draft: name, values })
          runInAction(() => {
             this.modules = this.modules.map((m) => (m.module === form.moduleKey ? { ...m, drafts: reply.drafts } : m))
          })

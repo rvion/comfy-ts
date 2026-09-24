@@ -12,6 +12,7 @@
 // Host messages run IN ORDER, and not before the boot is done: a message that lands while the
 // panel is still loading waits for the form instead of being dropped (WebSt.hostChain).
 // PURE and DOM-free below `isEmbedded`: the parsers are headless-tested.
+import { acceptChoice } from 'src/cli/serve/web/state/choiceButtons.ts'
 import type { VarDescriptor } from 'src/cli/serve/describeVar.ts'
 import type { HostToPanel, PanelHostAction, PanelToHost } from 'src/cli/serve/hostProtocol.ts'
 import { asSeedForm, pruneLorasRecord } from 'src/cli/serve/web/state/payload.ts'
@@ -101,8 +102,10 @@ export function coerceHostValue(desc: VarDescriptor, raw: unknown, current: unkn
          return isFiniteNumber(raw) ? { ok: true, value: raw } : REJECT
       case 'toggle':
          return typeof raw === 'boolean' ? { ok: true, value: raw } : REJECT
-      case 'choice':
-         return typeof raw === 'string' && (desc.choices ?? []).includes(raw) ? { ok: true, value: raw } : REJECT
+      case 'choice': {
+         const accepted = acceptChoice({ select: desc.select ?? 'one', choices: desc.choices ?? [], raw })
+         return accepted.ok ? { ok: true, value: accepted.value } : REJECT
+      }
       case 'seed': {
          const cur = asSeedForm(current)
          if (isFiniteNumber(raw)) return { ok: true, value: { mode: cur.mode, value: Math.max(0, Math.floor(raw)) } }

@@ -6,6 +6,16 @@ import { makeAutoObservable, observableRef, reaction, runInAction, type IReactio
 import { saveDraft, type ModuleDescription } from 'src/cli/serve/web/api.ts'
 import type { VarDescriptor } from 'src/cli/serve/describeVar.ts'
 import { normalizeInitial, payloadSnapshot } from 'src/cli/serve/web/state/payload.ts'
+import {
+   flattenLoras,
+   isLorasInput,
+   loraSetting,
+   paletteLoras,
+   updateLora,
+   type LoraRecord,
+   type LorasInput,
+} from 'src/vars/lanes.ts'
+import { keywordParts, loraMuted, withLora } from 'src/vars/loraEntry.ts'
 
 /** one var row: value in toJSON shape, replaced whole on every edit */
 export class VarSt {
@@ -167,25 +177,85 @@ export class FormSt {
     * record's insertion order: walking the record showed the keywords in drag order while the
     * prompt that ran used the enum order, so the preview and the run disagreed the moment you
     * reordered a card. Computed here rather than fetched: it must follow every toggle live */
-   loraKeywordsFor(promptVar: VarSt): string[] {
+   /** a var whose `activeWhen` does not hold right now: shown, but disabled. The reason is a
+    * sentence the label shows, null when the var is active */
+   inactiveReason(v: VarSt): string | null {
+      const when = v.desc.ui?.activeWhen
+      if (when == null) return null
+      for (const [name, allowed] of Object.entries(when)) {
+         const other = this.vars.find((x) => x.name === name)
+         const current = other?.value
+         if (!allowed.some((a) => a === current)) return `only used when ${name} is ${allowed.join(' or ')}`
+      }
+      return null
+   }
+
+   /** the loras var a prompt takes its keywords from, and the record the build reads from it
+    * (the plain record, or its active lanes merged) */
+   private keywordSource(promptVar: VarSt): { source: VarSt; value: LorasInput; record: LoraRecord } | null {
       const sourceName = promptVar.desc.keywordsFrom
-      if (sourceName == null) return []
+      if (sourceName == null) return null
       const source = this.vars.find((v) => v.name === sourceName)
-      if (source == null) return []
-      const keywords = source.desc.optionKeywords ?? {}
-      const record = (source.value != null && typeof source.value === 'object' ? source.value : {}) as Record<
-         string,
-         unknown
-      >
-      const out: string[] = []
-      for (const name of source.desc.options ?? []) {
-         const st = record[name]
-         // same rule as the graph: only loras that are ON contribute
-         if (st == null || st === false) continue
-         const kw = keywords[name]
-         if (kw != null && kw !== '' && !out.includes(kw)) out.push(kw)
+      if (source == null) return null
+      const value = isLorasInput(source.value) ? source.value : {}
+      return { source, value, record: flattenLoras(value).record }
+   }
+
+   /** one group per lora in the palette that has a keyword: its name, then the keyword split at
+    * the commas, each part on or off. A lora the build does not run (paused, or in a lane that
+    * is off) keeps its group, marked not running, so switching a lane never shifts the form */
+   loraKeywordGroups(
+      promptVar: VarSt,
+   ): { lora: string; label: string; running: boolean; parts: { text: string; on: boolean }[] }[] {
+      const found = this.keywordSource(promptVar)
+      if (found == null) return []
+      const keywords = found.source.desc.optionKeywords ?? {}
+      const labels = found.source.desc.optionLabels ?? {}
+      const inPalette = new Map(paletteLoras(found.value).map((l) => [l.name, l]))
+      const out: { lora: string; label: string; running: boolean; parts: { text: string; on: boolean }[] }[] = []
+      for (const name of found.source.desc.options ?? []) {
+         const entry = inPalette.get(name)
+         if (entry == null) continue
+         const parts = keywordParts(keywords[name] ?? '')
+         if (parts.length === 0) continue
+         const muted = loraMuted(entry.setting)
+         out.push({
+            lora: name,
+            label: labels[name] ?? name,
+            running: entry.running,
+            parts: parts.map((text) => ({ text, on: !muted.includes(text) })),
+         })
       }
       return out
+   }
+
+   /** what the active loras will prepend, as sent: muted parts left out, deduped */
+   loraKeywordsFor(promptVar: VarSt): string[] {
+      const out: string[] = []
+      for (const g of this.loraKeywordGroups(promptVar)) {
+         if (!g.running) continue
+         const kept = g.parts
+            .filter((w) => w.on)
+            .map((w) => w.text)
+            .join(', ')
+         if (kept !== '' && !out.includes(kept)) out.push(kept)
+      }
+      return out
+   }
+
+   /** mute or unmute one part of a lora's keyword, stored on that lora in the draft */
+   toggleKeywordPart(promptVar: VarSt, lora: string, part: string): void {
+      const found = this.keywordSource(promptVar)
+      if (found == null) return
+      const muted = loraMuted(loraSetting(found.value, lora))
+      this.setKeywordMute(promptVar, lora, muted.includes(part) ? muted.filter((w) => w !== part) : [...muted, part])
+   }
+
+   /** the whole list of muted parts at once (the popover's all / none) */
+   setKeywordMute(promptVar: VarSt, lora: string, mute: readonly string[]): void {
+      const found = this.keywordSource(promptVar)
+      if (found == null) return
+      found.source.set(updateLora(found.value, lora, withLora(loraSetting(found.value, lora), { mute })))
    }
 
    get dirtyCount(): number {

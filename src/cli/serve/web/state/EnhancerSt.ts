@@ -21,6 +21,7 @@ import {
    type ReasoningEffort,
 } from 'src/cli/serve/web/llm.ts'
 import type { VarSt } from 'src/cli/serve/web/state/FormSt.ts'
+import { isPromptLanes, patchLane } from 'src/vars/lanes.ts'
 
 const STORAGE_KEY = 'comfy-ts-serve-enhancer'
 
@@ -119,6 +120,8 @@ export class EnhancerSt {
 
    /** the prompt var being refined — non-null IS the modal being open */
    target: VarSt | null = null
+   /** in lanes mode, the lane being refined; null = the whole prompt */
+   targetLane: number | null = null
    targetModule = ''
    original = ''
    result = ''
@@ -372,10 +375,17 @@ export class EnhancerSt {
    }
 
    // #region the run ----------------------------------------------------------
-   openFor(p: { v: VarSt; module: string }): void {
+   openFor(p: { v: VarSt; module: string; lane?: number }): void {
       this.target = p.v
+      this.targetLane = p.lane ?? null
       this.targetModule = p.module
-      this.original = typeof p.v.value === 'string' ? p.v.value : ''
+      const value = p.v.value
+      this.original =
+         p.lane != null && isPromptLanes(value)
+            ? (value.lanes[p.lane]?.prompt ?? '')
+            : typeof value === 'string'
+              ? value
+              : ''
       this.result = ''
       this.thinking = ''
       this.error = ''
@@ -388,6 +398,7 @@ export class EnhancerSt {
    close(): void {
       this.cancel()
       this.target = null
+      this.targetLane = null
       this.targetModule = ''
    }
 
@@ -474,7 +485,12 @@ export class EnhancerSt {
    apply(): void {
       const text = this.result.trim()
       if (this.target == null || text === '') return
-      this.target.set(text)
+      const value = this.target.value
+      const lane = this.targetLane
+      // a lane rewrite replaces that lane's text only, the others and their order stay
+      if (lane != null && isPromptLanes(value))
+         this.target.set({ lanes: patchLane(value.lanes, lane, { prompt: text }) })
+      else this.target.set(text)
       this.close()
    }
 }

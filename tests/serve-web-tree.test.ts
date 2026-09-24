@@ -3,7 +3,7 @@ import { groupModulesByFolder } from 'src/cli/serve/web/state/moduleTree.ts'
 
 const mod = (module: string, file: string): { module: string; file: string } => ({ module, file })
 
-describe('sidebar module tree', () => {
+describe('omnibox folder labels', () => {
    it('serving ONE folder still names it: a flat list with the prefix eaten is the bug', () => {
       const groups = groupModulesByFolder([
          mod('04-krea2', '/Users/x/dev/comfy-ts/examples/rvion/04-krea2.cflow.ts'),

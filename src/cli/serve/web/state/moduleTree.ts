@@ -1,7 +1,7 @@
-// the sidebar is a TREE, not a list: modules keep the folder they came from.
+// modules keep the folder they came from: the omnibox labels read folder/workflow/draft.
 // PURE and DOM-free (browser side, so no node:path), tests/serve-web-tree.test.ts.
 // the module KEY stays the basename (it is the api identity); this only decides
-// what the sidebar shows above it.
+// the folder part of the label.
 
 export type TreeItem = { module: string; file: string }
 
