@@ -34,13 +34,13 @@ const QUALITY_TAGS: Record<string, string[]> = {
 export function animaTags(p: {
    /** null = no quality tags (the lit button clicked off) */
    quality: string | null
-   /** null = no score tag */
-   score: string | null
+   /** every score picked becomes its own tag; none picked = no score tag */
+   score: readonly string[]
    safety: string
    /** false on aesthetic: its card says score tags push it into slop */
    scores: boolean
 }): { positive: string[]; negative: string[] } {
-   const score = p.scores && p.score != null ? [`score_${p.score}`] : []
+   const score = p.scores ? p.score.map((n) => `score_${n}`) : []
    const quality = p.quality == null ? [] : (QUALITY_TAGS[p.quality] ?? [])
    return {
       positive: [...quality, ...score, p.safety],
@@ -52,6 +52,19 @@ export function animaTags(p: {
 }
 
 const joinTags = (tags: string[], text: string): string => [...tags, text].filter((t) => t.trim() !== '').join(', ')
+
+/** the texts the two CLIPTextEncode nodes receive. ONE function for the build and the live
+ * preview, so the preview is exactly what runs */
+function animaPrompts(p: {
+   model: keyof typeof MODELS
+   quality: string | null
+   score: readonly string[]
+   safety: string
+   prompt: { positive: string; negative: string }
+}): { positive: string; negative: string } {
+   const tags = animaTags({ quality: p.quality, score: p.score, safety: p.safety, scores: MODELS[p.model].scores })
+   return { positive: joinTags(tags.positive, p.prompt.positive), negative: joinTags(tags.negative, p.prompt.negative) }
+}
 
 export const animaT2i = host.defineWorkflow({
    id: 'anima-t2i',
@@ -73,11 +86,12 @@ export const animaT2i = host.defineWorkflow({
                explicit: { color: '#f7768e' },
             },
          }),
-         // score_N in front, score_1..3 in the negative. Left out on aesthetic, as its card says
-         score: v.choice(['6', '7', '8', '9'], '7', { label: 'score', select: 'zero-or-one' }).ui({
+         // any number of scores, each its own score_N tag in front, score_1..3 in the negative
+         // once one is picked. Left out on aesthetic, as its card says
+         score: v.choice(['6', '7', '8', '9'], ['7'], { label: 'score', select: 'many' }).ui({
             group: 'tags',
             description:
-               'adds score_N, and score_1 to 3 to the negative. Left out on aesthetic: its card says score tags push it into slop',
+               'click to toggle: every score picked adds its score_N tag, and score_1 to 3 go to the negative. None picked, no score. Left out on aesthetic: its card says score tags push it into slop',
          }),
          // the card's human quality scale: masterpiece, best quality, good quality, … worst quality
          quality: v
@@ -128,6 +142,13 @@ export const animaT2i = host.defineWorkflow({
          removeBg: v.toggle(false, 'remove bg'),
       }
    },
+   // the final prompt, live under generate while you edit: the tags, the lora keywords, your text
+   previews: {
+      prompt: (vars) => {
+         const p = animaPrompts(vars)
+         return p.negative === '' ? p.positive : `${p.positive}\n\nnegative: ${p.negative}`
+      },
+   },
    build: (b, vars) => {
       const clipLoader = b.CLIPLoader({
          clip_name: 'qwen_3_06b_base.safetensors',
@@ -149,11 +170,11 @@ export const animaT2i = host.defineWorkflow({
          model = loaded._MODEL
          clip = loaded._CLIP
       }
-      const tags = animaTags({ quality: vars.quality, score: vars.score, safety: vars.safety, scores: spec.scores })
+      const prompts = animaPrompts(vars)
       const samples = b.KSampler({
          model,
-         positive: b.CLIPTextEncode({ clip, text: joinTags(tags.positive, vars.prompt.positive) }),
-         negative: b.CLIPTextEncode({ clip, text: joinTags(tags.negative, vars.prompt.negative) }),
+         positive: b.CLIPTextEncode({ clip, text: prompts.positive }),
+         negative: b.CLIPTextEncode({ clip, text: prompts.negative }),
          latent_image: b.EmptyLatentImage({ width: vars.size.width, height: vars.size.height, batch_size: 1 }),
          seed: vars.seed,
          steps: spec.distilled ? 8 : vars.steps,
