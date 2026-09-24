@@ -123,6 +123,41 @@ const ResultsHead = observer(function ResultsHead(p: { st: WebSt }) {
             </span>
          </div>
          <div className="head-group-labeled">
+            <span className="group-caption">results</span>
+            <span className="row-inline results-view">
+               <span className="btn-group">
+                  <button
+                     type="button"
+                     className={p.st.resultsView === 'fit' ? 'sel' : ''}
+                     data-tip="fit: one image per row, as wide as this panel"
+                     onClick={() => p.st.setResultsView('fit')}
+                  >
+                     <Icon name="rows" />
+                  </button>
+                  <button
+                     type="button"
+                     className={p.st.resultsView === 'grid' ? 'sel' : ''}
+                     data-tip="grid: images at the size you set, as many per row as fit"
+                     onClick={() => p.st.setResultsView('grid')}
+                  >
+                     <Icon name="grid" />
+                  </button>
+               </span>
+               {p.st.resultsView === 'grid' ? (
+                  <input
+                     type="range"
+                     className="setting-range"
+                     min={120}
+                     max={640}
+                     step={20}
+                     value={p.st.resultsSize}
+                     data-tip={`image size ${p.st.resultsSize}px`}
+                     onChange={(e) => p.st.setResultsSize(Number(e.target.value))}
+                  />
+               ) : null}
+            </span>
+         </div>
+         <div className="head-group-labeled">
             <span className="group-caption">blur</span>
             <span className="btn-group">
                <button

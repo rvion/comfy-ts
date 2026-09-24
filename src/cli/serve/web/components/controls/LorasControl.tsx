@@ -479,7 +479,7 @@ export const LorasControl = observer(function LorasControl(p: {
    const sizeSlider = showImages ? (
       <input
          type="range"
-         className="lora-size"
+         className="setting-range"
          min={0.6}
          max={2}
          step={0.05}

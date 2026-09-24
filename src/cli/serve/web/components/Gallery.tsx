@@ -334,7 +334,14 @@ const RunningCard = observer(function RunningCard(p: { st: WebSt; local: Gallery
          {imageGraph ? (
             <div
                className="run-frame"
-               style={{ aspectRatio: String(ratio), width: `min(100%, 320px, calc(320px * ${ratio}))` }}
+               style={{
+                  aspectRatio: String(ratio),
+                  // the box the finished image will take in the current view, so it lands in place
+                  width:
+                     p.st.resultsView === 'fit'
+                        ? '100%'
+                        : `min(100%, ${p.st.resultsSize}px, calc(${p.st.resultsSize}px * ${ratio}))`,
+               }}
             >
                {p.st.run.hasPreview && p.st.showLatent ? (
                   <button
@@ -372,7 +379,11 @@ export const Gallery = observer(function Gallery(p: { st: WebSt; compact?: boole
    if (p.st.run.results.length === 0 && !p.st.run.isRunning) return null
    const results = p.compact === true ? p.st.run.results.slice(0, 1) : p.st.run.results
    return (
-      <div className={p.st.blurResults ? 'gallery blur' : 'gallery'}>
+      // fit: one per row at the panel's width; grid: the slider's size, wrapping. The corner
+      // placement keeps its own compact look
+      <div
+         className={`gallery${p.st.blurResults ? ' blur' : ''}${p.compact === true ? '' : ` view-${p.st.resultsView}`}`}
+      >
          <RunningCard st={p.st} local={local} />
          {/* the count and clear-all moved onto the run line beside the generate button: two
              headers for one idea is a header too many */}
@@ -410,7 +421,15 @@ export const Gallery = observer(function Gallery(p: { st: WebSt; compact?: boole
                                     })
                               }}
                            >
-                              <img src={img.url} alt={img.filename} />
+                              <img
+                                 src={img.url}
+                                 alt={img.filename}
+                                 style={
+                                    p.st.resultsView === 'grid' && p.compact !== true
+                                       ? { maxWidth: `min(100%, ${p.st.resultsSize}px)`, maxHeight: p.st.resultsSize }
+                                       : undefined
+                                 }
+                              />
                            </button>
                            {/* the EMBEDDING page's buttons (host protocol): what it does with the
                                image is its business — send it somewhere, keep it as something */}

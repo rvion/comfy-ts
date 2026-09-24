@@ -37,6 +37,8 @@ export type IconName =
    | 'refresh'
    | 'terminal'
    | 'search'
+   | 'rows'
+   | 'grid'
    | 'eye'
    | 'eye-off'
    | 'more'
@@ -143,6 +145,8 @@ const PATHS: Record<IconName, ReactNode> = {
    'eye-off': (
       <path d="M3 3l18 18M10.6 5.1A10 10 0 0112 5c6.5 0 10 7 10 7a17 17 0 01-3.2 4.2M6.6 6.6C3.9 8.4 2 12 2 12s3.5 7 10 7a9.7 9.7 0 005.4-1.6M9.9 9.9a3 3 0 004.2 4.2" />
    ),
+   rows: <path d="M4 5h16v6H4zM4 13h16v6H4z" />,
+   grid: <path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z" />,
    search: <path d="M10.5 4a6.5 6.5 0 110 13 6.5 6.5 0 010-13zM15.5 15.5L20 20" />,
    dot: <circle cx="12" cy="12" r="5" fill="currentColor" stroke="none" />,
 }

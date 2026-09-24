@@ -325,6 +325,13 @@ button.accent:hover { background: var(--accent-dim); color: #fff; }
 .host-action.danger:hover { color: var(--red); border-color: var(--red); }
 .lightbox-bar .host-action { padding: 4px 10px; }
 .run-card img { max-width: min(320px, 100%); max-height: 320px; border-radius: 6px; display: block; }
+/* fit: every image as wide as the panel, one per row. grid: the slider sets the size (inline),
+   run cards wrap several per row */
+.gallery.view-fit .imgs { flex-direction: column; }
+.gallery.view-fit .img-cell, .gallery.view-fit .img-button { width: 100%; }
+.gallery.view-fit .run-card img { width: 100%; height: auto; max-width: 100%; max-height: none; }
+.gallery.view-grid { flex-direction: row; flex-wrap: wrap; align-items: flex-start; }
+.gallery.view-grid .run-card { max-width: 100%; }
 .run-card .noimg { color: var(--dim); font-style: italic; }
 .run-card.running { border-color: var(--accent-dim); }
 /* what the host is on, in the node's own unit — the live signal of a text run, which has
@@ -487,11 +494,11 @@ button.accent:hover { background: var(--accent-dim); color: #fff; }
 .modal.loras-modal { height: min(86vh, 100%); max-height: none; }
 .loras-modal .modal-body { flex: 1; min-height: 0; }
 .modal-head .modal-close { margin-left: 6px; }
-/* the lora image size slider: a display setting, so grey and small, never the accent blue of
-   the controls that change what runs */
-input[type='range'].lora-size { width: 72px; flex: 0 0 72px; accent-color: var(--dim); opacity: 0.8; }
+/* a display setting's slider (lora image size, result size): grey and small, never the accent
+   blue of the controls that change what runs */
+input[type='range'].setting-range { width: 72px; flex: 0 0 72px; accent-color: var(--dim); opacity: 0.8; }
 .menu-range { cursor: default; }
-.menu-range input[type='range'].lora-size { margin-left: auto; width: 96px; flex-basis: 96px; }
+.menu-range input[type='range'].setting-range { margin-left: auto; width: 96px; flex-basis: 96px; }
 .modal-foot { padding: 5px 10px; border-top: 1px solid var(--border); font-size: 11px; color: var(--dim); margin: 0; }
 .modal-body { overflow-y: auto; padding: 10px; }
 .section-title { color: var(--dim); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; margin: 8px 0 6px; }
@@ -578,6 +585,7 @@ div.lora-thumb.none {
 .work.layout-bottom .results-col { margin-top: 16px; }
 /* the panel's own controls sit on top of it */
 .head-group-labeled { display: flex; flex-direction: column; gap: 2px; }
+.results-view { gap: 6px; flex-wrap: nowrap; }
 .group-caption { font-size: 10px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.06em; padding-left: 2px; }
 .results-head {
    display: flex; gap: 14px; align-items: flex-end; flex-wrap: wrap;

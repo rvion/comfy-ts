@@ -91,6 +91,9 @@ type StoredSelection = {
    latent?: boolean
    /** results blurred until hovered */
    blur?: boolean
+   /** fit = one per row at the panel's width, grid = the slider's size, wrapping */
+   resultsView?: string
+   resultsSize?: number
    /** live previews opened to their full text, as `module/name` */
    expandedPreviews?: string[]
    logs?: boolean
@@ -114,6 +117,14 @@ const LEGACY_LORA_CAP = 60
 export function clampLoraScale(raw: unknown): number {
    const n = typeof raw === 'number' && Number.isFinite(raw) ? raw : 1
    return Math.min(2, Math.max(0.6, Math.round(n * 20) / 20))
+}
+
+export const DEFAULT_RESULTS_SIZE = 320
+
+/** a result's side in grid view: a thumbnail wall at the small end, one big image at the other */
+export function clampResultsSize(raw: unknown): number {
+   const n = typeof raw === 'number' && Number.isFinite(raw) ? Math.round(raw) : DEFAULT_RESULTS_SIZE
+   return Math.min(640, Math.max(120, n))
 }
 
 export const DEFAULT_LABEL_WIDTH = 120
@@ -254,6 +265,8 @@ export class WebSt {
       )
       this.showLatent = stored.latent ?? true
       this.blurResults = stored.blur ?? false
+      this.resultsView = stored.resultsView === 'grid' ? 'grid' : 'fit'
+      this.resultsSize = clampResultsSize(stored.resultsSize)
       this.expandedPreviews = Array.isArray(stored.expandedPreviews)
          ? stored.expandedPreviews.filter((x): x is string => typeof x === 'string')
          : []
@@ -392,6 +405,8 @@ export class WebSt {
                layout: this.layout,
                latent: this.showLatent,
                blur: this.blurResults,
+               resultsView: this.resultsView,
+               resultsSize: this.resultsSize,
                expandedPreviews: this.expandedPreviews,
                logs: this.showLogs,
                varOrder: this.varOrder,
@@ -792,6 +807,10 @@ export class WebSt {
    showLatent = true
    /** results blurred until the pointer is on them: a screen someone else may see */
    blurResults = false
+   /** fit: one image per row, as wide as the preview panel. grid: images at resultsSize px, as
+    * many per row as fit */
+   resultsView: 'fit' | 'grid' = 'fit'
+   resultsSize = DEFAULT_RESULTS_SIZE
    /** live previews opened to their full text, as `module/name`; the rest show one line each */
    expandedPreviews: string[] = []
    private logsTimer: ReturnType<typeof setInterval> | null = null
@@ -805,6 +824,16 @@ export class WebSt {
       this.expandedPreviews = this.expandedPreviews.includes(key)
          ? this.expandedPreviews.filter((k) => k !== key)
          : [...this.expandedPreviews, key]
+      this.persist()
+   }
+
+   setResultsView(v: 'fit' | 'grid'): void {
+      this.resultsView = v
+      this.persist()
+   }
+
+   setResultsSize(px: number): void {
+      this.resultsSize = clampResultsSize(px)
       this.persist()
    }
 
