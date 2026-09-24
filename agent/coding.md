@@ -67,7 +67,7 @@ One line per paragraph and per bullet, however long. Never cut a sentence with a
 
 ## Tests
 
-`bun test`, headless, all under `tests/`. Repro test BEFORE a fix. Codegen changes must keep the snapshot test green (`tests/codegen.test.ts`) — regenerate fixtures deliberately, never accidentally.
+`bun run test` = `bun test --parallel --no-isolate`, headless, all under `tests/`: the same flags `shipkit ci`'s runner uses, so every path runs one suite. `--no-isolate` shares globals between the files of a worker: a file that stubs `window`, `fetch` or `globalThis.comfyts` restores it. A real sleep, a production-sized debounce or deadline, or a subprocess per test is a speed defect: make the delay a setting (FormTiming, TuiTiming) and poll instead of sleeping. Repro test BEFORE a fix. Codegen changes must keep the snapshot test green (`tests/codegen.test.ts`) — regenerate fixtures deliberately, never accidentally.
 
 ## Boring wins
 

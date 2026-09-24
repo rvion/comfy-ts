@@ -68,7 +68,7 @@
    "scripts": {
       "build": "tsdown && bun scripts/build-serve-web.ts",
       "build:watch": "tsdown --watch",
-      "test": "bun test",
+      "test": "bun test --parallel --no-isolate",
       "test:watch": "bun test --watch",
       "typecheck": "tsc --noEmit --tsBuildInfoFile node_modules/.cache/tsbuildinfo-typecheck.json && tsc -p examples/web/tsconfig.json && tsc -p src/cli/serve/web/tsconfig.json",
       "typecheck:lib": "tsc -p tsconfig.lib.json && tsc -p src/cli/serve/web/tsconfig.json",
@@ -79,7 +79,7 @@
       "imports:fix": "rvt imports --fix",
       "cycles": "rvt cycles 1",
       "rename": "rvt rename",
-      "ci": "bun run typecheck:lib && bun run lint && bun run format:check && bun run imports:check && bun test",
+      "ci": "bun run typecheck:lib && bun run lint && bun run format:check && bun run imports:check && bun run test",
       "ci:local": "bun run ci && bun run typecheck",
       "gen:manager": "bun src/manager/script-update-manager.bun.ts",
       "gen:sdk": "bun scripts/gen-sdk-from-cache.ts",
