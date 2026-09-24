@@ -3,6 +3,7 @@
 // override payloads any more: drafts are live (autosave through PUT, generate
 // posts {}) — architecture item 12, web ui
 import type { VarDescriptor } from 'src/cli/serve/describeVar.ts'
+import { normalizeChoice } from 'src/cli/serve/web/state/choiceButtons.ts'
 import { isLoraLanes, type LoraRecord, type LorasInput } from 'src/vars/lanes.ts'
 import { isLoraStrength, loraInPalette, loraIsOn as entryIsOn, loraStrengths, withLora } from 'src/vars/loraEntry.ts'
 
@@ -65,6 +66,8 @@ export function normalizeInitial(desc: VarDescriptor, raw: unknown): unknown {
    if (desc.kind === 'seed') return asSeedForm(raw ?? desc.default)
    if (desc.kind === 'size') return asSizeForm(raw ?? desc.default)
    if (desc.kind === 'loras') return normalizeLorasInput(raw ?? desc.default, desc.options ?? [])
+   if (desc.kind === 'choice')
+      return normalizeChoice({ select: desc.select ?? 'one', choices: desc.choices ?? [], raw: raw ?? desc.default })
    return raw ?? desc.default
 }
 

@@ -45,3 +45,17 @@ export function acceptChoice(p: {
    if (p.select === 'zero-or-one') return p.raw === null || known(p.raw) ? { ok: true, value: p.raw } : { ok: false }
    return known(p.raw) ? { ok: true, value: p.raw } : { ok: false }
 }
+
+/** a stored value read in the var's CURRENT shape: a choice that changed from single to many
+ * (or back) keeps what it held, one value becoming a list of one, a list its first option */
+export function normalizeChoice(p: {
+   select: ChoiceSelectMode
+   choices: readonly string[]
+   raw: unknown
+}): string | string[] | null {
+   const picked = pickedChoices(p.raw).filter((x) => p.choices.includes(x))
+   if (p.select === 'many') return p.choices.filter((c) => picked.includes(c))
+   if (p.select === 'zero-or-one') return picked[0] ?? null
+   // one: a string as it stands, even one this host lacks (the control says so); a list its first
+   return typeof p.raw === 'string' ? p.raw : (picked[0] ?? null)
+}

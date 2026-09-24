@@ -447,6 +447,11 @@ export class OptionalChoiceVar<T extends string> extends ComfyVar<T | null> {
    override toEditBuffer(): string {
       return this.value ?? ''
    }
+   /** a draft from when this was a many choice holds a list: its first known option */
+   override loadJSON(value: unknown): this {
+      const one = Array.isArray(value) ? value[0] : value
+      return this.set(this.choices.find((c) => c === one) ?? null)
+   }
    override display(): string {
       return this.value ?? 'none'
    }
@@ -480,6 +485,12 @@ export class MultiChoiceVar<T extends string> extends ComfyVar<T[]> {
    }
    override toEditBuffer(): string {
       return this.value.join(', ')
+   }
+   /** a draft from when this was a single choice holds one value: a list of one. Unknown
+    * options are dropped, the list comes back in the choices order */
+   override loadJSON(value: unknown): this {
+      const listed: unknown[] = Array.isArray(value) ? value : value == null ? [] : [value]
+      return this.set(this.choices.filter((c) => listed.includes(c)))
    }
    override display(): string {
       return this.value.length === 0 ? 'none' : this.value.join(', ')

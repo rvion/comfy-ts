@@ -48,8 +48,34 @@ describe('choice modes', () => {
       const many = v.choice(['a', 'b'], [], { select: 'many' })
       expect(applyVarPayload(many, ['b', 'a'])).toBeNull()
       expect(many.value).toEqual(['a', 'b'])
-      expect(applyVarPayload(many, 'a')).toContain('a list of')
+      expect(applyVarPayload(many, 42)).toContain('a list of')
       expect(applyVarPayload(v.choice(['a'], 'a'), null)).toContain('one of')
       expect(describeVar(many).select).toBe('many')
+   })
+})
+
+describe('a choice that changed shape: older drafts and older open tabs', () => {
+   // why we think it is actually a bug, and not just meaning spec should change: score became a
+   // many choice while a tab still held the single choice; its autosave wrote '9' and every
+   // submit failed with "expects a list". A single value means a list of one, it is not an error
+   it('serve reads one value as a list of one', () => {
+      const many = v.choice(['6', '7', '8', '9'], ['7'], { select: 'many' })
+      expect(applyVarPayload(many, '9')).toBeNull()
+      expect(many.value).toEqual(['9'])
+      expect(applyVarPayload(many, 'zzz')).toContain('a list of')
+   })
+
+   it('a draft holding one value loads as a list of one, null as none', () => {
+      const many = v.choice(['6', '7'], [], { select: 'many' })
+      many.loadJSON('7')
+      expect(many.value).toEqual(['7'])
+      many.loadJSON(null)
+      expect(many.value).toEqual([])
+   })
+
+   it('a list loads as a list, in the choices order', () => {
+      const many = v.choice(['6', '7'], [], { select: 'many' })
+      many.loadJSON(['7', '6'])
+      expect(many.value).toEqual(['6', '7'])
    })
 })

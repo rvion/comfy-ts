@@ -101,6 +101,11 @@ export function applyVarPayload(
          const v = varDef as AnyChoiceVar<string>
          const known = (x: unknown): x is string => typeof x === 'string' && v.choices.includes(x)
          if (v.select === 'many') {
+            // one value is a list of one: a tab or a draft from when this was a single choice
+            if (known(raw)) {
+               v.set([raw])
+               return null
+            }
             if (Array.isArray(raw) && raw.every(known)) {
                v.set(v.choices.filter((c) => raw.includes(c)))
                return null

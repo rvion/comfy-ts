@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'bun:test'
-import { acceptChoice, choiceAsButtons, clickChoice, pickedChoices } from 'src/cli/serve/web/state/choiceButtons.ts'
+import {
+   acceptChoice,
+   choiceAsButtons,
+   clickChoice,
+   normalizeChoice,
+   pickedChoices,
+} from 'src/cli/serve/web/state/choiceButtons.ts'
 
 describe('choice vars: buttons or a select', () => {
    it('a few short options are buttons, one click each', () => {
@@ -49,5 +55,14 @@ describe('choice modes', () => {
       expect(acceptChoice({ select: 'many', choices, raw: ['5'] })).toEqual({ ok: false })
       expect(acceptChoice({ select: 'zero-or-one', choices, raw: null })).toEqual({ ok: true, value: null })
       expect(acceptChoice({ select: 'one', choices, raw: null })).toEqual({ ok: false })
+   })
+})
+
+describe('the form reads a changed choice in its new shape', () => {
+   it('one value becomes a list of one for a many choice, a list its first for a single one', () => {
+      expect(normalizeChoice({ select: 'many', choices: ['6', '9'], raw: '9' })).toEqual(['9'])
+      expect(normalizeChoice({ select: 'many', choices: ['6', '9'], raw: null })).toEqual([])
+      expect(normalizeChoice({ select: 'zero-or-one', choices: ['6', '9'], raw: ['9', '6'] })).toBe('9')
+      expect(normalizeChoice({ select: 'one', choices: ['6', '9'], raw: '6' })).toBe('6')
    })
 })
