@@ -36,14 +36,15 @@ export function animaTags(p: {
    quality: string | null
    /** every score picked becomes its own tag; none picked = no score tag */
    score: readonly string[]
-   safety: string
+   /** null = no rating tag */
+   safety: string | null
    /** false on aesthetic: its card says score tags push it into slop */
    scores: boolean
 }): { positive: string[]; negative: string[] } {
    const score = p.scores ? p.score.map((n) => `score_${n}`) : []
    const quality = p.quality == null ? [] : (QUALITY_TAGS[p.quality] ?? [])
    return {
-      positive: [...quality, ...score, p.safety],
+      positive: [...quality, ...score, ...(p.safety == null ? [] : [p.safety])],
       negative: [
          ...(quality.length > 0 ? ['worst quality', 'low quality'] : []),
          ...(score.length > 0 ? ['score_1', 'score_2', 'score_3'] : []),
@@ -59,7 +60,7 @@ function animaPrompts(p: {
    model: keyof typeof MODELS
    quality: string | null
    score: readonly string[]
-   safety: string
+   safety: string | null
    prompt: { positive: string; negative: string }
 }): { positive: string; negative: string } {
    const tags = animaTags({ quality: p.quality, score: p.score, safety: p.safety, scores: MODELS[p.model].scores })
@@ -74,18 +75,20 @@ export const animaT2i = host.defineWorkflow({
       return {
          // the tags every anima prompt starts with, as buttons: the model card's order is
          // quality, score, safety, then the rest, and the build writes them in that order
-         safety: v.choice(['safe', 'sensitive', 'nsfw', 'explicit'], 'safe', 'safety').ui({
-            group: 'tags',
-            groupColor: 'rgba(158, 206, 106, 0.07)',
-            description: 'the rating tag anima was trained with, written after quality and score',
-            // one color per rating, green to red, so the lit one says how far it goes
-            options: {
-               safe: { color: '#9ece6a' },
-               sensitive: { color: '#e0af68' },
-               nsfw: { color: '#ff9e64' },
-               explicit: { color: '#f7768e' },
-            },
-         }),
+         safety: v
+            .choice(['safe', 'sensitive', 'nsfw', 'explicit'], 'safe', { label: 'safety', select: 'zero-or-one' })
+            .ui({
+               group: 'tags',
+               groupColor: 'rgba(158, 206, 106, 0.07)',
+               description: 'the rating tag anima was trained with, written after quality and score',
+               // one color per rating, green to red, so the lit one says how far it goes
+               options: {
+                  safe: { color: '#9ece6a' },
+                  sensitive: { color: '#e0af68' },
+                  nsfw: { color: '#ff9e64' },
+                  explicit: { color: '#f7768e' },
+               },
+            }),
          // any number of scores, each its own score_N tag in front, score_1..3 in the negative
          // once one is picked. Left out on aesthetic, as its card says
          score: v.choice(['6', '7', '8', '9'], ['7'], { label: 'score', select: 'many' }).ui({
