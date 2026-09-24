@@ -356,18 +356,20 @@ function RunChip(p: {
    onClear(): void
 }): ReactNode {
    const t = runChipText({ kind: p.kind, count: p.count })
+   // an icon and a count, the word in the tooltip: the results panel can be narrow
    return (
-      <span className={p.count > 0 ? 'run-chip' : 'run-chip empty'} data-tip={p.tip}>
-         {t.label}
+      <span className={p.count > 0 ? 'run-chip' : 'run-chip empty'} data-tip={`${t.label}: ${p.tip}`}>
+         <Icon name={p.kind === 'queue' ? 'rows' : 'image'} size={0.95} />
          <span className="run-chip-count">{t.count}</span>
          <button
             type="button"
-            className="link"
+            className="run-chip-clear"
             data-tip={p.clearTip}
+            aria-label={`clear the ${t.label}`}
             disabled={!p.canClear}
             onClick={() => p.onClear()}
          >
-            clear
+            <Icon name="close" size={0.8} />
          </button>
       </span>
    )

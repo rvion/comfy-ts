@@ -295,19 +295,23 @@ button.accent:hover { background: var(--accent-dim); color: #fff; }
 /* the run line: button, queue count, result count. Every part is ALWAYS there at one size, so
    nothing beside it moves when a run starts, a queue empties or a count grows a digit */
 .run-line { display: inline-flex; gap: 10px; align-items: center; flex-wrap: nowrap; }
-.run-chip-count { display: inline-block; min-width: 3ch; text-align: right; font-variant-numeric: tabular-nums; color: var(--text); }
+.run-chip-count { display: inline-block; min-width: 2.2ch; text-align: right; font-variant-numeric: tabular-nums; color: var(--text); }
 .run-chip.empty { opacity: 0.5; }
 .run-chip.empty .run-chip-count { color: var(--dim); }
-.run-chip .link:disabled { color: var(--dim); cursor: default; }
+.run-chip-clear {
+   display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px;
+   padding: 0; border: 0; border-radius: 50%; background: none; color: var(--dim); cursor: pointer;
+}
+.run-chip-clear:hover:not(:disabled) { color: var(--red); background: var(--panel-2); }
+.run-chip-clear:disabled { cursor: default; opacity: 0.4; }
 .run-error { flex: 1; min-width: 0; height: 1.4em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--red); font-size: 12px; }
 input[type='range'].setting-range:disabled { opacity: 0.3; }
 .live-preview-error { margin-left: 4px; }
 .live-preview-line { min-height: 1.35em; }
 .run-chip {
-   display: inline-flex; gap: 6px; align-items: center; color: var(--dim); font-size: 12px;
-   border: 1px solid var(--border); border-radius: 999px; padding: 2px 10px;
+   display: inline-flex; gap: 3px; align-items: center; color: var(--dim); font-size: 12px;
+   border: 1px solid var(--border); border-radius: 999px; padding: 1px 3px 1px 8px; flex-shrink: 0;
 }
-.run-chip .link { font-size: 12px; }
 .runbar {
    position: sticky; bottom: 0; display: flex; gap: 14px; align-items: center;
    background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
