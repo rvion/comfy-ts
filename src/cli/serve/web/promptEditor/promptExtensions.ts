@@ -21,7 +21,7 @@ import {
 import type { TagHit } from 'src/cli/serve/web/api.ts'
 import {
    adjustWeight,
-   completionWord,
+   completionCandidates,
    formatTag,
    promptMarks,
    TAG_CATEGORY_NAMES,
@@ -153,45 +153,52 @@ function applyTag(insert: string): Completion['apply'] {
    }
 }
 
+/** the options for one search text: lora words containing it, then the tag list's hits */
+async function optionsFor(c: PromptEditorCtx, text: string, signal: AbortSignal): Promise<Completion[]> {
+   const q = text.trim().toLowerCase()
+   const options: Completion[] = []
+   const seenWords = new Set<string>()
+   for (const w of c.loraWords()) {
+      const lower = w.word.toLowerCase()
+      if (seenWords.has(lower) || (q !== '' && !lower.includes(q))) continue
+      seenWords.add(lower)
+      options.push({ label: w.word, detail: w.source, type: 'lora', boost: 50, apply: applyTag(w.word) })
+   }
+   if (c.tags == null || q === '') return options
+   const hits = await c.searchTags(text.trim(), signal)
+   c.onTagError(null)
+   hits.forEach((h, ix) => {
+      const insert = formatTag(h.name, h.category, { ...c.tags, weights: c.weights })
+      options.push({
+         label: insert,
+         detail: `${h.alias == null ? '' : `← ${h.alias} · `}${compactCount(h.count)}`,
+         type: `tag-${TAG_CATEGORY_NAMES[h.category ?? -1] ?? 'plain'}`,
+         boost: -ix,
+         apply: applyTag(insert),
+      })
+   })
+   return options
+}
+
 function completionSource(ctx: () => PromptEditorCtx) {
    return async (context: CompletionContext): Promise<CompletionResult | null> => {
       const line = context.state.doc.lineAt(context.pos)
-      const word = completionWord(line.text, context.pos - line.from)
-      if (word == null) return null
-      if (word.text.trim().length < 2 && !context.explicit) return null
       const c = ctx()
-      const q = word.text.trim().toLowerCase()
-      const options: Completion[] = []
-      const seenWords = new Set<string>()
-      for (const w of c.loraWords()) {
-         const lower = w.word.toLowerCase()
-         if (seenWords.has(lower) || (q !== '' && !lower.includes(q))) continue
-         seenWords.add(lower)
-         options.push({ label: w.word, detail: w.source, type: 'lora', boost: 50, apply: applyTag(w.word) })
-      }
-      if (c.tags != null && q !== '') {
-         const abort = new AbortController()
-         context.addEventListener('abort', () => abort.abort())
+      const abort = new AbortController()
+      context.addEventListener('abort', () => abort.abort())
+      // the whole chunk first, then its last words: the first one that finds something wins
+      for (const cand of completionCandidates(line.text, context.pos - line.from)) {
+         if (cand.text.trim().length < 2 && !context.explicit) continue
          try {
-            const hits = await c.searchTags(word.text.trim(), abort.signal)
-            c.onTagError(null)
-            hits.forEach((h, ix) => {
-               const insert = formatTag(h.name, h.category, { ...c.tags, weights: c.weights })
-               options.push({
-                  label: insert,
-                  detail: `${h.alias == null ? '' : `← ${h.alias} · `}${compactCount(h.count)}`,
-                  type: `tag-${TAG_CATEGORY_NAMES[h.category ?? -1] ?? 'plain'}`,
-                  boost: -ix,
-                  apply: applyTag(insert),
-               })
-            })
+            const options = await optionsFor(c, cand.text, abort.signal)
+            if (options.length > 0) return { from: line.from + cand.from, options, filter: false }
          } catch (e) {
             if (abort.signal.aborted) return null
             c.onTagError(e instanceof Error ? e.message : String(e))
+            return null
          }
       }
-      if (options.length === 0) return null
-      return { from: line.from + word.from, options, filter: false }
+      return null
    }
 }
 

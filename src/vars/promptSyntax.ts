@@ -346,6 +346,20 @@ export function completionWord(line: string, col: number): { from: number; text:
    return { from, text: line.slice(from, col) }
 }
 
+/** what to search for at `col`: the whole chunk first, then its last words, longest first, so a
+ * tag typed after prose or another tag with no comma between (`a girl with long ha`) still
+ * completes. At most the last four word starts, an empty tail never */
+export function completionCandidates(line: string, col: number): { from: number; text: string }[] {
+   const word = completionWord(line, col)
+   if (word == null) return []
+   const out = [word]
+   const starts: number[] = []
+   for (let i = word.from + 1; i < col; i++)
+      if (/\s/.test(line[i - 1] ?? '') && !/\s/.test(line[i] ?? '')) starts.push(i)
+   for (const from of starts.slice(-4)) out.push({ from, text: line.slice(from, col) })
+   return out
+}
+
 export type TagFormat = { underscores?: boolean; weights?: boolean; artistPrefix?: string }
 
 /** a tag list name as the prompt wants it. Underscores between letters become spaces (`>_<`

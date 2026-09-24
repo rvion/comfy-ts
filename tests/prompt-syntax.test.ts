@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test'
 import { v } from 'src/vars/ComfyVars.ts'
 import {
    adjustWeight,
+   completionCandidates,
    completionWord,
    estimateTokens,
    formatTag,
@@ -174,6 +175,21 @@ describe('completion', () => {
    })
    it('none inside a comment', () => {
       expect(completionWord('a // lo', 7)).toBeNull()
+   })
+   it('a chunk with several words also offers its tail, longest first', () => {
+      const line = 'an anime girl with long ha'
+      expect(completionCandidates(line, line.length).map((c) => c.text)).toEqual([
+         'an anime girl with long ha',
+         'girl with long ha',
+         'with long ha',
+         'long ha',
+         'ha',
+      ])
+      expect(completionCandidates(line, line.length)[3]).toEqual({ from: 19, text: 'long ha' })
+   })
+   it('a one word chunk, or a space just typed, has one candidate', () => {
+      expect(completionCandidates('1girl, smi', 10)).toEqual([{ from: 7, text: 'smi' }])
+      expect(completionCandidates('looking ', 8)).toEqual([{ from: 0, text: 'looking ' }])
    })
    it('formatTag: spaces, escaped parens, artist prefix', () => {
       expect(formatTag('long_hair', 0, {})).toBe('long hair')
