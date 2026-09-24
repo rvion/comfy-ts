@@ -38,7 +38,7 @@ export class ImagePickerSt {
          reaction(
             () => (this.st.mode === 'overlay-image' ? this.highlightedImage : null),
             () => void this.refreshPreview(),
-            { delay: 120 },
+            { delay: this.st.timing.previewMs },
          ),
       )
    }

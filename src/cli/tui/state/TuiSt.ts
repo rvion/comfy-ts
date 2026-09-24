@@ -41,6 +41,9 @@ export type TuiMode =
  * ROOT of the TUI state tree (one instance per run). Children are service
  * classes with an `st` backref; components are stateless views over this.
  */
+export type TuiTiming = { previewMs: number; autosaveMs: number }
+export const TUI_TIMING: TuiTiming = { previewMs: 120, autosaveMs: 300 }
+
 export class TuiSt {
    wf: DefinedWorkflow
    mode: TuiMode = 'nav'
@@ -86,6 +89,9 @@ export class TuiSt {
    logs: LogsSt
    settings: SettingsSt
 
+   /** the debounces the sub-stores run on */
+   readonly timing: TuiTiming
+
    /** owned cleanups (reactions, listeners) — flushed by dispose() */
    disposers: (() => void)[] = []
    onExit: () => void = () => {}
@@ -99,15 +105,19 @@ export class TuiSt {
          bundledFiles?: Set<string>
          /** modules that failed to load before mount (red rows in the tree) */
          loadErrors?: Map<string, string>
+         /** tests set these to a few ms rather than wait them out */
+         timing?: TuiTiming
       } = {},
    ) {
       this.wf = wf
+      this.timing = opts.timing ?? TUI_TIMING
       // wf: observableRef so switching workflows re-renders without proxying
       // the foreign object; children manage their own observability
       makeAutoObservable(this, {
          wf: observableRef,
          hostOverride: observableRef,
          onExit: false,
+         timing: false,
          editor: false,
          picker: false,
          loras: false,

@@ -43,7 +43,7 @@ export class SettingsSt {
          reaction(
             () => this.snapshotJson(),
             (json) => this.write(json),
-            { delay: 300 },
+            { delay: this.st.timing.autosaveMs },
          ),
       )
       // the delayed reaction can be cancelled by dispose with a write pending —

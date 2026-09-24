@@ -288,7 +288,7 @@ describe('ImagePickerSt (overlay state machine)', () => {
          vars: { image: v.image('', { folder: imagesDir }) },
          build: () => {},
       })
-      const st = new TuiSt(wf)
+      const st = new TuiSt(wf, { timing: { previewMs: 5, autosaveMs: 10 } })
       const { runInAction } = await import('mobx')
       // deterministic ansi path, no terminal protocol
       runInAction(() => (st.settings.previewRenderer = 'pixel'))

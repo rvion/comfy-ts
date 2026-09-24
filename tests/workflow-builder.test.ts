@@ -292,7 +292,7 @@ describe('tui drafts', () => {
             vars: { prompt: v.text('original'), steps: v.int(8) },
             build: () => {},
          })
-         const st = new TuiSt(wf)
+         const st = new TuiSt(wf, { timing: { previewMs: 5, autosaveMs: 10 } })
 
          // create draft-1 from current values (row 0 opens the name prompt)
          st.drafts.begin()
@@ -306,10 +306,14 @@ describe('tui drafts', () => {
          const draftPath = join(comfyts.baseFolder, 'drafts', 'drafts-test', 'draft-1.json')
          expect(JSON.parse(readFileSync(draftPath, 'utf8')).prompt).toBe('original')
 
-         // edit a var → autosave kicks in after the 300ms debounce
+         // edit a var → autosave kicks in after the debounce, not at once
          wf.vars.prompt.set('edited')
-         await new Promise((r) => setTimeout(r, 450))
-         expect(JSON.parse(readFileSync(draftPath, 'utf8')).prompt).toBe('edited')
+         expect(JSON.parse(readFileSync(draftPath, 'utf8')).prompt).toBe('original')
+         const deadline = Date.now() + 2000
+         while (JSON.parse(readFileSync(draftPath, 'utf8')).prompt !== 'edited') {
+            if (Date.now() > deadline) throw new Error('the draft autosave never landed')
+            await new Promise((r) => setTimeout(r, 5))
+         }
 
          // drift away, then reload the draft → values restored
          wf.vars.prompt.set('drifted')

@@ -23,7 +23,7 @@ export class LorasSt {
          reaction(
             () => (this.st.mode === 'overlay-loras' ? this.selectedName : null),
             () => void this.refreshPreview(),
-            { delay: 120 },
+            { delay: this.st.timing.previewMs },
          ),
       )
    }

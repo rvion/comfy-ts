@@ -51,7 +51,7 @@ export class DraftsSt {
             (json) => {
                if (json != null && this.active != null) this.write(this.active, json)
             },
-            { delay: 300 },
+            { delay: this.st.timing.autosaveMs },
          ),
       )
    }
