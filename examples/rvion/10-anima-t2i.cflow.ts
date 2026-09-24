@@ -58,6 +58,20 @@ const joinTags = (tags: string[], text: string): string => [...tags, text].filte
 
 /** the texts the two CLIPTextEncode nodes receive. ONE function for the build and the live
  * preview, so the preview is exactly what runs */
+/** the cfg the sampler gets: the distilled models read `turboCfg` (the card says 1), the others
+ * `cfg`. At exactly 1 ComfyUI skips the negative pass, so the negative only acts above it */
+export function animaCfg(p: { model: keyof typeof MODELS; cfg: number; turboCfg: number }): number {
+   return MODELS[p.model].distilled ? p.turboCfg : p.cfg
+}
+
+/** the live preview: the prompt as it runs, and a note when the negative cannot act */
+export function animaPreview(p: { positive: string; negative: string; cfg: number }): string {
+   if (p.negative === '') return p.positive
+   const lines = [p.positive, `- ${p.negative}`]
+   if (p.cfg === 1) lines.push('// the negative is ignored at cfg 1: raise turbo cfg above 1 to use it')
+   return lines.join('\n')
+}
+
 function animaPrompts(p: {
    model: keyof typeof MODELS
    quality: string | null
@@ -130,7 +144,7 @@ export const animaT2i = host.defineWorkflow({
          model: v.choice(['turbo', 'aesthetic', 'base', 'base+turbo'], 'turbo', 'model').ui({
             group: 'sampling',
             groupColor: 'rgba(122, 162, 247, 0.08)',
-            description: 'turbo and base+turbo: 8 steps at cfg 1. aesthetic and base: the steps and cfg below',
+            description: 'turbo and base+turbo: 8 steps at turbo cfg. aesthetic and base: the steps and cfg below',
          }),
          // auto = er_sde on aesthetic and base, euler on the distilled ones
          sampler: v.choice(['auto', 'er_sde', 'euler', 'euler_ancestral'], 'auto', 'sampler').ui({ group: 'sampling' }),
@@ -142,8 +156,15 @@ export const animaT2i = host.defineWorkflow({
          }),
          cfg: v.float(4, { min: 0, max: 15 }).ui({
             group: 'sampling',
-            description: 'only aesthetic and base read it: the distilled models run at 1. The card suggests 4 to 5',
+            description:
+               'only aesthetic and base read it: the distilled models read turbo cfg. The card suggests 4 to 5',
             activeWhen: { model: ['aesthetic', 'base'] },
+         }),
+         turboCfg: v.float(1, { min: 1, max: 4, label: 'turbo cfg' }).ui({
+            group: 'sampling',
+            description:
+               'turbo and base+turbo only. 1 is what they were distilled for, and at 1 the negative prompt does nothing. Above 1 the negative takes effect, and each step costs about twice as long',
+            activeWhen: { model: ['turbo', 'base+turbo'] },
          }),
          size: v.size({ width: 1024, height: 1024 }),
          removeBg: v.toggle(false, 'remove bg'),
@@ -151,11 +172,8 @@ export const animaT2i = host.defineWorkflow({
    },
    // the final prompt, live under generate while you edit: the tags, the lora keywords, your text
    previews: {
-      prompt: (vars) => {
-         const p = animaPrompts(vars)
-         // written like the prompt box: the negative is a `- ` line, never part of the positive
-         return p.negative === '' ? p.positive : `${p.positive}\n- ${p.negative}`
-      },
+      // written like the prompt box: the negative is a `- ` line, never part of the positive
+      prompt: (vars) => animaPreview({ ...animaPrompts(vars), cfg: animaCfg(vars) }),
    },
    build: (b, vars) => {
       const clipLoader = b.CLIPLoader({
@@ -186,7 +204,7 @@ export const animaT2i = host.defineWorkflow({
          latent_image: b.EmptyLatentImage({ width: vars.size.width, height: vars.size.height, batch_size: 1 }),
          seed: vars.seed,
          steps: spec.distilled ? 8 : vars.steps,
-         cfg: spec.distilled ? 1 : vars.cfg,
+         cfg: animaCfg(vars),
          sampler_name: vars.sampler === 'auto' ? (spec.distilled ? 'euler' : 'er_sde') : vars.sampler,
          scheduler: 'simple',
          denoise: 1,
