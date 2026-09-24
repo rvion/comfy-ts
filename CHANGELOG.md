@@ -4,8 +4,27 @@
 
 ### The web panel
 
+- **Choices with zero or several options**: `v.choice(opts, null, { select: 'zero-or-one' })` holds one option or none (clicking the lit button clears it), `v.choice(opts, [], { select: 'many' })` holds any number (every button toggles). The value is typed `T | null` or `T[]`, and serve, the panel and the TUI all accept exactly that shape.
+- **Groups of vars**: `.ui({ group: 'sampling' })` on consecutive vars draws them as one tinted block, `groupColor` picks the tint.
+- **Easier to read**: labels are right-aligned with their (?) first, tooltips are larger and light on the dark page, the preview head captions its groups and blur has its own button, stop and clear queue are separate buttons, lane names sit on the left of their lane, and a loras var's filter shows only in its popup.
+- **Side preview you can resize**: with the preview on the left or right, the form and the preview are two full-height panels with a handle between them. The split is remembered per side.
+- **One label column, your width**: labels never wrap, drag the column's edge to widen or narrow every label at once. A cut label shows whole in its tooltip.
+- **New tooltips**: they flip and shift to stay on screen, and never get clipped by a scrolling list.
+- **Per-option looks and conditional fields**: `.ui({ options: { safe: { icon, color } } })` gives each choice its own icon and color, the selected one filled with it. `.ui({ activeWhen: { model: ['aesthetic', 'base'] } })` keeps a field visible but disabled until the condition holds. A condition naming a var the workflow does not have fails when the workflow loads.
+- **Calmer lanes and loras toolbar**: a lane is a name pill (click to switch it on or off, drag to reorder, double-click to rename) with a ⋯ menu; a lora lane adds loras through a dashed card at its end. The loras toolbar is add, a ⋯ menu and the count.
+- **A new draft from the workflow's defaults**: the first button in the draft box asks a name and creates a draft with the values the workflow declares, whatever the open draft holds.
+- **Workflows can style their vars**: `.ui({ description, icon, color, labelColor, background, border })` on any var. A description shows as a (?) after the label, an icon is a 24×24 svg path or a whole svg, colors are any css color.
+- **Buttons read at a glance**: every button in a var row has the same height, the selected button of a group is filled with the accent color, and the actions that start something (new draft, add loras) are outlined in it.
+- **Prompt and loras vars can hold named lanes.** Click `lanes` on a prompt or a loras row and the value becomes one lane; add more, rename them, reorder them, switch any off. The run merges the active lanes top to bottom: prompt lanes join as lines (each lane keeps its own `//` comments and `- ` negatives), lora lanes become one LoraLoader chain. In code the value is `string | { lanes: [{ name, prompt, active }] }` for a prompt and `record | { lanes: [{ name, active, loras }] }` for loras, so a workflow can also start in lanes. A laned prompt edits in the TUI as text with `# name` header lines.
+- **The words a lora adds to the prompt are chosen per lora.** Above the prompt box, each active lora shows one line: its name, how many of its words are kept, the words. Clicking it opens the list with a checkbox per word, plus all and none. A word left out is not sent, and the choice is saved with the draft.
+- **A paused lora stays paused after a reload**, with its strengths and its place, and a lora you add goes to the end of the row so nothing on screen moves.
 - **The prompt refiner talks to any OpenAI-compatible server**: llama.cpp's `llama-server`, ollama, vllm. Pick `llama.cpp / ollama / vllm` as the provider and give it the base URL including `/v1` (for example `http://localhost:8080/v1`). The key is optional.
+- **A lora ComfyUI has not listed yet gets a `rescan ComfyUI` button instead of `restart ComfyUI`.** It refetches the host's model list, and the loras var widens in place. The warning no longer claims that only a restart helps: ComfyUI re-reads a folder whenever the folder's date changes, and the exception is an exFAT drive (see below).
 - **Thinking can be turned off on those servers.** Effort `off` asks the model's chat template to skip reasoning, and any other value asks it to think first. A local thinking model left on can spend the whole token budget reasoning and return an empty answer.
+
+### Extras
+
+- **New: `extra/comfyui-fresh-model-lists`**, a ComfyUI extension for models on an **exFAT** drive. On exFAT, Windows does not update a folder's date when a file is added, so ComfyUI's model list cache never expires, and a lora you just downloaded stays invisible until you restart ComfyUI. The extension adds a 2 second age limit to that cache. Copy the folder into `ComfyUI/custom_nodes/` and restart once.
 
 ## 2.11.0
 
