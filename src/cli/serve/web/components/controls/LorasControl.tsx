@@ -540,7 +540,6 @@ export const LorasControl = observer(function LorasControl(p: {
             </button>
             {/* everything used now and then lives behind ⋯: the row shows loras, not a strip
                 of buttons. The rescan warning stays out, it asks for action */}
-            {sizeSlider}
             <MenuButton tip="display, lora manager, lanes">
                {(close) => (
                   <>
@@ -557,6 +556,14 @@ export const LorasControl = observer(function LorasControl(p: {
                         checked={p.st.showLoraTriggers}
                         onClick={() => p.st.toggleLoraTriggers()}
                      />
+                     {/* a display setting, not a control of the var: it lives in the menu */}
+                     {showImages ? (
+                        <label className="menu-item menu-range">
+                           <span className="menu-check" />
+                           size
+                           {sizeSlider}
+                        </label>
+                     ) : null}
                      <div className="menu-sep" />
                      {p.hostUrl == null ? null : (
                         <MenuItem

@@ -487,8 +487,11 @@ button.accent:hover { background: var(--accent-dim); color: #fff; }
 .modal.loras-modal { height: min(86vh, 100%); max-height: none; }
 .loras-modal .modal-body { flex: 1; min-height: 0; }
 .modal-head .modal-close { margin-left: 6px; }
-/* the lora image size slider: small, beside the toggles it goes with */
-.var-control input[type='range'].lora-size, .modal-head input[type='range'].lora-size { width: 72px; flex: 0 0 72px; }
+/* the lora image size slider: a display setting, so grey and small, never the accent blue of
+   the controls that change what runs */
+input[type='range'].lora-size { width: 72px; flex: 0 0 72px; accent-color: var(--dim); opacity: 0.8; }
+.menu-range { cursor: default; }
+.menu-range input[type='range'].lora-size { margin-left: auto; width: 96px; flex-basis: 96px; }
 .modal-foot { padding: 5px 10px; border-top: 1px solid var(--border); font-size: 11px; color: var(--dim); margin: 0; }
 .modal-body { overflow-y: auto; padding: 10px; }
 .section-title { color: var(--dim); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; margin: 8px 0 6px; }
