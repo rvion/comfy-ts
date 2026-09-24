@@ -1,10 +1,10 @@
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
-import { spawnSync } from 'node:child_process'
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'pathe'
 import type { ComfyHost } from 'src/host/ComfyHost.ts'
 import { ComfyTS } from 'src/state.ts'
+import { tuiFrame } from 'tests/tuiFrame.tsx'
 import { hasImageExtension, listImageDir, parentDir } from 'src/cli/tui/imagePicker/fsListing.ts'
 import { PickerPrefs, pickerPrefs, RECENTS_CAP } from 'src/cli/tui/imagePicker/pickerPrefs.ts'
 
@@ -348,19 +348,25 @@ describe('size overlay linked to an image var', () => {
 })
 
 describe('tui render smoke (real ink mount, pipe stdout — never a look judgement)', () => {
-   it('the overlay OPENS and lists the folder entries', () => {
-      const res = spawnSync('bun', [join(import.meta.dir, 'tui-smoke.driver.tsx')], {
-         encoding: 'utf8',
-         timeout: 30_000,
+   it('the overlay OPENS and lists the folder entries', async () => {
+      const { v } = await import('src/vars/ComfyVars.ts')
+      const { TuiSt } = await import('src/cli/tui/state/TuiSt.ts')
+      const wf = host.defineWorkflow({
+         id: 'tui-smoke',
+         vars: { image: v.image('', { folder: imagesDir }) },
+         build: () => {},
       })
-      expect(res.stderr ?? '').not.toContain('error')
-      expect(res.stdout).toContain('SMOKE_OK')
+      const st = new TuiSt(wf)
+      st.selIx = 0
+      st.activate() // kind 'image' → the picker overlay
+      expect(st.mode).toBe('overlay-image')
+      const frame = await tuiFrame(st)
+      st.dispose()
       // the ink frame carries the pane strip and the listed entries
-      expect(res.stdout).toContain('browse')
-      expect(res.stdout).toContain('favorites')
-      expect(res.stdout).toContain('portraits/')
-      expect(res.stdout).toContain('alpha.png')
-      expect(res.stdout).toContain('beta.jpg')
-      expect(res.status).toBe(0)
+      expect(frame).toContain('browse')
+      expect(frame).toContain('favorites')
+      expect(frame).toContain('sub/')
+      expect(frame).toContain('a.png')
+      expect(frame).toContain('b.jpg')
    })
 })

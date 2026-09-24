@@ -3,6 +3,7 @@ import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'pathe'
 import { listWindow } from 'src/cli/tui/listWindow.ts'
+import { tuiFrame } from 'tests/tuiFrame.tsx'
 
 // observed: "on small terminal, the (t)ree section now cause
 // vertical overflow ; tree should not be higher than available space. tree,
@@ -172,22 +173,53 @@ describe('TreeSt viewport: the tree never claims more rows than measured', () =>
    })
 })
 
+/** the real TuiApp at 14 rows with more rows than fit: 'tree' selects mid-list, 'vars' the last var under a tall prompt */
+async function smokeFrame(mode: 'tree' | 'vars'): Promise<string> {
+   const { ComfyTS } = await import('src/state.ts')
+   const { TuiSt } = await import('src/cli/tui/state/TuiSt.ts')
+   const { v } = await import('src/vars/ComfyVars.ts')
+   const prior = (globalThis as { comfyts?: unknown }).comfyts
+   Reflect.deleteProperty(globalThis, 'comfyts')
+   try {
+      const root = mkdtempSync(join(tmpdir(), 'comfy-ts-tree-smoke-'))
+      const flows = join(root, 'flows')
+      mkdirSync(flows, { recursive: true })
+      const files = Array.from({ length: 25 }, (_, i) => join(flows, `fam${String(i).padStart(2, '0')}-mode.cflow.ts`))
+      for (const f of files) writeFileSync(f, '// stub')
+      const host = new ComfyTS({ rootPath: root }).host({ id: 'tree-smoke-host', host: '127.0.0.1', port: 65496 })
+      const wf = host.defineWorkflow({
+         id: 'tree-smoke',
+         vars:
+            mode === 'vars'
+               ? {
+                    prompt: v.prompt('a very long prompt that wraps over many terminal lines '.repeat(6)),
+                    ...Object.fromEntries(Array.from({ length: 13 }, (_, i) => [`n${i}`, v.int(i)])),
+                 }
+               : {},
+         build: () => {},
+      })
+      const st = new TuiSt(wf)
+      st.workflows.files = files
+      if (mode === 'vars') {
+         st.mode = 'nav'
+         st.selIx = 13 // the LAST var (n12), tall prompt above, save row below
+      } else {
+         st.mode = 'tree'
+         st.tree.ix = 12 // mid-list: both `…` markers must show
+      }
+      const frame = await tuiFrame(st, { rows: 14, columns: 80 })
+      st.dispose()
+      return frame
+   } finally {
+      if (prior != null) (globalThis as { comfyts?: unknown }).comfyts = prior
+      else Reflect.deleteProperty(globalThis, 'comfyts')
+   }
+}
+
 describe('small-terminal frame smoke (tree used to overflow the terminal)', () => {
    it('the real TuiApp frame at 14 rows never exceeds 14 lines and windows the tree', async () => {
-      const { spawnSync } = await import('node:child_process')
-      const { join } = await import('pathe')
-      const res = spawnSync('bun', [join(import.meta.dir, 'tui-tree-smoke.driver.tsx')], {
-         encoding: 'utf8',
-         timeout: 30_000,
-         env: { ...process.env, SMOKE_ROWS: '14' },
-      })
-      expect(res.stderr ?? '').not.toContain('error')
-      expect(res.stdout).toContain('SMOKE_OK')
-      expect(res.status).toBe(0)
-      // the final ink frame is everything before the SMOKE_OK sentinel
-      const frame = (res.stdout.split('SMOKE_OK')[0] ?? '').replace(/\n+$/, '')
-      const frameLines = frame.split('\n')
-      expect(frameLines.length).toBeLessThanOrEqual(14)
+      const frame = await smokeFrame('tree')
+      expect(frame.split('\n').length).toBeLessThanOrEqual(14)
       // mid-list selection on 25 workflows in 14 rows: both scroll markers show
       expect(frame).toContain('…')
       // the selected workflow is inside the window
@@ -295,17 +327,7 @@ describe('VarsPanel viewport (selection clipped off-screen on small terminals)',
    })
 
    it('frame smoke at 14 rows: the selected var stays visible under a tall prompt', async () => {
-      const { spawnSync } = await import('node:child_process')
-      const { join: joinPath } = await import('pathe')
-      const res = spawnSync('bun', [joinPath(import.meta.dir, 'tui-tree-smoke.driver.tsx')], {
-         encoding: 'utf8',
-         timeout: 30_000,
-         env: { ...process.env, SMOKE_ROWS: '14', SMOKE_MODE: 'vars' },
-      })
-      expect(res.stderr ?? '').not.toContain('error')
-      expect(res.stdout).toContain('SMOKE_OK')
-      expect(res.status).toBe(0)
-      const frame = (res.stdout.split('SMOKE_OK')[0] ?? '').replace(/\n+$/, '')
+      const frame = await smokeFrame('vars')
       expect(frame.split('\n').length).toBeLessThanOrEqual(14)
       // the selected var, 12 rows deep behind a tall wrapping prompt, is on screen
       expect(frame).toContain('n12')

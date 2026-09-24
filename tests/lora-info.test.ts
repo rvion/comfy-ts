@@ -16,6 +16,7 @@ import {
 } from 'src/host/loraInfoCache.ts'
 import type { LmLoraItem } from 'src/host/loraManagerApi.ts'
 import { ComfyTS } from 'src/state.ts'
+import { tuiFrame } from 'tests/tuiFrame.tsx'
 
 // Synthetic fixture, invented loras: a captured lora-manager sweep describes one
 // machine's model collection and never enters this repo (no-personal-lora-data.test.ts
@@ -188,18 +189,21 @@ describe('trigger words become prompt keywords, ⌃K still wins', () => {
 
 describe('tui render smoke (real ink mount, pipe stdout — never a look judgement)', () => {
    it('the overlay OPENS and shows the model name plus the mirror keyword', async () => {
-      const { spawnSync } = await import('node:child_process')
-      const res = spawnSync('bun', [join(import.meta.dir, 'tui-loras.driver.tsx')], {
-         encoding: 'utf8',
-         timeout: 30_000,
-      })
-      expect(res.stdout).toContain('SMOKE_OK')
+      const { v } = await import('src/vars/ComfyVars.ts')
+      const { TuiSt } = await import('src/cli/tui/state/TuiSt.ts')
+      const { clearLoraKeywordOverride } = await import('src/vars/loraKeywords.ts')
+      clearLoraKeywordOverride(AURORA) // the tombstone test above left it emptied
+      const wf = host.defineWorkflow({ id: 'loras-smoke', vars: { loras: v.loras([AURORA, BRASS]) }, build: () => {} })
+      const st = new TuiSt(wf)
+      st.selIx = 0
+      st.activate() // kind 'loras' → the loras overlay
+      expect(st.mode).toBe('overlay-loras')
+      const frame = await tuiFrame(st)
+      st.dispose()
       // the ink frame carries the file name, the human name, and the injected keyword
-      expect(res.stdout).toContain('aurora-ink-v3')
-      expect(res.stdout).toContain('Aurora Ink Wash')
-      expect(res.stdout).toContain('kw: aurora ink') // the frame wraps the rest of the sentence
-
-      expect(res.status).toBe(0)
+      expect(frame).toContain('aurora-ink-v3')
+      expect(frame).toContain('Aurora Ink Wash')
+      expect(frame).toContain('kw: aurora ink') // the frame wraps the rest of the sentence
    })
 })
 
