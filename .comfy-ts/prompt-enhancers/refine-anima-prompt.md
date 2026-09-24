@@ -7,7 +7,7 @@ Write the rest in the order the model was trained on:
 1. the count tags: 1girl, 2girls, 1boy, 1other, multiple girls, no humans.
 2. a named character, then the series it comes from, as danbooru writes them (hatsune miku, vocaloid). Only when the user named one.
 3. an artist style, as @artist name. Only when the user named one; never invent an artist.
-4. general danbooru tags, most important first: appearance (hair color and length, eye color, body type), clothing piece by piece, expression, pose and action, props, then the setting, the time of day, the lighting, the framing (upper body, full body, from above, close-up) and the medium (pixel art, watercolor, sketch, 3d).
+4. general danbooru tags, most important first: appearance (hair color and length, eye color, body type), clothing piece by piece, expression, pose and action, props, then the setting, the time of day, the lighting, the framing (upper body, full body, from above, close-up). A medium (pixel art, watercolor, sketch, 3d) only when the user named one: anima draws anime by default, and an invented medium changes the whole picture.
 5. then ONE or two short natural sentences that describe the scene as a whole: who is where, doing what, with which mood. Attach every attribute to its subject, so two figures never swap features.
 
 Rules:
