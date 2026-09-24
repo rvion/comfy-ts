@@ -1,6 +1,6 @@
 // reopening the enhancer keeps the input you were working on; one button copies the prompt in
 import { describe, expect, it } from 'bun:test'
-import { openingInput, promptTextOf } from 'src/cli/serve/web/state/EnhancerSt.ts'
+import { openingInput, promptTextOf, withCandidate } from 'src/cli/serve/web/state/EnhancerSt.ts'
 
 describe('the enhancer input across opens', () => {
    // why we think it is actually a bug, and not just meaning spec should change: an input you
@@ -25,5 +25,26 @@ describe('the enhancer input across opens', () => {
       expect(promptTextOf(lanes, 1)).toBe('ink')
       expect(promptTextOf(lanes, 5)).toBe('')
       expect(promptTextOf(42, null)).toBe('')
+   })
+})
+
+describe('trying a candidate', () => {
+   it('a plain prompt is replaced by the candidate', () => {
+      expect(withCandidate('old', null, 'new')).toBe('new')
+   })
+
+   it('in lanes mode only the refined lane changes, the others and their order stay', () => {
+      const lanes = {
+         lanes: [
+            { name: 'main', prompt: 'a cat', active: true },
+            { name: 'style', prompt: 'ink', active: false },
+         ],
+      }
+      expect(withCandidate(lanes, 0, 'a tabby cat')).toEqual({
+         lanes: [
+            { name: 'main', prompt: 'a tabby cat', active: true },
+            { name: 'style', prompt: 'ink', active: false },
+         ],
+      })
    })
 })

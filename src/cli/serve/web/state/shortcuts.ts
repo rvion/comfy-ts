@@ -31,3 +31,22 @@ export function jumpTargets(vars: readonly { name: string; kind: string; inactiv
    const first = (kind: string): string | null => vars.find((v) => v.kind === kind && !v.inactive)?.name ?? null
    return { prompt: first('prompt'), loras: first('loras') }
 }
+
+/** the enhancer's own keys, live only while it is open. One key per action, and never ⌘⏎: that
+ * one generates everywhere, the enhancer included. The browser keeps ⌘T and ⌘L for itself */
+export type EnhancerShortcut = 'enhance' | 'try' | 'apply'
+
+export const ENHANCER_KEYS: Record<EnhancerShortcut, string> = { enhance: 'E', try: 'G', apply: 'I' }
+
+export function enhancerShortcutOf(e: {
+   key: string
+   metaKey: boolean
+   ctrlKey: boolean
+   altKey: boolean
+   shiftKey: boolean
+}): EnhancerShortcut | null {
+   if (!(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey) return null
+   const key = e.key.toUpperCase()
+   for (const [s, k] of Object.entries(ENHANCER_KEYS) as [EnhancerShortcut, string][]) if (k === key) return s
+   return null
+}

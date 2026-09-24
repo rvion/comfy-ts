@@ -1117,32 +1117,35 @@ export class WebSt {
          })
    }
 
-   generate(): void {
-      void this.generateNow()
+   /** `override` replaces var values in THIS run only (the enhancer's try): the form and the
+    * draft keep their own */
+   generate(override?: Record<string, unknown>): void {
+      void this.generateNow(override)
    }
 
    /** flush the autosave first: the server reads the draft it just wrote — one source of truth.
     * every click ENQUEUES, so hitting generate n times runs n prompts; the queued payload
     * freezes the values you saw, and seeds stay on the draft's server-side policy */
-   private async generateNow(): Promise<void> {
+   private async generateNow(override?: Record<string, unknown>): Promise<void> {
       const form = this.form
       if (form == null) return
-      const payload = form.queuePayload()
+      const payload = { ...form.queuePayload(), ...override }
       const saved = await form.save()
       // the header already shows the loud save error; running the stale draft would lie
       if (!saved) return
       this.run.enqueue({ module: form.moduleKey, draft: form.draft, payload })
-      this.recordPrompts(form)
+      this.recordPrompts(form, payload)
    }
 
    /** every prompt var of what was just queued, for the history picker (this page only) */
    promptHistory: HistoryEntry<PromptInput>[] = []
 
-   private recordPrompts(form: FormSt): void {
+   /** from the payload that was SENT, so a tried candidate is history like any prompt */
+   private recordPrompts(form: FormSt, payload: Record<string, unknown>): void {
       const at = Date.now()
       for (const v of form.vars) {
-         if (v.desc.kind !== 'prompt' || !isPromptInput(v.value)) continue
-         const value = v.value
+         const value = payload[v.name]
+         if (v.desc.kind !== 'prompt' || !isPromptInput(value)) continue
          // lanes keep their headers in the text, so a search finds a lane by its name too
          const text = typeof value === 'string' ? value : promptLanesToText(value)
          this.promptHistory = pushHistory(this.promptHistory, {

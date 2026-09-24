@@ -99,6 +99,13 @@ export function promptTextOf(value: unknown, lane: number | null): string {
    return typeof value === 'string' ? value : ''
 }
 
+/** the var's value with the candidate in place of what was refined: the whole prompt, or only
+ * its lane (the others and their order stay). What `try` sends, the form keeps its own value */
+export function withCandidate(value: unknown, lane: number | null, text: string): unknown {
+   if (lane != null && isPromptLanes(value)) return { lanes: patchLane(value.lanes, lane, { prompt: text }) }
+   return text
+}
+
 /** what the input holds when the modal opens: the previous one, or the prompt the first time */
 export function openingInput(p: { previous: string; prompt: string }): string {
    return p.previous !== '' ? p.previous : p.prompt

@@ -466,11 +466,9 @@ const SaveRow = observer(function SaveRow(p: { st: WebSt; module: string }) {
 
 export const VarsForm = observer(function VarsForm(p: { st: WebSt }) {
    const form = p.st.form
-   // ⌘⏎ / ctrl+⏎ submits from anywhere, textarea included
+   // ⌘⏎ / ctrl+⏎ generates from anywhere, textarea and enhancer included: one key, one meaning
    useEffect(() => {
       const onKey = (e: KeyboardEvent): void => {
-         // the enhancer modal owns ⌘⏎ while it is open (refine), so a rewrite never queues a run
-         if (p.st.enhancer.isOpen) return
          if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
             e.preventDefault()
             p.st.generate()
@@ -478,6 +476,8 @@ export const VarsForm = observer(function VarsForm(p: { st: WebSt }) {
          }
          const s = shortcutOf(e)
          if (s == null) return
+         // the jumps land in the form, which the enhancer covers: only the blur still makes sense
+         if (p.st.enhancer.isOpen && s !== 'toggle-blur') return
          e.preventDefault()
          if (s === 'toggle-blur') p.st.toggleBlur()
          else p.st.requestJump(s === 'focus-prompt' ? 'prompt' : 'loras')

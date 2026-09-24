@@ -7,9 +7,10 @@ import { useEffect, type ReactNode } from 'react'
 import { MOD_KEY } from 'src/cli/serve/web/components/modKey.ts'
 import { HistoryButton } from 'src/cli/serve/web/components/HistoryPicker.tsx'
 import type { ProviderId, ReasoningEffort } from 'src/cli/serve/web/llm.ts'
-import { PROVIDERS, type EnhancerSt, type SaveState } from 'src/cli/serve/web/state/EnhancerSt.ts'
+import { PROVIDERS, withCandidate, type EnhancerSt, type SaveState } from 'src/cli/serve/web/state/EnhancerSt.ts'
 import type { VarSt } from 'src/cli/serve/web/state/FormSt.ts'
 import type { WebSt } from 'src/cli/serve/web/state/WebSt.ts'
+import { ENHANCER_KEYS, enhancerShortcutOf, type EnhancerShortcut } from 'src/cli/serve/web/state/shortcuts.ts'
 
 const EFFORTS: ReasoningEffort[] = ['off', 'low', 'medium', 'high']
 
@@ -359,9 +360,17 @@ const MasterPrompt = observer(function MasterPrompt(p: { e: EnhancerSt }) {
 
 /** the job, top to bottom: the actions, then yours, then the rewrite. The two boxes share the
  * height the modal has, so nothing scrolls and nothing below the buttons ever moves them */
-const Job = observer(function Job(p: { e: EnhancerSt }) {
+const Job = observer(function Job(p: { e: EnhancerSt; st: WebSt }) {
    const e = p.e
    const running = e.phase === 'running'
+   const act = actions(e, p.st)
+   const kbd = (s: EnhancerShortcut): ReactNode => (
+      <span className="kbd-hint">
+         {MOD_KEY}
+         {ENHANCER_KEYS[s]}
+      </span>
+   )
+   const noResult = e.result.trim() === ''
    return (
       <section className="enh-job">
          <div className="enh-actions">
@@ -371,17 +380,27 @@ const Job = observer(function Job(p: { e: EnhancerSt }) {
                   stop
                </button>
             ) : (
-               <button type="button" className="primary enh-big enh-go" onClick={() => e.run()}>
-                  <Icon name="sparkle" /> enhance <span className="kbd-hint">{MOD_KEY}⏎</span>
+               <button type="button" className="primary enh-big enh-go" onClick={act.enhance}>
+                  <Icon name="sparkle" /> enhance {kbd('enhance')}
                </button>
             )}
             <button
                type="button"
-               className="accent enh-big"
-               onClick={() => e.apply()}
-               disabled={e.result.trim() === ''}
+               className="enh-big"
+               data-tip="generate the draft with this rewrite in place of the prompt: the prompt itself is not changed"
+               onClick={act.try}
+               disabled={noResult}
             >
-               apply to prompt
+               <Icon name="play" size={0.85} /> try it {kbd('try')}
+            </button>
+            <button
+               type="button"
+               className="accent enh-big"
+               data-tip="write this rewrite into the prompt and close"
+               onClick={act.apply}
+               disabled={noResult}
+            >
+               apply to prompt {kbd('apply')}
             </button>
             <span className="run-error" data-tip={e.error === '' ? undefined : e.error}>
                {e.error === '' ? '' : `🔴 ${e.error}`}
@@ -420,24 +439,40 @@ const Job = observer(function Job(p: { e: EnhancerSt }) {
    )
 })
 
-const Modal = observer(function Modal(p: { e: EnhancerSt }) {
+/** the three actions, shared by the buttons and the keys so they cannot drift apart */
+function actions(e: EnhancerSt, st: WebSt): Record<EnhancerShortcut, () => void> {
+   return {
+      enhance: () => (e.phase === 'running' ? undefined : e.run()),
+      // generate with the candidate in place of the refined prompt, the form keeps its own value
+      try: () => {
+         const v = e.target
+         const text = e.result.trim()
+         if (v == null || text === '') return
+         st.generate({ [v.name]: withCandidate(v.value, e.targetLane, text) })
+      },
+      apply: () => e.apply(),
+   }
+}
+
+const Modal = observer(function Modal(p: { e: EnhancerSt; st: WebSt }) {
    const e = p.e
+   const st = p.st
    useEffect(() => {
       const onKey = (ev: KeyboardEvent): void => {
          // esc closes the editor first, the modal only when nothing is open over the job
          if (ev.key === 'Escape') {
             if (e.editing != null) e.setEditing(null)
             else e.close()
+            return
          }
-         if (ev.key === 'Enter' && (ev.metaKey || ev.ctrlKey)) {
-            // inside the modal ⌘⏎ refines; VarsForm's generate shortcut stands down while it is open
-            ev.preventDefault()
-            e.run()
-         }
+         const s = enhancerShortcutOf(ev)
+         if (s == null) return
+         ev.preventDefault()
+         actions(e, st)[s]()
       }
       window.addEventListener('keydown', onKey)
       return () => window.removeEventListener('keydown', onKey)
-   }, [e])
+   }, [e, st])
    return (
       <div className="modal-overlay top" onClick={() => e.close()}>
          <div className="modal enh-modal" onClick={(ev) => ev.stopPropagation()}>
@@ -458,7 +493,7 @@ const Modal = observer(function Modal(p: { e: EnhancerSt }) {
                <Side e={e} />
                <div className="enh-right">
                   <div className="modal-body enh-main">
-                     <Job e={e} />
+                     <Job e={e} st={st} />
                   </div>
                   {/* over the job, never beside it: the job keeps its place and size */}
                   {e.editing === 'llm' ? <LlmSettings e={e} /> : null}
@@ -491,7 +526,7 @@ export const PromptEnhancer = observer(function PromptEnhancer(p: {
             <Icon name="sparkle" />
             {p.compact === true ? null : ' enhance'}
          </button>
-         {e.target === p.v && e.targetLane === (p.lane ?? null) ? <Modal e={e} /> : null}
+         {e.target === p.v && e.targetLane === (p.lane ?? null) ? <Modal e={e} st={p.st} /> : null}
       </>
    )
 })

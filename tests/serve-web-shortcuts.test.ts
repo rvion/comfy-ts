@@ -1,6 +1,6 @@
 // ⌘P focuses the first prompt, ⌘O opens the first loras picker, ⌘B toggles the blur
 import { describe, expect, it } from 'bun:test'
-import { jumpTargets, shortcutOf } from 'src/cli/serve/web/state/shortcuts.ts'
+import { enhancerShortcutOf, jumpTargets, shortcutOf } from 'src/cli/serve/web/state/shortcuts.ts'
 
 const key = (k: string, mods: Partial<{ metaKey: boolean; ctrlKey: boolean; altKey: boolean; shiftKey: boolean }>) => ({
    key: k,
@@ -34,5 +34,24 @@ describe('panel shortcuts', () => {
       ])
       expect(t).toEqual({ prompt: 'pos', loras: 'style' })
       expect(jumpTargets([])).toEqual({ prompt: null, loras: null })
+   })
+})
+
+describe('enhancer shortcuts: one key per action, ⌘⏎ stays generate', () => {
+   it('⌘E enhances, ⌘G tries the candidate, ⌘I applies it', () => {
+      expect(enhancerShortcutOf(key('e', { metaKey: true }))).toBe('enhance')
+      expect(enhancerShortcutOf(key('G', { ctrlKey: true }))).toBe('try')
+      expect(enhancerShortcutOf(key('i', { metaKey: true }))).toBe('apply')
+   })
+
+   // why we think it is actually a bug, and not just meaning spec should change: ⌘⏎ generated
+   // everywhere except inside the enhancer, where it enhanced, one key with two meanings
+   it('⌘⏎ is never an enhancer action, the global generate keeps it', () => {
+      expect(enhancerShortcutOf(key('Enter', { metaKey: true }))).toBeNull()
+   })
+
+   it('control: a plain letter or another modifier is not an action', () => {
+      expect(enhancerShortcutOf(key('e', {}))).toBeNull()
+      expect(enhancerShortcutOf(key('e', { metaKey: true, shiftKey: true }))).toBeNull()
    })
 })

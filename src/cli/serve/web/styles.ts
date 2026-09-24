@@ -651,7 +651,7 @@ button.enh-edit-close { background: var(--accent); border-color: var(--accent); 
 .enh-label-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .enh-text { width: 100%; font-size: 14px; line-height: 1.5; }
 .enh-result { border-color: var(--accent-dim); }
-.enh-actions { display: flex; gap: 10px; align-items: center; }
+.enh-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 button.enh-big { font-size: 14px; padding: 8px 18px; }
 .enh-grid { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 8px 12px; align-items: center; }
 .enh-grid > label { color: var(--dim); font-size: 13px; text-align: right; }
