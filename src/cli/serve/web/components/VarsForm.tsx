@@ -3,6 +3,7 @@
 import { observer, useLocalObservable } from 'mobx-react-lite'
 import { useEffect, useRef, type ReactNode } from 'react'
 import { MOD_KEY } from 'src/cli/serve/web/components/modKey.ts'
+import { runChipText } from 'src/cli/serve/web/state/stableSlots.ts'
 import { jumpTargets, SHORTCUT_KEYS, shortcutOf } from 'src/cli/serve/web/state/shortcuts.ts'
 import {
    ChoiceControl,
@@ -345,6 +346,32 @@ const DraftBox = observer(function DraftBox(p: { st: WebSt; form: FormSt }) {
    )
 })
 
+function RunChip(p: {
+   kind: 'queue' | 'results'
+   count: number
+   tip: string
+   clearTip: string
+   canClear: boolean
+   onClear(): void
+}): ReactNode {
+   const t = runChipText({ kind: p.kind, count: p.count })
+   return (
+      <span className={p.count > 0 ? 'run-chip' : 'run-chip empty'} data-tip={p.tip}>
+         {t.label}
+         <span className="run-chip-count">{t.count}</span>
+         <button
+            type="button"
+            className="link"
+            data-tip={p.clearTip}
+            disabled={!p.canClear}
+            onClick={() => p.onClear()}
+         >
+            clear
+         </button>
+      </span>
+   )
+}
+
 /** everything about running on one line: the button, what is queued behind it, what it has
  * produced. a count and one clear is the whole decision a queue offers */
 export const GenerateButton = observer(function GenerateButton(p: { st: WebSt }) {
@@ -375,34 +402,24 @@ export const GenerateButton = observer(function GenerateButton(p: { st: WebSt })
             {/* the shortcut is SAID, not only tooltipped: nobody hovers a button they can click */}
             <span className="kbd-hint">{MOD_KEY}⏎</span>
          </button>
-         {run.queue.length > 0 ? (
-            <span className="run-chip" data-tip="prompts waiting behind this one">
-               queue: {run.queue.length}
-               {run.pendingCount > 0 ? (
-                  <button
-                     type="button"
-                     className="link"
-                     data-tip={`drop the ${run.pendingCount} not yet sent to the host`}
-                     onClick={() => run.clearQueue()}
-                  >
-                     clear
-                  </button>
-               ) : null}
-            </span>
-         ) : null}
-         {run.results.length > 0 ? (
-            <span className="run-chip" data-tip="runs kept in this page">
-               {run.results.length} result{run.results.length === 1 ? '' : 's'}
-               <button
-                  type="button"
-                  className="link"
-                  data-tip="forget every run shown here"
-                  onClick={() => run.clear()}
-               >
-                  clear
-               </button>
-            </span>
-         ) : null}
+         {/* both chips are ALWAYS here at one width: a chip appearing, or a count growing a
+             digit, moved everything beside it. An empty one is dimmed, its clear disabled */}
+         <RunChip
+            kind="queue"
+            count={run.queue.length}
+            tip="prompts waiting behind this one"
+            clearTip={`drop the ${run.pendingCount} not yet sent to the host`}
+            canClear={run.pendingCount > 0}
+            onClear={() => run.clearQueue()}
+         />
+         <RunChip
+            kind="results"
+            count={run.results.length}
+            tip="runs kept in this page"
+            clearTip="forget every run shown here"
+            canClear={run.results.length > 0}
+            onClear={() => run.clear()}
+         />
       </span>
    )
 })
@@ -649,14 +666,15 @@ export const VarsForm = observer(function VarsForm(p: { st: WebSt }) {
             {/* the OUTPUT is a knob like the others: a row, not a lone button in the header */}
             <SaveRow st={p.st} module={form.moduleKey} />
          </div>
-         {/* side and pinned put generate INSIDE the results panel (it sits next to what it
-             produces, and on a phone it stays on screen); the form keeps it otherwise. With
-             neither a button nor an error there is nothing to bar: rendering it anyway left a
-             sticky bordered strip holding nothing */}
-         {p.st.generateInResults && p.st.run.error == null ? null : (
+         {/* side and pinned put generate INSIDE the results panel, with its error slot; the
+             form keeps both otherwise. The error is one reserved line either way, so a failed
+             run never adds a bar or pushes anything down */}
+         {p.st.generateInResults ? null : (
             <div className="runbar">
-               {p.st.generateInResults ? null : <GenerateButton st={p.st} />}
-               {p.st.run.error != null ? <span className="error">🔴 {p.st.run.error}</span> : null}
+               <GenerateButton st={p.st} />
+               <span className="run-error" data-tip={p.st.run.error ?? undefined}>
+                  {p.st.run.error == null ? '' : `🔴 ${p.st.run.error}`}
+               </span>
             </div>
          )}
       </div>

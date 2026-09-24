@@ -292,9 +292,17 @@ button.mini:hover { color: var(--text); }
 .prompt-actions { gap: 6px; margin-top: 4px; }
 button.accent:hover { background: var(--accent-dim); color: #fff; }
 
-/* the run line: button, queue count, result count — one row, each part appearing only when
-   it has something to say */
-.run-line { display: inline-flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+/* the run line: button, queue count, result count. Every part is ALWAYS there at one size, so
+   nothing beside it moves when a run starts, a queue empties or a count grows a digit */
+.run-line { display: inline-flex; gap: 10px; align-items: center; flex-wrap: nowrap; }
+.run-chip-count { display: inline-block; min-width: 3ch; text-align: right; font-variant-numeric: tabular-nums; color: var(--text); }
+.run-chip.empty { opacity: 0.5; }
+.run-chip.empty .run-chip-count { color: var(--dim); }
+.run-chip .link:disabled { color: var(--dim); cursor: default; }
+.run-error { flex: 1; min-width: 0; height: 1.4em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--red); font-size: 12px; }
+input[type='range'].setting-range:disabled { opacity: 0.3; }
+.live-preview-error { margin-left: 4px; }
+.live-preview-line { min-height: 1.35em; }
 .run-chip {
    display: inline-flex; gap: 6px; align-items: center; color: var(--dim); font-size: 12px;
    border: 1px solid var(--border); border-radius: 999px; padding: 2px 10px;
@@ -745,7 +753,7 @@ button.enh-big { font-size: 14px; padding: 8px 18px; }
 .work.layout-pinned .run-card { padding: 0; border: 0; background: none; }
 .work.layout-pinned .run-card .meta { margin-bottom: 2px; font-size: 11px; }
 .work.layout-pinned .run-card img { max-height: 34vh; width: auto; }
-.results-run { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
+.results-run { display: flex; gap: 10px; align-items: center; flex-wrap: nowrap; margin-bottom: 8px; min-width: 0; }
 .work.layout-pinned .results-run { margin-bottom: 6px; justify-content: flex-end; }
 /* segmented control: ONE group, no gaps, only the outer corners rounded */
 .btn-group { display: inline-flex; }

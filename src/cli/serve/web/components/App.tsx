@@ -8,6 +8,7 @@ import { Icon } from 'src/cli/serve/web/components/Icon.tsx'
 import { Omnibox, useOmniboxShortcut } from 'src/cli/serve/web/components/Omnibox.tsx'
 import { TooltipLayer } from 'src/cli/serve/web/components/TooltipLayer.tsx'
 import { MOD_KEY } from 'src/cli/serve/web/components/modKey.ts'
+import { collapsedPreview } from 'src/cli/serve/web/state/stableSlots.ts'
 import { GenerateButton, VarsForm } from 'src/cli/serve/web/components/VarsForm.tsx'
 import { LAYOUTS, type WebSt } from 'src/cli/serve/web/state/WebSt.ts'
 
@@ -47,11 +48,14 @@ const LivePreviews = observer(function LivePreviews(p: { st: WebSt }) {
    if (form == null || names.length === 0) return null
    return (
       <div className="live-previews">
-         {form.previewError != null ? <div className="error">🔴 preview: {form.previewError}</div> : null}
          {names.map((name) => {
             const key = `${form.moduleKey}/${name}`
             const expanded = p.st.expandedPreviews.includes(key)
-            const lines = (form.previews[name] ?? '…').split('\n').filter((l) => l.trim() !== '')
+            const text = form.previews[name] ?? '…'
+            const lines = text.split('\n').filter((l) => l.trim() !== '')
+            // collapsed = exactly two lines whatever the prompt holds, so typing never moves the
+            // gallery; the full text is one click away
+            const short = collapsedPreview(text)
             return (
                <button
                   key={name}
@@ -60,20 +64,36 @@ const LivePreviews = observer(function LivePreviews(p: { st: WebSt }) {
                   data-tip={expanded ? 'click to show one line each' : 'click for the full text'}
                   onClick={() => p.st.togglePreviewExpanded(key)}
                >
-                  <span className="live-preview-name">{name}</span>
-                  <span className="live-preview-lines">
-                     {lines.map((line, ix) =>
-                        line.startsWith('- ') ? (
-                           // index keys: a preview's lines have no identity of their own
-                           <span key={ix} className="live-preview-line negative">
-                              − {line.slice(2)}
-                           </span>
-                        ) : (
-                           <span key={ix} className="live-preview-line">
-                              {line}
-                           </span>
-                        ),
+                  <span className="live-preview-name">
+                     {name}
+                     {form.previewError == null ? null : (
+                        <span className="live-preview-error" data-tip={`preview failed: ${form.previewError}`}>
+                           🔴
+                        </span>
                      )}
+                  </span>
+                  <span className="live-preview-lines">
+                     {!expanded ? (
+                        <>
+                           <span className="live-preview-line">{short.positive}</span>
+                           <span className="live-preview-line negative">
+                              {short.negative === '' ? '' : `− ${short.negative}`}
+                           </span>
+                        </>
+                     ) : null}
+                     {expanded &&
+                        lines.map((line, ix) =>
+                           line.startsWith('- ') ? (
+                              // index keys: a preview's lines have no identity of their own
+                              <span key={ix} className="live-preview-line negative">
+                                 − {line.slice(2)}
+                              </span>
+                           ) : (
+                              <span key={ix} className="live-preview-line">
+                                 {line}
+                              </span>
+                           ),
+                        )}
                   </span>
                </button>
             )
@@ -144,18 +164,20 @@ const ResultsHead = observer(function ResultsHead(p: { st: WebSt }) {
                      <Icon name="grid" />
                   </button>
                </span>
-               {p.st.resultsView === 'grid' ? (
-                  <input
-                     type="range"
-                     className="setting-range"
-                     min={120}
-                     max={640}
-                     step={20}
-                     value={p.st.resultsSize}
-                     data-tip={`image size ${p.st.resultsSize}px`}
-                     onChange={(e) => p.st.setResultsSize(Number(e.target.value))}
-                  />
-               ) : null}
+               {/* always here, greyed out in fit: appearing with grid moved the groups beside it */}
+               <input
+                  type="range"
+                  className="setting-range"
+                  min={120}
+                  max={640}
+                  step={20}
+                  disabled={p.st.resultsView !== 'grid'}
+                  value={p.st.resultsSize}
+                  data-tip={
+                     p.st.resultsView === 'grid' ? `image size ${p.st.resultsSize}px` : 'image size, for the grid view'
+                  }
+                  onChange={(e) => p.st.setResultsSize(Number(e.target.value))}
+               />
             </span>
          </div>
          <div className="head-group-labeled">
@@ -286,7 +308,10 @@ export const App = observer(function App(p: { st: WebSt }) {
          {p.st.generateInResults ? (
             <div className="results-run">
                <GenerateButton st={p.st} />
-               {p.st.run.error != null ? <span className="error">🔴 {p.st.run.error}</span> : null}
+               {/* one line, always reserved: an error arriving never pushes the gallery down */}
+               <span className="run-error" data-tip={p.st.run.error ?? undefined}>
+                  {p.st.run.error == null ? '' : `🔴 ${p.st.run.error}`}
+               </span>
             </div>
          ) : null}
          <LivePreviews st={p.st} />
