@@ -6,6 +6,10 @@ Things that live outside the TypeScript library but make it more useful. Nothing
 
 `Generate Text (streaming)`: core `TextGenerate`, except it publishes the answer as it is produced instead of once at the end. Copy the folder into `ComfyUI/custom_nodes/` and restart. The live text arrives as `execution.progressText`, which `comfy-ts serve` renders while the run is in flight.
 
+## [`comfyui-fresh-model-lists/`](comfyui-fresh-model-lists/), a ComfyUI extension
+
+A lora you just downloaded shows up without restarting ComfyUI. On an exFAT drive, a folder's modification time does not change when a file is added, so ComfyUI's file list cache never expires and only a restart refreshes it. This adds a 2 second age limit to that cache. Copy the folder into `ComfyUI/custom_nodes/` and restart once.
+
 ## [`scripts/fetch_text_encoder.py`](scripts/fetch_text_encoder.py), a Hugging Face model, ready for `CLIPLoader`
 
 ```

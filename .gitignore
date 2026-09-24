@@ -44,3 +44,5 @@ CLAUDE.local.md
 # from anywhere in the tree. Fixtures under tests/ are SYNTHETIC and stay that
 # way — tests/no-personal-lora-data.test.ts fails the build if any slips in.
 *.captured.json
+
+__pycache__/
