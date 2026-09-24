@@ -525,7 +525,7 @@ export const VarsForm = observer(function VarsForm(p: { st: WebSt }) {
                      <span className="btn-group">
                         <button
                            type="button"
-                           className="warn-action"
+                           className="quiet-danger"
                            data-tip="drop everything still pending in the host queue"
                            onClick={() => void p.st.hostAction('clear-queue')}
                         >

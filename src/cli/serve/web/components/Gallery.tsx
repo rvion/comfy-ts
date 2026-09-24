@@ -6,6 +6,7 @@ import { Icon } from 'src/cli/serve/web/components/Icon.tsx'
 import { observer, useLocalObservable } from 'mobx-react-lite'
 import { useEffect, useRef } from 'react'
 import { runPreviewSrc } from 'src/cli/serve/web/api.ts'
+import { asSizeForm } from 'src/cli/serve/web/state/payload.ts'
 import { lightboxView, type LightboxTarget } from 'src/cli/serve/web/state/lightbox.ts'
 import { copyImageToClipboard } from 'src/cli/serve/web/clipboard.ts'
 import type { WebSt } from 'src/cli/serve/web/state/WebSt.ts'
@@ -309,41 +310,56 @@ const RunningCard = observer(function RunningCard(p: { st: WebSt; local: Gallery
    const node = p.st.run.progressNode
    const count = p.st.run.progressCount
    const liveText = p.st.run.progressText
+   // the frame is RESERVED from the first moment at the image's own ratio (the size var of the
+   // running workflow) and the box a finished image takes (.run-card img: 320px max each way),
+   // the bar drawn over its foot, the node counter on the one header line: nothing grows while
+   // the run goes and the result lands in the same space
+   const form = p.st.form
+   const sizeVar = form?.moduleKey === moduleKey ? form.vars.find((v) => v.desc.kind === 'size') : undefined
+   const size = sizeVar == null ? null : asSizeForm(sizeVar.value)
+   const imageGraph = size != null || p.st.run.hasPreview
+   const ratio = size == null ? 1 : size.width / size.height
    return (
       <div className="run-card running">
          <div className="meta">
-            <span>generating {moduleKey}…</span>
+            <span className="run-meta-text">
+               generating {moduleKey}…
+               {node != null ? ` · ${node}${count != null ? ` ${count.value}/${count.max}` : ''}` : ''}
+            </span>
             <span>{percent != null ? `${Math.round(percent)}%` : ''}</span>
          </div>
-         {node != null ? (
-            <div className="run-node">
-               {node}
-               {count != null ? ` ${count.value}/${count.max}` : ''}
-            </div>
-         ) : null}
          {/* a node streaming its text as it produces it: the answer builds up here before the
              run ends. Same fold as a finished result, so watching and reading look alike */}
          {liveText != null && liveText !== '' ? <LiveText text={liveText} /> : null}
-         <div className="progress-track">
-            <div className="progress-fill" style={{ width: `${percent ?? 0}%` }} />
-         </div>
-         {p.st.run.hasPreview && p.st.showLatent ? (
-            <div className="imgs">
-               <button
-                  type="button"
-                  className="img-button"
-                  onClick={() =>
-                     p.local.openLightbox({
-                        kind: 'latent',
-                        module: moduleKey,
-                        after: p.st.run.results.filter((r) => r.module === moduleKey).length,
-                     })
-                  }
-               >
-                  <img src={previewUrl} alt="latent preview" />
-               </button>
+         {imageGraph ? (
+            <div
+               className="run-frame"
+               style={{ aspectRatio: String(ratio), width: `min(100%, 320px, calc(320px * ${ratio}))` }}
+            >
+               {p.st.run.hasPreview && p.st.showLatent ? (
+                  <button
+                     type="button"
+                     className="img-button"
+                     onClick={() =>
+                        p.local.openLightbox({
+                           kind: 'latent',
+                           module: moduleKey,
+                           after: p.st.run.results.filter((r) => r.module === moduleKey).length,
+                        })
+                     }
+                  >
+                     <img src={previewUrl} alt="latent preview" />
+                  </button>
+               ) : null}
+               <div className="progress-track over">
+                  <div className="progress-fill" style={{ width: `${percent ?? 0}%` }} />
+               </div>
             </div>
-         ) : null}
+         ) : (
+            <div className="progress-track">
+               <div className="progress-fill" style={{ width: `${percent ?? 0}%` }} />
+            </div>
+         )}
       </div>
    )
 })
