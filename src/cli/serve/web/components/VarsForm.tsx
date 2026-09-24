@@ -483,11 +483,17 @@ export const VarsForm = observer(function VarsForm(p: { st: WebSt }) {
                   {/* the box itself, like the draft: its name, with the two actions ON the box
                       around it. The ones on the RUNNING work sit on the line below, in words */}
                   <div className="head-line draft-line">
+                     {/* the ONE refresh: models, nodes and the lora list. It also runs by itself when
+                         the host changes, pulsing while it works */}
                      <button
                         type="button"
-                        className="head-icon"
-                        data-tip="refetch object_info from the host and rewrite sdk.d.ts (the var lists widen in place)"
-                        onClick={() => void p.st.hostAction('refresh-schema')}
+                        className={p.st.refreshing ? 'head-icon pulse' : 'head-icon'}
+                        data-tip={
+                           p.st.refreshing
+                              ? 'refreshing what the host has…'
+                              : 'refresh what the host has (models, nodes, loras). It also refreshes by itself when something new appears'
+                        }
+                        onClick={() => void p.st.refreshHost()}
                      >
                         <Icon name="refresh" />
                      </button>
@@ -542,16 +548,6 @@ export const VarsForm = observer(function VarsForm(p: { st: WebSt }) {
                            <Icon name="trash" /> clear queue
                         </button>
                      </span>
-                     {p.st.drift != null && p.st.drift.host === p.st.hostFor(form.moduleKey) ? (
-                        <button
-                           type="button"
-                           className="attention"
-                           data-tip={`the host changed since this panel loaded its schema (${p.st.drift.summary}): refetch to use it`}
-                           onClick={() => void p.st.hostAction('refresh-schema')}
-                        >
-                           <Icon name="refresh" /> {p.st.drift.summary}
-                        </button>
-                     ) : null}
                      {p.st.isHostOverridden(form.moduleKey) ? (
                         <button
                            type="button"

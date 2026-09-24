@@ -823,46 +823,50 @@ export class WebSt {
       }
    }
 
-   /** the lora mirror sweep, from the panel: the metadata (names, trigger words, previews) is
-    * re-downloaded and every surface re-reads it, which needs the descriptors reloaded too */
-   loraSyncing = false
+   /** ONE refresh for everything a host knows: serve refetches its schema and re-reads its lora
+    * manager list, then the panel re-reads its workflow descriptions, so the open form offers
+    * what the host has now (a new lora, a new model) without a tab reload. The drift check calls
+    * it by itself; the host card's ↻ is the same call, pulsing while it runs */
+   refreshing = false
 
-   async refreshLoras(): Promise<void> {
-      if (this.loraSyncing) return
+   async refreshHost(): Promise<void> {
+      if (this.refreshing) return
       runInAction(() => {
-         this.loraSyncing = true
+         this.refreshing = true
       })
-      await this.hostAction('refresh-loras')
-      await this.trackSwitch(this.reloadIndexAndForm())
+      try {
+         await this.hostAction('refresh-schema')
+         await this.trackSwitch(this.reloadIndexAndForm())
+      } finally {
+         runInAction(() => {
+            this.refreshing = false
+         })
+      }
    }
 
-   /** what changed on a host since the server loaded its schema, shown on the refetch button of
-    * that host only. A light check (the loaders, a few KB) runs every minute while the tab is
-    * visible; a full one (node types too) at boot, after a refetch or a restart, and when a host
-    * that stopped answering answers again, which is how a restart nobody announced is noticed */
-   drift: { host: string; summary: string } | null = null
+   /** the host changed since serve loaded its schema: a light check (the loaders, a few KB) every
+    * 15s while the tab is visible, a full one (node types too) at boot and when a host that
+    * stopped answering answers again. A change is not SHOWN, it is applied: refreshHost */
    driftDown = false
 
    private startDriftWatch(): void {
       void this.checkDrift(true)
       setInterval(() => {
          if (document.visibilityState === 'visible') void this.checkDrift(false)
-      }, 60_000)
+      }, 15_000)
    }
 
    async checkDrift(full: boolean): Promise<void> {
       const host = this.form == null ? null : this.hostFor(this.form.moduleKey)
-      if (host == null || host === '') return
+      if (host == null || host === '' || this.refreshing) return
       try {
          const r = await fetchHostDrift({ host, full })
          const cameBack = this.driftDown
          runInAction(() => {
             this.driftDown = false
-            // a clean LIGHT check cannot clear what a full one found (node types it does not see)
-            if (r.changed) this.drift = { host, summary: r.summary }
-            else if (full || this.drift?.host !== host) this.drift = null
          })
-         if (cameBack && !full) await this.checkDrift(true)
+         if (r.changed) await this.refreshHost()
+         else if (cameBack && !full) await this.checkDrift(true)
       } catch {
          runInAction(() => {
             this.driftDown = true
@@ -923,10 +927,6 @@ export class WebSt {
          runInAction(() => {
             this.hostError = e instanceof Error ? e.message : String(e)
          })
-      } finally {
-         runInAction(() => {
-            this.loraSyncing = false
-         })
       }
    }
 
@@ -979,7 +979,6 @@ export class WebSt {
          })
          // a reboot is the one action whose result arrives LATER: watch for it
          if (action === 'restart') void this.watchHostComeBack()
-         if (action === 'refresh-schema') await this.checkDrift(true)
       } catch (e) {
          runInAction(() => {
             this.hostError = e instanceof Error ? e.message : String(e)

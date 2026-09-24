@@ -784,19 +784,18 @@ export class ServeApp {
          if (action === 'refresh-loras') return await this.refreshLoraMirror(hostId, host)
          if (action === 'refresh-schema') {
             await host.fetchAndUpdateSchema()
-            // a lora the host just learned is usually one the local copy of the lora manager's
-            // list predates, so the panel would show it without name, preview or trigger words.
-            // re-read that list in the same click, BEFORE the rebind reads it
+            // the ONE refresh re-reads the lora manager's list too, BEFORE the rebind reads it:
+            // a lora the host just learned gets its name, preview and trigger words in the same
+            // pass. A host without the extension, or one that fails the sweep, keeps its old
+            // list and the note says so; the schema refetch itself still stands
             const unmirrored = lorasMissingFromMirror(host.schema.getLoras(), (n) => getLoraInfo(n, hostId) != null)
+            const synced = await this.refreshLoraMirror(hostId, host)
             const lorasNote =
-               unmirrored.length === 0
-                  ? ''
-                  : (await this.refreshLoraMirror(hostId, host)).status === 200
-                    ? `, lora manager list re-read for ${unmirrored.length} new lora(s)`
-                    : `, the lora manager list could NOT be re-read (see the sync button)`
-            // a lora var resolves its regex against the schema ONCE, at define time, so a
-            // refetch alone left every var on the list it was born with and the panel kept
-            // warning about a lora the host had just learned. rebinding re-runs that resolve
+               synced.status === 200
+                  ? unmirrored.length > 0
+                     ? `, lora list re-read (${unmirrored.length} new)`
+                     : ', lora list re-read'
+                  : ', the lora manager list could not be re-read'
             const rebound = await this.rebindHostVars(hostId, host)
             const nodes = host.schema.nodes.length
             const loras = host.schema.getLoras().length
