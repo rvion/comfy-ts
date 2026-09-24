@@ -32,3 +32,15 @@ describe('size preset list', () => {
       expect(rule('.preset-menu')).toContain('overflow-y: auto')
    })
 })
+
+describe('the lora details image', () => {
+   it('keeps its own ratio beside a tall details list', () => {
+      // why we think it is actually a bug, and not just meaning spec should change: the sheet is
+      // a flex row, which stretches its children to the row's height, so the preview was drawn
+      // as tall as the text column beside it and came out distorted
+      const r = rule('.detail-thumb')
+      expect(r).toContain('align-self: flex-start')
+      expect(r).toContain('object-fit: contain')
+      expect(r).toContain('height: auto')
+   })
+})

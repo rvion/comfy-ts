@@ -741,7 +741,12 @@ button.head-icon.danger:hover { color: var(--red); border-color: var(--red); }
 
 /* the lora details sheet */
 .lora-details { display: flex; gap: 14px; flex-wrap: wrap; }
-.detail-thumb { width: 220px; max-width: 100%; border-radius: 8px; }
+/* its own ratio, always: the sheet is a flex row, and a stretched child is drawn as tall as the
+   text beside it */
+.detail-thumb {
+   width: 220px; max-width: 100%; height: auto; max-height: 70vh; align-self: flex-start;
+   object-fit: contain; border-radius: 8px;
+}
 .detail-list { flex: 1; min-width: 220px; display: flex; flex-direction: column; gap: 6px; }
 .detail-row { display: grid; grid-template-columns: 110px 1fr; gap: 10px; font-size: 12px; }
 .detail-key { color: var(--dim); }
