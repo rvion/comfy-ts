@@ -93,6 +93,17 @@ export function guessPreset(module: string, names: readonly string[]): string | 
    return best?.name ?? null
 }
 
+/** the text a prompt var holds: the string, or one lane's text, '' for anything else */
+export function promptTextOf(value: unknown, lane: number | null): string {
+   if (lane != null) return isPromptLanes(value) ? (value.lanes[lane]?.prompt ?? '') : ''
+   return typeof value === 'string' ? value : ''
+}
+
+/** what the input holds when the modal opens: the previous one, or the prompt the first time */
+export function openingInput(p: { previous: string; prompt: string }): string {
+   return p.previous !== '' ? p.previous : p.prompt
+}
+
 function readStored(): EnhancerSettings {
    try {
       return normalizeSettings(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}'))
@@ -584,17 +595,10 @@ export class EnhancerSt {
       this.target = p.v
       this.targetLane = p.lane ?? null
       this.targetModule = p.module
-      const value = p.v.value
-      this.original =
-         p.lane != null && isPromptLanes(value)
-            ? (value.lanes[p.lane]?.prompt ?? '')
-            : typeof value === 'string'
-              ? value
-              : ''
-      this.result = ''
-      this.thinking = ''
+      // the input and the last rewrite stay across opens: iterating on one sketch must not mean
+      // retyping it. `use the prompt` copies the prompt in on demand
+      this.original = openingInput({ previous: this.original, prompt: promptTextOf(p.v.value, p.lane ?? null) })
       this.error = ''
-      this.phase = 'idle'
       const remembered = this.presetByModule[p.module]
       if (remembered != null) this.presetName = remembered
       if (this.presets.length === 0) void this.loadPresets().then(() => this.guessFor(p.module))
@@ -617,6 +621,12 @@ export class EnhancerSt {
 
    setEditing(v: 'llm' | 'preset' | null): void {
       this.editing = v
+   }
+
+   /** the input becomes the prompt being refined (its lane in lanes mode) */
+   usePrompt(): void {
+      if (this.target == null) return
+      this.original = promptTextOf(this.target.value, this.targetLane)
    }
 
    close(): void {

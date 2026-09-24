@@ -389,7 +389,17 @@ const Job = observer(function Job(p: { e: EnhancerSt }) {
          </div>
          <div className="enh-label enh-label-row">
             <span>yours, what gets sent (the form is untouched)</span>
-            <HistoryButton entries={e.inputHistory} what="enhance input" onPick={(h) => e.setOriginal(h.value)} />
+            <span className="row-inline">
+               <button
+                  type="button"
+                  className="mini"
+                  data-tip="replace this text with the prompt you opened the enhancer from"
+                  onClick={() => e.usePrompt()}
+               >
+                  use the prompt
+               </button>
+               <HistoryButton entries={e.inputHistory} what="enhance input" onPick={(h) => e.setOriginal(h.value)} />
+            </span>
          </div>
          <textarea className="enh-text enh-box" value={e.original} onChange={(ev) => e.setOriginal(ev.target.value)} />
          <div className="enh-label">
