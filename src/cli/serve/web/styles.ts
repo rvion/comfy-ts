@@ -311,6 +311,9 @@ button.accent:hover { background: var(--accent-dim); color: #fff; }
 input[type='range'].setting-range:disabled { opacity: 0.3; }
 .live-preview-error { margin-left: 4px; }
 .live-preview-line { min-height: 1.35em; }
+button.run-stop { padding: 4px 10px; font-size: 13px; flex-shrink: 0; }
+button.run-stop:not(:disabled) { color: var(--red); border-color: var(--red); }
+button.run-stop:disabled { opacity: 0.4; cursor: default; }
 .run-chip {
    display: inline-flex; gap: 6px; align-items: center; color: var(--text); font-size: 13px;
    border: 1px solid var(--border); border-radius: 999px; padding: 0 12px 0 0; flex-shrink: 0; overflow: hidden;

@@ -405,6 +405,17 @@ export const GenerateButton = observer(function GenerateButton(p: { st: WebSt })
             {/* the shortcut is SAID, not only tooltipped: nobody hovers a button they can click */}
             <span className="kbd-hint">{MOD_KEY}⏎</span>
          </button>
+         {/* stop sits where you look while a run goes, not only in the host box; always here,
+             disabled when idle, so the line never shifts */}
+         <button
+            type="button"
+            className="run-stop"
+            disabled={!run.isRunning}
+            data-tip="stop the run in progress (the queue behind it stays)"
+            onClick={() => void p.st.hostAction('interrupt')}
+         >
+            <Icon name="pause" size={0.9} /> stop
+         </button>
          {/* both chips are ALWAYS here at one width: a chip appearing, or a count growing a
              digit, moved everything beside it. An empty one is dimmed, its clear disabled */}
          <RunChip
