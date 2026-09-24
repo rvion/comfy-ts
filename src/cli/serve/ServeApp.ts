@@ -808,7 +808,7 @@ export class ServeApp {
                host: hostId,
                action,
                stale: rebound.stale,
-               note: `schema refetched: ${nodes} node types, ${loras} loras, ${rebound.widened} lora var(s) changed${dropped}${lorasNote}. no restart needed`,
+               note: `schema refetched: ${nodes} node types, ${loras} loras, ${rebound.widened} lora var(s) changed${dropped}${lorasNote}`,
             })
          }
          if (action === 'restart') {

@@ -478,6 +478,8 @@ button.accent:hover { background: var(--accent-dim); color: #fff; }
 .modal.loras-modal { height: min(86vh, 100%); max-height: none; }
 .loras-modal .modal-body { flex: 1; min-height: 0; }
 .modal-head .modal-close { margin-left: 6px; }
+/* the lora image size slider: small, beside the toggles it goes with */
+.var-control input[type='range'].lora-size, .modal-head input[type='range'].lora-size { width: 72px; flex: 0 0 72px; }
 .modal-foot { padding: 5px 10px; border-top: 1px solid var(--border); font-size: 11px; color: var(--dim); margin: 0; }
 .modal-body { overflow-y: auto; padding: 10px; }
 .section-title { color: var(--dim); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; margin: 8px 0 6px; }
@@ -690,11 +692,6 @@ button.head-icon.danger:hover { color: var(--red); border-color: var(--red); }
 /* the lora controls sit above the palette, left aligned */
 .lora-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
 .lora-actions button { font-size: 12px; }
-/* a lora the manager knows and comfy does not: flagged, never hidden */
-.host-note {
-   margin: 8px 0; padding: 6px 10px; font-size: 12px; color: var(--text);
-   background: var(--panel); border: 1px solid var(--accent-dim); border-radius: 6px;
-}
 /* the words the loras prepend to the prompt: shown, not guessed. One quiet LINE per lora (its
    name, the words it adds, how many are disabled), cut with an ellipsis. Clickable without
    shouting: dim text, a dotted underline on hover. A lora that is not running keeps its line,
@@ -748,10 +745,9 @@ button.head-icon.danger:hover { color: var(--red); border-color: var(--red); }
 .detail-examples { display: flex; gap: 8px; flex-wrap: wrap; }
 .detail-examples img { width: 96px; height: 96px; object-fit: cover; border-radius: 6px; }
 
-button.warn-action { color: var(--amber); border-color: var(--amber); }
 /* destructive but routine (clear queue): neutral at rest, it only turns red under the pointer */
 button.quiet-danger:hover { color: var(--red); border-color: var(--red); }
-button.warn-action:hover { background: var(--panel); }
+/* a lora the manager knows and comfy does not: flagged, never hidden */
 .lora-warn { color: var(--amber); display: inline-flex; margin-left: 4px; vertical-align: -0.1em; }
 /* an anchor that must read as a button (it opens the host's own page, so it IS a link) */
 .button-link {

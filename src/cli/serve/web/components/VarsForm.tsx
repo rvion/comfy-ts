@@ -479,7 +479,13 @@ export const VarsForm = observer(function VarsForm(p: { st: WebSt }) {
                {/* duplicate and delete act on THIS draft, so they live in the draft box */}
                <DraftBox st={p.st} form={form} />
                <div className="head-box">
-                  <span className="head-label">host</span>
+                  {/* a restart shows HERE, as the card's legend like the draft's `· saving`: a line
+                      under the cards moved the whole form and read as unrelated to the host */}
+                  <span className="head-label">
+                     host
+                     {p.st.hostWatch === 'down' ? <span className="save-state pulse">· restarting…</span> : null}
+                     {p.st.hostWatch === 'back' ? <span className="save-state">· back up</span> : null}
+                  </span>
                   {/* the box itself, like the draft: its name, with the two actions ON the box
                       around it. The ones on the RUNNING work sit on the line below, in words */}
                   <div className="head-line draft-line">
@@ -562,13 +568,9 @@ export const VarsForm = observer(function VarsForm(p: { st: WebSt }) {
                </div>
             </div>
          </div>
-         {/* every host action SAYS what happened: the note was computed and thrown away, which
-             is precisely why restart looked like a dead button */}
+         {/* a host action that FAILS says so on its own line; one that works says nothing here,
+             the ↻ pulse and the host card's legend show what runs */}
          {p.st.hostError != null ? <div className="error">🔴 {p.st.hostError}</div> : null}
-         {p.st.hostWatch === 'down' ? (
-            <div className="host-note pulse">restarting… waiting for the host to answer again</div>
-         ) : null}
-         {p.st.hostNote != null && p.st.hostWatch !== 'down' ? <div className="host-note">{p.st.hostNote}</div> : null}
          {/* the autosave state is the draft box's legend now; only a FAILURE gets a line of
              its own, because that one you must not miss */}
          {form.saveState === 'error' ? <div className="error">🔴 draft save failed: {form.saveError}</div> : null}

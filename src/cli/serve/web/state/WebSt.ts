@@ -78,6 +78,8 @@ type StoredSelection = {
    loraFill?: boolean
    /** trigger words under the lora cards */
    loraTriggers?: boolean
+   /** lora image size factor */
+   loraScale?: number
    /** the label column width, px */
    labelWidth?: number
    loraSort?: string
@@ -107,6 +109,13 @@ export const DEFAULT_LORA_CAP = 200
 const LEGACY_LORA_CAP = 60
 /** an upper bound, not a policy: 2000 cards is 2000 image requests, and a number typed by
  * hand (or restored from an older blob) must not be able to hang the page */
+/** lora images from a little smaller to twice the base size: the right size depends on the
+ * collection (art crops well small, a character sheet needs room) and on the screen */
+export function clampLoraScale(raw: unknown): number {
+   const n = typeof raw === 'number' && Number.isFinite(raw) ? raw : 1
+   return Math.min(2, Math.max(0.6, Math.round(n * 20) / 20))
+}
+
 export const DEFAULT_LABEL_WIDTH = 120
 
 export function clampLabelWidth(raw: unknown): number {
@@ -151,6 +160,8 @@ export class WebSt {
    loraFill: boolean
    /** trigger words under each lora card: off by default, the words are reference, not a control */
    showLoraTriggers: boolean
+   /** how big every lora image is drawn, 1 = the base card size */
+   loraScale: number
    loraSort: LoraSort
    /** how many lora cards the popup draws. A cap exists because each card is an image
     * request; how many is a MACHINE question (your box, your collection), so it is yours */
@@ -235,6 +246,7 @@ export class WebSt {
       this.showLoraTitles = stored.loraTitles ?? true
       this.loraFill = stored.loraFill ?? true
       this.showLoraTriggers = stored.loraTriggers ?? false
+      this.loraScale = clampLoraScale(stored.loraScale)
       this.loraSort = asLoraSort(stored.loraSort)
       // marked in the blob, so the bump happens once and a deliberate 60 sticks after it
       this.loraCap = clampLoraCap(
@@ -281,6 +293,11 @@ export class WebSt {
 
    setSizeStars(key: string, stars: string[]): void {
       this.sizeStars[key] = stars
+      this.persist()
+   }
+
+   setLoraScale(v: number): void {
+      this.loraScale = clampLoraScale(v)
       this.persist()
    }
 
@@ -368,6 +385,7 @@ export class WebSt {
                loraTitles: this.showLoraTitles,
                loraFill: this.loraFill,
                loraTriggers: this.showLoraTriggers,
+               loraScale: this.loraScale,
                loraSort: this.loraSort,
                loraCap: this.loraCap,
                loraCapMigrated: true,
@@ -770,7 +788,6 @@ export class WebSt {
    showLogs = false
    logLines: string[] = []
    logsError: string | null = null
-   hostNote: string | null = null
    /** the latent frames during a run: on by default, off when you only want the final image */
    showLatent = true
    /** results blurred until the pointer is on them: a screen someone else may see */
@@ -885,13 +902,9 @@ export class WebSt {
       runInAction(() => {
          this.loraFetching.add(lora)
          this.hostError = null
-         this.hostNote = null
       })
       try {
-         const reply = await postLoraCivitai({ host, lora })
-         runInAction(() => {
-            this.hostNote = reply.note
-         })
+         await postLoraCivitai({ host, lora })
          await this.trackSwitch(this.reloadIndexAndForm())
       } catch (e) {
          runInAction(() => {
@@ -956,7 +969,6 @@ export class WebSt {
          if (!up) continue
          runInAction(() => {
             this.hostWatch = 'back'
-            this.hostNote = `${host} is back up`
          })
          void this.checkDrift(true)
          setTimeout(() => runInAction(() => (this.hostWatch = 'idle')), 4000)
@@ -970,13 +982,9 @@ export class WebSt {
       if (host == null || host === '') return
       runInAction(() => {
          this.hostError = null
-         this.hostNote = null
       })
       try {
-         const reply = await postHostAction({ host, action })
-         runInAction(() => {
-            this.hostNote = reply.note
-         })
+         await postHostAction({ host, action })
          // a reboot is the one action whose result arrives LATER: watch for it
          if (action === 'restart') void this.watchHostComeBack()
       } catch (e) {
