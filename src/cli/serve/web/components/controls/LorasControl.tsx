@@ -484,6 +484,13 @@ export const LorasControl = observer(function LorasControl(p: {
       )
    }
 
+   /** a paused lora says so ON its image, the size of a thumb, so a row of cards reads at a glance */
+   const pausedMark = (
+      <span className="paused-mark" aria-label="paused">
+         <Icon name="pause" size={2.6} />
+      </span>
+   )
+
    /** the image size, a small slider: only while images are shown */
    const sizeSlider = showImages ? (
       <input
@@ -729,6 +736,7 @@ export const LorasControl = observer(function LorasControl(p: {
                                        onClick={() => toggleOn(sec, name, !isOn(sec, name))}
                                     >
                                        {thumb(name, Math.round(130 * scale))}
+                                       {showImages && !isOn(sec, name) ? pausedMark : null}
                                     </button>
                                     <button
                                        type="button"
@@ -952,7 +960,10 @@ export const LorasControl = observer(function LorasControl(p: {
                                                 else toggleOn(target, name, action === 'resume')
                                              }}
                                           >
-                                             {thumb(name, Math.round(110 * scale))}
+                                             <span className="thumb-box">
+                                                {thumb(name, Math.round(110 * scale))}
+                                                {showImages && picked && !on ? pausedMark : null}
+                                             </span>
                                              <div className="lora-label">
                                                 {showTitles ? label(name) : name.slice(0, 2) + '···'}
                                                 {warnBadge(name)}

@@ -476,6 +476,12 @@ button.accent:hover { background: var(--accent-dim); color: #fff; }
 .chip-media .chip-remove:hover, .lora-active-row .chip-remove:hover, .lora-card .chip-remove:hover { opacity: 1; color: var(--red); }
 
 /* PAUSED: still in the palette, visibly not contributing to the graph */
+.lora-toggle, .thumb-box { position: relative; display: block; }
+.paused-mark {
+   position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+   pointer-events: none; color: #fff; opacity: 0.8;
+}
+.paused-mark svg { background: rgba(16, 18, 23, 0.55); border-radius: 50%; padding: 10px; box-sizing: content-box; stroke-width: 3; }
 .lora-chip.off, .lora-active-row.off { opacity: 0.55; }
 .lora-chip.off { border-style: dashed; }
 .lora-chip.off .lora-thumb, .lora-active-row.off .lora-thumb { filter: grayscale(1); }
