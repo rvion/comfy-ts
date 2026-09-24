@@ -1,6 +1,6 @@
 // reopening the enhancer keeps the input you were working on; one button copies the prompt in
 import { describe, expect, it } from 'bun:test'
-import { openingInput, promptTextOf, withCandidate } from 'src/cli/serve/web/state/EnhancerSt.ts'
+import { generateOverride, openingInput, promptTextOf, withCandidate } from 'src/cli/serve/web/state/EnhancerSt.ts'
 
 describe('the enhancer input across opens', () => {
    // why we think it is actually a bug, and not just meaning spec should change: an input you
@@ -46,5 +46,20 @@ describe('trying a candidate', () => {
             { name: 'style', prompt: 'ink', active: false },
          ],
       })
+   })
+})
+
+describe('what ⌘⏎ generates', () => {
+   const target = { name: 'prompt', value: 'a cat' }
+
+   it('with the enhancer open and a rewrite, the rewrite is tried in place of the prompt', () => {
+      expect(generateOverride({ open: true, target, lane: null, result: ' a tabby cat ' })).toEqual({
+         prompt: 'a tabby cat',
+      })
+   })
+
+   it('with no rewrite yet, or the enhancer closed, the draft as the form has it', () => {
+      expect(generateOverride({ open: true, target, lane: null, result: '  ' })).toBeUndefined()
+      expect(generateOverride({ open: false, target, lane: null, result: 'a tabby cat' })).toBeUndefined()
    })
 })

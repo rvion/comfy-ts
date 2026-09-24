@@ -7,7 +7,7 @@ import { useEffect, type ReactNode } from 'react'
 import { MOD_KEY } from 'src/cli/serve/web/components/modKey.ts'
 import { HistoryButton } from 'src/cli/serve/web/components/HistoryPicker.tsx'
 import type { ProviderId, ReasoningEffort } from 'src/cli/serve/web/llm.ts'
-import { PROVIDERS, withCandidate, type EnhancerSt, type SaveState } from 'src/cli/serve/web/state/EnhancerSt.ts'
+import { PROVIDERS, type EnhancerSt, type SaveState } from 'src/cli/serve/web/state/EnhancerSt.ts'
 import type { VarSt } from 'src/cli/serve/web/state/FormSt.ts'
 import type { WebSt } from 'src/cli/serve/web/state/WebSt.ts'
 import {
@@ -368,7 +368,7 @@ const MasterPrompt = observer(function MasterPrompt(p: { e: EnhancerSt }) {
 const Job = observer(function Job(p: { e: EnhancerSt; st: WebSt }) {
    const e = p.e
    const running = e.phase === 'running'
-   const act = actions(e, p.st)
+   const act = actions(e)
    const kbd = (s: EnhancerShortcut): ReactNode => (
       <span className="kbd-hint">
          {MOD_KEY}
@@ -393,10 +393,10 @@ const Job = observer(function Job(p: { e: EnhancerSt; st: WebSt }) {
                type="button"
                className="enh-big"
                data-tip="generate the draft with this rewrite in place of the prompt: the prompt itself is not changed"
-               onClick={act.try}
+               onClick={() => p.st.generate(e.tryOverride)}
                disabled={noResult}
             >
-               <Icon name="play" size={0.85} /> try it {kbd('try')}
+               <Icon name="play" size={0.85} /> try it <span className="kbd-hint">{MOD_KEY}⏎</span>
             </button>
             <button
                type="button"
@@ -444,17 +444,11 @@ const Job = observer(function Job(p: { e: EnhancerSt; st: WebSt }) {
    )
 })
 
-/** the three actions, shared by the buttons and the keys so they cannot drift apart */
-function actions(e: EnhancerSt, st: WebSt): Record<EnhancerShortcut, () => void> {
+/** the enhancer's own actions, shared by the buttons and the keys so they cannot drift apart.
+ * try is the global ⌘⏎ (VarsForm), through EnhancerSt.tryOverride like its button */
+function actions(e: EnhancerSt): Record<EnhancerShortcut, () => void> {
    return {
       enhance: () => (e.phase === 'running' ? undefined : e.run()),
-      // generate with the candidate in place of the refined prompt, the form keeps its own value
-      try: () => {
-         const v = e.target
-         const text = e.result.trim()
-         if (v == null || text === '') return
-         st.generate({ [v.name]: withCandidate(v.value, e.targetLane, text) })
-      },
       apply: () => e.apply(),
    }
 }
@@ -473,7 +467,7 @@ const Modal = observer(function Modal(p: { e: EnhancerSt; st: WebSt }) {
          const s = enhancerShortcutOf(ev)
          if (s == null) return
          ev.preventDefault()
-         actions(e, st)[s]()
+         actions(e)[s]()
       }
       window.addEventListener('keydown', onKey)
       return () => window.removeEventListener('keydown', onKey)

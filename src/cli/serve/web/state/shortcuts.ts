@@ -34,11 +34,11 @@ export function jumpTargets(vars: readonly { name: string; kind: string; inactiv
    return { prompt: first('prompt'), loras: first('loras') }
 }
 
-/** the enhancer's own keys, live only while it is open. One key per action, and never ⌘⏎: that
- * one generates everywhere, the enhancer included. The browser keeps ⌘T and ⌘L for itself */
-export type EnhancerShortcut = 'enhance' | 'try' | 'apply'
+/** the enhancer's own keys, live only while it is open. Never ⌘⏎: that one generates everywhere,
+ * and in the enhancer it generates with the rewrite (try, EnhancerSt.generateOverride) */
+export type EnhancerShortcut = 'enhance' | 'apply'
 
-export const ENHANCER_KEYS: Record<EnhancerShortcut, string> = { enhance: 'E', try: 'G', apply: 'I' }
+export const ENHANCER_KEYS: Record<EnhancerShortcut, string> = { enhance: 'E', apply: 'I' }
 
 export function enhancerShortcutOf(e: {
    key: string

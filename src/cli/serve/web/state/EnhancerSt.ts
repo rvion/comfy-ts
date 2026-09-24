@@ -106,6 +106,20 @@ export function withCandidate(value: unknown, lane: number | null, text: string)
    return text
 }
 
+/** what a generate sends in place of the form's values: while the enhancer is open with a
+ * rewrite, that rewrite TRIED in place of the refined prompt (the form keeps its own value);
+ * otherwise nothing, the draft as it is. ⌘⏎ and the try button both go through this */
+export function generateOverride(p: {
+   open: boolean
+   target: { name: string; value: unknown } | null
+   lane: number | null
+   result: string
+}): Record<string, unknown> | undefined {
+   const text = p.result.trim()
+   if (!p.open || p.target == null || text === '') return undefined
+   return { [p.target.name]: withCandidate(p.target.value, p.lane, text) }
+}
+
 /** what the input holds when the modal opens: the previous one, or the prompt the first time */
 export function openingInput(p: { previous: string; prompt: string }): string {
    return p.previous !== '' ? p.previous : p.prompt
@@ -628,6 +642,11 @@ export class EnhancerSt {
 
    setEditing(v: 'llm' | 'preset' | null): void {
       this.editing = v
+   }
+
+   /** the override a generate sends right now (generateOverride) */
+   get tryOverride(): Record<string, unknown> | undefined {
+      return generateOverride({ open: this.isOpen, target: this.target, lane: this.targetLane, result: this.result })
    }
 
    /** the input becomes the prompt being refined (its lane in lanes mode) */

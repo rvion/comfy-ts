@@ -42,16 +42,14 @@ describe('panel shortcuts', () => {
    })
 })
 
-describe('enhancer shortcuts: one key per action, ⌘⏎ stays generate', () => {
-   it('⌘E enhances, ⌘G tries the candidate, ⌘I applies it', () => {
+describe('enhancer shortcuts: ⌘E enhance, ⌘I apply, ⌘⏎ is the global generate (try, in there)', () => {
+   it('⌘E enhances, ⌘I applies', () => {
       expect(enhancerShortcutOf(key('e', { metaKey: true }))).toBe('enhance')
-      expect(enhancerShortcutOf(key('G', { ctrlKey: true }))).toBe('try')
       expect(enhancerShortcutOf(key('i', { metaKey: true }))).toBe('apply')
    })
 
-   // why we think it is actually a bug, and not just meaning spec should change: ⌘⏎ generated
-   // everywhere except inside the enhancer, where it enhanced, one key with two meanings
-   it('⌘⏎ is never an enhancer action, the global generate keeps it', () => {
+   it('⌘G is no longer an action: try rides ⌘⏎, which the global handler owns', () => {
+      expect(enhancerShortcutOf(key('g', { metaKey: true }))).toBeNull()
       expect(enhancerShortcutOf(key('Enter', { metaKey: true }))).toBeNull()
    })
 

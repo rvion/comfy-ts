@@ -474,7 +474,8 @@ export const VarsForm = observer(function VarsForm(p: { st: WebSt }) {
       const onKey = (e: KeyboardEvent): void => {
          if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
             e.preventDefault()
-            p.st.generate()
+            // in the enhancer with a rewrite, generate TRIES it; the form keeps its own prompt
+            p.st.generate(p.st.enhancer.tryOverride)
             return
          }
          const s = shortcutOf(e)
