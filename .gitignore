@@ -72,3 +72,7 @@ STATUS.full.md
 STATUS.full.md.lock
 .STATUS.full.md.tmp-*
 # <<< shipkit gitignore policy
+
+# drafts are hand-tuned prompts and values (some of them explicit): private to this machine,
+# never published, whatever the managed block above re-includes
+.comfy-ts/drafts/
