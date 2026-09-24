@@ -38,7 +38,8 @@ function useSelectAllInFields(): void {
 
 /** the preview panel's own controls, on top of it: where it sits, what shows while it runs */
 /** the workflow's live previews (defineWorkflow({ previews })): text computed from the values
- * on screen, refreshed as you edit, each block foldable and remembered folded */
+ * on screen, refreshed as you edit. Compact by default, the name inline and every line cut to
+ * one; a click opens the full text, remembered. A `- ` line is the negative, as in a prompt */
 const LivePreviews = observer(function LivePreviews(p: { st: WebSt }) {
    const form = p.st.form
    const names = form == null ? [] : (p.st.moduleByKey(form.moduleKey)?.previews ?? [])
@@ -48,14 +49,32 @@ const LivePreviews = observer(function LivePreviews(p: { st: WebSt }) {
          {form.previewError != null ? <div className="error">🔴 preview: {form.previewError}</div> : null}
          {names.map((name) => {
             const key = `${form.moduleKey}/${name}`
-            const folded = p.st.foldedPreviews.includes(key)
+            const expanded = p.st.expandedPreviews.includes(key)
+            const lines = (form.previews[name] ?? '…').split('\n').filter((l) => l.trim() !== '')
             return (
-               <div key={name} className="live-preview">
-                  <button type="button" className="live-preview-head" onClick={() => p.st.togglePreviewFold(key)}>
-                     <span className="live-preview-caret">{folded ? '▸' : '▾'}</span> {name}
-                  </button>
-                  {folded ? null : <pre className="live-preview-text">{form.previews[name] ?? '…'}</pre>}
-               </div>
+               <button
+                  key={name}
+                  type="button"
+                  className={expanded ? 'live-preview expanded' : 'live-preview'}
+                  data-tip={expanded ? 'click to show one line each' : 'click for the full text'}
+                  onClick={() => p.st.togglePreviewExpanded(key)}
+               >
+                  <span className="live-preview-name">{name}</span>
+                  <span className="live-preview-lines">
+                     {lines.map((line, ix) =>
+                        line.startsWith('- ') ? (
+                           // index keys: a preview's lines have no identity of their own
+                           <span key={ix} className="live-preview-line negative">
+                              − {line.slice(2)}
+                           </span>
+                        ) : (
+                           <span key={ix} className="live-preview-line">
+                              {line}
+                           </span>
+                        ),
+                     )}
+                  </span>
+               </button>
             )
          })}
       </div>

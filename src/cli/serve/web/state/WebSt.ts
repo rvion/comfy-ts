@@ -89,8 +89,8 @@ type StoredSelection = {
    latent?: boolean
    /** results blurred until hovered */
    blur?: boolean
-   /** live previews folded shut, as `module/name` */
-   foldedPreviews?: string[]
+   /** live previews opened to their full text, as `module/name` */
+   expandedPreviews?: string[]
    logs?: boolean
    /** module key → the var names in the order you dragged them into */
    varOrder?: Record<string, string[]>
@@ -242,8 +242,8 @@ export class WebSt {
       )
       this.showLatent = stored.latent ?? true
       this.blurResults = stored.blur ?? false
-      this.foldedPreviews = Array.isArray(stored.foldedPreviews)
-         ? stored.foldedPreviews.filter((x): x is string => typeof x === 'string')
+      this.expandedPreviews = Array.isArray(stored.expandedPreviews)
+         ? stored.expandedPreviews.filter((x): x is string => typeof x === 'string')
          : []
       this.varOrder = stored.varOrder ?? {}
       this.sizeStars = stored.sizeStars ?? {}
@@ -374,7 +374,7 @@ export class WebSt {
                layout: this.layout,
                latent: this.showLatent,
                blur: this.blurResults,
-               foldedPreviews: this.foldedPreviews,
+               expandedPreviews: this.expandedPreviews,
                logs: this.showLogs,
                varOrder: this.varOrder,
                sizeStars: this.sizeStars,
@@ -775,8 +775,8 @@ export class WebSt {
    showLatent = true
    /** results blurred until the pointer is on them: a screen someone else may see */
    blurResults = false
-   /** live previews folded shut, as `module/name` */
-   foldedPreviews: string[] = []
+   /** live previews opened to their full text, as `module/name`; the rest show one line each */
+   expandedPreviews: string[] = []
    private logsTimer: ReturnType<typeof setInterval> | null = null
 
    toggleLatent(): void {
@@ -784,10 +784,10 @@ export class WebSt {
       this.persist()
    }
 
-   togglePreviewFold(key: string): void {
-      this.foldedPreviews = this.foldedPreviews.includes(key)
-         ? this.foldedPreviews.filter((k) => k !== key)
-         : [...this.foldedPreviews, key]
+   togglePreviewExpanded(key: string): void {
+      this.expandedPreviews = this.expandedPreviews.includes(key)
+         ? this.expandedPreviews.filter((k) => k !== key)
+         : [...this.expandedPreviews, key]
       this.persist()
    }
 
