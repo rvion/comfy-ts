@@ -15,4 +15,15 @@ describe('drafts stay private', () => {
    it('control: the prompt enhancer templates stay tracked, the one published part of .comfy-ts', () => {
       expect(ignored('.comfy-ts/prompt-enhancers/refine-krea2-prompt.md')).toBe(false)
    })
+
+   // why we think it is actually a bug, and not just meaning spec should change: the gitignore's own
+   // comment says the master prompts are tracked, and a check on an already TRACKED file cannot see
+   // it (git never reports a tracked path as ignored), so a new master prompt was silently left out
+   it('a NEW master prompt is not ignored either, so it can be committed', () => {
+      expect(ignored('.comfy-ts/prompt-enhancers/a-new-master-prompt.md')).toBe(false)
+   })
+
+   it('llm configs stay private like drafts', () => {
+      expect(ignored('.comfy-ts/llm-configs/wm-9b.json')).toBe(true)
+   })
 })

@@ -76,3 +76,8 @@ STATUS.full.md.lock
 # drafts are hand-tuned prompts and values (some of them explicit): private to this machine,
 # never published, whatever the managed block above re-includes
 .comfy-ts/drafts/
+# the master prompts are the one published part of .comfy-ts: re-included after the managed
+# block's `.comfy-ts/*`, which otherwise hides every new one
+!.comfy-ts/prompt-enhancers/
+.comfy-ts/prompt-enhancers/*
+!.comfy-ts/prompt-enhancers/*.md
