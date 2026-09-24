@@ -18,6 +18,7 @@ examples/
       09-qwen-image-21-edit.cflow.ts  qwen image 2.1 edit, one reference in the `images.image_1` autogrow slot; the `remove background` preset = image_qwen_image_2_1_background_removal
       10-anima-t2i.cflow.ts           anima on windows-1: a model choice (turbo v1.1, aesthetic v1.1, base v1.0, base + turbo lora; distilled = 8 steps cfg 1, else the steps/cfg vars), a sampler choice (auto = er_sde or euler), the model card's leading tags as buttons above the prompt (safety, score, quality; score skipped on aesthetic, `animaTags`), danbooru tag completion in the prompt (`tags`, the tagcomplete csv by url, artists get `@`), loras from `anima/` folders only, RMBG cutout like 04
                                     the `streaming` toggle swaps in extra/comfyui-textgen-stream's node when the host has it (feature-detected), so the answer is watched as it is written
+      11-yue2-t2a.cflow.ts            YuE2 text to music on windows-1 (audio_yue2_text2music): first prompt line = style, the rest = lyrics; ABC planning as a choice (full, melody, off); PreviewAudio (server temp/ only), the song plays in the serve panel
    comfy-cloud/
       sdk.d.ts                   committed cloud catalog (gen:sdk:cloud)
       cloudHost.ts               shared host helper — NOT .cflow, invisible to the TUI
@@ -85,7 +86,7 @@ if (import.meta.main) {
 Deviations from the skeleton, both deliberate:
 
 - i2i/i2v files take `argv[2] = image path` and `argv[3] = prompt` (the image IS the primary input there); each header comment documents its own order.
-- video/audio modes (SaveVideo / SaveAudioMP3 savers) have no downloadable `execution.images`: their standalone block prints the honest completion line instead (`🟢 <status>: video saved on the host under comfy-ts-zoo/<name>`), never a silent success.
+- audio outputs come back as `execution.audios` (downloaded, saved locally when `save:` is on); the zoo's audio examples predate that and still print the host-side line. video modes (SaveVideo) have no downloadable output: their standalone block prints the honest completion line instead (`🟢 <status>: video saved on the host under comfy-ts-zoo/<name>`), never a silent success.
 
 - Header comment: 2-4 lines — family+mode+model, the SOURCE TEMPLATE name, the key requirement, the run command. Nothing else.
 - ONE workflow per file, `export const` + `export default`, id = `<family>-<mode>` (matches the basename).

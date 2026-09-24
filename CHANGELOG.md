@@ -1,5 +1,11 @@
 # comfy-ts
 
+## Unreleased (minor)
+
+- **Audio outputs come back to your code.** `execution.audios` lists every file an audio output node wrote (`SaveAudio`, `SaveAudioMP3`, `SaveAudioOpus`, `PreviewAudio`): filename, mime type, bytes, and the local path when `run({ save })` is on. The bytes stay exactly as the host wrote them. A failed download lands in `execution.audioErrors`.
+- **The web panel plays them.** Each audio result shows a player and a download link. The run reply carries `audios: [{ filename, mime, url, absPath }]`, and with saving off `GET /audio/<promptId>/<ix>` serves the file from memory.
+- **New example: YuE2 text to music** (`examples/rvion/11-yue2-t2a.cflow.ts`). The first prompt line is the style and the rest is the lyrics. ABC planning is a choice (full, melody, off), and the plan shows as a text result next to the song.
+
 ## 2.12.0
 
 ### The web panel
