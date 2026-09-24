@@ -356,7 +356,7 @@ export const Gallery = observer(function Gallery(p: { st: WebSt; compact?: boole
    if (p.st.run.results.length === 0 && !p.st.run.isRunning) return null
    const results = p.compact === true ? p.st.run.results.slice(0, 1) : p.st.run.results
    return (
-      <div className="gallery">
+      <div className={p.st.blurResults ? 'gallery blur' : 'gallery'}>
          <RunningCard st={p.st} local={local} />
          {/* the count and clear-all moved onto the run line beside the generate button: two
              headers for one idea is a header too many */}

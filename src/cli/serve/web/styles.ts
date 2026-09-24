@@ -24,32 +24,27 @@ body {
 #root { height: 100%; }
 .app { display: flex; flex-direction: column; height: 100%; }
 .cols { display: flex; flex: 1; min-height: 0; position: relative; }
-.backdrop { display: none; }
 
-.sidebar {
-   width: 240px; flex-shrink: 0; overflow-y: auto;
-   border-right: 1px solid var(--border); background: var(--panel); padding: 6px 0;
+/* ⌘K / ⌘J: every workflow and draft, fuzzy matched. Above the other modals, so it opens from
+   inside the loras popup too */
+.omni-overlay { z-index: 60; align-items: flex-start; padding-top: 12vh; }
+.modal.omni { width: min(560px, 100%); max-height: min(70vh, 100%); }
+.omni-list { padding: 4px; }
+.omni-row {
+   display: flex; width: 100%; gap: 10px; align-items: baseline; justify-content: space-between;
+   text-align: left; border: 0; background: none; color: var(--text); padding: 6px 10px;
+   border-radius: 6px; cursor: pointer; font: inherit;
 }
-/* the way OUT, from inside: the drawer opens from the workflow head box, which nothing
-   advertises, so a visible close is what teaches where it lives */
-.side-head {
-   display: flex; align-items: center; justify-content: space-between; gap: 8px;
-   padding: 2px 8px 8px 12px; margin-bottom: 4px; border-bottom: 1px solid var(--border);
-   color: var(--dim); font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase;
-}
-.side-head button { padding: 2px 6px; }
-.side-module { padding: 6px 12px 2px; }
-.side-module .name { font-weight: 600; }
-.side-module .host { color: var(--dim); font-size: 11px; margin-left: 6px; }
-.side-draft {
-   display: block; width: 100%; text-align: left; border: 0; background: none; color: var(--text);
-   padding: 4px 12px 4px 26px; cursor: pointer; font: inherit; border-radius: 4px;
-}
-.side-draft:hover { background: var(--panel-2); }
-.side-draft.sel { background: var(--accent-dim); color: #fff; }
-.side-errors { margin: 12px; padding: 8px; border: 1px solid var(--red); border-radius: 6px; font-size: 12px; }
-.side-errors .file { color: var(--dim); word-break: break-all; }
-.side-errors .msg { color: var(--red); }
+.omni-row:hover { background: var(--panel-2); }
+.omni-row.sel { background: var(--accent-dim); color: #fff; }
+.omni-row.open .omni-label { font-weight: 600; }
+.omni-label { overflow-wrap: anywhere; }
+.omni-host { color: var(--dim); font-size: 11px; white-space: nowrap; }
+.omni-errors { margin: 10px 6px 4px; padding: 8px; border: 1px solid var(--red); border-radius: 6px; font-size: 12px; }
+.omni-errors .section-title { margin-top: 0; color: var(--red); }
+.omni-errors .file { color: var(--dim); word-break: break-all; }
+.omni-errors .msg { color: var(--red); margin-bottom: 6px; white-space: pre-wrap; }
+button.link.load-errors { color: var(--red); font-size: 11px; }
 
 /* the ONE scrolling element. --main-pad-y is its own top+bottom padding, published so the
    sticky results column can subtract exactly that: a column sized to the full VIEWPORT inside
@@ -64,17 +59,14 @@ body {
 /* the TUI header on the web: one labelled box per thing you are editing, actions below */
 /* the boxes measure the FORM COLUMN, not the window: a results panel on the side halves the
    space they have while the viewport is unchanged, so a media query would answer the wrong
-   question. Three variants, and EVEN ones: flex-wrap could leave 3 boxes on one line and 1
-   alone on the next, which reads as a bug rather than as a layout */
+   question. Two variants, and EVEN ones: three boxes in a row or stacked. Two columns would
+   leave one box alone on the second line, which reads as a bug rather than as a layout */
 .head-shell { container-type: inline-size; }
 .head-boxes { display: grid; grid-template-columns: 1fr; gap: 10px; margin: 4px 0 0; align-items: stretch; }
-@container (min-width: 380px) {
-   .head-boxes { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@container (min-width: 540px) {
+   .head-boxes { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
-@container (min-width: 780px) {
-   .head-boxes { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-}
-/* no container-query support: fall back to the old wrapping row rather than a stack of four */
+/* no container-query support: fall back to the old wrapping row rather than a stack of three */
 @supports not (container-type: inline-size) {
    .head-boxes { display: flex; flex-wrap: wrap; }
    .head-boxes > .head-box { flex: 1 1 auto; min-width: 150px; }
@@ -104,32 +96,61 @@ button.danger { color: var(--dim); }
 button.attention { color: var(--accent); border-color: var(--accent); background: var(--accent-dim); font-size: 11px; white-space: nowrap; }
 button.danger:hover { color: var(--red); border-color: var(--red); }
 
-/* the sidebar is a tree: folder → workflows → drafts, the branch line makes the nesting readable */
-.side-group { margin-bottom: 7px; }
-.side-folder { padding: 4px 12px 2px; color: var(--dim); font-size: 11px; overflow-wrap: anywhere; }
-.side-branch { margin-left: 10px; border-left: 1px solid var(--border); }
-
 /* the label column is fit-content CAPPED, not a fixed slab: with short labels the controls
    start right after them. Rows are subgrids of .vars so the column still lines up across
    rows — a per-row grid would give every row its own width. The 150px track is the
    pre-subgrid fallback, kept first so an old engine still gets aligned columns */
 /* the form needs air under the head boxes: the first var sat flush against them */
-.vars { display: grid; grid-template-columns: fit-content(150px) 1fr; margin-top: 14px; }
+.vars { display: grid; grid-template-columns: 120px minmax(0, 1fr); margin-top: 14px; position: relative; }
+/* the label column's edge: a thin strip you drag, lit on hover */
+.label-resizer {
+   position: absolute; top: 0; bottom: 0; width: 6px; margin-left: -3px; z-index: 5;
+   cursor: col-resize; border-radius: 3px;
+}
+.label-resizer:hover, .label-resizer:active { background: var(--accent-dim); }
 .var-row {
    display: grid; grid-template-columns: 150px 1fr; grid-column: 1 / -1;
    grid-template-columns: subgrid; gap: 8px; align-items: start;
-   padding: 3px 0; border-bottom: 1px solid var(--border);
+   /* no rule between rows: the label column and the spacing already separate them. Every
+   row has the same side padding, so a tinted group block has room and its labels still line
+   up with the plain rows */
+   padding: 4px 8px;
 }
+/* vars that go together (VarUi.group): one tinted block, rounded at its ends */
+.var-row.in-group { background: rgba(122, 162, 247, 0.06); }
+.var-row.group-start { border-radius: 8px 8px 0 0; margin-top: 6px; }
+.var-row.group-end { border-radius: 0 0 8px 8px; margin-bottom: 6px; }
+.var-row.group-solo { border-radius: 8px; margin: 6px 0; }
 /* the label IS the drag handle for its row: no separate grip to reveal or aim at */
-.var-label { padding-top: 3px; overflow-wrap: break-word; cursor: grab; }
+/* labels never wrap: one line at the height of a control, cut with an ellipsis, whole on hover.
+   The icon and the (?) keep their size, only the name gives way */
+.var-label { display: flex; align-items: center; justify-content: flex-end; min-height: 28px; min-width: 0; cursor: grab; }
+.var-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.var-row.inactive .var-control { opacity: 0.18; filter: grayscale(1); }
+.var-row.inactive .var-label { opacity: 0.45; }
 .var-label:active { cursor: grabbing; }
 .lora-chip[draggable='true'] { cursor: grab; }
 /* the card drags from anywhere, so its own controls must keep their cursor */
 .lora-chip input, .lora-chip label, .lora-chip button { cursor: pointer; }
 .lora-chip input[type='number'] { cursor: text; }
-.var-label .dirty-dot { color: var(--amber); margin-left: 4px; background: none; border: 0; padding: 0; cursor: pointer; font: inherit; }
-.var-label .dirty-dot:hover { color: var(--red); }
+/* the modified mark: a small dot pinned to the cell's left edge, OUT of the flow, so a field
+   that changes never moves its label */
+.var-label { position: relative; }
+.var-label .dirty-dot {
+   position: absolute; left: -4px; top: 50%; transform: translateY(-50%);
+   width: 7px; height: 7px; padding: 0; border: 0; border-radius: 50%;
+   background: var(--amber); font-size: 0; cursor: pointer;
+}
+.var-label .dirty-dot:hover { background: var(--red); }
 .var-control { min-width: 0; }
+/* a workflow's own icons: beside a label, or inside a choice button */
+.var-icon { width: 15px; height: 15px; margin-right: 5px; flex-shrink: 0; }
+.btn-group button .var-icon { margin-right: 3px; }
+.var-help {
+   flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; margin-right: 5px;
+   width: 14px; height: 14px; border-radius: 50%; border: 1px solid var(--dim);
+   color: var(--dim); font-size: 10px; line-height: 1; cursor: help; vertical-align: 1px;
+}
 .hint { color: var(--dim); font-size: 11px; margin-top: 2px; }
 
 input[type='text'], input[type='number'], textarea, select {
@@ -141,8 +162,53 @@ input[type='number'] { width: 110px; }
 textarea { width: 100%; resize: vertical; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; }
 input:focus, textarea:focus, select:focus { outline: none; border-color: var(--accent); }
 input[type='range'] { width: 100%; accent-color: var(--accent); }
+/* a steps or cfg slider across a whole wide row is a long drag for a small number: 320px is
+   still a fine grain for 1..60, and the number box keeps its place right after it */
+.var-control input[type='range'] { max-width: 320px; }
 input[type='checkbox'] { accent-color: var(--accent); width: 16px; height: 16px; }
 .row-inline { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+/* lanes (src/vars/lanes.ts): named groups merged top to bottom. Each lane is a BAND: a tinted
+   strip, its name as plain small text on the left (clickable, not dressed as a button: click
+   switches it, drag reorders, double-click renames), its content on the right. An inactive lane
+   is dimmed, never hidden */
+.lora-lanes { display: flex; flex-direction: column; gap: 4px; }
+.lanes { display: flex; flex-direction: column; gap: 4px; margin-bottom: 4px; }
+.lane-box, .lora-section.laned {
+   display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 8px; align-items: start;
+   background: var(--panel); border-radius: 8px; padding: 5px 6px 5px 8px;
+}
+.lane-bar { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; padding-top: 4px; }
+.lane-pill {
+   background: none; border: 0; padding: 0; max-width: 100%; cursor: grab;
+   font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--accent);
+   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left;
+}
+.lane-pill:hover { text-decoration: underline dotted; }
+.lane-pill.off { color: var(--dim); font-weight: 400; text-decoration: line-through; }
+.lane-bar input.lane-name { width: 100%; padding: 1px 6px; font-size: 12px; height: 22px; }
+/* the tools of a lane only show under the pointer: a calm list of lanes at rest */
+.lane-tools { display: inline-flex; gap: 4px; align-items: center; opacity: 0; transition: opacity 0.12s; }
+.lane-box:hover .lane-tools, .lora-section:hover .lane-tools, .lane-tools:focus-within { opacity: 1; }
+.lane-box.off textarea, .lora-section.off .lora-lane { opacity: 0.4; }
+.lane-foot { gap: 14px; }
+.lora-add-card {
+   align-self: stretch; min-width: 56px; min-height: 56px; border: 1px dashed var(--border);
+   background: none; color: var(--dim); border-radius: 8px; display: inline-flex;
+   align-items: center; justify-content: center; font-size: 18px;
+}
+.lora-add-card:hover { border-color: var(--accent); color: var(--accent); }
+/* ⋯ menus (components/MenuButton.tsx) */
+.menu-box { display: inline-flex; }
+button.menu-btn { height: 26px; width: 26px; padding: 0; display: inline-flex; align-items: center; justify-content: center; background: none; border-color: transparent; color: var(--dim); }
+button.menu-btn:hover, button.menu-btn[aria-expanded='true'] { color: var(--text); border-color: var(--border); background: var(--panel-2); }
+.menu-list { min-width: 210px; left: auto; right: 0; }
+.menu-item {
+   display: flex; gap: 6px; align-items: center; width: 100%; text-align: left;
+   background: none; border: 0; border-radius: 6px; padding: 5px 8px;
+}
+.menu-item:hover:not(:disabled) { background: var(--accent-dim); }
+.menu-check { width: 12px; color: var(--accent); flex-shrink: 0; }
+.menu-sep { height: 1px; background: var(--border); margin: 4px 2px; }
 
 /* presets menu (text + prompt vars). The backdrop sits UNDER the menu and over everything
    else, so any outside click closes it without a document listener */
@@ -163,6 +229,21 @@ input[type='checkbox'] { accent-color: var(--accent); width: 16px; height: 16px;
 .preset-item:hover { background: var(--accent-dim); border-color: transparent; }
 .preset-item.on .preset-name { color: var(--accent); }
 .preset-name { white-space: pre; }
+/* size: starred aspect icons, the starrable list, fitted W × H */
+.aspect-icon { display: inline-block; vertical-align: -0.2em; flex-shrink: 0; }
+.size-row input.size-num { min-width: 0; padding-left: 5px; padding-right: 2px; }
+.size-pick { display: inline-flex; gap: 6px; align-items: center; }
+.size-menu { min-width: 300px; overflow-x: hidden; }
+.size-item { display: flex; align-items: center; gap: 4px; border-radius: 6px; }
+.size-item:hover { background: var(--accent-dim); }
+.size-item.on .size-item-label { color: var(--accent); }
+.size-item-pick {
+   flex: 1; display: flex; gap: 8px; align-items: center; text-align: left;
+   background: none; border: 0; padding: 4px 7px;
+}
+.size-item-label { flex: 1; white-space: nowrap; }
+.size-star { background: none; border: 0; color: var(--dim); padding: 2px 8px; font-size: 14px; }
+.size-star.on { color: var(--amber); }
 .preset-peek {
    color: var(--dim); font-size: 11px; max-width: 100%;
    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -187,7 +268,11 @@ button.link { border: 0; background: none; color: var(--accent); padding: 0; }
 button.link.danger { color: var(--dim); }
 button.link.danger:hover { color: var(--red); }
 button.mode { padding: 2px 7px; font-size: 12px; }
-button.mode.sel { background: var(--accent-dim); border-color: var(--accent); color: #fff; }
+button.mode.sel { background: var(--accent); border-color: var(--accent); color: #0d1117; }
+/* the actions that START something (new draft, add loras): accent outline, so the eye finds
+   them before the neutral ones. The lit segment of a group is a solid accent fill */
+button.accent { color: var(--accent); border-color: var(--accent-dim); }
+button.accent:hover { background: var(--accent-dim); color: #fff; }
 
 /* the run line: button, queue count, result count — one row, each part appearing only when
    it has something to say */
@@ -429,6 +514,49 @@ div.lora-thumb.none {
 .center { display: flex; height: 100%; align-items: center; justify-content: center; color: var(--dim); }
 .center .error { color: var(--red); max-width: 640px; white-space: pre-wrap; }
 
+/* blur mode: every result, the latent frame included, stays blurred until the pointer is on it */
+.gallery.blur img { filter: blur(22px); transition: filter 0.12s; }
+.gallery.blur img:hover, .gallery.blur .img-cell:hover img, .gallery.blur button:hover img { filter: none; }
+/* bigger control buttons: the preview head and the three cards at the top, one size with the
+   rows below them */
+.results-head .btn-group > button, .head-box .btn-group > button, .head-box button.head-icon {
+   height: 28px; min-width: 28px; font-size: 13px;
+   display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+}
+/* the preview is its OWN surface: panel background and a border, so the editor and the
+   results never read as one page. Placement rules below refine it (the corner card is tighter) */
+.results-col { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 8px 10px 10px; }
+.results-col .gallery { margin-top: 0; }
+.results-col .run-card { background: var(--bg); }
+.work.layout-bottom .results-col { margin-top: 16px; }
+/* the panel's own controls sit on top of it */
+.head-group-labeled { display: flex; flex-direction: column; gap: 2px; }
+.group-caption { font-size: 10px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.06em; padding-left: 2px; }
+.results-head {
+   display: flex; gap: 14px; align-items: flex-end; flex-wrap: wrap;
+   padding-bottom: 8px; margin-bottom: 8px; border-bottom: 1px solid var(--border);
+}
+.work.layout-pinned .results-head { justify-content: flex-end; padding-bottom: 4px; margin-bottom: 6px; }
+/* placement off hides the panel and its buttons: this tab on the right edge brings it back */
+.show-preview {
+   position: fixed; right: 0; top: 30%; z-index: 20; padding: 6px 8px;
+   border-radius: 8px 0 0 8px; border-right: 0; background: var(--panel); color: var(--dim);
+}
+.show-preview:hover { color: var(--text); }
+
+/* LEFT / RIGHT on a wide screen: two full-height panels (react-resizable-panels), each
+   scrolling on its own, split by a handle. The preview side is its own surface, full height */
+.work.split { flex: 1; min-width: 0; height: 100%; gap: 0; align-items: stretch; }
+.split-panel { height: 100%; overflow-y: auto; overscroll-behavior: contain; }
+.split-form { padding: 12px 14px 14px; }
+.split-results { background: var(--panel); padding: 10px 12px; }
+.work.split .results-col {
+   position: static; width: auto; max-height: none; overflow: visible;
+   background: none; border: 0; border-radius: 0; padding: 0;
+}
+.split-handle { width: 5px; background: var(--border); cursor: col-resize; transition: background 0.1s; }
+.split-handle:hover, .split-handle[data-separator-state='drag'] { background: var(--accent); }
+
 /* the placements. Each one is a BUTTON and nothing else: there is no width rule that quietly
    moves the panel somewhere no button is showing */
 .work.layout-side { display: flex; gap: 18px; align-items: flex-start; }
@@ -486,34 +614,45 @@ div.lora-thumb.none {
 .work.layout-pinned .results-run { margin-bottom: 6px; justify-content: flex-end; }
 /* segmented control: ONE group, no gaps, only the outer corners rounded */
 .btn-group { display: inline-flex; }
+/* a many-choice with more options than a line holds wraps instead of pushing the row wide */
+.btn-group.wrap { flex-wrap: wrap; row-gap: 4px; }
 .btn-group button {
    padding: 2px 6px; font-size: 13px; line-height: 1.3; border-radius: 0; margin: 0;
    border-right-width: 0; background: var(--panel-2);
 }
 .btn-group button:first-child { border-top-left-radius: 6px; border-bottom-left-radius: 6px; }
 .btn-group button:last-child { border-right-width: 1px; border-top-right-radius: 6px; border-bottom-right-radius: 6px; }
-.btn-group button.sel { background: var(--accent-dim); border-color: var(--accent); color: #fff; }
+.btn-group button.sel { background: var(--accent); border-color: var(--accent); color: #0d1117; font-weight: 600; }
 /* the selected segment owns the divider on both sides, else its highlight looks clipped */
 .btn-group button.sel + button { border-left-color: var(--accent); }
 .btn-group button:hover { background: var(--panel); }
-/* a group living inside a header box sits beside the value, not under it */
-.head-group { margin-left: 8px; vertical-align: middle; }
-.head-group button { padding: 2px 5px; }
-/* rows that mix buttons and inputs: one height for both, so nothing steps over the line.
-   32px is what an input with 6px padding and a 1px border measures at this font size */
+.btn-group button.sel:hover { background: var(--accent); }
+/* ONE height for every button a var row shows in a group or an action line: a choice, the
+   lora toggles, a lane header, the seed modes. Before, each kind had its own padding and a
+   choice sat visibly smaller than the toggles beside it */
+.var-control .btn-group > button, .var-control .row-inline > button:not(.link):not(.lora-add-card),
+.var-control .lora-actions > button {
+   height: 28px; min-width: 28px; font-size: 13px;
+   display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+}
 /* everything on a var row is the SAME height as the input beside it, or the row steps.
    28px is what the slimmed input measures (14px text, 3px padding, 1px border) */
 .field-height, .field-height button { height: 28px; }
 .field-height button { display: inline-flex; align-items: center; justify-content: center; }
 /* a one-character mode button still needs a target: = + ? are narrow glyphs */
 .btn-group.field-height button { min-width: 28px; }
+/* the draft line: rename, the name, delete, on one line around the name they act on */
+.draft-line { display: flex; gap: 4px; align-items: center; min-width: 0; }
+.draft-line select { flex: 1; min-width: 0; }
+button.head-icon { padding: 2px 5px; background: none; border-color: transparent; color: var(--dim); }
+button.head-icon:hover { border-color: var(--border); color: var(--text); }
+button.head-icon.danger:hover { color: var(--red); border-color: var(--red); }
 .head-input { padding: 2px 6px; font-size: 13px; font-weight: 600; color: var(--accent); max-width: 180px; }
 .head-label .save-state { color: var(--dim); font-weight: 400; margin-left: 4px; }
 .head-label .save-state.error { color: var(--red); }
 /* every head box is two lines: what you are on, then what you can do to it */
 .head-box { display: flex; flex-direction: column; gap: 5px; }
 .head-line { display: flex; gap: 8px; align-items: center; min-height: 24px; }
-.head-line .head-group { margin-left: 0; }
 
 /* the lora controls sit above the palette, left aligned */
 .lora-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
@@ -523,12 +662,26 @@ div.lora-thumb.none {
    margin: 8px 0; padding: 6px 10px; font-size: 12px; color: var(--text);
    background: var(--panel); border: 1px solid var(--accent-dim); border-radius: 6px;
 }
-/* the keywords the active loras prepend to the prompt: shown, not guessed */
-.kw-prefix { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
-.kw-chip {
-   font-size: 11px; padding: 2px 8px; border-radius: 10px;
-   background: var(--accent-dim); color: #fff;
+/* the words the loras prepend to the prompt: shown, not guessed. One quiet LINE per lora (its
+   name, the words it adds, how many are disabled), cut with an ellipsis. Clickable without
+   shouting: dim text, a dotted underline on hover. A lora that is not running keeps its line,
+   fainter, so switching a lane never moves the form */
+.kw-prefix { display: flex; flex-direction: column; gap: 1px; margin-bottom: 4px; }
+.kw-box { max-width: 100%; }
+.kw-line {
+   display: flex; gap: 6px; align-items: baseline; max-width: 100%; min-width: 0;
+   background: none; border: 0; padding: 1px 0; font-size: 11px; color: var(--dim); text-align: left; cursor: pointer;
 }
+.kw-line:hover .kw-words, .kw-line[aria-expanded='true'] .kw-words { color: var(--text); text-decoration: underline dotted; }
+.kw-line.stopped { opacity: 0.45; }
+.kw-lora { font-weight: 600; white-space: nowrap; flex-shrink: 0; max-width: 40%; overflow: hidden; text-overflow: ellipsis; }
+.kw-words { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #b4bccf; }
+.kw-off { flex-shrink: 0; white-space: nowrap; font-style: italic; }
+.kw-menu { min-width: 240px; }
+.kw-menu-head { padding: 2px 6px 6px; border-bottom: 1px solid var(--border); margin-bottom: 4px; }
+.kw-menu-head .kw-lora { color: var(--text); margin-right: auto; }
+.kw-item { display: flex; gap: 8px; align-items: center; padding: 3px 7px; border-radius: 6px; cursor: pointer; }
+.kw-item:hover { background: var(--accent-dim); }
 /* a real switch, not a word: the state is readable at a glance and hittable on a phone */
 .switch { position: relative; display: inline-flex; width: 28px; height: 16px; flex-shrink: 0; cursor: pointer; }
 .switch input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
@@ -585,44 +738,28 @@ button.warn-action:hover { background: var(--panel); }
    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
-/* INSTANT tooltips: the native title attribute waits about a second and cannot be styled, so
-   every affordance carries data-tip instead. No js, no library, and no delay, which is the point */
+/* tooltips: ONE floating layer (components/TooltipLayer.tsx) reads every data-tip. Instant,
+   because the native title waits about a second and cannot be styled. position: relative stays
+   on the anchors, some of them position their own children against it */
 [data-tip] { position: relative; }
-[data-tip]:hover::after, [data-tip]:focus-visible::after {
-   content: attr(data-tip);
-   /* anchored to the button's bottom LEFT, never centred: a centred tip on the leftmost
-      button hangs off the screen, and one below never covers the row you are reading */
-   position: absolute; top: calc(100% + 5px); left: 0;
-   z-index: 60; pointer-events: none; white-space: normal; max-width: 220px; width: max-content;
-   opacity: 0.8;
-   background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
-   border-radius: 6px; padding: 4px 8px; font-size: 11px; font-weight: 400; line-height: 1.3;
-   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+.tooltip {
+   z-index: 100; pointer-events: none; white-space: pre-line; max-width: 320px; width: max-content;
+   /* light on a dark page: a tip must not be mistaken for part of the panel */
+   background: #e8eaf0; color: #15181f; border: 0;
+   border-radius: 6px; padding: 6px 10px; font-size: 13px; font-weight: 450; line-height: 1.4;
+   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
 }
-/* the pointer never crosses a tooltip, so hover cannot flicker between the two */
-@media (hover: none) { [data-tip]:hover::after { display: none; } }
 
 /* icons inherit the text they sit in, so a button never jumps when one is swapped in */
 .icon { display: inline-block; vertical-align: -0.16em; flex-shrink: 0; }
 button .icon + * { margin-left: 4px; }
 
-/* the sidebar becomes a fixed drawer over a backdrop */
-@media (max-width: 800px) {
-   .sidebar {
-      position: fixed; top: 0; left: 0; bottom: 0; width: 264px; z-index: 30;
-      box-shadow: 4px 0 24px rgba(0, 0, 0, 0.5); padding-top: 12px;
-   }
-   .backdrop { display: block; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.5); z-index: 25; }
-   .side-draft { padding: 9px 12px 9px 26px; }
-}
-
 /* phone: label over control, 16px inputs (below that iOS zooms the page on focus) */
 @media (max-width: 640px) {
    .main { --main-pad-y: 22px; padding: 10px 10px 12px; }
    /* labels stay BESIDE their control on a phone too: stacking them doubled the height of
-      every row and read as a wall. The column just gets narrower. A row that needs the whole
-      width (loras) opts out with .wide */
-   .vars { grid-template-columns: fit-content(96px) 1fr; }
+      every row and read as a wall. The column is the width you dragged. A row that needs the
+      whole width (loras) opts out with .wide */
    .var-row { gap: 6px; }
    .var-row.wide { grid-template-columns: 1fr; gap: 3px; }
    .var-label { padding-top: 3px; font-size: 12px; }

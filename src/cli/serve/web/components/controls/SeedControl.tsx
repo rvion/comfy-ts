@@ -1,25 +1,32 @@
 // seed: mode buttons + value + 🎲. Drafts are live, so the mode configures the
 // SERVER's per-draft seed policy (generate posts no seed key; step 4 applies
-// the draft's {mode, value}). The buttons are the SYMBOLS the mode actually is,
-// with the sentence in the tooltip: `fixed / +1 / -1 / random` spelled out was a
-// row of prose wider than the input it belongs to
+// the draft's {mode, value}). The buttons are ONE short word each (fixed, inc,
+// random), the sentence in the tooltip: the bare symbols `= + ?` were unclear,
+// and full sentences a row of prose wider than the input
 import { Icon } from 'src/cli/serve/web/components/Icon.tsx'
 import { observer } from 'mobx-react-lite'
 import type { VarSt } from 'src/cli/serve/web/state/FormSt.ts'
 import { asSeedForm, randomSeed } from 'src/cli/serve/web/state/payload.ts'
 
-const MODES: { mode: string; hint: string }[] = [
-   { mode: '=', hint: 'fixed: this exact seed, every run' },
-   { mode: '+', hint: 'increments after each run' },
-   { mode: '?', hint: 'a fresh random seed each run' },
+/** the stored mode stays the symbol (drafts, the TUI, the api all speak it); the button says
+ * the word, a row of `=` `+` `?` read like punctuation */
+const MODES: { mode: string; label: string; hint: string }[] = [
+   { mode: '=', label: 'fixed', hint: 'this exact seed, every run' },
+   { mode: '+', label: 'inc', hint: 'one more after each run' },
+   { mode: '?', label: 'random', hint: 'a fresh random seed each run' },
 ]
 
 /** `-` is a real mode a draft can hold (the TUI offers it), it is just not worth a permanent
  * button here. It appears only while it IS the mode, so the row never misreports the draft,
  * and it disappears once you pick another one */
-function visibleModes(current: string): { mode: string; hint: string }[] {
+function visibleModes(current: string): { mode: string; label: string; hint: string }[] {
    if (MODES.some((m) => m.mode === current)) return MODES
-   return [...MODES, { mode: current, hint: current === '-' ? 'decrements after each run' : `mode '${current}'` }]
+   return [
+      ...MODES,
+      current === '-'
+         ? { mode: '-', label: 'dec', hint: 'one less after each run' }
+         : { mode: current, label: current, hint: `mode '${current}'` },
+   ]
 }
 
 export const SeedControl = observer(function SeedControl(p: { v: VarSt }) {
@@ -42,7 +49,7 @@ export const SeedControl = observer(function SeedControl(p: { v: VarSt }) {
                      data-tip={m.hint}
                      onClick={() => p.v.set({ mode: m.mode, value: seed.value })}
                   >
-                     {m.mode}
+                     {m.label}
                   </button>
                ))}
             </span>

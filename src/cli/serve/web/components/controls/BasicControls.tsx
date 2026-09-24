@@ -1,37 +1,10 @@
-// the small per-kind controls: prompt, text, int/float, toggle, choice —
-// bigger kinds (seed, size, loras, image) have their own files
+// the small per-kind controls: text, int/float, toggle, choice —
+// bigger kinds (prompt, seed, size, loras, image) have their own files
 import { observer } from 'mobx-react-lite'
 import { PresetPicker } from 'src/cli/serve/web/components/controls/PresetPicker.tsx'
-import { PromptEnhancer } from 'src/cli/serve/web/components/PromptEnhancer.tsx'
+import { VarIcon } from 'src/cli/serve/web/components/VarIcon.tsx'
+import { choiceAsButtons, clickChoice, pickedChoices } from 'src/cli/serve/web/state/choiceButtons.ts'
 import type { VarSt } from 'src/cli/serve/web/state/FormSt.ts'
-import type { WebSt } from 'src/cli/serve/web/state/WebSt.ts'
-
-export const PromptControl = observer(function PromptControl(p: { v: VarSt; st: WebSt; module: string }) {
-   const text = typeof p.v.value === 'string' ? p.v.value : ''
-   const rows = Math.min(12, Math.max(4, text.split('\n').length + 1))
-   // what the ACTIVE loras will prepend at build time: invisible until now, so the prompt you
-   // read here was not the prompt that ran
-   const injected = p.st.form?.loraKeywordsFor(p.v) ?? []
-   return (
-      <div>
-         {injected.length > 0 ? (
-            <div className="kw-prefix" data-tip="added in front of your prompt at run time, one per active lora">
-               {injected.map((kw) => (
-                  <span key={kw} className="kw-chip">
-                     {kw}
-                  </span>
-               ))}
-            </div>
-         ) : null}
-         <textarea rows={rows} value={text} onChange={(e) => p.v.set(e.target.value)} />
-         <div className="row-inline">
-            <span className="hint">// line = comment · "- " line = negative prompt</span>
-            <PresetPicker v={p.v} />
-            <PromptEnhancer v={p.v} st={p.st} module={p.module} />
-         </div>
-      </div>
-   )
-})
 
 export const TextControl = observer(function TextControl(p: { v: VarSt }) {
    const text = typeof p.v.value === 'string' ? p.v.value : ''
@@ -108,7 +81,59 @@ export const ToggleControl = observer(function ToggleControl(p: { v: VarSt }) {
 
 export const ChoiceControl = observer(function ChoiceControl(p: { v: VarSt }) {
    const choices = p.v.desc.choices ?? []
-   const value = typeof p.v.value === 'string' ? p.v.value : ''
+   // one (the default), zero-or-one (null = none picked), many (a list)
+   const select = p.v.desc.select ?? 'one'
+   const picked = pickedChoices(p.v.value)
+   const looks = p.v.desc.ui?.options ?? {}
+   const click = (c: string): void => p.v.set(clickChoice({ select, choices, value: p.v.value, c }))
+   // a stale draft value is said, never shown as if one of the buttons were lit
+   const stale = picked.filter((x) => !choices.includes(x))
+   const staleNote =
+      stale.length > 0 ? (
+         <span className="hint">{stale.join(', ')} (not on this host)</span>
+      ) : select === 'one' && picked.length === 0 ? (
+         <span className="hint">(unset)</span>
+      ) : null
+   // many choices can always be several buttons at once: a select holds one value only
+   if (choiceAsButtons(choices) || select !== 'one')
+      return (
+         <span className="row-inline">
+            <span className="btn-group wrap">
+               {choices.map((c) => {
+                  // the workflow's look for THIS option: its icon, and its color for the lit fill
+                  const look = looks[c]
+                  const on = picked.includes(c)
+                  return (
+                     <button
+                        key={c}
+                        type="button"
+                        className={on ? 'sel' : ''}
+                        data-tip={
+                           select === 'many'
+                              ? `${on ? 'on' : 'off'}: click to toggle`
+                              : select === 'zero-or-one' && on
+                                ? 'click again to pick none'
+                                : undefined
+                        }
+                        style={
+                           look?.color == null
+                              ? undefined
+                              : on
+                                ? { background: look.color, borderColor: look.color }
+                                : { color: look.color }
+                        }
+                        onClick={() => click(c)}
+                     >
+                        {look?.icon == null ? null : <VarIcon icon={look.icon} color={undefined} />}
+                        {c}
+                     </button>
+                  )
+               })}
+            </span>
+            {staleNote}
+         </span>
+      )
+   const value = picked[0] ?? ''
    return (
       <select value={value} onChange={(e) => p.v.set(e.target.value)}>
          {/* honest display for a value outside the current union (stale draft): the

@@ -36,7 +36,11 @@ export type IconName =
    | 'unlink'
    | 'refresh'
    | 'terminal'
-   | 'folder'
+   | 'search'
+   | 'eye'
+   | 'eye-off'
+   | 'more'
+   | 'text'
    | 'dot'
 
 /** 24x24 viewBox paths, stroked (fill: none) unless the shape reads better solid */
@@ -133,7 +137,13 @@ const PATHS: Record<IconName, ReactNode> = {
    ),
    refresh: <path d="M20 11a8 8 0 10-2 6M20 6v5h-5" />,
    terminal: <path d="M4 5h16v14H4zM7 9l3 3-3 3M13 15h4" />,
-   folder: <path d="M3 7h6l2 2h10v10H3z" />,
+   text: <path d="M4 7h16M4 12h10M4 17h13" />,
+   more: <path d="M5 12h.01M12 12h.01M19 12h.01" strokeWidth={3.2} />,
+   eye: <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12zM12 9a3 3 0 110 6 3 3 0 010-6z" />,
+   'eye-off': (
+      <path d="M3 3l18 18M10.6 5.1A10 10 0 0112 5c6.5 0 10 7 10 7a17 17 0 01-3.2 4.2M6.6 6.6C3.9 8.4 2 12 2 12s3.5 7 10 7a9.7 9.7 0 005.4-1.6M9.9 9.9a3 3 0 004.2 4.2" />
+   ),
+   search: <path d="M10.5 4a6.5 6.5 0 110 13 6.5 6.5 0 010-13zM15.5 15.5L20 20" />,
    dot: <circle cx="12" cy="12" r="5" fill="currentColor" stroke="none" />,
 }
 

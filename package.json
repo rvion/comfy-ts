@@ -19,7 +19,7 @@
       "cli",
       "tui"
    ],
-   "author": "R\u00e9mi Vion <vion.remi@gmail.com>",
+   "author": "Rémi Vion <vion.remi@gmail.com>",
    "license": "MIT",
    "funding": "https://github.com/sponsors/rvion",
    "repository": {
@@ -99,7 +99,8 @@
       "serve:watch": "bun --watch src/cli/comfy-ts-cli.ts serve",
       "serve:0000": "bun src/cli/comfy-ts-cli.ts serve --host 0.0.0.0",
       "serve:0000:rvion": "bun src/cli/comfy-ts-cli.ts serve --host 0.0.0.0 examples/rvion",
-      "serve:rvion": "bun --watch src/cli/comfy-ts-cli.ts serve examples/rvion"
+      "serve:rvion": "bun --watch src/cli/comfy-ts-cli.ts serve examples/rvion",
+      "check:panel-scroll": "bun scripts/check-panel-scroll.ts"
    },
    "rvt": {
       "skip": [
@@ -113,6 +114,7 @@
       "node": ">=20.0.0"
    },
    "dependencies": {
+      "@floating-ui/react": "^0.27.20",
       "arktype": "^2.2.3",
       "image-meta": "^0.2.2",
       "ink": "^7.1.1",
@@ -122,6 +124,7 @@
       "pathe": "^2.0.3",
       "react": "^19.2.8",
       "react-dom": "^19.2.8",
+      "react-resizable-panels": "^4.13.3",
       "sharp": "^0.35.3",
       "ws": "^8.21.1"
    },

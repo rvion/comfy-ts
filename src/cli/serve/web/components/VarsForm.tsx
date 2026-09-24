@@ -1,21 +1,23 @@
 // the var rows: each kind dispatches to its matching control (the point of the
 // web ui — architecture item 12) + the sticky run bar
 import { observer, useLocalObservable } from 'mobx-react-lite'
-import { useEffect } from 'react'
+import { useEffect, type ReactNode } from 'react'
 import {
    ChoiceControl,
    NumberControl,
-   PromptControl,
    TextControl,
    ToggleControl,
 } from 'src/cli/serve/web/components/controls/BasicControls.tsx'
+import { PromptControl } from 'src/cli/serve/web/components/controls/PromptControl.tsx'
 import { Icon } from 'src/cli/serve/web/components/Icon.tsx'
+import { VarIcon } from 'src/cli/serve/web/components/VarIcon.tsx'
+import { groupPlaces, type GroupPlace } from 'src/cli/serve/web/state/varGroups.ts'
 import { ImageControl } from 'src/cli/serve/web/components/controls/ImageControl.tsx'
 import { LorasControl } from 'src/cli/serve/web/components/controls/LorasControl.tsx'
 import { SeedControl } from 'src/cli/serve/web/components/controls/SeedControl.tsx'
 import { SizeControl } from 'src/cli/serve/web/components/controls/SizeControl.tsx'
 import type { FormSt, VarSt } from 'src/cli/serve/web/state/FormSt.ts'
-import { LAYOUTS, type WebSt } from 'src/cli/serve/web/state/WebSt.ts'
+import type { WebSt } from 'src/cli/serve/web/state/WebSt.ts'
 
 const VarControl = observer(function VarControl(p: { v: VarSt; host: string; st: WebSt; module: string }) {
    switch (p.v.desc.kind) {
@@ -38,7 +40,7 @@ const VarControl = observer(function VarControl(p: { v: VarSt; host: string; st:
          // own box while the manager link opened the one actually selected
          return <LorasControl v={p.v} host={p.st.hostFor(p.module)} st={p.st} hostUrl={p.st.hostUrlFor(p.module)} />
       case 'size':
-         return <SizeControl v={p.v} />
+         return <SizeControl v={p.v} st={p.st} module={p.module} />
       case 'image':
          return <ImageControl v={p.v} />
       default:
@@ -54,12 +56,24 @@ const VarRow = observer(function VarRow(p: {
    module: string
    index: number
    names: readonly string[]
+   /** where this row sits in a block of vars that go together, null outside any */
+   place: GroupPlace
 }) {
+   // the workflow's looks (VarUi): every slot optional, absent = the panel's own style. None
+   // of them moves anything: a background or a border never shifts the label off its column
+   const ui = p.v.desc.ui
+   const inactive = p.st.form?.inactiveReason(p.v) ?? null
+   const wide = p.v.desc.kind === 'loras' || p.v.desc.kind === 'prompt'
    return (
       <div
          /* loras and prompts need the whole width on a phone; every other kind keeps its
             label beside the control, which is what makes the form readable at a glance */
-         className={p.v.desc.kind === 'loras' || p.v.desc.kind === 'prompt' ? 'var-row wide' : 'var-row'}
+         className={`var-row${wide ? ' wide' : ''}${inactive == null ? '' : ' inactive'}${p.place == null ? '' : ` in-group group-${p.place.pos}`}`}
+         style={{
+            background: ui?.background ?? (p.place == null ? undefined : (p.place.color ?? undefined)),
+            outline: ui?.border == null ? undefined : `1px solid ${ui.border}`,
+            outlineOffset: ui?.border == null ? undefined : '-1px',
+         }}
          onDragOver={(e) => {
             // only a row drag: a file dropped on an image var must still reach its own handler
             if (e.dataTransfer.types.includes('application/x-comfy-var')) e.preventDefault()
@@ -85,7 +99,21 @@ const VarRow = observer(function VarRow(p: {
          >
             {/* the kind is a TOOLTIP, not a second line: printed under every label it was a
                 column of noise you read past, and it only ever answers a question you ask once */}
-            <span data-tip={`${p.v.desc.kind}\ndrag the label to reorder`}>{p.v.desc.label ?? p.v.name}</span>
+            {/* the (?) LEADS: labels are right-aligned against their control, so what trails a
+                name is what touches the control, and a help mark there read as part of it */}
+            {ui?.description == null ? null : (
+               <span className="var-help" data-tip={ui.description}>
+                  ?
+               </span>
+            )}
+            {ui?.icon == null ? null : <VarIcon icon={ui.icon} color={ui.color} />}
+            <span
+               className="var-name"
+               data-tip={`${p.v.desc.label ?? p.v.name ?? ''}\n${inactive ?? p.v.desc.kind}\ndrag the label to reorder`}
+               style={ui?.labelColor == null ? undefined : { color: ui.labelColor }}
+            >
+               {p.v.desc.label ?? p.v.name}
+            </span>
             {p.v.dirty ? (
                <button
                   type="button"
@@ -97,22 +125,58 @@ const VarRow = observer(function VarRow(p: {
                </button>
             ) : null}
          </div>
-         <div className="var-control">
+         {/* inert, not just dimmed: a disabled field must not take a click or a keystroke */}
+         <div className="var-control" inert={inactive != null}>
             <VarControl v={p.v} host={p.host} st={p.st} module={p.module} />
          </div>
       </div>
    )
 })
 
-/** the draft box: name, autosave state as its legend, and the two actions that own this draft.
- * duplicate asks for the name INLINE, window.prompt is silently suppressed by browsers after
- * a few dialogs, which reads exactly like a dead button */
+/** the handle on the label column's edge: drag to widen or narrow every label at once */
+function LabelResizer(p: { st: WebSt }): ReactNode {
+   return (
+      <div
+         className="label-resizer"
+         style={{ left: p.st.labelWidth + 2 }}
+         data-tip="drag to resize the label column"
+         onPointerDown={(e) => {
+            e.preventDefault()
+            const startX = e.clientX
+            const startW = p.st.labelWidth
+            const move = (ev: PointerEvent): void => p.st.setLabelWidth(startW + ev.clientX - startX, false)
+            const up = (): void => {
+               window.removeEventListener('pointermove', move)
+               window.removeEventListener('pointerup', up)
+               p.st.setLabelWidth(p.st.labelWidth, true)
+            }
+            window.addEventListener('pointermove', move)
+            window.addEventListener('pointerup', up)
+         }}
+      />
+   )
+}
+
+/** the modifier the shortcuts use on THIS machine, as a key cap shows it */
+export const MOD_KEY = /mac|iphone|ipad/i.test(navigator.userAgent) ? '⌘' : 'Ctrl+'
+
+/** `new`, `new 2`, … the first name no draft of this workflow has */
+function freeDraftName(drafts: readonly string[]): string {
+   if (!drafts.includes('new')) return 'new'
+   let n = 2
+   while (drafts.includes(`new ${n}`)) n++
+   return `new ${n}`
+}
+
+/** the draft box: name, autosave state as its legend, and the actions that own this draft.
+ * new and duplicate ask for the name INLINE, window.prompt is silently suppressed by browsers
+ * after a few dialogs, which reads exactly like a dead button */
 const DraftBox = observer(function DraftBox(p: { st: WebSt; form: FormSt }) {
    const local = useLocalObservable(() => ({
       /** null = showing the picker; otherwise the pending name and what it will do */
-      mode: null as null | 'duplicate' | 'rename',
+      mode: null as null | 'duplicate' | 'rename' | 'new',
       name: '',
-      start(mode: 'duplicate' | 'rename', from: string) {
+      start(mode: 'duplicate' | 'rename' | 'new', from: string) {
          this.mode = mode
          this.name = mode === 'duplicate' ? `${from} copy` : from
       },
@@ -130,6 +194,7 @@ const DraftBox = observer(function DraftBox(p: { st: WebSt; form: FormSt }) {
       local.stop()
       if (name === '' || mode == null) return
       if (mode === 'duplicate') void p.st.duplicateDraft(name)
+      else if (mode === 'new') void p.st.newDraft(name)
       else void p.st.renameDraft(name)
    }
    return (
@@ -149,53 +214,52 @@ const DraftBox = observer(function DraftBox(p: { st: WebSt; form: FormSt }) {
                className="head-input"
                value={local.name}
                // enter is the ONLY commit now, so it has to be said
-               placeholder={local.mode === 'rename' ? 'new name, then enter' : 'new draft name, then enter'}
+               placeholder={
+                  local.mode === 'rename'
+                     ? 'new name, then enter'
+                     : local.mode === 'new'
+                       ? 'name of the new draft (workflow defaults), then enter'
+                       : 'new draft name, then enter'
+               }
                onFocus={(e) => e.currentTarget.select()}
                onChange={(e) => local.set(e.target.value)}
                onKeyDown={(e) => {
                   if (e.key === 'Enter') confirm()
                   if (e.key === 'Escape') local.stop()
                }}
-               // blur CANCELS, it does not commit: clicking another draft in the sidebar blurred
-               // this input, and the rename then raced that selection, renameDraft bails when
-               // the form has already moved on, leaving a duplicate instead of a rename, silently.
-               // enter commits, which is the only unambiguous signal
+               // blur CANCELS, it does not commit: picking another draft blurs this input, and a
+               // rename committed on blur raced that selection, renameDraft bails when the form
+               // has already moved on, leaving a duplicate instead of a rename, silently. enter
+               // commits, which is the only unambiguous signal
                onBlur={() => local.stop()}
             />
          ) : (
-            /* the name IS the picker: every draft of this workflow, switching selects it */
-            <select
-               className="head-select draft"
-               value={p.form.draft}
-               data-tip="switch draft"
-               onChange={(e) => void p.st.select({ module: p.form.moduleKey, draft: e.target.value })}
-            >
-               {drafts.map((d) => (
-                  <option key={d} value={d}>
-                     {d}
-                  </option>
-               ))}
-            </select>
-         )}
-         <span className="head-line">
-            <span className="btn-group head-group">
+            /* the name IS the picker: every draft of this workflow, switching selects it. Rename
+               sits before it and delete after it: the two actions ON this name, around it */
+            <span className="head-line draft-line">
                <button
                   type="button"
+                  className="head-icon"
                   data-tip="rename this draft (the file is renamed)"
-                  onClick={() => (local.mode != null ? confirm() : local.start('rename', p.form.draft))}
+                  onClick={() => local.start('rename', p.form.draft)}
                >
                   <Icon name="pen" />
                </button>
-               <button
-                  type="button"
-                  data-tip="save these values as a new draft"
-                  onClick={() => (local.mode != null ? confirm() : local.start('duplicate', p.form.draft))}
+               <select
+                  className="head-select draft"
+                  value={p.form.draft}
+                  data-tip="switch draft"
+                  onChange={(e) => void p.st.select({ module: p.form.moduleKey, draft: e.target.value })}
                >
-                  <Icon name="copy-plus" />
-               </button>
+                  {drafts.map((d) => (
+                     <option key={d} value={d}>
+                        {d}
+                     </option>
+                  ))}
+               </select>
                <button
                   type="button"
-                  className="danger"
+                  className="head-icon danger"
                   data-tip="delete this draft's file (default resets to the workflow's own values)"
                   onClick={() => {
                      if (window.confirm(`delete draft '${p.form.draft}' of ${p.form.moduleKey}? the file is removed.`))
@@ -203,6 +267,28 @@ const DraftBox = observer(function DraftBox(p: { st: WebSt; form: FormSt }) {
                   }}
                >
                   <Icon name="trash" />
+               </button>
+            </span>
+         )}
+         <span className="head-line">
+            {/* the two ways to MAKE a draft, side by side: from the workflow's defaults, or from
+                what is on screen */}
+            <span className="btn-group">
+               <button
+                  type="button"
+                  className="accent"
+                  data-tip="new draft with the workflow's own default values"
+                  onClick={() => (local.mode != null ? confirm() : local.start('new', freeDraftName(drafts)))}
+               >
+                  <Icon name="plus" /> new
+               </button>
+               <button
+                  type="button"
+                  className="accent"
+                  data-tip="save these values as a new draft"
+                  onClick={() => (local.mode != null ? confirm() : local.start('duplicate', p.form.draft))}
+               >
+                  <Icon name="copy-plus" /> copy
                </button>
             </span>
             {/* FAR RIGHT of the same line, outside the group: inside it, the broom appeared and
@@ -337,6 +423,7 @@ export const VarsForm = observer(function VarsForm(p: { st: WebSt }) {
       form.vars.map((v) => v.name),
    )
    const orderedVars = orderedNames.map((n) => form.vars.find((v) => v.name === n)).filter((v) => v != null)
+   const places = groupPlaces(orderedVars.map((v) => v.desc.ui ?? {}))
    return (
       <div>
          {/* the TUI header, on the web: labelled boxes for what you are editing and where it runs.
@@ -344,16 +431,15 @@ export const VarsForm = observer(function VarsForm(p: { st: WebSt }) {
              column, which the results placement widens and narrows, not against the window */}
          <div className="head-shell">
             <div className="head-boxes">
-               {/* the workflow name IS the way into the menu: the sidebar already holds the
-                folder → workflow → draft tree, so a second dropdown would be a rival copy of it */}
+               {/* the workflow name IS the way into the omnibox, and so is ⌘K / ⌘J */}
                <div className="head-box">
                   <span className="head-label">workflow</span>
                   <div className="head-line">
                      <button
                         type="button"
                         className="head-value app as-link"
-                        data-tip={p.st.sidebarOpen ? 'close the workflow menu' : 'browse every workflow'}
-                        onClick={() => p.st.toggleSidebar()}
+                        data-tip="search every workflow and draft (⌘K or ⌘J)"
+                        onClick={() => p.st.omnibox.open()}
                      >
                         {form.moduleKey}
                      </button>
@@ -362,20 +448,39 @@ export const VarsForm = observer(function VarsForm(p: { st: WebSt }) {
                      <span className="btn-group">
                         <button
                            type="button"
-                           data-tip={p.st.sidebarOpen ? 'close the workflow menu' : 'browse every workflow'}
-                           onClick={() => p.st.toggleSidebar()}
+                           data-tip="search every workflow and draft (⌘K or ⌘J)"
+                           onClick={() => p.st.omnibox.open()}
                         >
-                           <Icon name="folder" />
+                           <Icon name="search" /> search <span className="kbd-hint">{MOD_KEY}K</span>
                         </button>
                      </span>
-                     <span className="hint">{form.vars.length} vars</span>
+                     {Object.keys(p.st.loadErrors).length > 0 ? (
+                        <button
+                           type="button"
+                           className="link load-errors"
+                           data-tip="some workflows failed to load: the list is at the bottom of the search"
+                           onClick={() => p.st.omnibox.open()}
+                        >
+                           <Icon name="warn" /> {Object.keys(p.st.loadErrors).length} failed
+                        </button>
+                     ) : null}
                   </div>
                </div>
                {/* duplicate and delete act on THIS draft, so they live in the draft box */}
                <DraftBox st={p.st} form={form} />
                <div className="head-box">
                   <span className="head-label">host</span>
-                  <div className="head-line">
+                  {/* the box itself, like the draft: its name, with the two actions ON the box
+                      around it. The ones on the RUNNING work sit on the line below, in words */}
+                  <div className="head-line draft-line">
+                     <button
+                        type="button"
+                        className="head-icon"
+                        data-tip="refetch object_info from the host and rewrite sdk.d.ts (the var lists widen in place)"
+                        onClick={() => void p.st.hostAction('refresh-schema')}
+                     >
+                        <Icon name="refresh" />
+                     </button>
                      {/* pick where this workflow RUNS (the TUI's host override), remembered per module */}
                      {p.st.hosts.hosts.length > 1 ? (
                         <select
@@ -393,54 +498,50 @@ export const VarsForm = observer(function VarsForm(p: { st: WebSt }) {
                      ) : (
                         <span className="head-value host">{p.st.hostFor(form.moduleKey) || form.host}</span>
                      )}
+                     <button
+                        type="button"
+                        className="head-icon danger"
+                        data-tip="restart ComfyUI on that host (manager reboot) — it reconnects when back"
+                        onClick={() => {
+                           if (window.confirm(`restart ComfyUI on '${p.st.hostFor(form.moduleKey)}'?`))
+                              void p.st.hostAction('restart')
+                        }}
+                     >
+                        <Icon name="power" />
+                     </button>
                   </div>
-                  {/* the TUI's host actions: they act on the box this workflow runs on */}
                   <div className="head-line">
+                     {/* two separate buttons: stopping the run and emptying the queue are different
+                         decisions, and the destructive one wears its warning color */}
                      <span className="btn-group">
                         <button
                            type="button"
                            data-tip="interrupt the prompt running now"
                            onClick={() => void p.st.hostAction('interrupt')}
                         >
-                           <Icon name="pause" />
+                           <Icon name="pause" /> stop
                         </button>
+                     </span>
+                     <span className="btn-group">
                         <button
                            type="button"
+                           className="warn-action"
                            data-tip="drop everything still pending in the host queue"
                            onClick={() => void p.st.hostAction('clear-queue')}
                         >
-                           <Icon name="trash" />
-                        </button>
-                        {p.st.drift != null && p.st.drift.host === p.st.hostFor(form.moduleKey) ? (
-                           <button
-                              type="button"
-                              className="attention"
-                              data-tip={`the host changed since this panel loaded its schema (${p.st.drift.summary}): refetch to use it`}
-                              onClick={() => void p.st.hostAction('refresh-schema')}
-                           >
-                              <Icon name="refresh" /> {p.st.drift.summary}
-                           </button>
-                        ) : (
-                           <button
-                              type="button"
-                              data-tip="refetch object_info from the host and rewrite sdk.d.ts (the var lists widen in place)"
-                              onClick={() => void p.st.hostAction('refresh-schema')}
-                           >
-                              <Icon name="refresh" />
-                           </button>
-                        )}
-                        <button
-                           type="button"
-                           className="danger"
-                           data-tip="restart ComfyUI on that host (manager reboot) — it reconnects when back"
-                           onClick={() => {
-                              if (window.confirm(`restart ComfyUI on '${p.st.hostFor(form.moduleKey)}'?`))
-                                 void p.st.hostAction('restart')
-                           }}
-                        >
-                           <Icon name="power" />
+                           <Icon name="trash" /> clear queue
                         </button>
                      </span>
+                     {p.st.drift != null && p.st.drift.host === p.st.hostFor(form.moduleKey) ? (
+                        <button
+                           type="button"
+                           className="attention"
+                           data-tip={`the host changed since this panel loaded its schema (${p.st.drift.summary}): refetch to use it`}
+                           onClick={() => void p.st.hostAction('refresh-schema')}
+                        >
+                           <Icon name="refresh" /> {p.st.drift.summary}
+                        </button>
+                     ) : null}
                      {p.st.isHostOverridden(form.moduleKey) ? (
                         <button
                            type="button"
@@ -451,49 +552,6 @@ export const VarsForm = observer(function VarsForm(p: { st: WebSt }) {
                            <Icon name="swap" /> reset
                         </button>
                      ) : null}
-                  </div>
-               </div>
-               {/* its own box beside host: on a phone, scrolling between the knobs and the image
-                is the whole friction, so the corner placement floats the newest one */}
-               <div className="head-box">
-                  <span className="head-label">preview</span>
-                  {/* first line: WHERE the results sit. second: what shows up while it runs */}
-                  <div className="head-line">
-                     <span className="btn-group">
-                        {LAYOUTS.map((l) => (
-                           <button
-                              key={l.id}
-                              type="button"
-                              className={p.st.layout === l.id ? 'sel' : ''}
-                              data-tip={l.title}
-                              onClick={() => p.st.setLayout(l.id)}
-                           >
-                              <Icon name={l.icon} />
-                           </button>
-                        ))}
-                     </span>
-                  </div>
-                  <div className="head-line">
-                     <span className="btn-group">
-                        <button
-                           type="button"
-                           className={p.st.showLatent ? 'sel' : ''}
-                           data-tip={
-                              p.st.showLatent ? 'hide the latent preview during a run' : 'show the latent preview'
-                           }
-                           onClick={() => p.st.toggleLatent()}
-                        >
-                           <Icon name="image" />
-                        </button>
-                        <button
-                           type="button"
-                           className={p.st.showLogs ? 'sel' : ''}
-                           data-tip={p.st.showLogs ? 'hide the ComfyUI console' : 'show the ComfyUI console'}
-                           onClick={() => p.st.toggleLogs()}
-                        >
-                           <Icon name="terminal" />
-                        </button>
-                     </span>
                   </div>
                </div>
             </div>
@@ -508,9 +566,10 @@ export const VarsForm = observer(function VarsForm(p: { st: WebSt }) {
          {/* the autosave state is the draft box's legend now; only a FAILURE gets a line of
              its own, because that one you must not miss */}
          {form.saveState === 'error' ? <div className="error">🔴 draft save failed: {form.saveError}</div> : null}
-         {/* ONE grid for every row (rows are subgrids of it), so the label column can size
-             itself to the longest label instead of reserving a fixed slab of the width */}
-         <div className="vars">
+         {/* ONE grid for every row (rows are subgrids of it). The label column is as wide as YOU
+             drag it (kept in this browser): labels never wrap, a cut one shows whole on hover */}
+         <div className="vars" style={{ gridTemplateColumns: `${p.st.labelWidth}px minmax(0, 1fr)` }}>
+            <LabelResizer st={p.st} />
             {orderedVars.map((v, ix) => (
                // keyed by MODULE and DRAFT: a switch must reset per-row ui state (lora filter,
                // remembered strengths, paused set), not carry the other selection's over.
@@ -524,6 +583,7 @@ export const VarsForm = observer(function VarsForm(p: { st: WebSt }) {
                   module={form.moduleKey}
                   index={ix}
                   names={orderedNames}
+                  place={places[ix] ?? null}
                />
             ))}
             {/* the OUTPUT is a knob like the others: a row, not a lone button in the header */}

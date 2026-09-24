@@ -2,6 +2,7 @@
 // bottom on a narrow one": no button could show it as selected, so the panel sat somewhere
 // nobody could name or point at, and clicking the lit button fell back into it.
 import { describe, expect, it } from 'bun:test'
+import { readFileSync } from 'node:fs'
 import { DEFAULT_LAYOUT, LAYOUTS, type ResultsLayout } from 'src/cli/serve/web/state/WebSt.ts'
 import { STYLES } from 'src/cli/serve/web/styles.ts'
 
@@ -27,11 +28,24 @@ describe('results placement', () => {
    })
 
    it('the stylesheet places every mode that needs placing', () => {
-      // `bottom` is the plain block flow: results after the form, which is what the dom
-      // already says. A rule for it would be a rule that changes nothing
-      for (const id of ['left', 'side', 'pinned']) expect(STYLES).toContain(`.work.layout-${id}`)
-      expect(STYLES).not.toContain('layout-bottom')
+      // `bottom` is the plain block flow (results after the form, as the dom says) plus the gap
+      // that keeps the boxed preview off the form
+      for (const id of ['left', 'side', 'pinned', 'bottom']) expect(STYLES).toContain(`.work.layout-${id}`)
       // and nothing is left of the mode no button could show
       expect(STYLES).not.toContain('layout-auto')
+   })
+})
+
+describe('side by side split', () => {
+   it('the split never carries the stacked-page classes, whose rules stop its panels from scrolling', () => {
+      // why we think it is actually a bug, and not just meaning spec should change: with
+      // layout-side on the split, `align-items: flex-start` let both panels grow with their
+      // content, the window cut the form off and nothing scrolled (measured in chrome: last row
+      // at 1071px in a 513px window). scripts/check-panel-scroll.ts is the browser check
+      const app = readFileSync('src/cli/serve/web/components/App.tsx', 'utf8')
+      const line = app.split('\n').find((l) => l.includes('className={`work split'))
+      expect(line).toBeDefined()
+      expect(line).not.toContain('layout-')
+      expect(STYLES).toContain('.work.split { flex: 1; min-width: 0; height: 100%; gap: 0; align-items: stretch; }')
    })
 })

@@ -12,48 +12,58 @@
 // WebSt); with both hidden the row collapses to a count. Names come from
 // descriptor optionLabels; the value keeps raw enum keys, replaced by copy
 import { Icon } from 'src/cli/serve/web/components/Icon.tsx'
+import { MenuButton, MenuItem } from 'src/cli/serve/web/components/MenuButton.tsx'
 import { logWebError } from 'src/cli/serve/web/logWeb.ts'
 import { observer, useLocalObservable } from 'mobx-react-lite'
-import { useEffect, useRef, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type DragEvent, type ReactNode } from 'react'
 import { fetchLoraAbout, fetchLoraInfo, loraPreviewSrc, type LoraAbout, type LoraInfo } from 'src/cli/serve/web/api.ts'
-import type { LoraStrength } from 'src/vars/ComfyVars.ts'
+import type { LoraStrength } from 'src/vars/loraEntry.ts'
 import type { VarSt } from 'src/cli/serve/web/state/FormSt.ts'
 import type { WebSt } from 'src/cli/serve/web/state/WebSt.ts'
 import { LORA_SORTS, sortLoraMatches } from 'src/cli/serve/web/state/loraSort.ts'
 import {
    loraIsOn,
    paletteOrder,
+   pruneLorasRecord,
    reorderLoras,
    loraStrengthPair,
    setLoraEnabled,
    setLoraStrength,
    type LoraStrengthPair,
 } from 'src/cli/serve/web/state/payload.ts'
+import {
+   isLoraLanes,
+   isLorasInput,
+   lorasFromLanes,
+   moveLane,
+   moveLoraToLane,
+   newLaneName,
+   patchLane,
+   removeLane,
+   toLoraLanes,
+   type LoraLane,
+   type LoraRecord,
+   type LorasInput,
+} from 'src/vars/lanes.ts'
+
+/** one editable list of loras: the whole var, or one of its lanes (ix -1 = no lanes) */
+type Section = { ix: number; record: LoraRecord; lane: LoraLane | null }
 
 /** our own drag payload type: a foreign drag cannot forge it */
 const CARD_DRAG_TYPE = 'application/x-comfy-lora'
-
-function asRecord(raw: unknown): Record<string, unknown> {
-   if (raw != null && typeof raw === 'object' && !Array.isArray(raw)) return raw as Record<string, unknown>
-   return {}
-}
 
 type LocalSt = {
    open: boolean
    filter: string
    info: Map<string, LoraInfo | 'loading' | 'error'>
    previewFailed: Set<string>
-   /** strength of a PAUSED lora, so resuming restores it (LorasVar.prev) */
-   prevStrength: Map<string, LoraStrengthPair>
-   /** loras paused in THIS session: they leave the draft record but stay in the palette,
-    * which is what makes "a few images with, a few without" one click each way */
-   paused: Set<string>
    setOpen(open: boolean): void
+   /** the section the popup adds into (-1 = the var itself, no lanes) */
+   target: number
+   openFor(ix: number): void
    setFilter(raw: string): void
    noteInfo(name: string, v: LoraInfo | 'loading' | 'error'): void
    notePreviewFailed(name: string): void
-   notePrevStrength(name: string, pair: LoraStrengthPair): void
-   setPaused(name: string, paused: boolean): void
    /** the lora whose details panel is open, null when none */
    details: string | null
    setDetails(name: string | null): void
@@ -62,6 +72,106 @@ type LocalSt = {
    isSplit(name: string, whenUnset: boolean): boolean
    setSplit(name: string, split: boolean): void
 }
+
+const LANE_DRAG = 'application/x-comfy-lora-lane'
+
+/** a lora lane's bar: a name pill (click = use / leave out, drag = reorder, double-click =
+ * rename), the count, and ⋯. It also takes a card dropped on it: the lora moves to its end */
+const LoraLaneBar = observer(function LoraLaneBar(p: {
+   v: VarSt
+   lanes: LoraLane[]
+   ix: number
+   count: number
+   on: number
+   onDropCard: (raw: string) => void
+}) {
+   const [renaming, setRenaming] = useState(false)
+   const lane = p.lanes[p.ix]
+   if (lane == null) return null
+   const write = (lanes: LoraLane[]): void => {
+      p.v.set({ lanes })
+   }
+   return (
+      <div
+         className="lane-bar"
+         onDragOver={(e) => {
+            const types = e.dataTransfer.types
+            if (types.includes(CARD_DRAG_TYPE) || types.includes(LANE_DRAG)) e.preventDefault()
+         }}
+         onDrop={(e) => {
+            const card = e.dataTransfer.getData(CARD_DRAG_TYPE)
+            if (card !== '') {
+               e.preventDefault()
+               p.onDropCard(card)
+               return
+            }
+            const raw = e.dataTransfer.getData(LANE_DRAG)
+            const from = Number(raw)
+            if (raw === '' || !Number.isInteger(from) || from === p.ix) return
+            e.preventDefault()
+            write(moveLane(p.lanes, from, p.ix - from))
+         }}
+      >
+         {renaming ? (
+            <input
+               type="text"
+               className="lane-name"
+               autoFocus
+               defaultValue={lane.name}
+               onFocus={(e) => e.currentTarget.select()}
+               onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                     write(patchLane(p.lanes, p.ix, { name: e.currentTarget.value.trim() || lane.name }))
+                     setRenaming(false)
+                  }
+                  if (e.key === 'Escape') setRenaming(false)
+               }}
+               onBlur={() => setRenaming(false)}
+            />
+         ) : (
+            <button
+               type="button"
+               className={lane.active ? 'lane-pill' : 'lane-pill off'}
+               draggable
+               data-tip={`${lane.active ? 'runs' : 'left out'}: click to switch, drag to reorder, double-click to rename`}
+               onDragStart={(e) => {
+                  e.dataTransfer.effectAllowed = 'move'
+                  e.dataTransfer.setData(LANE_DRAG, String(p.ix))
+               }}
+               onClick={() => write(patchLane(p.lanes, p.ix, { active: !lane.active }))}
+               onDoubleClick={() => setRenaming(true)}
+            >
+               {lane.name}
+            </button>
+         )}
+         {p.count === 0 ? null : <span className="hint">{`${p.on}/${p.count} on`}</span>}
+         <span className="lane-tools">
+            <MenuButton tip="lane actions">
+               {(close) => (
+                  <>
+                     <MenuItem
+                        label="rename"
+                        onClick={() => {
+                           close()
+                           setRenaming(true)
+                        }}
+                     />
+                     <MenuItem
+                        label="remove"
+                        disabled={p.count > 0 || p.lanes.length === 1}
+                        tip={p.count > 0 ? 'empty the lane first' : undefined}
+                        onClick={() => {
+                           close()
+                           write(removeLane(p.lanes, p.ix))
+                        }}
+                     />
+                  </>
+               )}
+            </MenuButton>
+         </span>
+      </div>
+   )
+})
 
 export const LorasControl = observer(function LorasControl(p: {
    v: VarSt
@@ -74,8 +184,12 @@ export const LorasControl = observer(function LorasControl(p: {
       filter: '',
       info: new Map(),
       previewFailed: new Set(),
-      prevStrength: new Map(),
       paused: new Set(),
+      target: -1,
+      openFor(ix: number) {
+         this.target = ix
+         this.open = true
+      },
       setOpen(open: boolean) {
          this.open = open
       },
@@ -87,13 +201,6 @@ export const LorasControl = observer(function LorasControl(p: {
       },
       notePreviewFailed(name: string) {
          this.previewFailed.add(name)
-      },
-      notePrevStrength(name: string, pair: LoraStrengthPair) {
-         this.prevStrength.set(name, pair)
-      },
-      setPaused(name: string, paused: boolean) {
-         if (paused) this.paused.add(name)
-         else this.paused.delete(name)
       },
       details: null,
       setDetails(name: string | null) {
@@ -107,25 +214,39 @@ export const LorasControl = observer(function LorasControl(p: {
          this.split.set(name, split)
       },
    }))
-   const record = asRecord(p.v.value)
+   const value: LorasInput = isLorasInput(p.v.value) ? p.v.value : {}
+   const laned = isLoraLanes(value) ? value : null
    const options = p.v.desc.options ?? []
    const labels = p.v.desc.optionLabels ?? {}
    const label = (name: string): string => labels[name] ?? name
-   // the PALETTE is what the row shows: the loras that are ON, plus the ones paused in this
-   // session. It is NOT "every key in the record", LorasVar writes `false` for every lora
-   // ever unticked, so that reading put the whole catalog in the row (a real draft
-   // with 35 keys and 2 on). A paused lora leaves the record entirely and lives here instead
-   const isOn = (name: string): boolean => loraIsOn(record[name])
-   const isInPalette = (name: string): boolean => isOn(name) || local.paused.has(name)
-   // NEWEST FIRST: the record keeps insertion order, so the lora you just added is the last
-   // key, reversed, it lands where you are looking instead of at the end of the row
-   const selectedNames = paletteOrder({ record, options, paused: local.paused })
+   // the row is a list of SECTIONS: one per lane (src/vars/lanes.ts), or a single one without
+   // lanes. A section's palette is its loras that are on plus the paused ones, never "every key":
+   // `false` is what an untick in the TUI writes, and reading it as a member put the whole
+   // catalog in the row. Record order inside a section, so a lora you add lands at the END
+   const sections: Section[] = isLoraLanes(value)
+      ? value.lanes.map((lane, ix) => ({ ix, record: lane.loras, lane }))
+      : [{ ix: -1, record: value, lane: null }]
+   const namesOf = (sec: Section): string[] => paletteOrder({ record: sec.record, options })
+   const allNames = [...new Set(sections.flatMap(namesOf))]
+   const isOn = (sec: Section, name: string): boolean => loraIsOn(sec.record[name])
+   const onCount = sections.reduce((n, sec) => n + namesOf(sec).filter((name) => isOn(sec, name)).length, 0)
+   // the popup adds into ONE section: the lane whose `add` opened it
+   const target = sections.find((sec) => sec.ix === local.target) ?? sections[0] ?? null
+   const targetNames = target == null ? [] : namesOf(target)
+   /** write one section back: the var itself, or its lane. Pruned through the same typed filter
+    * a loaded draft goes through, so what lands in the var is always a valid record */
+   const writeSection = (ix: number, record: Record<string, unknown>): void => {
+      const clean = pruneLorasRecord(record, options)
+      if (laned == null) p.v.set(clean)
+      else p.v.set({ lanes: patchLane(laned.lanes, ix, { loras: clean }) })
+   }
    /** known to the lora manager, absent from ComfyUI's own enum. it is offered rather than
     * hidden, but ComfyUI validates a prompt against the enum it has CACHED, so picking one
-    * fails at send time until that host rescans its models */
+    * fails at send time until that host rescans its models. ComfyUI rescans a folder when its
+    * mtime moves, which never happens on exFAT: extra/comfyui-fresh-model-lists fixes that */
    const managerOnly = new Set(p.v.desc.managerOnlyOptions ?? [])
    const MANAGER_ONLY_TIP =
-      'on disk and known to the lora manager, but ComfyUI has not scanned it: it refuses the prompt. only restarting ComfyUI makes it re-read the folder'
+      "on disk and known to the lora manager, but not in ComfyUI's list yet: it refuses the prompt. rescan the host; if it stays, the models drive is probably exFAT (install extra/comfyui-fresh-model-lists) or restart ComfyUI"
    const warnBadge = (name: string): ReactNode =>
       managerOnly.has(name) ? (
          <span className="lora-warn" data-tip={MANAGER_ONLY_TIP}>
@@ -134,26 +255,29 @@ export const LorasControl = observer(function LorasControl(p: {
       ) : null
    /** manager-only loras actually IN the palette: those are the ones a run will send, and the
     * ones ComfyUI has no entry for until it rescans its models */
-   const managerOnlyInUse = selectedNames.filter((n) => managerOnly.has(n))
+   const managerOnlyInUse = allNames.filter((n) => managerOnly.has(n))
    const showImages = p.st.showLoraImages
    const triggers = p.v.desc.optionTriggers ?? {}
    /** the trigger words under a row card, in one of FOUR states that never look alike: the
-    * words, a definite none (civitai was asked), never fetched (a button asks it), or not in
-    * the mirror at all (a button syncs it). Titles hidden hides the words, never the state */
+    * words, a definite none (civitai was asked), never fetched (a button asks it), or not loaded
+    * yet (the local copy of the manager's list predates the lora, a button re-reads it). Titles hidden hides the words, never the state */
    const triggerLine = (name: string): ReactNode => {
       const t = triggers[name]
       if (t == null)
          return (
-            <span className="chip-triggers missing">
-               not in the lora manager mirror
+            <span
+               className="chip-triggers missing"
+               data-tip="this lora is newer than the copy of the lora manager's list kept here, so its trigger words, name and preview are not known yet. the lora itself runs fine"
+            >
+               trigger words not loaded yet
                <button
                   type="button"
                   className="trigger-fetch"
                   disabled={p.st.loraSyncing}
-                  data-tip="re-download the lora manager's list for this host (names, trigger words, previews)"
+                  data-tip="read the lora manager's list again (names, trigger words, previews)"
                   onClick={() => void p.st.refreshLoras()}
                >
-                  {p.st.loraSyncing ? 'syncing…' : 'sync'}
+                  {p.st.loraSyncing ? 'loading…' : 'load'}
                </button>
             </span>
          )
@@ -208,39 +332,32 @@ export const LorasControl = observer(function LorasControl(p: {
    }
    const showTitles = p.st.showLoraTitles
 
-   /** add to the palette (a strength) or REMOVE from it entirely (null) */
-   const setEntry = (name: string, st: LoraStrength | null): void => {
-      local.setPaused(name, false)
-      const next = { ...record }
+   /** add to a section (a strength) or REMOVE from it entirely (null) */
+   const setEntry = (sec: Section, name: string, st: LoraStrength | null): void => {
+      const next: Record<string, unknown> = { ...sec.record }
       if (st == null) delete next[name]
       else next[name] = st
-      p.v.set(next)
+      writeSection(sec.ix, next)
    }
-   const toggleOn = (name: string, on: boolean): void => {
-      if (!on) local.notePrevStrength(name, loraStrengthPair(record[name]))
-      local.setPaused(name, !on)
-      p.v.set(setLoraEnabled(record, name, on, on ? local.prevStrength.get(name) : undefined))
+   // a pause keeps the key and its strengths in the draft, so a reload keeps it off
+   const toggleOn = (sec: Section, name: string, on: boolean): void => {
+      writeSection(sec.ix, setLoraEnabled(sec.record, name, on))
    }
-   const setStrength = (name: string, pair: LoraStrengthPair): void => {
-      if (!isOn(name)) {
-         // editing an OFF lora's strength remembers it for when it comes back on
-         local.notePrevStrength(name, pair)
-         return
-      }
-      p.v.set(setLoraStrength(record, name, pair))
+   const setStrength = (sec: Section, name: string, pair: LoraStrengthPair): void => {
+      writeSection(sec.ix, setLoraStrength(sec.record, name, pair))
    }
 
    /** ONE slider by default, labelled `m+c`: model and clip are the same number in almost every
     * lora, and two sliders for one decision is noise. Clicking the label splits them, and a lora
     * whose values already differ opens split, its setting is someone's work, not a default */
-   const strengthInputs = (name: string): ReactNode => {
-      const pair = isOn(name) ? loraStrengthPair(record[name]) : (local.prevStrength.get(name) ?? { model: 1, clip: 1 })
+   const strengthInputs = (sec: Section, name: string): ReactNode => {
+      const pair = loraStrengthPair(sec.record[name])
       const split = local.isSplit(name, pair.model !== pair.clip)
       const write = (which: 'model' | 'clip' | 'both', raw: number): void => {
          if (!Number.isFinite(raw)) return
          const n = Math.round(raw * 100) / 100
-         if (which === 'both') return setStrength(name, { model: n, clip: n })
-         setStrength(name, which === 'model' ? { model: n, clip: pair.clip } : { model: pair.model, clip: n })
+         if (which === 'both') return setStrength(sec, name, { model: n, clip: n })
+         setStrength(sec, name, which === 'model' ? { model: n, clip: pair.clip } : { model: pair.model, clip: n })
       }
       const line = (which: 'model' | 'clip' | 'both', value: number, text: string, tip: string): ReactNode => (
          <div className="st-line">
@@ -270,7 +387,7 @@ export const LorasControl = observer(function LorasControl(p: {
    // trigger words for the active section load once per open (bounded: active loras only)
    const open = local.open
    const host = p.host
-   const activeKey = selectedNames.join('\n')
+   const activeKey = allNames.join('\n')
    useEffect(() => {
       if (!open) return
       for (const name of activeKey.split('\n')) {
@@ -302,7 +419,7 @@ export const LorasControl = observer(function LorasControl(p: {
       addedAt: p.v.desc.optionAddedAt ?? {},
    })
    const cardCap = p.st.loraCap
-   const cards = matches.filter((o) => !isInPalette(o)).slice(0, cardCap)
+   const cards = matches.filter((o) => !targetNames.includes(o)).slice(0, cardCap)
    /** the enum value IS a path (`krea2\styles\x.safetensors`, separators vary by host and by
     * where the name came from), so the folder is everything before the last separator */
    const folderOf = (name: string): string => {
@@ -341,7 +458,7 @@ export const LorasControl = observer(function LorasControl(p: {
       const first = cards[0]
       if (first == null) return
       // the SAME call the card's own click makes, so enter and a tap cannot drift apart
-      setEntry(first, [1, 1])
+      if (target != null) setEntry(target, first, [1, 1])
       filterRef.current?.select()
    }
 
@@ -379,6 +496,14 @@ export const LorasControl = observer(function LorasControl(p: {
          >
             <Icon name="tag" />
          </button>
+         <button
+            type="button"
+            className={p.st.showLoraTriggers ? 'mode sel' : 'mode'}
+            data-tip={p.st.showLoraTriggers ? 'hide the trigger words' : 'show the trigger words'}
+            onClick={() => p.st.toggleLoraTriggers()}
+         >
+            <Icon name="text" />
+         </button>
          {/* cover vs contain: a style lora's art crops beautifully and a character sheet does
              not, so which one is right is per collection, not something to decide here */}
          {showImages ? (
@@ -399,153 +524,278 @@ export const LorasControl = observer(function LorasControl(p: {
          {/* the controls sit ABOVE the palette, left aligned: after a row of cards they read as
              an afterthought, and a centred trio of buttons has nothing to align with */}
          <div className="lora-actions">
-            <button type="button" className="field-height" onClick={() => local.setOpen(true)}>
-               <Icon name="plus" /> {selectedNames.length === 0 ? `add loras (${options.length})` : 'add'}
+            <button type="button" className="field-height accent" onClick={() => local.openFor(sections[0]?.ix ?? -1)}>
+               <Icon name="plus" /> add
             </button>
-            <span className="btn-group field-height">{visibilityToggles}</span>
-            {/* the host's OWN lora manager: where you tag, rename and re-scan them. Same host
-                the runs go to, so the page you open is the one that owns these files */}
-            <button
-               type="button"
-               className="field-height"
-               disabled={p.st.loraSyncing}
-               data-tip="re-download the lora metadata from the lora manager on this host (names, trigger words, previews)"
-               onClick={() => void p.st.refreshLoras()}
-            >
-               <Icon name="refresh" /> {p.st.loraSyncing ? 'syncing…' : 'sync'}
-            </button>
+            {/* everything used now and then lives behind ⋯: the row shows loras, not a strip
+                of buttons. The rescan warning stays out, it asks for action */}
+            <MenuButton tip="display, sync, lanes">
+               {(close) => (
+                  <>
+                     <MenuItem label="images" checked={showImages} onClick={() => p.st.toggleLoraImages()} />
+                     <MenuItem label="titles" checked={showTitles} onClick={() => p.st.toggleLoraTitles()} />
+                     <MenuItem
+                        label="fill the card"
+                        checked={p.st.loraFill}
+                        disabled={!showImages}
+                        onClick={() => p.st.toggleLoraFill()}
+                     />
+                     <MenuItem
+                        label="trigger words"
+                        checked={p.st.showLoraTriggers}
+                        onClick={() => p.st.toggleLoraTriggers()}
+                     />
+                     <div className="menu-sep" />
+                     <MenuItem
+                        label={p.st.loraSyncing ? 'syncing…' : 'sync with the lora manager'}
+                        disabled={p.st.loraSyncing}
+                        tip="re-read names, trigger words and previews from the lora manager on this host"
+                        onClick={() => {
+                           close()
+                           void p.st.refreshLoras()
+                        }}
+                     />
+                     {p.hostUrl == null ? null : (
+                        <MenuItem
+                           label="open the lora manager ↗"
+                           onClick={() => {
+                              close()
+                              window.open(`${p.hostUrl}/loras`, '_blank', 'noreferrer')
+                           }}
+                        />
+                     )}
+                     <div className="menu-sep" />
+                     {/* lanes: named groups merged top to bottom. Back to one row only when that
+                         loses nothing, a single active lane */}
+                     {laned == null ? (
+                        <MenuItem
+                           label="split into lanes"
+                           onClick={() => {
+                              close()
+                              p.v.set(toLoraLanes(value))
+                           }}
+                        />
+                     ) : (
+                        <>
+                           <MenuItem
+                              label="+ lane"
+                              onClick={() => {
+                                 close()
+                                 p.v.set({
+                                    lanes: [
+                                       ...laned.lanes,
+                                       { name: newLaneName(laned.lanes), active: true, loras: {} },
+                                    ],
+                                 })
+                              }}
+                           />
+                           <MenuItem
+                              label="back to a single row"
+                              disabled={lorasFromLanes(laned) == null}
+                              tip={
+                                 lorasFromLanes(laned) == null
+                                    ? 'only with one active lane: nothing gets merged behind your back'
+                                    : undefined
+                              }
+                              onClick={() => {
+                                 close()
+                                 const single = lorasFromLanes(laned)
+                                 if (single != null) p.v.set(single)
+                              }}
+                           />
+                        </>
+                     )}
+                  </>
+               )}
+            </MenuButton>
             {managerOnlyInUse.length > 0 ? (
                <button
                   type="button"
                   className="field-height warn-action"
                   disabled={p.st.hostWatch === 'down'}
-                  data-tip={`${managerOnlyInUse.length} lora(s) here are on disk but ComfyUI has not scanned them, so it refuses the prompt. Only a RESTART makes it re-read its models folder: refetching the schema just re-reads the same list. then hit refresh here and the var widens in place`}
-                  onClick={() => void p.st.hostAction('restart')}
+                  data-tip={`${managerOnlyInUse.length} lora(s) here are on disk but not in ComfyUI's list yet, so it refuses the prompt. this refetches the host's list and the var widens in place. if they stay: ComfyUI never notices new files on an exFAT drive (install extra/comfyui-fresh-model-lists), or restart ComfyUI from the host box`}
+                  onClick={() => void p.st.hostAction('refresh-schema')}
                >
-                  <Icon name="power" /> restart ComfyUI
+                  <Icon name="refresh" /> rescan ComfyUI
                </button>
             ) : null}
-            {p.hostUrl == null ? null : (
-               <a
-                  className="button-link field-height"
-                  href={`${p.hostUrl}/loras`}
-                  target="_blank"
-                  rel="noreferrer"
-                  data-tip="open the lora manager of this host in a new tab"
-               >
-                  <Icon name="external" /> manager
-               </a>
-            )}
-            {selectedNames.length > 0 ? (
+            {allNames.length > 0 ? (
                <span className="hint">
-                  {selectedNames.length} in the palette · {selectedNames.filter(isOn).length} on
+                  {allNames.length} in the palette · {onCount} on
                </span>
             ) : null}
-            {/* the workflow's own narrowing, said out loud: a picker that shows 200 loras when
-                the var asked for krea2 ones is not explainable */}
-            {p.v.desc.optionsFilter == null ? null : (
-               <span
-                  className="hint"
-                  data-tip="this workflow declared v.loras(<regex>) — only matching loras are offered"
-               >
-                  filter {p.v.desc.optionsFilter}
-               </span>
-            )}
          </div>
-         <div className="row-inline">
+         <div className="lora-lanes">
             {!showImages && !showTitles ? (
                <span className="hint">
-                  {selectedNames.length} lora{selectedNames.length === 1 ? '' : 's'} in the palette
+                  {allNames.length} lora{allNames.length === 1 ? '' : 's'} in the palette
                </span>
             ) : (
-               selectedNames.map((name, ix) => (
-                  <span
-                     key={name}
-                     className={`${showImages ? 'lora-chip card' : 'lora-chip'}${isOn(name) ? '' : ' off'}`}
-                     draggable
-                     onMouseDown={(e) => {
-                        // the WHOLE card drags, so the browser hands it the pointer before any
-                        // control below sees it, and a slider drag would only reorder the card.
-                        // disarm for this gesture when it starts on an input: recomputed on every
-                        // mousedown, so there is no armed/disarmed state to leak
-                        const from = e.target as HTMLElement
-                        // buttons too (✕, the m+c label): a press that drifts a pixel would
-                        // otherwise start a reorder instead of firing the click
-                        e.currentTarget.draggable = from.closest('input, label, button, select, a') == null
-                     }}
-                     // re-arm once the gesture is over, so the grab cursor comes back the
-                     // moment you leave the slider
-                     onMouseUp={(e) => {
-                        e.currentTarget.draggable = true
-                     }}
-                     onDragStart={(e) => {
-                        e.dataTransfer.effectAllowed = 'move'
-                        // the index travels in the drag itself: no drag state to leak or reset
-                        e.dataTransfer.setData(CARD_DRAG_TYPE, String(ix))
-                     }}
-                     // only OUR drag: a desktop file or a var row carries no index, and
-                     // Number('') is 0, so a foreign drop would reorder from slot 0
-                     onDragOver={(e) => {
-                        if (e.dataTransfer.types.includes(CARD_DRAG_TYPE)) e.preventDefault()
-                     }}
-                     onDrop={(e) => {
-                        const raw = e.dataTransfer.getData(CARD_DRAG_TYPE)
-                        if (raw === '') return
-                        e.preventDefault()
-                        const from = Number(raw)
-                        if (Number.isInteger(from) && from !== ix)
-                           p.v.set(reorderLoras({ record, displayed: selectedNames, from, to: ix }))
-                     }}
-                  >
-                     {/* the ✕ is a child of the PICTURE's own box, never of the card: its
-                         containing block is then this wrapper whatever else is positioned
-                         around it, so it cannot take a row of flow nor escape the card */}
-                     <span className="chip-media">
-                        {/* the CARD opens what this lora is; only the switch turns it on and off,
-                            so reading about a lora can never change what the graph runs */}
-                        <button
-                           type="button"
-                           className="lora-toggle"
-                           data-tip={`${name}\nclick for its details`}
-                           onClick={() => local.setDetails(name)}
-                        >
-                           {thumb(name)}
-                        </button>
-                        <button
-                           type="button"
-                           className="chip-remove"
-                           data-tip="remove from the palette (the popup adds it back)"
-                           onClick={() => setEntry(name, null)}
-                        >
-                           <Icon name="close" size={1.05} />
-                        </button>
-                     </span>
-                     {/* the switch sits WITH the title: state and name read as one line */}
-                     <span className="chip-head">
-                        <label className="switch" data-tip={isOn(name) ? 'pause this lora' : 'resume this lora'}>
-                           <input
-                              type="checkbox"
-                              checked={isOn(name)}
-                              onChange={(e) => toggleOn(name, e.target.checked)}
+               sections.map((sec) => {
+                  const names = namesOf(sec)
+                  /** a card or a lane header takes a dropped card: same lane = reorder, another
+                   * lane = the lora moves there, before `beforeName` or last */
+                  const dropHere = (raw: string, beforeName: string | null): void => {
+                     const [fromRaw, fromName] = raw.split('\n')
+                     const from = Number(fromRaw)
+                     if (fromName == null || !Number.isInteger(from) || fromName === beforeName) return
+                     if (from === sec.ix) {
+                        const to = beforeName == null ? names.length - 1 : names.indexOf(beforeName)
+                        const at = names.indexOf(fromName)
+                        if (at === -1 || to === -1) return
+                        writeSection(sec.ix, reorderLoras({ record: sec.record, displayed: names, from: at, to }))
+                     } else if (laned != null)
+                        p.v.set(
+                           moveLoraToLane(laned, {
+                              from,
+                              name: fromName,
+                              to: sec.ix,
+                              beforeName: beforeName ?? undefined,
+                           }),
+                        )
+                  }
+                  const acceptDrag = (e: DragEvent): void => {
+                     if (e.dataTransfer.types.includes(CARD_DRAG_TYPE)) e.preventDefault()
+                  }
+                  return (
+                     <div
+                        key={sec.ix}
+                        className={`lora-section${sec.lane == null ? '' : ' laned'}${sec.lane == null || sec.lane.active ? '' : ' off'}`}
+                     >
+                        {sec.lane == null || laned == null ? null : (
+                           <LoraLaneBar
+                              v={p.v}
+                              lanes={laned.lanes}
+                              ix={sec.ix}
+                              count={names.length}
+                              on={names.filter((n) => isOn(sec, n)).length}
+                              onDropCard={(raw) => dropHere(raw, null)}
                            />
-                           <span className="track" />
-                        </label>
-                        {showTitles ? (
-                           <button
-                              type="button"
-                              className="chip-title as-text"
-                              data-tip={`${name}\nclick for its details`}
-                              onClick={() => local.setDetails(name)}
-                           >
-                              {label(name)}
-                           </button>
-                        ) : null}
-                        {warnBadge(name)}
-                     </span>
-                     <span className="chip-controls">{strengthInputs(name)}</span>
-                     {triggerLine(name)}
-                  </span>
-               ))
+                        )}
+                        <div className="row-inline lora-lane">
+                           {names.map((name) => (
+                              <span
+                                 key={name}
+                                 className={`${showImages ? 'lora-chip card' : 'lora-chip'}${isOn(sec, name) ? '' : ' off'}`}
+                                 draggable
+                                 onMouseDown={(e) => {
+                                    // the WHOLE card drags, so the browser hands it the pointer before any
+                                    // control below sees it, and a slider drag would only reorder the card.
+                                    // disarm for this gesture when it starts on an input: recomputed on every
+                                    // mousedown, so there is no armed/disarmed state to leak
+                                    const from = e.target as HTMLElement
+                                    // buttons too (✕, the m+c label): a press that drifts a pixel would
+                                    // otherwise start a reorder instead of firing the click
+                                    e.currentTarget.draggable = from.closest('input, label, button, select, a') == null
+                                 }}
+                                 // re-arm once the gesture is over, so the grab cursor comes back the
+                                 // moment you leave the slider
+                                 onMouseUp={(e) => {
+                                    e.currentTarget.draggable = true
+                                 }}
+                                 onDragStart={(e) => {
+                                    e.dataTransfer.effectAllowed = 'move'
+                                    // the lane and the name travel in the drag itself: no drag state to leak
+                                    e.dataTransfer.setData(CARD_DRAG_TYPE, `${sec.ix}\n${name}`)
+                                 }}
+                                 // only OUR drag: a desktop file or a var row carries no payload
+                                 onDragOver={acceptDrag}
+                                 onDrop={(e) => {
+                                    const raw = e.dataTransfer.getData(CARD_DRAG_TYPE)
+                                    if (raw === '') return
+                                    e.preventDefault()
+                                    dropHere(raw, name)
+                                 }}
+                              >
+                                 {/* the ✕ is a child of the PICTURE's own box, never of the card: its
+                                     containing block is then this wrapper whatever else is positioned
+                                     around it, so it cannot take a row of flow nor escape the card */}
+                                 <span className="chip-media">
+                                    {/* the CARD opens what this lora is; only the switch turns it on and off,
+                                        so reading about a lora can never change what the graph runs */}
+                                    <button
+                                       type="button"
+                                       className="lora-toggle"
+                                       data-tip={`${name}\nclick for its details`}
+                                       onClick={() => local.setDetails(name)}
+                                    >
+                                       {thumb(name)}
+                                    </button>
+                                    <button
+                                       type="button"
+                                       className="chip-remove"
+                                       data-tip="remove from the palette (the popup adds it back)"
+                                       onClick={() => setEntry(sec, name, null)}
+                                    >
+                                       <Icon name="close" size={1.05} />
+                                    </button>
+                                 </span>
+                                 {/* the switch sits WITH the title: state and name read as one line */}
+                                 <span className="chip-head">
+                                    <label
+                                       className="switch"
+                                       data-tip={isOn(sec, name) ? 'pause this lora' : 'resume this lora'}
+                                    >
+                                       <input
+                                          type="checkbox"
+                                          checked={isOn(sec, name)}
+                                          onChange={(e) => toggleOn(sec, name, e.target.checked)}
+                                       />
+                                       <span className="track" />
+                                    </label>
+                                    {showTitles ? (
+                                       <button
+                                          type="button"
+                                          className="chip-title as-text"
+                                          data-tip={`${name}\nclick for its details`}
+                                          onClick={() => local.setDetails(name)}
+                                       >
+                                          {label(name)}
+                                       </button>
+                                    ) : null}
+                                    {warnBadge(name)}
+                                 </span>
+                                 <span className="chip-controls">{strengthInputs(sec, name)}</span>
+                                 {p.st.showLoraTriggers ? triggerLine(name) : null}
+                              </span>
+                           ))}
+                           {/* a lane adds at its own end: a dashed card, no header button */}
+                           {sec.lane == null ? null : (
+                              <button
+                                 type="button"
+                                 className="lora-add-card"
+                                 data-tip={`add loras to ${sec.lane.name}`}
+                                 onDragOver={acceptDrag}
+                                 onDrop={(e) => {
+                                    const raw = e.dataTransfer.getData(CARD_DRAG_TYPE)
+                                    if (raw === '') return
+                                    e.preventDefault()
+                                    dropHere(raw, null)
+                                 }}
+                                 onClick={() => local.openFor(sec.ix)}
+                              >
+                                 <Icon name="plus" />
+                              </button>
+                           )}
+                        </div>
+                     </div>
+                  )
+               })
+            )}
+            {laned == null ? null : (
+               <div className="row-inline">
+                  <button
+                     type="button"
+                     onClick={() =>
+                        p.v.set({
+                           lanes: [...laned.lanes, { name: newLaneName(laned.lanes), active: true, loras: {} }],
+                        })
+                     }
+                  >
+                     <Icon name="plus" /> lane
+                  </button>
+                  <span className="hint">lanes merge top to bottom · drag a card onto another lane to move it</span>
+               </div>
             )}
          </div>
 
@@ -583,19 +833,26 @@ export const LorasControl = observer(function LorasControl(p: {
                      </button>
                   </div>
                   <div className="modal-body">
-                     {selectedNames.length > 0 ? (
+                     {target != null && targetNames.length > 0 ? (
                         <div>
-                           <div className="section-title">your palette ({selectedNames.length})</div>
-                           {selectedNames.filter(matchesFilter).map((name) => {
+                           <div className="section-title">
+                              {target.lane == null ? 'your palette' : `lane ${target.lane.name}`} ({targetNames.length})
+                           </div>
+                           {targetNames.filter(matchesFilter).map((name) => {
                               const info = local.info.get(name)
                               return (
-                                 <div key={name} className={isOn(name) ? 'lora-active-row' : 'lora-active-row off'}>
+                                 <div
+                                    key={name}
+                                    className={isOn(target, name) ? 'lora-active-row' : 'lora-active-row off'}
+                                 >
                                     {thumb(name)}
                                     <div className="lora-active-text">
                                        <div className="lora-label" data-tip={name}>
                                           {showTitles ? label(name) : '···'}
                                        </div>
-                                       {typeof info === 'object' && info.triggerWords.length > 0 ? (
+                                       {p.st.showLoraTriggers &&
+                                       typeof info === 'object' &&
+                                       info.triggerWords.length > 0 ? (
                                           <div className="hint">{info.triggerWords.join(', ')}</div>
                                        ) : (
                                           <div className="hint">{name}</div>
@@ -603,16 +860,16 @@ export const LorasControl = observer(function LorasControl(p: {
                                     </div>
                                     <input
                                        type="checkbox"
-                                       checked={isOn(name)}
-                                       data-tip={isOn(name) ? 'pause (stays in the palette)' : 'resume'}
-                                       onChange={(e) => toggleOn(name, e.target.checked)}
+                                       checked={isOn(target, name)}
+                                       data-tip={isOn(target, name) ? 'pause (stays in the palette)' : 'resume'}
+                                       onChange={(e) => toggleOn(target, name, e.target.checked)}
                                     />
-                                    {strengthInputs(name)}
+                                    {strengthInputs(target, name)}
                                     <button
                                        type="button"
                                        className="chip-remove"
                                        data-tip="remove from the list"
-                                       onClick={() => setEntry(name, null)}
+                                       onClick={() => setEntry(target, name, null)}
                                     >
                                        <Icon name="close" size={0.9} />
                                     </button>
@@ -623,6 +880,16 @@ export const LorasControl = observer(function LorasControl(p: {
                      ) : null}
                      <div className="section-title lora-sort-head">
                         all loras — tap to add to the palette
+                        {/* the workflow's own narrowing, said where it matters: in the picker, not
+                            on the form */}
+                        {p.v.desc.optionsFilter == null ? null : (
+                           <span
+                              className="hint filter-hint"
+                              data-tip="this workflow declared v.loras(<regex>): only matching loras are offered"
+                           >
+                              matching {p.v.desc.optionsFilter}
+                           </span>
+                        )}
                         <span className="lora-sort">
                            sort
                            {LORA_SORTS.map((s) => (
@@ -652,7 +919,9 @@ export const LorasControl = observer(function LorasControl(p: {
                                     type="button"
                                     className="lora-card"
                                     data-tip={name}
-                                    onClick={() => setEntry(name, [1, 1])}
+                                    onClick={() => {
+                                       if (target != null) setEntry(target, name, [1, 1])
+                                    }}
                                  >
                                     {thumb(name)}
                                     <div className="lora-label">
@@ -664,9 +933,9 @@ export const LorasControl = observer(function LorasControl(p: {
                            </div>
                         </div>
                      ))}
-                     {matches.length - selectedNames.filter(matchesFilter).length > cardCap ? (
+                     {matches.length - targetNames.filter(matchesFilter).length > cardCap ? (
                         <div className="loras-more">
-                           … {matches.length - selectedNames.filter(matchesFilter).length - cardCap} more — refine the
+                           … {matches.length - targetNames.filter(matchesFilter).length - cardCap} more — refine the
                            filter, or draw
                            <input
                               type="number"
@@ -796,7 +1065,7 @@ const LoraDetails = observer(function LoraDetails(p: {
                      <div className="detail-list">
                         {info.known === false ? (
                            <div className="hint">
-                              not in the lora manager mirror — run sync, or this file is unknown to it
+                              newer than the copy of the lora manager's list kept here: sync reads it again
                            </div>
                         ) : null}
                         {p.managerOnly ? <div className="hint">⚠ only the lora manager lists it, not comfy</div> : null}

@@ -253,7 +253,15 @@ const Modal = observer(function Modal(p: { e: EnhancerSt }) {
    )
 })
 
-export const PromptEnhancer = observer(function PromptEnhancer(p: { v: VarSt; st: WebSt; module: string }) {
+export const PromptEnhancer = observer(function PromptEnhancer(p: {
+   v: VarSt
+   st: WebSt
+   module: string
+   /** in lanes mode: refine this lane only */
+   lane?: number
+   /** the icon alone, for a lane's bar */
+   compact?: boolean
+}) {
    const e = p.st.enhancer
    return (
       <>
@@ -261,11 +269,12 @@ export const PromptEnhancer = observer(function PromptEnhancer(p: { v: VarSt; st
             type="button"
             className="link"
             data-tip="rewrite this prompt with an llm"
-            onClick={() => e.openFor({ v: p.v, module: p.module })}
+            onClick={() => e.openFor({ v: p.v, module: p.module, lane: p.lane })}
          >
-            <Icon name="sparkle" /> enhance
+            <Icon name="sparkle" />
+            {p.compact === true ? null : ' enhance'}
          </button>
-         {e.target === p.v ? <Modal e={e} /> : null}
+         {e.target === p.v && e.targetLane === (p.lane ?? null) ? <Modal e={e} /> : null}
       </>
    )
 })
