@@ -28,10 +28,12 @@ const SYNTHETIC = 'tests/fixtures/lm-loras-list.synthetic.json'
 /** a hand-written fixture documents a handful of CASES; past this it is a collection */
 const MAX_INVENTORY_ENTRIES = 20
 
+let trackedMemo: string[] | null = null
 function trackedFiles(): string[] {
-   return execFileSync('git', ['ls-files'], { encoding: 'utf8' })
+   trackedMemo ??= execFileSync('git', ['ls-files'], { encoding: 'utf8' })
       .split('\n')
       .filter((f) => f !== '')
+   return trackedMemo
 }
 
 /**
@@ -54,6 +56,33 @@ function packedSourceFiles(): string[] {
    return out
 }
 
+let scannedMemo: { file: string; text: string }[] | null = null
+/** every tracked or packed file readable as text, read ONCE for every scan below */
+function scannedTexts(): { file: string; text: string }[] {
+   if (scannedMemo != null) return scannedMemo
+   const out: { file: string; text: string }[] = []
+   for (const file of new Set([...trackedFiles(), ...packedSourceFiles()])) {
+      if (file === SELF) continue
+      let stat: { size: number }
+      try {
+         stat = statSync(file)
+      } catch {
+         continue // deleted but still indexed
+      }
+      // NO content exemptions: a big file is the worst case, not the exempt one.
+      // The upstream manager catalogs (~3MB each) are scanned like everything
+      // else and pass. The cap only skips what is too large to read as text.
+      if (stat.size > 40_000_000) continue
+      try {
+         out.push({ file, text: readFileSync(file, 'utf8') })
+      } catch {
+         continue // binary
+      }
+   }
+   scannedMemo = out
+   return out
+}
+
 describe('no captured lora inventory is tracked by git', () => {
    it('runs from the repo root, or it scans almost nothing and passes green', () => {
       // every path here is cwd-relative: from a subdirectory `git ls-files` returns
@@ -63,24 +92,7 @@ describe('no captured lora inventory is tracked by git', () => {
 
    it('nothing git tracks, and nothing npm would pack, carries lora-manager dump markers', () => {
       const offenders: string[] = []
-      for (const file of new Set([...trackedFiles(), ...packedSourceFiles()])) {
-         if (file === SELF) continue
-         let stat: { size: number }
-         try {
-            stat = statSync(file)
-         } catch {
-            continue // deleted but still indexed
-         }
-         // NO content exemptions: a big file is the worst case, not the exempt one.
-         // The upstream manager catalogs (~3MB each) are scanned like everything
-         // else and pass. The cap only skips what is too large to read as text.
-         if (stat.size > 40_000_000) continue
-         let text: string
-         try {
-            text = readFileSync(file, 'utf8')
-         } catch {
-            continue // binary
-         }
+      for (const { file, text } of scannedTexts()) {
          for (const n of NEEDLES) if (text.includes(n.needle)) offenders.push(`${file} — ${n.label}`)
          if (DRIVE_PATH.test(text)) offenders.push(`${file} — absolute drive path in a file_path field`)
       }
@@ -98,15 +110,9 @@ describe('no captured lora inventory is tracked by git', () => {
       // relative, saved as any name — that is still a real collection.
       const NAME_KEY = /"(model_name|file_name)"\s*:/g
       const offenders: string[] = []
-      for (const file of new Set([...trackedFiles(), ...packedSourceFiles()])) {
-         if (file === SELF || file === SYNTHETIC) continue
+      for (const { file, text } of scannedTexts()) {
+         if (file === SYNTHETIC) continue
          if (!/\.(json|jsonl|ts|tsx|md|txt|csv)$/.test(file)) continue
-         let text: string
-         try {
-            text = readFileSync(file, 'utf8')
-         } catch {
-            continue
-         }
          const count = text.match(NAME_KEY)?.length ?? 0
          if (count > MAX_INVENTORY_ENTRIES) offenders.push(`${file} — ${count} model entries`)
       }

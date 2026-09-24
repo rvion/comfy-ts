@@ -11,8 +11,8 @@ import { join } from 'pathe'
 const ROOTS = ['src', 'tests', 'examples', 'agent', 'scripts', 'extra', '.github', '.comfy-ts/prompt-enhancers']
 const ROOT_FILES = ['README.md', 'CHANGELOG.md', 'CLAUDE.md', 'guide-for-agents.md']
 const SKIP_DIRS = new Set(['node_modules', 'generated', 'json', 'external-docs'])
-// generated sdk faces and upstream data mirrors are DATA, never prose we write
-const SKIP_FILES = /\.(json|snap)$|sdk\.d\.ts$/
+// generated sdk faces and upstream data mirrors are DATA, never prose we write; media holds no prose
+const SKIP_FILES = /\.(json|snap|jpe?g|png|webp|gif|mp3|wav|mp4)$|sdk\.d\.ts$/
 // this file QUOTES every banned phrase by construction
 const SELF = 'tests/public-voice.test.ts'
 
@@ -43,6 +43,17 @@ const BANNED: { pattern: RegExp; why: string }[] = [
    { pattern: /\/Users\/(?!x\/)[a-z]+\//i, why: 'a real home directory path' },
 ]
 
+/** every BANNED rule as one regex per flag set: the per file pre-filter */
+const ANY_BANNED: RegExp[] = [...new Set(BANNED.map((r) => r.pattern.flags))].map(
+   (flags) =>
+      new RegExp(
+         BANNED.filter((r) => r.pattern.flags === flags)
+            .map((r) => `(?:${r.pattern.source})`)
+            .join('|'),
+         flags,
+      ),
+)
+
 /** a date whose only job is to stamp an instruction. A date inside a sentence about a MEASURED
  * fact ("probed 2026-07-30 against the live service") is legitimate and stays. */
 const DATED_INSTRUCTION = /\b(ask|repro|order|GO|rule|call|decision|complaint)\b[^.\n]{0,40}\b20\d\d-\d\d-\d\d/i
@@ -67,15 +78,23 @@ describe('public surfaces carry no commissioning voice', () => {
       for (const file of files) {
          if (file === SELF) continue
          const text = readFileSync(file, 'utf8')
-         const lines = text.split('\n')
-         lines.forEach((line, ix) => {
-            for (const rule of BANNED)
-               if (rule.pattern.test(line)) hits.push(`${file}:${ix + 1} (${rule.why}) ${line.trim().slice(0, 90)}`)
-         })
          // ALSO across line breaks: a hard-wrapped comment split every phrase in two, which is
          // exactly why the line-by-line pass reported clean while violations sat in the file
          const flat = text.replaceAll(/\s*\n\s*(\/\/|\*|#)?\s*/g, ' ')
-         for (const rule of BANNED)
+         // one combined pass per file; only the rules that matched walk the lines
+         const live = ANY_BANNED.some((re) => re.test(text) || re.test(flat))
+            ? BANNED.filter((rule) => rule.pattern.test(text) || rule.pattern.test(flat))
+            : []
+         if (live.length === 0) {
+            if (DATED_INSTRUCTION.test(flat)) hits.push(`${file} (a date stamping an instruction)`)
+            continue
+         }
+         const lines = text.split('\n')
+         lines.forEach((line, ix) => {
+            for (const rule of live)
+               if (rule.pattern.test(line)) hits.push(`${file}:${ix + 1} (${rule.why}) ${line.trim().slice(0, 90)}`)
+         })
+         for (const rule of live)
             if (rule.pattern.test(flat) && !lines.some((l) => rule.pattern.test(l)))
                hits.push(`${file} (${rule.why}, wrapped across lines)`)
          if (DATED_INSTRUCTION.test(flat)) hits.push(`${file} (a date stamping an instruction)`)
