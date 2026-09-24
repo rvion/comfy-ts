@@ -711,13 +711,13 @@ export const LorasControl = observer(function LorasControl(p: {
                                      containing block is then this wrapper whatever else is positioned
                                      around it, so it cannot take a row of flow nor escape the card */}
                                  <span className="chip-media">
-                                    {/* the CARD opens what this lora is; only the switch turns it on and off,
-                                        so reading about a lora can never change what the graph runs */}
+                                    {/* the IMAGE is the switch, the biggest target on the card: pausing and
+                                        resuming is what a card is clicked for. The TITLE opens its details */}
                                     <button
                                        type="button"
                                        className="lora-toggle"
-                                       data-tip={`${name}\nclick for its details`}
-                                       onClick={() => local.setDetails(name)}
+                                       data-tip={`${name}\nclick to ${isOn(sec, name) ? 'pause' : 'resume'}, click the title for details`}
+                                       onClick={() => toggleOn(sec, name, !isOn(sec, name))}
                                     >
                                        {thumb(name, Math.round(130 * scale))}
                                     </button>
