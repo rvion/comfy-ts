@@ -22,6 +22,20 @@ describe('serve web ui routes', () => {
       expect(String(reply.body)).toContain('id="root"')
    })
 
+   it('an edited web ui reaches the next page load without a server restart', async () => {
+      // why we think it is actually a bug, and not just meaning spec should change: `bun run
+      // serve:rvion` restarts only when a file the SERVER imports changes, and the web ui is
+      // bundled, not imported, so an edited panel never showed on refresh until a manual restart
+      let js = 'console.log(1)'
+      const app = makeApp({ webJs: () => Promise.resolve(js) })
+      const shell = async (): Promise<string> =>
+         String((await app.handle({ method: 'GET', url: '/', accept: 'text/html' })).body)
+      const before = await shell()
+      js = 'console.log(2)'
+      expect(await shell()).not.toBe(before)
+      expect(String((await app.handle({ method: 'GET', url: '/web/app.js' })).body)).toBe('console.log(2)')
+   })
+
    it('the shell carries the project icon as an inlined png favicon', async () => {
       const app = makeApp({ webJs: () => Promise.resolve('js!') })
       const body = String((await app.handle({ method: 'GET', url: '/', accept: 'text/html' })).body)
@@ -104,21 +118,12 @@ describe('serve web ui routes', () => {
       expect(reply.contentType).toBe('application/json')
    })
 
-   it('GET /web/app.js serves the bundle, built once', async () => {
-      let builds = 0
-      const app = makeApp({
-         webJs: () => {
-            builds++
-            return Promise.resolve('the-bundle')
-         },
-      })
-      const first = await app.handle({ method: 'GET', url: '/web/app.js' })
-      const second = await app.handle({ method: 'GET', url: '/web/app.js' })
-      expect(first.status).toBe(200)
-      expect(first.contentType).toContain('javascript')
-      expect(String(first.body)).toBe('the-bundle')
-      expect(String(second.body)).toBe('the-bundle')
-      expect(builds).toBe(1)
+   it('GET /web/app.js serves what the provider hands over (the provider owns the cache)', async () => {
+      const app = makeApp({ webJs: () => Promise.resolve('the-bundle') })
+      const reply = await app.handle({ method: 'GET', url: '/web/app.js' })
+      expect(reply.status).toBe(200)
+      expect(reply.contentType).toContain('javascript')
+      expect(String(reply.body)).toBe('the-bundle')
    })
 
    it('GET /web/app.js answers 404 when the bundle is unavailable', async () => {
@@ -162,5 +167,26 @@ describe('serve upload', () => {
          body: JSON.stringify({ name: 'x.png', dataBase64: '$$$$' }),
       })
       expect(reply.status).toBe(400)
+   })
+})
+
+describe('web ui source signature', () => {
+   it('moves when a source file is rewritten, added or removed, and only then', async () => {
+      const { sourceSignature } = await import('src/cli/serve/webBundle.ts')
+      const { writeFileSync, rmSync, mkdirSync, utimesSync } = await import('node:fs')
+      const dir = mkdtempSync(join(tmpdir(), 'comfy-ts-websig-'))
+      mkdirSync(join(dir, 'web'))
+      writeFileSync(join(dir, 'web', 'a.tsx'), 'one')
+      const first = sourceSignature(dir)
+      expect(sourceSignature(dir)).toBe(first)
+      writeFileSync(join(dir, 'web', 'a.tsx'), 'one!')
+      const edited = sourceSignature(dir)
+      expect(edited).not.toBe(first)
+      writeFileSync(join(dir, 'b.ts'), 'x')
+      utimesSync(join(dir, 'b.ts'), 0, 0)
+      const added = sourceSignature(dir)
+      expect(added).not.toBe(edited)
+      rmSync(join(dir, 'b.ts'))
+      expect(sourceSignature(dir)).not.toBe(added)
    })
 })

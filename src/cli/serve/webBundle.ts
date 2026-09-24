@@ -1,8 +1,8 @@
 // web ui bundle resolution (architecture item 12, web ui): prebuilt
 // dist/serve-web.js next to the running module, else an in-memory Bun.build
-// from source (src/ ships in the npm tarball), else null — the api must serve
-// without a UI, never crash
-import { existsSync, readFileSync } from 'node:fs'
+// from source (src/ ships in the npm tarball), rebuilt when a source file changes,
+// else null — the api must serve without a UI, never crash
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'pathe'
 
@@ -43,11 +43,42 @@ export async function buildWebJsText(pkgRoot: string): Promise<string> {
    return await result.outputs[0].text()
 }
 
-/** the runtime resolution chain; every miss logs loud and degrades to api-only */
+/** changes whenever a file under `dir` is added, removed or rewritten. The web bundle reaches
+ * outside web/ (vars, protocol types), so the whole src/ tree is the input: ~300 stats, a few ms */
+export function sourceSignature(dir: string): string {
+   let count = 0
+   let newest = 0
+   let bytes = 0
+   const walk = (d: string): void => {
+      for (const entry of readdirSync(d, { withFileTypes: true })) {
+         const abs = join(d, entry.name)
+         if (entry.isDirectory()) walk(abs)
+         else if (entry.isFile()) {
+            const st = statSync(abs)
+            count += 1
+            bytes += st.size
+            newest = Math.max(newest, st.mtimeMs)
+         }
+      }
+   }
+   walk(dir)
+   return `${count}:${bytes}:${newest}`
+}
+
+let prebuiltJs: string | null = null
+let fromSource: { signature: string; js: Promise<string | null> } | null = null
+
+/** the runtime resolution chain; every miss logs loud and degrades to api-only. Called on every
+ * page load: a prebuilt file is read once, a source build is redone only when src/ changed, so
+ * an edited panel shows on refresh under `bun --watch`, which never sees the bundled files */
 export async function loadOrBuildWebJs(): Promise<string | null> {
    const here = dirname(fileURLToPath(import.meta.url))
    const prebuilt = join(here, 'serve-web.js')
-   if (existsSync(prebuilt)) return readFileSync(prebuilt, 'utf8')
+   if (prebuiltJs != null) return prebuiltJs
+   if (existsSync(prebuilt)) {
+      prebuiltJs = readFileSync(prebuilt, 'utf8')
+      return prebuiltJs
+   }
    if (typeof Bun === 'undefined') {
       console.error('[serve] 🔴 no serve-web.js next to the cli and not running under bun — api only, no web ui')
       return null
@@ -57,10 +88,23 @@ export async function loadOrBuildWebJs(): Promise<string | null> {
       console.error(`[serve] 🔴 web ui source not found (looked for ${WEB_ENTRY} above ${here}) — api only, no web ui`)
       return null
    }
-   try {
-      return await buildWebJsText(pkgRoot)
-   } catch (e) {
-      console.error('[serve] 🔴 web ui bundle failed — api only:', e)
-      return null
+   const signature = sourceSignature(join(pkgRoot, 'src'))
+   if (fromSource?.signature !== signature) {
+      const rebuilt = fromSource != null
+      // a failed build stays failed for this signature: logged once, retried on the next edit
+      fromSource = {
+         signature,
+         js: buildWebJsText(pkgRoot).then(
+            (js) => {
+               if (rebuilt) console.log('[serve] web ui rebuilt from source')
+               return js
+            },
+            (e: unknown) => {
+               console.error('[serve] 🔴 web ui bundle failed — api only until the next edit:', e)
+               return null
+            },
+         ),
+      }
    }
+   return await fromSource.js
 }

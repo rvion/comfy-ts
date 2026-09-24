@@ -333,3 +333,9 @@ export function loraMatchesFilter(name: string, filter: string, hostId?: string)
    const fields = [...loraSearchNames(name, hostId), ...loraSearchText(name, hostId)].map((f) => f.toLowerCase())
    return tokens.every((token) => fields.some((field) => field.includes(token)))
 }
+
+/** the loras a host lists that the local copy of its lora manager list does not know yet:
+ * downloaded after the last sync, so they have no name, preview or trigger words here */
+export function lorasMissingFromMirror(hostLoras: readonly string[], inMirror: (name: string) => boolean): string[] {
+   return hostLoras.filter((n) => !inMirror(n))
+}

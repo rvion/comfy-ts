@@ -33,6 +33,7 @@ import {
    recordCivitaiMiss,
    getLoraDisplayName,
    getLoraInfo,
+   lorasMissingFromMirror,
    getLoraPreviewUrl,
    getLoraTriggerWords,
    refreshLoraInfoCacheIfChanged,
@@ -312,8 +313,6 @@ export class ServeApp {
    private seedState = new Map<string, { last: number; draftBase: number }>()
    /** per-module promise chain: vars are shared mutable state, apply→send is exclusive */
    private chains = new Map<string, Promise<unknown>>()
-   /** the bundle is built at most once per process, first browser hit pays it */
-   private webJsCache: Promise<string | null> | null = null
    /** saving + host overrides are live settings (the web ui flips them). LAZY: a ServeApp can
     * be constructed before a comfyts instance is registered, and reading the file then would
     * throw at construction time */
@@ -335,7 +334,8 @@ export class ServeApp {
          starter?: ServeStarter
          outputRoot?: string
          loadErrors?: Record<string, string>
-         /** web ui bundle provider (run-serve wires loadOrBuildWebJs); absent = api only */
+         /** web ui bundle provider (run-serve wires loadOrBuildWebJs), called on every page load
+          * and owning its own cache; absent = api only */
          webJs?: () => Promise<string | null>
       } = {},
    ) {
@@ -364,8 +364,7 @@ export class ServeApp {
             // the bundle resolves BEFORE the shell ships: a shell whose /web/app.js 404s is
             // a blank dark page, the json index is a usable answer
             if (segs.length === 0 && this.opts.webJs != null && req.accept?.includes('text/html') === true) {
-               this.webJsCache ??= this.opts.webJs()
-               const js = await this.webJsCache
+               const js = await this.opts.webJs()
                if (js != null)
                   return {
                      status: 200,
@@ -624,8 +623,7 @@ export class ServeApp {
 
    private async replyWebJs(): Promise<ServeReply> {
       if (this.opts.webJs == null) return json(404, { error: 'web ui not enabled on this server' })
-      this.webJsCache ??= this.opts.webJs()
-      const js = await this.webJsCache
+      const js = await this.opts.webJs()
       if (js == null) return json(404, { error: 'web ui bundle unavailable — see the server log' })
       return { status: 200, contentType: 'text/javascript; charset=utf-8', body: js, headers: NO_STORE }
    }
@@ -746,6 +744,16 @@ export class ServeApp {
          if (action === 'refresh-loras') return await this.refreshLoraMirror(hostId, host)
          if (action === 'refresh-schema') {
             await host.fetchAndUpdateSchema()
+            // a lora the host just learned is usually one the local copy of the lora manager's
+            // list predates, so the panel would show it without name, preview or trigger words.
+            // re-read that list in the same click, BEFORE the rebind reads it
+            const unmirrored = lorasMissingFromMirror(host.schema.getLoras(), (n) => getLoraInfo(n, hostId) != null)
+            const lorasNote =
+               unmirrored.length === 0
+                  ? ''
+                  : (await this.refreshLoraMirror(hostId, host)).status === 200
+                    ? `, lora manager list re-read for ${unmirrored.length} new lora(s)`
+                    : `, the lora manager list could NOT be re-read (see the sync button)`
             // a lora var resolves its regex against the schema ONCE, at define time, so a
             // refetch alone left every var on the list it was born with and the panel kept
             // warning about a lora the host had just learned. rebinding re-runs that resolve
@@ -761,7 +769,7 @@ export class ServeApp {
                host: hostId,
                action,
                stale: rebound.stale,
-               note: `schema refetched: ${nodes} node types, ${loras} loras, ${rebound.widened} lora var(s) changed${dropped}. no restart needed`,
+               note: `schema refetched: ${nodes} node types, ${loras} loras, ${rebound.widened} lora var(s) changed${dropped}${lorasNote}. no restart needed`,
             })
          }
          if (action === 'restart') {
