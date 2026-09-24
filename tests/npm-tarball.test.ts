@@ -4,9 +4,11 @@ import { existsSync } from 'node:fs'
 
 /** the paths of `bun pm pack` output, color codes or not: a shell with FORCE_COLOR set wraps
  * every `packed` line in escapes, and a pattern anchored on the bare word matched nothing */
+const ANSI = new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*m`, 'g')
+
 function parsePackList(stdout: string): string[] {
    return stdout
-      .replaceAll(/\u001b\[[0-9;]*m/g, '')
+      .replaceAll(ANSI, '')
       .split('\n')
       .map((l) => /^packed \S+ (.+)$/.exec(l.trim())?.[1])
       .filter((p): p is string => p != null)
