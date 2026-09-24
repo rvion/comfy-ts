@@ -1,6 +1,6 @@
 # comfy-ts
 
-## Unreleased (minor)
+## 2.12.0
 
 ### The web panel
 
@@ -24,8 +24,19 @@
 - **The words a lora adds to the prompt are chosen per lora.** Above the prompt box, each active lora shows one line: its name, how many of its words are kept, the words. Clicking it opens the list with a checkbox per word, plus all and none. A word left out is not sent, and the choice is saved with the draft.
 - **A paused lora stays paused after a reload**, with its strengths and its place, and a lora you add goes to the end of the row so nothing on screen moves.
 - **The prompt refiner talks to any OpenAI-compatible server**: llama.cpp's `llama-server`, ollama, vllm. Pick `llama.cpp / ollama / vllm` as the provider and give it the base URL including `/v1` (for example `http://localhost:8080/v1`). The key is optional.
-- **A lora ComfyUI has not listed yet gets a `rescan ComfyUI` button instead of `restart ComfyUI`.** It refetches the host's model list, and the loras var widens in place. The warning no longer claims that only a restart helps: ComfyUI re-reads a folder whenever the folder's date changes, and the exception is an exFAT drive (see below).
+- **The host refreshes itself.** The panel checks every 15 seconds whether the host's node list or the lora manager's list changed, and refreshes both in one go when they did. A lora you just downloaded shows up without a button or a restart; the only exception is a model drive on exFAT (see below). A lora the lora manager knows but ComfyUI has not listed yet carries a warning that says so.
 - **Thinking can be turned off on those servers.** Effort `off` asks the model's chat template to skip reasoning, and any other value asks it to think first. A local thinking model left on can spend the whole token budget reasoning and return an empty answer.
+- **The refiner, rebuilt.** LLM configs are files, `.comfy-ts/llm-configs/<name>.json` (provider, base url, model, thinking effort), so every browser and window shares them; API keys stay in the browser and never reach a file or the server. The modal lists the configs and the master prompts as two columns of tabs; each config shows whether its server answers, and its model list loads by itself. The job fills the rest: your text, the rewrite, and three actions. A tab's pen opens its settings or its master prompt over the job. A workflow with no master prompt picked yet opens on the one whose name shares a word with it.
+- **Refiner keys**: ⌘E opens the refiner on the first prompt, and ⌘E again rewrites. ⌘⏎ still means generate: in the refiner, with a rewrite ready, it generates the draft with the rewrite in place of the prompt and leaves the prompt as it is ("try it"). ⌘I writes the rewrite into the prompt.
+- **The refiner's input belongs to the draft.** What you type in it is saved in the draft file, under a `$enhance` key beside the values, one text per prompt (and per lane), so each draft keeps its own and a reload opens on it. With nothing typed yet the input shows the prompt, and `use the prompt` goes back to it. Draft readers ignore the key, and the TUI keeps it when it rewrites a draft.
+- **Negative and comment lines survive a rewrite untouched.** The refiner sends only the rest to the model and puts every `- ` and `// ` line back afterwards, each on its own line, so a model cannot glue a negative onto its last sentence.
+- **History**: a history button under every prompt and beside the refiner's input lists every value you generated with (or refined) since the page opened, newest first, with how long ago and from which workflow. Search by words, arrow through the list to see each full text, enter to restore it. It is kept in memory only.
+- **Omnibox**: ⌘K or ⌘J (or a click on the workflow name) searches every workflow and draft; enter opens it.
+- **More keys**: ⌘P puts the cursor in the first prompt, ⌘O opens the first loras picker, ⌘B toggles the blur. The key shows under the label it jumps to.
+- **The loras popup keeps still.** A lora you pick stays in its place in the grid and turns green; its image then pauses or resumes it like the card in the form, and only the ✕ in its corner takes it out. Your palette sits in a column on the right. A paused lora shows a large pause mark on its image, in the popup and in the form. Clicking a lora's title opens its details, and the image size is a small slider in the ⋯ menu.
+- **Results fit the panel, or a grid.** Fit shows one image per row at the panel's width; grid shows them at the size you set, as many per row as fit.
+- **Latent preview in a corner**: while a run goes, a small card over the results shows the latent and the progress, and the last image stays where it is until the new one lands. This is now the default; full size and off are the other two choices.
+- **Nothing in the preview panel moves by itself**: the generate button keeps its size during a run, the queue and results counts are small fixed chips with a ✕, a run error takes one reserved line, and a collapsed live preview is always two lines.
 
 ### Extras
 
