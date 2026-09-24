@@ -8,7 +8,7 @@ const src = readFileSync('src/cli/serve/web/state/WebSt.ts', 'utf8')
 /** the stored key each toggle rides, and the method that flips it */
 const PERSISTED = [
    { key: 'logs', toggle: 'toggleLogs' },
-   { key: 'latent', toggle: 'toggleLatent' },
+   { key: 'latent', toggle: 'setLatentMode' },
    { key: 'blur', toggle: 'toggleBlur' },
    { key: 'loraImages', toggle: 'toggleLoraImages' },
    { key: 'loraTitles', toggle: 'toggleLoraTitles' },
@@ -19,7 +19,7 @@ const PERSISTED = [
 describe('ui preferences survive a reload', () => {
    it('every toggle writes the blob', () => {
       const missing = PERSISTED.filter((p) => {
-         const at = src.indexOf(`${p.toggle}(): void {`)
+         const at = src.indexOf(`   ${p.toggle}(`)
          if (at === -1) return true
          return !src.slice(at, src.indexOf('\n   }', at)).includes('this.persist()')
       })

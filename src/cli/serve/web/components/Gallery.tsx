@@ -298,11 +298,53 @@ const LiveText = observer(function LiveText(p: { text: string }) {
    )
 })
 
+/** the corner mode: the run as a small card floating over the gallery's top right corner, on a
+ * zero-height sticky anchor, so it takes no room. The last image stays where it is while the
+ * next one runs, and the finished one lands at the top in one go */
+const CornerRun = observer(function CornerRun(p: { st: WebSt; local: GalleryLocal; module: string }) {
+   const percent = p.st.run.progressPercent
+   const node = p.st.run.progressNode
+   const count = p.st.run.progressCount
+   return (
+      <div className="corner-run-anchor">
+         <div className="corner-run">
+            {p.st.run.hasPreview ? (
+               <button
+                  type="button"
+                  className="img-button"
+                  data-tip="the latent so far: click to see it big"
+                  onClick={() =>
+                     p.local.openLightbox({
+                        kind: 'latent',
+                        module: p.module,
+                        after: p.st.run.results.filter((r) => r.module === p.module).length,
+                     })
+                  }
+               >
+                  <img src={runPreviewSrc({ module: p.module, tick: p.st.run.previewTick })} alt="latent preview" />
+               </button>
+            ) : null}
+            <div className="corner-run-meta">
+               <span className="run-meta-text">
+                  {node == null ? p.module : node}
+                  {count != null ? ` ${count.value}/${count.max}` : ''}
+               </span>
+               <span>{percent != null ? `${Math.round(percent)}%` : ''}</span>
+            </div>
+            <div className="progress-track">
+               <div className="progress-fill" style={{ width: `${percent ?? 0}%` }} />
+            </div>
+         </div>
+      </div>
+   )
+})
+
 /** live card while a run is in flight: progress bar + the latest latent frame */
 const RunningCard = observer(function RunningCard(p: { st: WebSt; local: GalleryLocal }) {
    // the RUNNING module, never the selection: switching modules mid-run must not retarget the card
    const moduleKey = p.st.run.runningModule
    if (!p.st.run.isRunning || moduleKey == null) return null
+   if (p.st.latentMode === 'corner') return <CornerRun st={p.st} local={p.local} module={moduleKey} />
    const percent = p.st.run.progressPercent
    const previewUrl = runPreviewSrc({ module: moduleKey, tick: p.st.run.previewTick })
    // the node's OWN counter: generated tokens on a text node, sampler steps on a KSampler.
@@ -343,7 +385,7 @@ const RunningCard = observer(function RunningCard(p: { st: WebSt; local: Gallery
                         : `min(100%, ${p.st.resultsSize}px, calc(${p.st.resultsSize}px * ${ratio}))`,
                }}
             >
-               {p.st.run.hasPreview && p.st.showLatent ? (
+               {p.st.run.hasPreview && p.st.latentMode === 'full' ? (
                   <button
                      type="button"
                      className="img-button"

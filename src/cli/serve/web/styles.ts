@@ -665,6 +665,19 @@ button.enh-big { font-size: 14px; padding: 8px 18px; }
 .center { display: flex; height: 100%; align-items: center; justify-content: center; color: var(--dim); }
 .center .error { color: var(--red); max-width: 640px; white-space: pre-wrap; }
 
+/* the corner latent: a zero-height sticky anchor, so the card floats over the gallery without
+   taking a pixel of it; the card itself is one fixed size */
+.corner-run-anchor { position: sticky; top: 6px; height: 0; z-index: 4; flex-basis: 100%; width: 100%; margin-bottom: -10px; }
+.work.layout-pinned .corner-run-anchor { margin-bottom: -6px; }
+.corner-run {
+   position: absolute; top: 0; right: 6px; width: 168px; display: flex; flex-direction: column; gap: 4px;
+   background: var(--panel); border: 1px solid var(--accent-dim); border-radius: 8px; padding: 6px;
+   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+}
+.corner-run img { width: 100%; height: 120px; object-fit: contain; display: block; border-radius: 5px; background: var(--bg); }
+.gallery.blur .corner-run img { filter: blur(14px); }
+.corner-run-meta { display: flex; justify-content: space-between; gap: 6px; font-size: 11px; color: var(--dim); white-space: nowrap; }
+.corner-run-meta .run-meta-text { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 /* blur mode: every result, the latent frame included, stays blurred until the pointer is on it */
 .gallery.blur img { filter: blur(22px); transition: filter 0.12s; }
 .gallery.blur img:hover, .gallery.blur .img-cell:hover img, .gallery.blur button:hover img { filter: none; }

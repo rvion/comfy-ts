@@ -4,7 +4,8 @@ import { observer } from 'mobx-react-lite'
 import { useEffect, useState, type ReactNode } from 'react'
 import { Group, Panel, Separator, useDefaultLayout } from 'react-resizable-panels'
 import { Gallery } from 'src/cli/serve/web/components/Gallery.tsx'
-import { Icon } from 'src/cli/serve/web/components/Icon.tsx'
+import { Icon, type IconName } from 'src/cli/serve/web/components/Icon.tsx'
+import { LATENT_MODES, type LatentMode } from 'src/cli/serve/web/state/latentMode.ts'
 import { Omnibox, useOmniboxShortcut } from 'src/cli/serve/web/components/Omnibox.tsx'
 import { TooltipLayer } from 'src/cli/serve/web/components/TooltipLayer.tsx'
 import { MOD_KEY } from 'src/cli/serve/web/components/modKey.ts'
@@ -102,6 +103,8 @@ const LivePreviews = observer(function LivePreviews(p: { st: WebSt }) {
    )
 })
 
+const LATENT_ICON: Record<LatentMode, IconName> = { full: 'image', corner: 'panel-corner', off: 'panel-off' }
+
 const ResultsHead = observer(function ResultsHead(p: { st: WebSt }) {
    return (
       <div className="results-head">
@@ -125,14 +128,19 @@ const ResultsHead = observer(function ResultsHead(p: { st: WebSt }) {
          <div className="head-group-labeled">
             <span className="group-caption">while running</span>
             <span className="btn-group">
-               <button
-                  type="button"
-                  className={p.st.showLatent ? 'sel' : ''}
-                  data-tip={p.st.showLatent ? 'hide the latent preview during a run' : 'show the latent preview'}
-                  onClick={() => p.st.toggleLatent()}
-               >
-                  <Icon name="image" />
-               </button>
+               {LATENT_MODES.map((m) => (
+                  <button
+                     key={m.mode}
+                     type="button"
+                     className={p.st.latentMode === m.mode ? 'sel' : ''}
+                     data-tip={m.tip}
+                     onClick={() => p.st.setLatentMode(m.mode)}
+                  >
+                     <Icon name={LATENT_ICON[m.mode]} />
+                  </button>
+               ))}
+            </span>
+            <span className="btn-group">
                <button
                   type="button"
                   className={p.st.showLogs ? 'sel' : ''}
