@@ -4,6 +4,8 @@
 
 ### The web panel
 
+- **Live previews**: `defineWorkflow({ previews: { prompt: (vars) => string } })` shows text computed from the values on screen under the generate button, refreshed as you edit and foldable. Nothing runs and nothing is written to compute them.
+- **No jump when a run starts**: the running card keeps its image frame at the final size from the first moment, with the progress bar drawn over it, so the latent preview and the finished image take the same space.
 - **Choices with zero or several options**: `v.choice(opts, null, { select: 'zero-or-one' })` holds one option or none (clicking the lit button clears it), `v.choice(opts, [], { select: 'many' })` holds any number (every button toggles). The value is typed `T | null` or `T[]`, and serve, the panel and the TUI all accept exactly that shape.
 - **Groups of vars**: `.ui({ group: 'sampling' })` on consecutive vars draws them as one tinted block, `groupColor` picks the tint.
 - **Easier to read**: labels are right-aligned with their (?) first, tooltips are larger and light on the dark page, the preview head captions its groups and blur has its own button, stop and clear queue are separate buttons, lane names sit on the left of their lane, and a loras var's filter shows only in its popup.
