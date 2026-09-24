@@ -1,17 +1,14 @@
 import { describe, expect, it } from 'bun:test'
-import { spawnSync } from 'node:child_process'
 import { existsSync, readdirSync } from 'node:fs'
 import { join } from 'pathe'
-
 // the zoo verification bar, item 2 (agent/examples.md): every zoo example must
 // build with `workflow.problems` EMPTY against the cloud schema cache. The
 // cache is the machine-local gitignored 9MB object_info dump, so a fresh
 // clone/CI skips this suite LOUDLY (describe.skipIf below) — `bun run
 // gen:sdk:cloud` or any cloud connect restores it. Builders never run live:
-// the uploader is stubbed before any i2i/i2v build. The builds run in ONE
-// subprocess: importing example modules in-process would create the global
-// `comfyts` singleton and break workflow-builder.test.ts's own `new ComfyTS`
-// (bun test shares one process across files).
+// the uploader is stubbed before any i2i/i2v build. The builds run in this
+// process under their OWN global registry: the examples register through
+// ComfyTS.create(), and the one another file registered is handed back after.
 const repoRoot = join(import.meta.dir, '..')
 const cachePath = join(repoRoot, '.comfy-ts', 'hosts', 'comfy-cloud', 'object_info.json')
 const zooDir = join(repoRoot, 'examples', 'comfy-cloud')
@@ -27,33 +24,39 @@ function zooFiles(): string[] {
 }
 
 type ZooResult = { file: string; error?: string; problems?: unknown[]; nodes?: number }
+type ZooWorkflow = {
+   host: { uploader: { uploadImage: () => Promise<string> } }
+   build: () => Promise<{ problems: unknown[]; toApiJson: () => Record<string, unknown> }>
+}
+function isZooWorkflow(x: unknown): x is ZooWorkflow {
+   return typeof x === 'object' && x != null && 'host' in x && 'build' in x && typeof x.build === 'function'
+}
 
 let sweepMemo: Map<string, ZooResult> | null = null
-
-/** one subprocess builds ALL zoo workflows offline and reports per file; memoized across it.each rows */
-function sweep(files: string[]): Map<string, ZooResult> {
+/** builds ALL zoo workflows offline and reports per file; memoized across it.each rows */
+async function sweep(files: string[]): Promise<Map<string, ZooResult>> {
    if (sweepMemo != null) return sweepMemo
-   // plain JS on purpose: the uploader stub needs no brand cast outside typechecked code
-   const script = [
-      `const files = ${JSON.stringify(files)}`,
-      `const out = []`,
-      `for (const f of files) {`,
-      `   const mod = await import(f)`,
-      `   const wf = mod.default`,
-      `   if (wf == null || typeof wf.build !== 'function') { out.push({ file: f, error: 'default export is not a DefinedWorkflow' }); continue }`,
-      `   wf.host.uploader.uploadImage = async () => 'zoo-offline-stub.png'`,
-      `   const built = await wf.build()`,
-      `   out.push({ file: f, problems: built.problems, nodes: Object.keys(built.toApiJson()).length })`,
-      `}`,
-      `console.log('ZOO_RESULTS ' + JSON.stringify(out))`,
-   ].join('\n')
-   const res = spawnSync('bun', ['-e', script], { cwd: repoRoot, encoding: 'utf8' })
-   const line = res.stdout.split('\n').find((l) => l.startsWith('ZOO_RESULTS '))
-   if (res.status !== 0 || line == null) {
-      throw new Error(`zoo sweep subprocess failed (status ${res.status}):\n${res.stderr}\n${res.stdout}`)
+   const globalHack = globalThis as { comfyts?: unknown }
+   const prior = globalHack.comfyts
+   Reflect.deleteProperty(globalThis, 'comfyts')
+   const out: ZooResult[] = []
+   try {
+      for (const file of files) {
+         const mod: { default?: unknown } = await import(file)
+         const wf = mod.default
+         if (!isZooWorkflow(wf)) {
+            out.push({ file, error: 'default export is not a DefinedWorkflow' })
+            continue
+         }
+         wf.host.uploader.uploadImage = async () => 'zoo-offline-stub.png'
+         const built = await wf.build()
+         out.push({ file, problems: built.problems, nodes: Object.keys(built.toApiJson()).length })
+      }
+   } finally {
+      if (prior != null) globalHack.comfyts = prior
+      else Reflect.deleteProperty(globalThis, 'comfyts')
    }
-   const rows: ZooResult[] = JSON.parse(line.slice('ZOO_RESULTS '.length))
-   sweepMemo = new Map(rows.map((r) => [r.file, r]))
+   sweepMemo = new Map(out.map((r) => [r.file, r]))
    return sweepMemo
 }
 
@@ -68,8 +71,8 @@ describe.skipIf(!existsSync(cachePath))('zoo examples build problems-free agains
 
    it.each(files.map((f) => [f.slice(repoRoot.length + 1), f]))(
       '%s',
-      (_label, file) => {
-         const row = sweep(files).get(file)
+      async (_label, file) => {
+         const row = (await sweep(files)).get(file)
          if (row == null) throw new Error(`no sweep result for ${file}`)
          expect(row.error).toBeUndefined()
          expect(row.problems).toEqual([])
