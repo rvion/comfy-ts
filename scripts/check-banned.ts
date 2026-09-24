@@ -1,12 +1,11 @@
 // commit guard: rejects commits containing keywords from .shipkit/private/banned-keywords.txt
-// rows: plain text = case-insensitive WORD match (anything that is not a letter or a digit is
-// a break, so `folder/word`, `foo,word,bar` and `word_v2.safetensors` all hit, while a word
-// glued inside a longer one does not); `re:<pattern>` = case-insensitive regex
+// (row syntax and matching: scripts/bannedKeywords.ts)
 // usage: check-banned.ts --staged        (pre-commit: staged contents + staged paths)
 //        check-banned.ts --msg <file>    (commit-msg: the commit message)
 import { spawnSync } from 'node:child_process'
-import { existsSync, readFileSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
 import { join } from 'pathe'
+import { commitMessageText, loadBannedRules, scanFile, scanText, type BannedRule, type Hit } from 'scripts/bannedKeywords.ts'
 
 const KEYWORDS_FILE = '.shipkit/private/banned-keywords.txt'
 
@@ -16,81 +15,33 @@ function git(args: string[]): string {
    return res.stdout
 }
 
-type Hit = { where: string; keyword: string }
-
-function escapeRegex(raw: string): string {
-   return raw.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`)
-}
-
 function main(): void {
    const mode = process.argv[2]
    const repoRoot = git(['rev-parse', '--show-toplevel']).trim()
 
-   const keywordsPath = join(repoRoot, KEYWORDS_FILE)
-   if (!existsSync(keywordsPath)) {
+   let rules: BannedRule[] | null
+   try {
+      rules = loadBannedRules(join(repoRoot, KEYWORDS_FILE))
+   } catch (err) {
+      console.error(`✖ ${KEYWORDS_FILE}: ${err instanceof Error ? err.message : String(err)}`)
+      process.exit(2)
+   }
+   if (rules == null) {
       console.warn(`⚠ ${KEYWORDS_FILE} not found — banned-keywords check SKIPPED`)
       return
    }
-   const rows = readFileSync(keywordsPath, 'utf8')
-      .split('\n')
-      .map((l) => l.trim())
-      .filter((l) => l !== '' && !l.startsWith('#'))
-   if (rows.length === 0) return
-
-   // rows starting with `re:` are case-insensitive regexes (api-key shapes, …);
-   // everything else stays a case-insensitive substring
-   const substrings: string[] = []
-   const regexes: { row: string; re: RegExp }[] = []
-   for (const row of rows) {
-      if (!row.startsWith('re:')) {
-         substrings.push(row)
-         continue
-      }
-      const source = row.slice(3)
-      try {
-         regexes.push({ row, re: new RegExp(source, 'i') })
-      } catch (err) {
-         console.error(`✖ ${KEYWORDS_FILE}: invalid regex row "${row}": ${String(err)}`)
-         process.exit(2)
-      }
-   }
-
-   // a keyword surrounded by anything that is not alphanumeric: underscore, dash, comma, both
-   // slashes, every space and newline are breaks, because a leaked name arrives as a path or a
-   // filename far more often than as a bare word
-   const wordMatchers = new Map<string, RegExp>(
-      substrings.map((kw) => [kw, new RegExp(`(?<![a-z0-9])${escapeRegex(kw)}(?![a-z0-9])`, 'i')]),
-   )
+   if (rules.length === 0) return
 
    const hits: Hit[] = []
-   const scan = (p: { where: string; text: string }): void => {
-      for (const kw of substrings) {
-         if (wordMatchers.get(kw)?.test(p.text) === true) hits.push({ where: p.where, keyword: kw })
-      }
-      for (const rx of regexes) {
-         if (rx.re.test(p.text)) hits.push({ where: p.where, keyword: rx.row })
-      }
-   }
-
    if (mode === '--staged') {
       const files = git(['-C', repoRoot, 'diff', '--cached', '--name-only', '--diff-filter=ACMR', '-z'])
          .split('\0')
          .filter((f) => f !== '')
-      for (const file of files) {
-         scan({ where: `path ${file}`, text: file })
-         const content = git(['-C', repoRoot, 'show', `:0:${file}`])
-         if (content.includes('\0')) continue // binary: path checked above, content skipped
-         const lines = content.split('\n')
-         for (let i = 0; i < lines.length; i++) scan({ where: `${file}:${i + 1}`, text: lines[i] ?? '' })
-      }
+      for (const file of files) hits.push(...scanFile(rules, file, git(['-C', repoRoot, 'show', `:0:${file}`])))
    } else if (mode === '--msg') {
       const msgFile = process.argv[3]
       if (msgFile == null) throw new Error('--msg requires the commit message file path')
-      const msg = readFileSync(msgFile, 'utf8')
-         .split('\n')
-         .filter((l) => !l.startsWith('#')) // git comment lines are not part of the commit
-         .join('\n')
-      scan({ where: 'commit message', text: msg })
+      hits.push(...scanText(rules, 'commit message', commitMessageText(readFileSync(msgFile, 'utf8'))))
    } else {
       throw new Error(`unknown mode: ${String(mode)} (expected --staged or --msg <file>)`)
    }

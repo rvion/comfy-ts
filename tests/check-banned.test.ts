@@ -3,106 +3,75 @@ import { spawnSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'pathe'
+import { commitMessageText, loadBannedRules, parseBannedRows, scanFile, scanText } from 'scripts/bannedKeywords.ts'
 
 const SCRIPT = join(import.meta.dir, '..', 'scripts', 'check-banned.ts')
+// key shapes assembled at runtime so THIS repo's own guard never sees a literal
+const API_KEY_ROW = 're:comfyui-[a-z0-9]{16,}'
 
-function makeRepo(p: { keywords?: string }): string {
-   const dir = mkdtempSync(join(tmpdir(), 'check-banned-'))
-   spawnSync('git', ['init', '-q'], { cwd: dir })
-   if (p.keywords != null) {
-      mkdirSync(join(dir, '.shipkit/private'), { recursive: true })
-      writeFileSync(join(dir, '.shipkit/private/banned-keywords.txt'), p.keywords)
-   }
-   return dir
-}
-
-function run(p: { cwd: string; args: string[] }) {
-   return spawnSync('bun', [SCRIPT, ...p.args], { cwd: p.cwd, encoding: 'utf8' })
-}
-
-describe('check-banned', () => {
-   test('rejects staged CONTENT containing a banned keyword (case-insensitive)', () => {
-      const dir = makeRepo({ keywords: '# comment\nMySecretLora\n' })
-      writeFileSync(join(dir, 'a.ts'), 'const x = "mysecretlora_v2.safetensors"\n')
-      spawnSync('git', ['add', 'a.ts'], { cwd: dir })
-      const res = run({ cwd: dir, args: ['--staged'] })
-      expect(res.status).toBe(1)
-      expect(res.stderr).toContain('a.ts:1')
-      expect(res.stderr).toContain('MySecretLora')
+describe('banned keyword matching', () => {
+   test('content hits case-insensitively and names the file and line; # rows are comments', () => {
+      const rules = parseBannedRows('# comment\nMySecretLora\n')
+      expect(rules.map((r) => r.row)).toEqual(['MySecretLora'])
+      const hits = scanFile(rules, 'a.ts', 'ok\nconst x = "mysecretlora_v2.safetensors"\n')
+      expect(hits).toEqual([{ where: 'a.ts:2', keyword: 'MySecretLora' }])
    })
 
-   test('rejects staged PATH containing a banned keyword', () => {
-      const dir = makeRepo({ keywords: 'secret-input\n' })
-      writeFileSync(join(dir, 'secret-input-photo.txt'), 'clean content\n')
-      spawnSync('git', ['add', '.'], { cwd: dir })
-      const res = run({ cwd: dir, args: ['--staged'] })
-      expect(res.status).toBe(1)
-      expect(res.stderr).toContain('path secret-input-photo.txt')
+   test('a PATH carrying a keyword hits even with clean content', () => {
+      const hits = scanFile(parseBannedRows('secret-input\n'), 'secret-input-photo.txt', 'clean content\n')
+      expect(hits).toEqual([{ where: 'path secret-input-photo.txt', keyword: 'secret-input' }])
    })
 
-   test('passes a clean stage', () => {
-      const dir = makeRepo({ keywords: 'MySecretLora\n' })
-      writeFileSync(join(dir, 'a.ts'), 'const x = 1\n')
-      spawnSync('git', ['add', 'a.ts'], { cwd: dir })
-      const res = run({ cwd: dir, args: ['--staged'] })
-      expect(res.status).toBe(0)
+   test('clean content passes, and a word glued inside a longer one does not hit', () => {
+      const rules = parseBannedRows('MySecretLora\n')
+      expect(scanFile(rules, 'a.ts', 'const x = 1\n')).toEqual([])
+      expect(scanText(rules, 'x', 'notmysecretloraatall')).toEqual([])
    })
 
-   test('rejects a commit MESSAGE containing a banned keyword, ignoring # lines', () => {
-      const dir = makeRepo({ keywords: 'MySecretLora\n' })
-      const msg = join(dir, 'MSG')
-      writeFileSync(msg, 'feat: add mysecretlora preset\n# comment\n')
-      const res = run({ cwd: dir, args: ['--msg', msg] })
-      expect(res.status).toBe(1)
-      expect(res.stderr).toContain('commit message')
-
-      writeFileSync(msg, 'feat: clean\n# mysecretlora only in a git comment line\n')
-      const res2 = run({ cwd: dir, args: ['--msg', msg] })
-      expect(res2.status).toBe(0)
+   test('binary content is skipped, its path is still checked', () => {
+      const rules = parseBannedRows('MySecretLora\n')
+      expect(scanFile(rules, 'img.png', 'MySecretLora\0\0')).toEqual([])
+      expect(scanFile(rules, 'MySecretLora.png', '\0')).toHaveLength(1)
    })
 
-   test('re: rows match as case-insensitive regex (api-key shapes)', () => {
-      const dir = makeRepo({ keywords: 're:comfyui-[a-z0-9]{16,}\n' })
-      // key shape assembled at runtime so THIS repo's own guard never sees a literal
-      writeFileSync(join(dir, 'a.ts'), `const key = "${'comfyui-' + 'deadbeef'.repeat(4)}"\n`)
-      spawnSync('git', ['add', 'a.ts'], { cwd: dir })
-      const res = run({ cwd: dir, args: ['--staged'] })
-      expect(res.status).toBe(1)
-      expect(res.stderr).toContain('a.ts:1')
+   test('a commit message drops git comment lines before matching', () => {
+      const rules = parseBannedRows('MySecretLora\n')
+      expect(scanText(rules, 'commit message', commitMessageText('feat: add mysecretlora preset\n# c\n'))).toHaveLength(1)
+      expect(scanText(rules, 'commit message', commitMessageText('feat: clean\n# mysecretlora in a comment\n'))).toEqual([])
+   })
+
+   test('re: rows match as case-insensitive regex, in content and in messages', () => {
+      const rules = parseBannedRows(`${API_KEY_ROW}\n`)
+      expect(scanText(rules, 'a.ts:1', `const key = "${'comfyui-' + 'deadbeef'.repeat(4)}"`)).toHaveLength(1)
+      expect(scanText(rules, 'commit message', `oops ${'COMFYUI-' + 'a1b2'.repeat(5)} leaked`)).toHaveLength(1)
    })
 
    test('re: rows do NOT match legit prefixed names (ComfyUI-Manager)', () => {
-      const dir = makeRepo({ keywords: 're:comfyui-[a-z0-9]{16,}\n' })
-      writeFileSync(join(dir, 'a.ts'), 'import { x } from "ComfyUI-Manager"\nconst y = "comfyui-frontend-master"\n')
-      spawnSync('git', ['add', 'a.ts'], { cwd: dir })
-      const res = run({ cwd: dir, args: ['--staged'] })
-      expect(res.status).toBe(0)
+      const rules = parseBannedRows(`${API_KEY_ROW}\n`)
+      expect(scanFile(rules, 'a.ts', 'import { x } from "ComfyUI-Manager"\nconst y = "comfyui-frontend-master"\n')).toEqual([])
    })
 
-   test('re: rows apply to the commit message too', () => {
-      const dir = makeRepo({ keywords: 're:comfyui-[a-z0-9]{16,}\n' })
-      const msg = join(dir, 'MSG')
-      writeFileSync(msg, `oops leaked ${'COMFYUI-' + 'a1b2'.repeat(5)} in the message\n`)
-      const res = run({ cwd: dir, args: ['--msg', msg] })
+   test('an invalid re: row fails LOUDLY, naming the row', () => {
+      expect(() => parseBannedRows('re:[unclosed\n')).toThrow('re:[unclosed')
+   })
+
+   test('a missing keywords file is null, so the hook warns and skips', () => {
+      expect(loadBannedRules(join(tmpdir(), 'no-such-dir-for-banned', 'banned-keywords.txt'))).toBeNull()
+   })
+})
+
+describe('check-banned hook, end to end through git', () => {
+   test('a staged content hit and a staged path hit reject the commit', () => {
+      const dir = mkdtempSync(join(tmpdir(), 'check-banned-'))
+      spawnSync('git', ['init', '-q'], { cwd: dir })
+      mkdirSync(join(dir, '.shipkit/private'), { recursive: true })
+      writeFileSync(join(dir, '.shipkit/private/banned-keywords.txt'), 'MySecretLora\nsecret-input\n')
+      writeFileSync(join(dir, 'a.ts'), 'const x = "mysecretlora_v2.safetensors"\n')
+      writeFileSync(join(dir, 'secret-input-photo.txt'), 'clean\n')
+      spawnSync('git', ['add', 'a.ts', 'secret-input-photo.txt'], { cwd: dir })
+      const res = spawnSync('bun', [SCRIPT, '--staged'], { cwd: dir, encoding: 'utf8' })
       expect(res.status).toBe(1)
-      expect(res.stderr).toContain('commit message')
-   })
-
-   test('invalid re: row fails LOUDLY instead of silently skipping', () => {
-      const dir = makeRepo({ keywords: 're:[unclosed\n' })
-      writeFileSync(join(dir, 'a.ts'), 'clean\n')
-      spawnSync('git', ['add', 'a.ts'], { cwd: dir })
-      const res = run({ cwd: dir, args: ['--staged'] })
-      expect(res.status).not.toBe(0)
-      expect(res.stderr).toContain('re:[unclosed')
-   })
-
-   test('missing keywords file: loud warning, passes', () => {
-      const dir = makeRepo({})
-      writeFileSync(join(dir, 'a.ts'), 'whatever\n')
-      spawnSync('git', ['add', 'a.ts'], { cwd: dir })
-      const res = run({ cwd: dir, args: ['--staged'] })
-      expect(res.status).toBe(0)
-      expect(res.stderr + res.stdout).toContain('SKIPPED')
+      expect(res.stderr).toContain('a.ts:1')
+      expect(res.stderr).toContain('path secret-input-photo.txt')
    })
 })
