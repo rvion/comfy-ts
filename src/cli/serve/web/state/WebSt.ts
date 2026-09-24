@@ -807,7 +807,7 @@ export class WebSt {
    logLines: string[] = []
    logsError: string | null = null
    /** the latent frames during a run: full in the running card, small in a corner, or none */
-   latentMode: LatentMode = 'full'
+   latentMode: LatentMode = 'corner'
    /** results blurred until the pointer is on them: a screen someone else may see */
    blurResults = false
 

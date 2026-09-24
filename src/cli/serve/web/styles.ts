@@ -696,6 +696,7 @@ button.enh-big { font-size: 14px; padding: 8px 18px; }
 /* the panel's own controls sit on top of it */
 .head-group-labeled { display: flex; flex-direction: column; gap: 2px; }
 .results-view { gap: 6px; flex-wrap: nowrap; }
+.head-row { gap: 6px; flex-wrap: nowrap; }
 .group-caption { font-size: 10px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.06em; padding-left: 2px; }
 .results-head {
    display: flex; gap: 14px; align-items: flex-end; flex-wrap: wrap;

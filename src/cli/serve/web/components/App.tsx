@@ -127,28 +127,30 @@ const ResultsHead = observer(function ResultsHead(p: { st: WebSt }) {
          </div>
          <div className="head-group-labeled">
             <span className="group-caption">while running</span>
-            <span className="btn-group">
-               {LATENT_MODES.map((m) => (
+            <span className="row-inline head-row">
+               <span className="btn-group">
+                  {LATENT_MODES.map((m) => (
+                     <button
+                        key={m.mode}
+                        type="button"
+                        className={p.st.latentMode === m.mode ? 'sel' : ''}
+                        data-tip={m.tip}
+                        onClick={() => p.st.setLatentMode(m.mode)}
+                     >
+                        <Icon name={LATENT_ICON[m.mode]} />
+                     </button>
+                  ))}
+               </span>
+               <span className="btn-group">
                   <button
-                     key={m.mode}
                      type="button"
-                     className={p.st.latentMode === m.mode ? 'sel' : ''}
-                     data-tip={m.tip}
-                     onClick={() => p.st.setLatentMode(m.mode)}
+                     className={p.st.showLogs ? 'sel' : ''}
+                     data-tip={p.st.showLogs ? 'hide the ComfyUI console' : 'show the ComfyUI console'}
+                     onClick={() => p.st.toggleLogs()}
                   >
-                     <Icon name={LATENT_ICON[m.mode]} />
+                     <Icon name="terminal" />
                   </button>
-               ))}
-            </span>
-            <span className="btn-group">
-               <button
-                  type="button"
-                  className={p.st.showLogs ? 'sel' : ''}
-                  data-tip={p.st.showLogs ? 'hide the ComfyUI console' : 'show the ComfyUI console'}
-                  onClick={() => p.st.toggleLogs()}
-               >
-                  <Icon name="terminal" />
-               </button>
+               </span>
             </span>
          </div>
          <div className="head-group-labeled">
