@@ -1,4 +1,4 @@
-// one-command release: preflight → npm publish → git tag vX.Y.Z → push → GitHub release
+// one-command release: preflight → bun publish → git tag vX.Y.Z → push → GitHub release
 // the CHANGELOG.md section for the version becomes the release notes; prepublishOnly runs the gate
 // resumable: if the version is on npm but the tag is missing (a past run died mid-pipeline),
 // publish is skipped and the tag/push/release steps run for the same version
@@ -26,10 +26,11 @@ export function extractChangelogSection(p: { changelog: string; version: string 
    return body
 }
 
-function run(p: { cmd: string[]; capture?: boolean }): string {
+function run(p: { cmd: string[]; capture?: boolean; env?: Record<string, string> }): string {
    const res = Bun.spawnSync(p.cmd, {
       stdout: p.capture ? 'pipe' : 'inherit',
       stderr: p.capture ? 'pipe' : 'inherit',
+      env: p.env == null ? undefined : { ...process.env, ...p.env },
    })
    if (res.exitCode !== 0) {
       const tail = p.capture ? `\n${res.stdout?.toString() ?? ''}${res.stderr?.toString() ?? ''}` : ''
@@ -80,7 +81,7 @@ async function main(): Promise<void> {
    if (token === '') throw new Error('[release] 🔴 rv-secret returned an empty npm token')
 
    if (dryRun) {
-      const steps = alreadyPublished ? `tag ${tag} → push → gh release` : `npm publish → tag ${tag} → push → gh release`
+      const steps = alreadyPublished ? `tag ${tag} → push → gh release` : `bun publish → tag ${tag} → push → gh release`
       console.log(`[release] ✅ dry run ok (branch, tree, registry, changelog, gh auth, token). Would: ${steps}`)
       return
    }
@@ -88,9 +89,8 @@ async function main(): Promise<void> {
    const workDir = mkdtempSync(join(tmpdir(), 'comfy-ts-release-'))
    try {
       if (!alreadyPublished) {
-         const npmrc = join(workDir, 'npmrc')
-         writeFileSync(npmrc, `//registry.npmjs.org/:_authToken=${token}\n`, { mode: 0o600 })
-         run({ cmd: ['npm', 'publish', '--userconfig', npmrc] })
+         // bun's packer is the one tests/npm-tarball.test.ts guards: the tested tarball is the published one
+         run({ cmd: ['bun', 'publish'], env: { NPM_CONFIG_TOKEN: token } })
       }
 
       run({ cmd: ['git', 'tag', '-a', tag, '-m', `${pkg.name} ${version}`] })

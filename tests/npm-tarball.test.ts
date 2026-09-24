@@ -1,6 +1,18 @@
 import { describe, expect, it } from 'bun:test'
+import { spawnSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
-import { bunPackList } from 'tests/packList.ts'
+
+/** the tarball file list as bun packs it: scripts/release.ts publishes with bun, so this is the shipped list */
+function bunPackList(): string[] {
+   const res = spawnSync('bun', ['pm', 'pack', '--dry-run'], { encoding: 'utf8' })
+   if (res.status !== 0) throw new Error(`bun pm pack failed: ${res.stderr}`)
+   const paths = res.stdout
+      .split('\n')
+      .map((l) => /^packed \S+ (.+)$/.exec(l)?.[1])
+      .filter((p): p is string => p != null)
+   if (paths.length === 0) throw new Error(`bun pm pack listed no file:\n${res.stdout}`)
+   return paths
+}
 
 /**
  * repro-turned-guard: `files` in package.json is a WHITELIST, and a whitelisted
@@ -8,8 +20,8 @@ import { bunPackList } from 'tests/packList.ts'
  * packed src/__private__ — an OpenSSH PRIVATE KEY included — into the 0.3.0
  * tarball, caught by hand seconds before publishing. The hazards now live in
  * .shipkit/private/ (outside every whitelisted dir); this test is what keeps the
- * guarantee mechanical instead of remembered. The list comes from bun's packer
- * (0.04s against npm's 2.2s); npm-tarball-parity.test.ts pins that both agree.
+ * guarantee mechanical instead of remembered. The list comes from bun's packer,
+ * the one scripts/release.ts publishes with.
  */
 describe('npm tarball', () => {
    it('ships dist + src + README + LICENSE, and nothing private', () => {
