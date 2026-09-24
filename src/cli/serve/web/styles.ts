@@ -648,6 +648,7 @@ button.enh-edit-close { background: var(--accent); border-color: var(--accent); 
 .enh-h { display: flex; align-items: center; gap: 10px; margin: 0; font-size: 16px; font-weight: 700; color: var(--text); }
 .enh-h-name { color: var(--accent); font-weight: 600; }
 .enh-label { font-size: 13px; color: var(--dim); margin-bottom: 4px; }
+.enh-label-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .enh-text { width: 100%; font-size: 14px; line-height: 1.5; }
 .enh-result { border-color: var(--accent-dim); }
 .enh-actions { display: flex; gap: 10px; align-items: center; }
@@ -665,6 +666,30 @@ button.enh-big { font-size: 14px; padding: 8px 18px; }
 .center { display: flex; height: 100%; align-items: center; justify-content: center; color: var(--dim); }
 .center .error { color: var(--red); max-width: 640px; white-space: pre-wrap; }
 
+/* history picker: one fixed size, matches left, the highlighted one in full on the right */
+.modal-overlay.hist-overlay { z-index: 60; }
+.modal.hist-modal { width: min(1100px, 100%); height: min(76vh, 100%); max-height: none; }
+.hist-modal .modal-head { align-items: center; }
+.hist-cols { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); }
+.hist-list { min-height: 0; overflow-y: auto; border-right: 1px solid var(--border); padding: 6px; display: flex; flex-direction: column; gap: 2px; }
+.hist-row {
+   display: flex; flex-direction: column; gap: 2px; text-align: left; background: none; border: 0;
+   border-left: 3px solid transparent; border-radius: 6px; padding: 6px 8px; cursor: pointer; color: var(--text); min-width: 0;
+}
+.hist-row.sel { background: var(--accent-dim); border-left-color: var(--accent); }
+.hist-first { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+.hist-meta { font-size: 11px; color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hist-empty { color: var(--dim); padding: 8px; font-size: 13px; }
+.hist-preview { min-height: 0; display: flex; flex-direction: column; }
+.hist-text {
+   flex: 1; min-height: 0; overflow-y: auto; margin: 0; padding: 12px 14px; white-space: pre-wrap; overflow-wrap: anywhere;
+   font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; line-height: 1.5;
+}
+.hist-foot { display: flex; align-items: center; gap: 10px; justify-content: space-between; padding: 8px 12px; border-top: 1px solid var(--border); }
+@media (max-width: 700px) {
+   .hist-cols { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) minmax(0, 1fr); }
+   .hist-list { border-right: 0; border-bottom: 1px solid var(--border); }
+}
 /* the corner latent: a zero-height sticky anchor, so the card floats over the gallery without
    taking a pixel of it; the card itself is one fixed size */
 .corner-run-anchor { position: sticky; top: 6px; height: 0; z-index: 4; flex-basis: 100%; width: 100%; margin-bottom: -10px; }

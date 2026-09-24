@@ -6,6 +6,7 @@ import { MenuButton, MenuItem } from 'src/cli/serve/web/components/MenuButton.ts
 import { PresetPicker } from 'src/cli/serve/web/components/controls/PresetPicker.tsx'
 import { PromptEditor } from 'src/cli/serve/web/components/controls/PromptEditor.tsx'
 import { PromptEnhancer } from 'src/cli/serve/web/components/PromptEnhancer.tsx'
+import { HistoryButton } from 'src/cli/serve/web/components/HistoryPicker.tsx'
 import type { VarSt } from 'src/cli/serve/web/state/FormSt.ts'
 import type { WebSt } from 'src/cli/serve/web/state/WebSt.ts'
 import {
@@ -226,6 +227,7 @@ export const PromptControl = observer(function PromptControl(p: { v: VarSt; st: 
                      single box
                   </button>
                )}
+               <HistoryButton entries={p.st.promptHistory} what="prompt" onPick={(e) => p.v.set(e.value)} />
                <span className="hint">lanes merge top to bottom</span>
             </div>
          </div>
@@ -240,6 +242,7 @@ export const PromptControl = observer(function PromptControl(p: { v: VarSt; st: 
          <div className="row-inline prompt-actions">
             <PresetPicker v={p.v} />
             <PromptEnhancer v={p.v} st={p.st} module={p.module} />
+            <HistoryButton entries={p.st.promptHistory} what="prompt" onPick={(e) => p.v.set(e.value)} />
             <button
                type="button"
                className="mini"

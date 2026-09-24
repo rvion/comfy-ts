@@ -33,6 +33,7 @@ import {
 } from 'src/cli/serve/web/llm.ts'
 import type { VarSt } from 'src/cli/serve/web/state/FormSt.ts'
 import { finishRewrite, splitKeptLines } from 'src/cli/serve/web/state/keptLines.ts'
+import { pushHistory, type HistoryEntry } from 'src/cli/serve/web/state/history.ts'
 import { isPromptLanes, patchLane } from 'src/vars/lanes.ts'
 
 const STORAGE_KEY = 'comfy-ts-serve-enhancer'
@@ -134,6 +135,9 @@ export class EnhancerSt {
    /** the editor open over the job: the selected LLM's settings, or the master prompt's text.
     * null = the modal shows only yours → rewrite */
    editing: 'llm' | 'preset' | null = null
+
+   /** every text an enhance started from, for the history picker (this page only) */
+   inputHistory: HistoryEntry<string>[] = []
 
    /** the prompt var being refined — non-null IS the modal being open */
    target: VarSt | null = null
@@ -674,6 +678,12 @@ export class EnhancerSt {
       // the negatives and comments never go to the model: they come back verbatim, on their own
       // lines, once it is done (keptLines.ts owns why)
       const split = splitKeptLines(this.original)
+      this.inputHistory = pushHistory(this.inputHistory, {
+         text: this.original,
+         value: this.original,
+         at: Date.now(),
+         source: this.targetModule,
+      })
       runInAction(() => {
          this.phase = 'running'
          this.error = ''

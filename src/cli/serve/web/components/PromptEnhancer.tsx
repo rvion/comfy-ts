@@ -5,6 +5,7 @@ import { Icon } from 'src/cli/serve/web/components/Icon.tsx'
 import { observer } from 'mobx-react-lite'
 import { useEffect, type ReactNode } from 'react'
 import { MOD_KEY } from 'src/cli/serve/web/components/modKey.ts'
+import { HistoryButton } from 'src/cli/serve/web/components/HistoryPicker.tsx'
 import type { ProviderId, ReasoningEffort } from 'src/cli/serve/web/llm.ts'
 import { PROVIDERS, type EnhancerSt, type SaveState } from 'src/cli/serve/web/state/EnhancerSt.ts'
 import type { VarSt } from 'src/cli/serve/web/state/FormSt.ts'
@@ -386,7 +387,10 @@ const Job = observer(function Job(p: { e: EnhancerSt }) {
                {e.error === '' ? '' : `🔴 ${e.error}`}
             </span>
          </div>
-         <div className="enh-label">yours, what gets sent (the form is untouched)</div>
+         <div className="enh-label enh-label-row">
+            <span>yours, what gets sent (the form is untouched)</span>
+            <HistoryButton entries={e.inputHistory} what="enhance input" onPick={(h) => e.setOriginal(h.value)} />
+         </div>
          <textarea className="enh-text enh-box" value={e.original} onChange={(ev) => e.setOriginal(ev.target.value)} />
          <div className="enh-label">
             {running ? `rewriting… ${e.result.length} chars` : 'rewrite, editable before you apply'}

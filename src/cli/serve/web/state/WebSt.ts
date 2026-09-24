@@ -23,6 +23,8 @@ import {
 import { EnhancerSt } from 'src/cli/serve/web/state/EnhancerSt.ts'
 import { OmniboxSt } from 'src/cli/serve/web/state/OmniboxSt.ts'
 import { asLatentMode, type LatentMode } from 'src/cli/serve/web/state/latentMode.ts'
+import { pushHistory, type HistoryEntry } from 'src/cli/serve/web/state/history.ts'
+import { isPromptInput, promptLanesToText, type PromptInput } from 'src/vars/lanes.ts'
 import { FORM_TIMING, FormSt, type FormTiming, type VarSt } from 'src/cli/serve/web/state/FormSt.ts'
 import { logWebError } from 'src/cli/serve/web/logWeb.ts'
 import { asSeedForm } from 'src/cli/serve/web/state/payload.ts'
@@ -1130,6 +1132,26 @@ export class WebSt {
       // the header already shows the loud save error; running the stale draft would lie
       if (!saved) return
       this.run.enqueue({ module: form.moduleKey, draft: form.draft, payload })
+      this.recordPrompts(form)
+   }
+
+   /** every prompt var of what was just queued, for the history picker (this page only) */
+   promptHistory: HistoryEntry<PromptInput>[] = []
+
+   private recordPrompts(form: FormSt): void {
+      const at = Date.now()
+      for (const v of form.vars) {
+         if (v.desc.kind !== 'prompt' || !isPromptInput(v.value)) continue
+         const value = v.value
+         // lanes keep their headers in the text, so a search finds a lane by its name too
+         const text = typeof value === 'string' ? value : promptLanesToText(value)
+         this.promptHistory = pushHistory(this.promptHistory, {
+            text,
+            value,
+            at,
+            source: `${form.moduleKey} · ${v.desc.label ?? v.name}`,
+         })
+      }
    }
 
    /** rename = write the values under the new name, switch to it, then drop the old FILE.
