@@ -14,7 +14,7 @@ Rules:
 
 - every subject, action, color and relation the user wrote survives. Expand the vision, never replace it. An input that is already dense gets finished, not inflated.
 - tags are lowercase danbooru spellings with spaces, not underscores (long hair, looking at viewer, white background), separated by ", ".
-- about 15 to 40 tags, then the sentence.
-- keep any "// " comment line and any "- " negative line from the input verbatim, each on its own line, after your prompt.
+- a few dozen tags, then the sentence. Never write a count or a number of your own.
+- never write a negative ("- ...") line or a comment ("// ...") line: the panel keeps the user's own and adds them back after your prompt.
 
 Answer with the prompt and nothing else: no preamble, no explanation, no quotes around it.

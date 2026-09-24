@@ -32,6 +32,7 @@ import {
    type ReasoningEffort,
 } from 'src/cli/serve/web/llm.ts'
 import type { VarSt } from 'src/cli/serve/web/state/FormSt.ts'
+import { finishRewrite, splitKeptLines } from 'src/cli/serve/web/state/keptLines.ts'
 import { isPromptLanes, patchLane } from 'src/vars/lanes.ts'
 
 const STORAGE_KEY = 'comfy-ts-serve-enhancer'
@@ -670,6 +671,9 @@ export class EnhancerSt {
       if (preset == null || this.phase === 'running') return
       const controller = new AbortController()
       this.abort = controller
+      // the negatives and comments never go to the model: they come back verbatim, on their own
+      // lines, once it is done (keptLines.ts owns why)
+      const split = splitKeptLines(this.original)
       runInAction(() => {
          this.phase = 'running'
          this.error = ''
@@ -681,7 +685,7 @@ export class EnhancerSt {
             endpoint: this.endpoint,
             model: this.model,
             system: preset.text,
-            user: this.original,
+            user: split.body,
             effort: this.effort,
             signal: controller.signal,
             onDelta: (d) =>
@@ -691,12 +695,14 @@ export class EnhancerSt {
                }),
          })
          runInAction(() => {
+            this.result = finishRewrite(this.result, split.kept)
             this.phase = 'done'
          })
       } catch (e) {
          // an abort is a user gesture, not a failure to shout about
          const aborted = controller.signal.aborted
          runInAction(() => {
+            if (aborted && this.result !== '') this.result = finishRewrite(this.result, split.kept)
             this.phase = aborted ? (this.result === '' ? 'idle' : 'done') : 'error'
             if (!aborted) this.error = e instanceof Error ? e.message : String(e)
          })
