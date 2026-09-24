@@ -172,3 +172,24 @@ describe('llm configs as files (.comfy-ts/llm-configs/*.json)', () => {
       expect(list.map((c) => c.name)).toEqual(['good'])
    })
 })
+
+describe('the enhancer input survives a reload (.comfy-ts/enhancer-input.md)', () => {
+   it('GET is empty before anything was saved, PUT writes the file, GET reads it back', async () => {
+      const app = makeApp()
+      expect(body(await app.handle({ method: 'GET', url: '/enhancer-input' })).text).toBe('')
+      const put = await app.handle({
+         method: 'PUT',
+         url: '/enhancer-input',
+         body: JSON.stringify({ text: 'my sketch\n- blurry' }),
+      })
+      expect(put.status).toBe(200)
+      expect(readFileSync(join(comfy.baseFolder, 'enhancer-input.md'), 'utf8')).toBe('my sketch\n- blurry')
+      expect(body(await app.handle({ method: 'GET', url: '/enhancer-input' })).text).toBe('my sketch\n- blurry')
+   })
+
+   it('a body without a text string is refused', async () => {
+      const app = makeApp()
+      expect((await app.handle({ method: 'PUT', url: '/enhancer-input', body: '{"text":3}' })).status).toBe(400)
+      expect((await app.handle({ method: 'PUT', url: '/enhancer-input', body: 'nope' })).status).toBe(400)
+   })
+})

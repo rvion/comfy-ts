@@ -23,6 +23,10 @@ describe('drafts stay private', () => {
       expect(ignored('.comfy-ts/prompt-enhancers/a-new-master-prompt.md')).toBe(false)
    })
 
+   it('the enhancer input stays private like drafts', () => {
+      expect(ignored('.comfy-ts/enhancer-input.md')).toBe(true)
+   })
+
    it('llm configs stay private like drafts', () => {
       expect(ignored('.comfy-ts/llm-configs/wm-9b.json')).toBe(true)
    })

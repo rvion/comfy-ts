@@ -10,7 +10,9 @@ import { stringMap } from 'src/utils/stringMap.ts'
 import {
    deleteLlmConfig,
    deletePromptEnhancer,
+   fetchEnhancerInput,
    fetchLlmConfigs,
+   saveEnhancerInput,
    fetchPromptEnhancers,
    saveLlmConfig,
    savePromptEnhancer,
@@ -187,6 +189,9 @@ export class EnhancerSt {
     * library (or switching entry) never writes the file back unchanged */
    private lastSaved = ''
    private lastSavedConfig = ''
+   private lastSavedInput = ''
+   /** no save before the saved input was read: a first empty value must not wipe it */
+   private inputLoaded = false
 
    constructor() {
       const s = readStored()
@@ -194,11 +199,16 @@ export class EnhancerSt {
       this.configName = s.configName
       this.presetName = s.presetName
       this.presetByModule = s.presetByModule
-      makeAutoObservable<EnhancerSt, 'abort' | 'disposers' | 'lastSaved' | 'lastSavedConfig'>(this, {
+      makeAutoObservable<
+         EnhancerSt,
+         'abort' | 'disposers' | 'lastSaved' | 'lastSavedConfig' | 'lastSavedInput' | 'inputLoaded'
+      >(this, {
          abort: false,
          disposers: false,
          lastSaved: false,
          lastSavedConfig: false,
+         lastSavedInput: false,
+         inputLoaded: false,
       })
       // both libraries autosave to their file, the live-drafts model (the json is change
       // detector AND payload, the house persistence idiom)
@@ -225,7 +235,40 @@ export class EnhancerSt {
             },
             { delay: 600 },
          ),
+         // the input is saved as you type, so a reload (or the app window) opens on it
+         reaction(
+            () => this.original,
+            (text) => {
+               if (!this.inputLoaded || text === this.lastSavedInput) return
+               this.lastSavedInput = text
+               saveEnhancerInput({ text }).catch((e: unknown) =>
+                  runInAction(() => {
+                     this.error = `the input was not saved: ${e instanceof Error ? e.message : String(e)}`
+                  }),
+               )
+            },
+            { delay: 500 },
+         ),
       ]
+      void this.loadInput()
+   }
+
+   /** the saved input arrives once per page; an input typed before it did wins over it */
+   private async loadInput(): Promise<void> {
+      try {
+         const reply = await fetchEnhancerInput()
+         runInAction(() => {
+            if (this.original === '') this.original = reply.text
+            this.lastSavedInput = reply.text
+            this.inputLoaded = true
+         })
+      } catch (e) {
+         // no server (tests) or an unreadable file: the modal still works, it starts empty
+         runInAction(() => {
+            this.inputLoaded = true
+         })
+         console.error('[enhancer] the saved input could not be read:', e)
+      }
    }
 
    dispose(): void {
