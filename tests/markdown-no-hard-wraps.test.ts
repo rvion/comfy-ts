@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test'
-import { readdirSync, readFileSync, statSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
 import { dirname, join, relative } from 'pathe'
 
@@ -25,11 +26,12 @@ const SKIP_DIRS = new Set([
    'external-docs', // upstream mirrors are DATA, never restyled
 ])
 
-function markdownFiles(dir: string, out: string[] = []): string[] {
+/** SKIP_DIRS holds bare names AND root-relative paths (`.shipkit/journal`) */
+export function markdownFiles(dir: string, out: string[] = [], root = dir): string[] {
    for (const name of readdirSync(dir)) {
-      if (SKIP_DIRS.has(name)) continue
       const abs = join(dir, name)
-      if (statSync(abs).isDirectory()) markdownFiles(abs, out)
+      if (SKIP_DIRS.has(name) || SKIP_DIRS.has(relative(root, abs))) continue
+      if (statSync(abs).isDirectory()) markdownFiles(abs, out, root)
       else if (name.endsWith('.md')) out.push(abs)
    }
    return out
@@ -90,6 +92,17 @@ describe('markdown carries no hard wraps', () => {
       expect(findHardWraps('```\ncode\nstays\n```\n')).toEqual([])
       expect(findHardWraps('| a | b |\n| - | - |\n| 1 | 2 |\n')).toEqual([])
       expect(findHardWraps('# heading\ntext under it\n')).toEqual([])
+   })
+
+   it('skips the nested private dirs, not only the top level names', () => {
+      // why we think it is actually a bug, and not just meaning spec should change: SKIP_DIRS lists '.shipkit/journal' and '.shipkit/social' on purpose, yet they were matched against a bare dir name and never skipped, so the guard failed on gitignored journals and on social posts whose line breaks are the content
+      const root = mkdtempSync(join(tmpdir(), 'comfy-ts-md-skip-'))
+      for (const dir of ['.shipkit/journal', '.shipkit/social/x', 'docs'])
+         mkdirSync(join(root, dir), { recursive: true })
+      writeFileSync(join(root, '.shipkit/journal/changelog.md'), 'cut\nhere\n')
+      writeFileSync(join(root, '.shipkit/social/x/post.md'), 'cut\nhere\n')
+      writeFileSync(join(root, 'docs/page.md'), 'kept\n')
+      expect(markdownFiles(root).map((abs) => relative(root, abs))).toEqual(['docs/page.md'])
    })
 
    it('every markdown file in the repo is one line per paragraph and per bullet', () => {
