@@ -38,7 +38,7 @@ describe('incremental caches are not shared between tsconfigs', () => {
 // why we think it is actually a bug, and not just meaning spec should change: coding.md says every
 // invoked typecheck owns its cache, and the folder-open `tsc --watch` runs the ROOT config too, so
 // the gate's typecheck read the watcher's cache and failed on a method that exists
-describe('the gate typecheck never reads the editor watcher cache', () => {
+describe('the gate typecheck: its own cache, every config', () => {
    const scripts = (
       JSON.parse(readFileSync(join(repoRoot, 'package.json'), 'utf8')) as { scripts: Record<string, string> }
    ).scripts
@@ -49,6 +49,15 @@ describe('the gate typecheck never reads the editor watcher cache', () => {
       const own = /--tsBuildInfoFile\s+(\S+)/.exec(call)?.[1] ?? ''
       expect(own, `typecheck must pass --tsBuildInfoFile: ${call}`).not.toBe('')
       expect(own).not.toBe(buildInfoOf('tsconfig.json'))
+   })
+
+   // why we think it is actually a bug, and not just meaning spec should change: the root config
+   // excludes the dom corners and says each is CHAINED by a script, but the gate runs `typecheck`,
+   // which chained examples/web only, so the web panel code was never typechecked by the gate
+   it('the gate typecheck covers every dom config the root one excludes', () => {
+      const script = scripts.typecheck ?? ''
+      for (const cfg of ['examples/web/tsconfig.json', 'src/cli/serve/web/tsconfig.json'])
+         expect(script, `typecheck must chain tsc -p ${cfg}`).toContain(`tsc -p ${cfg}`)
    })
 
    it('control: the root config still declares the cache the watcher uses', () => {
