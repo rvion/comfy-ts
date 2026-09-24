@@ -20,7 +20,7 @@ import { fetchLoraAbout, fetchLoraInfo, loraPreviewSrc, type LoraAbout, type Lor
 import type { LoraStrength } from 'src/vars/loraEntry.ts'
 import type { VarSt } from 'src/cli/serve/web/state/FormSt.ts'
 import type { WebSt } from 'src/cli/serve/web/state/WebSt.ts'
-import { LORA_SORTS, popupCards, sortLoraMatches } from 'src/cli/serve/web/state/loraSort.ts'
+import { LORA_SORTS, popupCardClick, popupCards, sortLoraMatches } from 'src/cli/serve/web/state/loraSort.ts'
 import {
    loraIsOn,
    paletteOrder,
@@ -726,7 +726,7 @@ export const LorasControl = observer(function LorasControl(p: {
                                        data-tip="remove from the palette (the popup adds it back)"
                                        onClick={() => setEntry(sec, name, null)}
                                     >
-                                       <Icon name="close" size={1.05} />
+                                       <Icon name="close" size={1.35} />
                                     </button>
                                  </span>
                                  {/* the switch sits WITH the title: state and name read as one line */}
@@ -883,7 +883,7 @@ export const LorasControl = observer(function LorasControl(p: {
                                           data-tip="remove from the list"
                                           onClick={() => setEntry(target, name, null)}
                                        >
-                                          <Icon name="close" size={0.9} />
+                                          <Icon name="close" size={1.2} />
                                        </button>
                                     </div>
                                  )
@@ -923,22 +923,42 @@ export const LorasControl = observer(function LorasControl(p: {
                               >
                                  {group.names.map((name) => {
                                     const picked = targetNames.includes(name)
+                                    const on = target != null && isOn(target, name)
+                                    const action = popupCardClick({ picked, on })
+                                    const cls = !picked ? 'lora-card' : on ? 'lora-card picked' : 'lora-card picked off'
                                     return (
-                                       <button
-                                          key={name}
-                                          type="button"
-                                          className={picked ? 'lora-card picked' : 'lora-card'}
-                                          data-tip={picked ? `${name}\nin the palette: click to take it out` : name}
-                                          onClick={() => {
-                                             if (target != null) setEntry(target, name, picked ? null : [1, 1])
-                                          }}
-                                       >
-                                          {thumb(name, Math.round(110 * scale))}
-                                          <div className="lora-label">
-                                             {showTitles ? label(name) : name.slice(0, 2) + '···'}
-                                             {warnBadge(name)}
-                                          </div>
-                                       </button>
+                                       <div key={name} className={cls}>
+                                          <button
+                                             type="button"
+                                             className="lora-card-hit"
+                                             data-tip={
+                                                action === 'add'
+                                                   ? `${name}\nclick to add`
+                                                   : `${name}\nclick to ${action}`
+                                             }
+                                             onClick={() => {
+                                                if (target == null) return
+                                                if (action === 'add') setEntry(target, name, [1, 1])
+                                                else toggleOn(target, name, action === 'resume')
+                                             }}
+                                          >
+                                             {thumb(name, Math.round(110 * scale))}
+                                             <div className="lora-label">
+                                                {showTitles ? label(name) : name.slice(0, 2) + '···'}
+                                                {warnBadge(name)}
+                                             </div>
+                                          </button>
+                                          {picked && target != null ? (
+                                             <button
+                                                type="button"
+                                                className="chip-remove"
+                                                data-tip="remove from the palette"
+                                                onClick={() => setEntry(target, name, null)}
+                                             >
+                                                <Icon name="close" size={1.35} />
+                                             </button>
+                                          ) : null}
+                                       </div>
                                     )
                                  })}
                               </div>

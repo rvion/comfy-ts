@@ -48,3 +48,10 @@ export function popupCards(p: { matches: readonly string[]; picked: readonly str
    const picked = new Set(p.picked)
    return { cards, enterPick: cards.find((name) => !picked.has(name)) ?? null }
 }
+
+/** a popup card click: the first one adds, every later one pauses or resumes, the same switch as
+ * the form card. Only the ✕ removes */
+export function popupCardClick(p: { picked: boolean; on: boolean }): 'add' | 'pause' | 'resume' {
+   if (!p.picked) return 'add'
+   return p.on ? 'pause' : 'resume'
+}

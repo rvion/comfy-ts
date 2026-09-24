@@ -464,13 +464,13 @@ button.accent:hover { background: var(--accent-dim); color: #fff; }
    The selector carries TWO classes on purpose: the .lora-chip button rule above is 0-1-1 and would
    otherwise win, stripping the padding and the backdrop off this one.
    width:auto because a stretch parent would otherwise pull it across the whole card */
-.chip-media .chip-remove, .lora-active-row .chip-remove {
+.chip-media .chip-remove, .lora-active-row .chip-remove, .lora-card .chip-remove {
    position: absolute; top: 4px; right: 4px; z-index: 1; width: auto; height: auto;
    display: inline-flex; align-items: center; justify-content: center;
-   border: 0; border-radius: 6px; padding: 4px; line-height: 0; color: #fff; cursor: pointer;
+   border: 0; border-radius: 8px; padding: 7px; line-height: 0; color: #fff; cursor: pointer;
    background: rgba(16, 18, 23, 0.72); opacity: 0.85; transition: opacity 0.12s, color 0.12s;
 }
-.chip-media .chip-remove:hover, .lora-active-row .chip-remove:hover { opacity: 1; color: var(--red); }
+.chip-media .chip-remove:hover, .lora-active-row .chip-remove:hover, .lora-card .chip-remove:hover { opacity: 1; color: var(--red); }
 
 /* PAUSED: still in the palette, visibly not contributing to the graph */
 .lora-chip.off, .lora-active-row.off { opacity: 0.55; }
@@ -501,6 +501,9 @@ button.accent:hover { background: var(--accent-dim); color: #fff; }
 .loras-palette .lora-active-row { flex-wrap: wrap; }
 .lora-card.picked { border-color: var(--green); }
 .lora-card.picked .lora-label { color: var(--green); }
+.lora-card.picked.off { border-color: var(--border); border-style: dashed; opacity: 0.55; }
+.lora-card.picked.off .lora-label { color: var(--dim); }
+.lora-card.picked.off .lora-thumb { filter: grayscale(1); }
 @media (max-width: 800px) {
    .loras-split { grid-template-columns: minmax(0, 1fr); grid-template-rows: 150px minmax(0, 1fr); }
    .loras-palette { order: 0; border-left: 0; border-bottom: 1px solid var(--border); }
@@ -525,8 +528,12 @@ input[type='range'].setting-range { width: 72px; flex: 0 0 72px; accent-color: v
 .lora-sort { display: inline-flex; align-items: center; gap: 4px; text-transform: none; letter-spacing: 0; }
 .lora-sort .mode { font-size: 11px; padding: 2px 8px; }
 .lora-card {
-   display: flex; flex-direction: column; gap: 6px; padding: 6px; text-align: left;
-   background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; min-width: 0;
+   position: relative; min-width: 0;
+   background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px;
+}
+.lora-card-hit {
+   display: flex; flex-direction: column; gap: 6px; padding: 6px; width: 100%; text-align: left;
+   background: none; border: 0; cursor: pointer; color: inherit;
 }
 .lora-card:hover { border-color: var(--accent); }
 /* CONTAIN, never cover: a cropped preview hides exactly what the lora looks like */
