@@ -472,6 +472,13 @@ button.accent:hover { background: var(--accent-dim); color: #fff; }
 }
 .modal-head { display: flex; gap: 8px; padding: 10px; border-bottom: 1px solid var(--border); }
 .modal-head input { flex: 1; }
+/* a popup whose content grows and shrinks (the loras picker): pinned near the top, one fixed
+   height, so typing a filter or hiding images never moves it */
+.modal-overlay.top { align-items: flex-start; padding-top: 5vh; }
+.modal.loras-modal { height: min(86vh, 100%); max-height: none; }
+.loras-modal .modal-body { flex: 1; min-height: 0; }
+.modal-head .modal-close { margin-left: 6px; }
+.modal-foot { padding: 5px 10px; border-top: 1px solid var(--border); font-size: 11px; color: var(--dim); margin: 0; }
 .modal-body { overflow-y: auto; padding: 10px; }
 .section-title { color: var(--dim); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; margin: 8px 0 6px; }
 

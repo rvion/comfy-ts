@@ -246,16 +246,13 @@ export const LorasControl = observer(function LorasControl(p: {
     * mtime moves, which never happens on exFAT: extra/comfyui-fresh-model-lists fixes that */
    const managerOnly = new Set(p.v.desc.managerOnlyOptions ?? [])
    const MANAGER_ONLY_TIP =
-      "on disk and known to the lora manager, but not in ComfyUI's list yet: it refuses the prompt. rescan the host; if it stays, the models drive is probably exFAT (install extra/comfyui-fresh-model-lists) or restart ComfyUI"
+      "on disk and known to the lora manager, but not in ComfyUI's list yet: it refuses the prompt. the panel refreshes the host by itself when it changes; if this stays, the models drive is probably exFAT (install extra/comfyui-fresh-model-lists) or ComfyUI needs a restart"
    const warnBadge = (name: string): ReactNode =>
       managerOnly.has(name) ? (
          <span className="lora-warn" data-tip={MANAGER_ONLY_TIP}>
             <Icon name="warn" size={0.9} />
          </span>
       ) : null
-   /** manager-only loras actually IN the palette: those are the ones a run will send, and the
-    * ones ComfyUI has no entry for until it rescans its models */
-   const managerOnlyInUse = allNames.filter((n) => managerOnly.has(n))
    const showImages = p.st.showLoraImages
    const triggers = p.v.desc.optionTriggers ?? {}
    /** the trigger words under a row card, in one of FOUR states that never look alike: the
@@ -267,18 +264,9 @@ export const LorasControl = observer(function LorasControl(p: {
          return (
             <span
                className="chip-triggers missing"
-               data-tip="this lora is newer than the copy of the lora manager's list kept here, so its trigger words, name and preview are not known yet. the lora itself runs fine"
+               data-tip="this lora is newer than the copy of the lora manager's list kept here: the next host refresh brings its trigger words, name and preview (it runs by itself). The lora itself runs fine"
             >
                trigger words not loaded yet
-               <button
-                  type="button"
-                  className="trigger-fetch"
-                  disabled={p.st.loraSyncing}
-                  data-tip="read the lora manager's list again (names, trigger words, previews)"
-                  onClick={() => void p.st.refreshLoras()}
-               >
-                  {p.st.loraSyncing ? 'loading…' : 'load'}
-               </button>
             </span>
          )
       if (t.state === 'unfetched') {
@@ -546,15 +534,6 @@ export const LorasControl = observer(function LorasControl(p: {
                         onClick={() => p.st.toggleLoraTriggers()}
                      />
                      <div className="menu-sep" />
-                     <MenuItem
-                        label={p.st.loraSyncing ? 'syncing…' : 'sync with the lora manager'}
-                        disabled={p.st.loraSyncing}
-                        tip="re-read names, trigger words and previews from the lora manager on this host"
-                        onClick={() => {
-                           close()
-                           void p.st.refreshLoras()
-                        }}
-                     />
                      {p.hostUrl == null ? null : (
                         <MenuItem
                            label="open the lora manager ↗"
@@ -608,17 +587,6 @@ export const LorasControl = observer(function LorasControl(p: {
                   </>
                )}
             </MenuButton>
-            {managerOnlyInUse.length > 0 ? (
-               <button
-                  type="button"
-                  className="field-height warn-action"
-                  disabled={p.st.hostWatch === 'down'}
-                  data-tip={`${managerOnlyInUse.length} lora(s) here are on disk but not in ComfyUI's list yet, so it refuses the prompt. this refetches the host's list and the var widens in place. if they stay: ComfyUI never notices new files on an exFAT drive (install extra/comfyui-fresh-model-lists), or restart ComfyUI from the host box`}
-                  onClick={() => void p.st.hostAction('refresh-schema')}
-               >
-                  <Icon name="refresh" /> rescan ComfyUI
-               </button>
-            ) : null}
             {allNames.length > 0 ? (
                <span className="hint">
                   {allNames.length} in the palette · {onCount} on
@@ -812,13 +780,17 @@ export const LorasControl = observer(function LorasControl(p: {
             />
          )}
          {local.open ? (
-            <div className="modal-overlay" onClick={() => local.setOpen(false)}>
-               <div className="modal" onClick={(e) => e.stopPropagation()}>
+            // anchored near the TOP at a fixed height: filtering or hiding images changes what is
+            // inside, never where the popup sits
+            <div className="modal-overlay top" onClick={() => local.setOpen(false)}>
+               <div className="modal loras-modal" onClick={(e) => e.stopPropagation()}>
+                  {/* the display toggles first, the search in the middle, close alone at the end */}
                   <div className="modal-head">
+                     <span className="btn-group">{visibilityToggles}</span>
                      <input
                         ref={filterRef}
                         type="text"
-                        placeholder={`search ${options.length} loras${p.v.desc.optionsFilter == null ? '' : ` matching ${p.v.desc.optionsFilter}`} — enter adds the first`}
+                        placeholder={`search ${options.length} loras, enter adds the first`}
                         value={local.filter}
                         onChange={(e) => local.setFilter(e.target.value)}
                         onKeyDown={(e) => {
@@ -827,8 +799,12 @@ export const LorasControl = observer(function LorasControl(p: {
                            addFirstMatch()
                         }}
                      />
-                     {visibilityToggles}
-                     <button type="button" data-tip="close (esc)" onClick={() => local.setOpen(false)}>
+                     <button
+                        type="button"
+                        className="modal-close"
+                        data-tip="close (esc)"
+                        onClick={() => local.setOpen(false)}
+                     >
                         <Icon name="close" />
                      </button>
                   </div>
@@ -880,16 +856,6 @@ export const LorasControl = observer(function LorasControl(p: {
                      ) : null}
                      <div className="section-title lora-sort-head">
                         all loras — tap to add to the palette
-                        {/* the workflow's own narrowing, said where it matters: in the picker, not
-                            on the form */}
-                        {p.v.desc.optionsFilter == null ? null : (
-                           <span
-                              className="hint filter-hint"
-                              data-tip="this workflow declared v.loras(<regex>): only matching loras are offered"
-                           >
-                              matching {p.v.desc.optionsFilter}
-                           </span>
-                        )}
                         <span className="lora-sort">
                            sort
                            {LORA_SORTS.map((s) => (
@@ -955,6 +921,10 @@ export const LorasControl = observer(function LorasControl(p: {
                      ) : null}
                      {matches.length === 0 ? <div className="loras-more">no lora matches '{local.filter}'</div> : null}
                   </div>
+                  {/* the workflow's own narrowing, once, as a quiet footer line */}
+                  {p.v.desc.optionsFilter == null ? null : (
+                     <div className="modal-foot hint">this workflow offers loras matching {p.v.desc.optionsFilter}</div>
+                  )}
                </div>
             </div>
          ) : null}
