@@ -141,16 +141,6 @@ const ResultsHead = observer(function ResultsHead(p: { st: WebSt }) {
                      </button>
                   ))}
                </span>
-               <span className="btn-group">
-                  <button
-                     type="button"
-                     className={p.st.showLogs ? 'sel' : ''}
-                     data-tip={p.st.showLogs ? 'hide the ComfyUI console' : 'show the ComfyUI console'}
-                     onClick={() => p.st.toggleLogs()}
-                  >
-                     <Icon name="terminal" />
-                  </button>
-               </span>
             </span>
          </div>
          <div className="head-group-labeled">

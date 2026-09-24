@@ -356,11 +356,9 @@ function RunChip(p: {
    onClear(): void
 }): ReactNode {
    const t = runChipText({ kind: p.kind, count: p.count })
-   // an icon and a count, the word in the tooltip: the results panel can be narrow
+   // the clear ✕ LEADS the chip, big enough to hit: it is the only thing a chip does
    return (
-      <span className={p.count > 0 ? 'run-chip' : 'run-chip empty'} data-tip={`${t.label}: ${p.tip}`}>
-         <Icon name={p.kind === 'queue' ? 'rows' : 'image'} size={0.95} />
-         <span className="run-chip-count">{t.count}</span>
+      <span className={p.count > 0 ? 'run-chip' : 'run-chip empty'} data-tip={p.tip}>
          <button
             type="button"
             className="run-chip-clear"
@@ -369,8 +367,10 @@ function RunChip(p: {
             disabled={!p.canClear}
             onClick={() => p.onClear()}
          >
-            <Icon name="close" size={0.8} />
+            <Icon name="close" size={1.25} />
          </button>
+         <span className="run-chip-word">{p.kind === 'queue' ? 'queue' : 'images'}</span>
+         <span className="run-chip-count">{t.count}</span>
       </span>
    )
 }
@@ -635,6 +635,19 @@ export const VarsForm = observer(function VarsForm(p: { st: WebSt }) {
                            onClick={() => void p.st.hostAction('clear-queue')}
                         >
                            <Icon name="trash" /> clear queue
+                        </button>
+                     </span>
+                     {/* the console is the HOST's output, so it opens from the host box */}
+                     <span className="btn-group">
+                        <button
+                           type="button"
+                           className={p.st.showLogs ? 'sel' : ''}
+                           data-tip={
+                              p.st.showLogs ? 'hide the ComfyUI console' : 'show the ComfyUI console of this host'
+                           }
+                           onClick={() => p.st.toggleLogs()}
+                        >
+                           <Icon name="terminal" /> console
                         </button>
                      </span>
                      {p.st.isHostOverridden(form.moduleKey) ? (
