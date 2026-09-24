@@ -450,6 +450,7 @@ Start with the didactic sequence in [`examples/rvion/`](examples/rvion/):
 | [`07-local-llm-text-gen`](examples/rvion/07-local-llm-text-gen.cflow.ts)                       | a local LLM through core `TextGenerate`, text back in `execution.text`; `--sweep` probes every text encoder on the host |
 | [`08-qwen-image-21-t2i`](examples/rvion/08-qwen-image-21-t2i.cflow.ts)                         | Qwen Image 2.1 text to image: int8 model, Qwen3-VL 8b encoder                |
 | [`09-qwen-image-21-edit`](examples/rvion/09-qwen-image-21-edit.cflow.ts)                       | Qwen Image 2.1 edit: the reference image feeds an autogrow slot, output keeps its size; a remove-background preset |
+| [`10-anima-t2i`](examples/rvion/10-anima-t2i.cflow.ts)                                         | Anima text to image: turbo, aesthetic, base or base + turbo lora as one click, anima lora stack, optional RMBG cutout |
 
 ### The model zoo: 49 cloud workflows, 34 model families
 
