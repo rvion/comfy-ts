@@ -20,7 +20,7 @@ import { fetchLoraAbout, fetchLoraInfo, loraPreviewSrc, type LoraAbout, type Lor
 import type { LoraStrength } from 'src/vars/loraEntry.ts'
 import type { VarSt } from 'src/cli/serve/web/state/FormSt.ts'
 import type { WebSt } from 'src/cli/serve/web/state/WebSt.ts'
-import { LORA_SORTS, sortLoraMatches } from 'src/cli/serve/web/state/loraSort.ts'
+import { LORA_SORTS, popupCards, sortLoraMatches } from 'src/cli/serve/web/state/loraSort.ts'
 import {
    loraIsOn,
    paletteOrder,
@@ -407,7 +407,7 @@ export const LorasControl = observer(function LorasControl(p: {
       addedAt: p.v.desc.optionAddedAt ?? {},
    })
    const cardCap = p.st.loraCap
-   const cards = matches.filter((o) => !targetNames.includes(o)).slice(0, cardCap)
+   const { cards, enterPick } = popupCards({ matches, picked: targetNames, cap: cardCap })
    /** the enum value IS a path (`krea2\styles\x.safetensors`, separators vary by host and by
     * where the name came from), so the folder is everything before the last separator */
    const folderOf = (name: string): string => {
@@ -439,11 +439,10 @@ export const LorasControl = observer(function LorasControl(p: {
       input.select()
    }, [open])
 
-   /** enter takes the FIRST card, the one the eye lands on. The popup stays open with the
-    * needle reselected, so adding three loras is type-enter-type-enter, and the new entry
-    * is visible at once in the palette section above */
+   /** enter takes the first card not picked yet, the one the eye lands on. The popup stays open
+    * with the needle reselected, so adding three loras is type-enter-type-enter */
    const addFirstMatch = (): void => {
-      const first = cards[0]
+      const first = enterPick
       if (first == null) return
       // the SAME call the card's own click makes, so enter and a tap cannot drift apart
       if (target != null) setEntry(target, first, [1, 1])
@@ -841,121 +840,133 @@ export const LorasControl = observer(function LorasControl(p: {
                         <Icon name="close" />
                      </button>
                   </div>
-                  <div className="modal-body">
-                     {target != null && targetNames.length > 0 ? (
-                        <div>
-                           <div className="section-title">
-                              {target.lane == null ? 'your palette' : `lane ${target.lane.name}`} ({targetNames.length})
-                           </div>
-                           {targetNames.filter(matchesFilter).map((name) => {
-                              const info = local.info.get(name)
-                              return (
-                                 <div
-                                    key={name}
-                                    className={isOn(target, name) ? 'lora-active-row' : 'lora-active-row off'}
-                                 >
-                                    {thumb(name)}
-                                    <div className="lora-active-text">
-                                       <div className="lora-label" data-tip={name}>
-                                          {showTitles ? label(name) : '···'}
-                                       </div>
-                                       {p.st.showLoraTriggers &&
-                                       typeof info === 'object' &&
-                                       info.triggerWords.length > 0 ? (
-                                          <div className="hint">{info.triggerWords.join(', ')}</div>
-                                       ) : (
-                                          <div className="hint">{name}</div>
-                                       )}
-                                    </div>
-                                    <input
-                                       type="checkbox"
-                                       checked={isOn(target, name)}
-                                       data-tip={isOn(target, name) ? 'pause (stays in the palette)' : 'resume'}
-                                       onChange={(e) => toggleOn(target, name, e.target.checked)}
-                                    />
-                                    {strengthInputs(target, name)}
-                                    <button
-                                       type="button"
-                                       className="chip-remove"
-                                       data-tip="remove from the list"
-                                       onClick={() => setEntry(target, name, null)}
-                                    >
-                                       <Icon name="close" size={0.9} />
-                                    </button>
-                                 </div>
-                              )
-                           })}
-                        </div>
-                     ) : null}
-                     <div className="section-title lora-sort-head">
-                        all loras — tap to add to the palette
-                        <span className="lora-sort">
-                           sort
-                           {LORA_SORTS.map((s) => (
-                              <button
-                                 key={s.mode}
-                                 type="button"
-                                 className={p.st.loraSort === s.mode ? 'mode sel' : 'mode'}
-                                 data-tip={s.tip}
-                                 onClick={() => p.st.setLoraSort(s.mode)}
-                              >
-                                 {s.label}
-                              </button>
-                           ))}
-                        </span>
-                     </div>
-                     {groupedCards.map((group) => (
-                        <div key={group.folder ?? '*'}>
-                           {group.folder == null ? null : (
+                  <div className="loras-split">
+                     <div className="modal-body loras-palette">
+                        {target == null || targetNames.length === 0 ? (
+                           <div className="hint">nothing picked yet: tap a lora to add it</div>
+                        ) : (
+                           <div>
                               <div className="section-title">
-                                 {group.folder === '' ? 'loose (no folder)' : `${group.folder}/`} · {group.names.length}
+                                 {target.lane == null ? 'your palette' : `lane ${target.lane.name}`} (
+                                 {targetNames.length})
                               </div>
-                           )}
-                           <div
-                              className="lora-grid"
-                              style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${gridMin}px, 1fr))` }}
-                           >
-                              {group.names.map((name) => (
-                                 <button
-                                    key={name}
-                                    type="button"
-                                    className="lora-card"
-                                    data-tip={name}
-                                    onClick={() => {
-                                       if (target != null) setEntry(target, name, [1, 1])
-                                    }}
-                                 >
-                                    {thumb(name, Math.round(110 * scale))}
-                                    <div className="lora-label">
-                                       {showTitles ? label(name) : name.slice(0, 2) + '···'}
-                                       {warnBadge(name)}
+                              {targetNames.map((name) => {
+                                 const info = local.info.get(name)
+                                 return (
+                                    <div
+                                       key={name}
+                                       className={isOn(target, name) ? 'lora-active-row' : 'lora-active-row off'}
+                                    >
+                                       {thumb(name)}
+                                       <div className="lora-active-text">
+                                          <div className="lora-label" data-tip={name}>
+                                             {showTitles ? label(name) : '···'}
+                                          </div>
+                                          {p.st.showLoraTriggers &&
+                                          typeof info === 'object' &&
+                                          info.triggerWords.length > 0 ? (
+                                             <div className="hint">{info.triggerWords.join(', ')}</div>
+                                          ) : (
+                                             <div className="hint">{name}</div>
+                                          )}
+                                       </div>
+                                       <input
+                                          type="checkbox"
+                                          checked={isOn(target, name)}
+                                          data-tip={isOn(target, name) ? 'pause (stays in the palette)' : 'resume'}
+                                          onChange={(e) => toggleOn(target, name, e.target.checked)}
+                                       />
+                                       {strengthInputs(target, name)}
+                                       <button
+                                          type="button"
+                                          className="chip-remove"
+                                          data-tip="remove from the list"
+                                          onClick={() => setEntry(target, name, null)}
+                                       >
+                                          <Icon name="close" size={0.9} />
+                                       </button>
                                     </div>
+                                 )
+                              })}
+                           </div>
+                        )}
+                     </div>
+                     <div className="modal-body loras-gallery">
+                        <div className="section-title lora-sort-head">
+                           all loras — tap to add or take out
+                           <span className="lora-sort">
+                              sort
+                              {LORA_SORTS.map((s) => (
+                                 <button
+                                    key={s.mode}
+                                    type="button"
+                                    className={p.st.loraSort === s.mode ? 'mode sel' : 'mode'}
+                                    data-tip={s.tip}
+                                    onClick={() => p.st.setLoraSort(s.mode)}
+                                 >
+                                    {s.label}
                                  </button>
                               ))}
+                           </span>
+                        </div>
+                        {groupedCards.map((group) => (
+                           <div key={group.folder ?? '*'}>
+                              {group.folder == null ? null : (
+                                 <div className="section-title">
+                                    {group.folder === '' ? 'loose (no folder)' : `${group.folder}/`} ·{' '}
+                                    {group.names.length}
+                                 </div>
+                              )}
+                              <div
+                                 className="lora-grid"
+                                 style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${gridMin}px, 1fr))` }}
+                              >
+                                 {group.names.map((name) => {
+                                    const picked = targetNames.includes(name)
+                                    return (
+                                       <button
+                                          key={name}
+                                          type="button"
+                                          className={picked ? 'lora-card picked' : 'lora-card'}
+                                          data-tip={picked ? `${name}\nin the palette: click to take it out` : name}
+                                          onClick={() => {
+                                             if (target != null) setEntry(target, name, picked ? null : [1, 1])
+                                          }}
+                                       >
+                                          {thumb(name, Math.round(110 * scale))}
+                                          <div className="lora-label">
+                                             {showTitles ? label(name) : name.slice(0, 2) + '···'}
+                                             {warnBadge(name)}
+                                          </div>
+                                       </button>
+                                    )
+                                 })}
+                              </div>
                            </div>
-                        </div>
-                     ))}
-                     {matches.length - targetNames.filter(matchesFilter).length > cardCap ? (
-                        <div className="loras-more">
-                           … {matches.length - targetNames.filter(matchesFilter).length - cardCap} more — refine the
-                           filter, or draw
-                           <input
-                              type="number"
-                              min={1}
-                              max={2000}
-                              value={cardCap}
-                              data-tip="how many cards this popup draws — each one is an image request, so the right number depends on your collection and your box. Kept in this browser"
-                              // an empty box is mid-edit, not a request for the default: without
-                              // this, clearing the field snapped the value to 200 as you typed
-                              onChange={(e) => {
-                                 const n = parseInt(e.target.value, 10)
-                                 if (Number.isFinite(n)) p.st.setLoraCap(n)
-                              }}
-                           />
-                           at once
-                        </div>
-                     ) : null}
-                     {matches.length === 0 ? <div className="loras-more">no lora matches '{local.filter}'</div> : null}
+                        ))}
+                        {matches.length > cardCap ? (
+                           <div className="loras-more">
+                              … {matches.length - cardCap} more — refine the filter, or draw
+                              <input
+                                 type="number"
+                                 min={1}
+                                 max={2000}
+                                 value={cardCap}
+                                 data-tip="how many cards this popup draws — each one is an image request, so the right number depends on your collection and your box. Kept in this browser"
+                                 // an empty box is mid-edit, not a request for the default: without
+                                 // this, clearing the field snapped the value to 200 as you typed
+                                 onChange={(e) => {
+                                    const n = parseInt(e.target.value, 10)
+                                    if (Number.isFinite(n)) p.st.setLoraCap(n)
+                                 }}
+                              />
+                              at once
+                           </div>
+                        ) : null}
+                        {matches.length === 0 ? (
+                           <div className="loras-more">no lora matches '{local.filter}'</div>
+                        ) : null}
+                     </div>
                   </div>
                   {/* the workflow's own narrowing, once, as a quiet footer line */}
                   {p.v.desc.optionsFilter == null ? null : (

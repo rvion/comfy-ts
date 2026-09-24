@@ -37,3 +37,14 @@ export function sortLoraMatches(p: {
       })
    return out
 }
+
+/** what the popup gallery draws: EVERY match, picked ones included, so picking a lora never
+ * moves the cards around it. `enterPick` is the first card not picked yet, what enter adds */
+export function popupCards(p: { matches: readonly string[]; picked: readonly string[]; cap: number }): {
+   cards: string[]
+   enterPick: string | null
+} {
+   const cards = p.matches.slice(0, p.cap)
+   const picked = new Set(p.picked)
+   return { cards, enterPick: cards.find((name) => !picked.has(name)) ?? null }
+}

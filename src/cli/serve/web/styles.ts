@@ -492,7 +492,19 @@ button.accent:hover { background: var(--accent-dim); color: #fff; }
    height, so typing a filter or hiding images never moves it */
 .modal-overlay.top { align-items: flex-start; padding-top: 5vh; }
 .modal.loras-modal { height: min(86vh, 100%); max-height: none; }
-.loras-modal .modal-body { flex: 1; min-height: 0; }
+.modal.loras-modal { width: min(1180px, 100%); }
+/* the palette sits BESIDE the gallery, each scrolling alone: picking a lora grows the palette
+   and never moves a card under the pointer. Narrow: a fixed-height strip above, same reason */
+.loras-split { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 340px; }
+.loras-split .modal-body { min-height: 0; }
+.loras-palette { order: 2; border-left: 1px solid var(--border); }
+.loras-palette .lora-active-row { flex-wrap: wrap; }
+.lora-card.picked { border-color: var(--green); }
+.lora-card.picked .lora-label { color: var(--green); }
+@media (max-width: 800px) {
+   .loras-split { grid-template-columns: minmax(0, 1fr); grid-template-rows: 150px minmax(0, 1fr); }
+   .loras-palette { order: 0; border-left: 0; border-bottom: 1px solid var(--border); }
+}
 .modal-head .modal-close { margin-left: 6px; }
 /* a display setting's slider (lora image size, result size): grey and small, never the accent
    blue of the controls that change what runs */
