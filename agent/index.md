@@ -23,7 +23,7 @@ Full spec in this folder — update docs BEFORE changing code.
 
 ## Two changelogs, and they never mix
 
-- `.rv-journal/changelog.md` — PRIVATE (gitignored, stays on this machine). The engineering journal: session by session, what broke, which repro drove the fix, dead ends, who asked for what. Write here first, freely.
+- `.shipkit/journal/changelog.md` — PRIVATE (gitignored, stays on this machine). The engineering journal: session by session, what broke, which repro drove the fix, dead ends, who asked for what. Write here first, freely.
 - `CHANGELOG.md` — PUBLIC: on GitHub, and the release notes are cut from it (NOT in the npm tarball — package.json `files` does not list it). Only what a USER of the library can observe: new API, changed behaviour, breaking renames. No session numbers, no repro anecdotes, no names, no intermediate states that were wrong before they were right.
 
 A release rewrites the public entry FROM the journal; it never copies it.
@@ -41,4 +41,4 @@ Read the matching doc before touching a surface:
 | any file layout / class / data-flow question  | `agent/architecture.md` |
 | the per-host codegen or `Comfy.*` namespaces  | `agent/sdk-codegen.md`  |
 | examples/ (zoo layout, vars, verification)    | `agent/examples.md`     |
-| recent changes / why a thing is the way it is | `.rv-journal/changelog.md` |
+| recent changes / why a thing is the way it is | `.shipkit/journal/changelog.md` |

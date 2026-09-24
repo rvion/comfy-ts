@@ -7,7 +7,7 @@ import { existsSync } from 'node:fs'
  * directory re-includes paths .gitignore excludes. `files: ["src"]` therefore
  * packed src/__private__ — an OpenSSH PRIVATE KEY included — into the 0.3.0
  * tarball, caught by hand seconds before publishing. The hazards now live in
- * .rv-private/ (outside every whitelisted dir); this test is what keeps the
+ * .shipkit/private/ (outside every whitelisted dir); this test is what keeps the
  * guarantee mechanical instead of remembered.
  */
 describe('npm tarball', () => {

@@ -10,8 +10,8 @@ function makeRepo(p: { keywords?: string }): string {
    const dir = mkdtempSync(join(tmpdir(), 'check-banned-'))
    spawnSync('git', ['init', '-q'], { cwd: dir })
    if (p.keywords != null) {
-      mkdirSync(join(dir, '.rv-private'), { recursive: true })
-      writeFileSync(join(dir, '.rv-private/banned-keywords.txt'), p.keywords)
+      mkdirSync(join(dir, '.shipkit/private'), { recursive: true })
+      writeFileSync(join(dir, '.shipkit/private/banned-keywords.txt'), p.keywords)
    }
    return dir
 }

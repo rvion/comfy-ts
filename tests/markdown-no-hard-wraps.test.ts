@@ -18,10 +18,10 @@ const SKIP_DIRS = new Set([
    '.tmp',
    '.git',
    '.comfy-ts',
-   '.rv-journal',
-   '.rv-private',
-   '.rv-reflections',
-   '.rv-social',
+   '.shipkit/journal',
+   '.shipkit/private',
+   '.shipkit/reflections',
+   '.shipkit/social',
    'external-docs', // upstream mirrors are DATA, never restyled
 ])
 

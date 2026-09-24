@@ -1,4 +1,4 @@
-// commit guard: rejects commits containing keywords from .rv-private/banned-keywords.txt
+// commit guard: rejects commits containing keywords from .shipkit/private/banned-keywords.txt
 // rows: plain text = case-insensitive WORD match (anything that is not a letter or a digit is
 // a break, so `folder/word`, `foo,word,bar` and `word_v2.safetensors` all hit, while a word
 // glued inside a longer one does not); `re:<pattern>` = case-insensitive regex
@@ -8,7 +8,7 @@ import { spawnSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'pathe'
 
-const KEYWORDS_FILE = '.rv-private/banned-keywords.txt'
+const KEYWORDS_FILE = '.shipkit/private/banned-keywords.txt'
 
 function git(args: string[]): string {
    const res = spawnSync('git', args, { encoding: 'utf8', maxBuffer: 128 * 1024 * 1024 })

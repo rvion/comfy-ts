@@ -59,7 +59,7 @@ Never fail silently. Loud console + thrown Error. `bang(x, msg)` for invariants.
 
 ## Comments — caveman
 
-Default = NO comment. Comment only the WHY. No change-narration; git + `.rv-journal/changelog.md` own history.
+Default = NO comment. Comment only the WHY. No change-narration; git + `.shipkit/journal/changelog.md` own history.
 
 ## Markdown — no hard wraps
 

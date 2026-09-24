@@ -12,13 +12,13 @@ tmp/
 # local working dirs, never published: the engineering journal (the full
 # blow-by-blow behind each change), transient reflections, unpublished social
 # and site copy. The PUBLIC record is CHANGELOG.md.
-.rv-journal/
+.shipkit/journal/
 # repo-local scratch + hazards (ssh keypair, banned-keyword list, throwaway
 # scripts): OUTSIDE src/ on purpose, so no packaging whitelist can reach it
-.rv-private/
-.rv-reflections/
-.rv-social/
-.rv-rvion-fr/
+.shipkit/private/
+.shipkit/reflections/
+.shipkit/social/
+.shipkit/rvion-fr/
 # machine-local agent context, imported by CLAUDE.md when present and simply
 # absent for everyone else
 CLAUDE.local.md
@@ -46,3 +46,29 @@ CLAUDE.local.md
 *.captured.json
 
 __pycache__/
+
+# >>> shipkit gitignore policy (SK004) — managed block, edit outside only
+.shipkit/*
+!.shipkit/asks/
+!.shipkit/hooks/
+!.shipkit/identity/
+!.shipkit/assets/
+!.shipkit/comfy/
+.shipkit/assets/out/
+.shipkit/private/
+.shipkit/tmp/
+.shipkit/reviews/
+tmp/
+CLAUDE.local.md
+.*.tmp-*
+.comfy-ts/*
+!.comfy-ts/drafts/
+*.loras.local.txt
+# shipkit writes these on every run — ignored AND untracked (untrack-generated.ts)
+STATUS.md
+STATUS.md.lock
+.STATUS.md.tmp-*
+STATUS.full.md
+STATUS.full.md.lock
+.STATUS.full.md.tmp-*
+# <<< shipkit gitignore policy
