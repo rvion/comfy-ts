@@ -264,6 +264,8 @@ button.primary {
    background: var(--accent); border-color: var(--accent); color: #0d1117; font-weight: 600;
    padding: 5px 14px; display: inline-flex; align-items: center; gap: 6px;
 }
+/* running: the fill sweeps across a dim track, the text stays, so nothing beside it moves */
+button.primary.running { color: #fff; border-color: var(--accent); }
 .kbd-hint {
    font-size: 10px; opacity: 0.65; border: 1px solid currentColor; border-radius: 4px;
    padding: 0 4px; line-height: 1.4;

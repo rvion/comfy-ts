@@ -11,6 +11,7 @@ import {
 import { PromptControl } from 'src/cli/serve/web/components/controls/PromptControl.tsx'
 import { Icon } from 'src/cli/serve/web/components/Icon.tsx'
 import { VarIcon } from 'src/cli/serve/web/components/VarIcon.tsx'
+import { generateButtonLook } from 'src/cli/serve/web/state/generateButton.ts'
 import { groupPlaces, type GroupPlace } from 'src/cli/serve/web/state/varGroups.ts'
 import { ImageControl } from 'src/cli/serve/web/components/controls/ImageControl.tsx'
 import { LorasControl } from 'src/cli/serve/web/components/controls/LorasControl.tsx'
@@ -312,22 +313,31 @@ const DraftBox = observer(function DraftBox(p: { st: WebSt; form: FormSt }) {
  * produced. a count and one clear is the whole decision a queue offers */
 export const GenerateButton = observer(function GenerateButton(p: { st: WebSt }) {
    const run = p.st.run
+   // the text never changes, so the button never changes size: the progress is a fill sweeping
+   // across it, the exact percent is on the running card
+   const look = generateButtonLook({ isRunning: run.isRunning, percent: run.progressPercent })
    return (
       <span className="run-line">
          <button
             type="button"
-            className={run.isRunning ? 'primary pulse' : 'primary'}
-            data-tip="⌘⏎ / ctrl+⏎ — click again to queue another"
+            className={look.running ? 'primary running' : 'primary'}
+            data-tip={
+               look.running
+                  ? `running ${look.fill ?? 0}%: click again to queue another (⌘⏎ / ctrl+⏎)`
+                  : '⌘⏎ / ctrl+⏎: click again to queue another'
+            }
+            style={
+               look.fill == null
+                  ? undefined
+                  : {
+                       background: `linear-gradient(90deg, var(--accent) ${look.fill}%, var(--accent-dim) ${look.fill}%)`,
+                    }
+            }
             onClick={() => p.st.generate()}
          >
-            <Icon name="play" size={0.85} />{' '}
-            {run.isRunning
-               ? run.progressPercent != null
-                  ? `generating… ${Math.round(run.progressPercent)}%`
-                  : 'generating…'
-               : 'generate'}
+            <Icon name="play" size={0.85} /> {look.label}
             {/* the shortcut is SAID, not only tooltipped: nobody hovers a button they can click */}
-            {run.isRunning ? null : <span className="kbd-hint">⌘⏎</span>}
+            <span className="kbd-hint">{MOD_KEY}⏎</span>
          </button>
          {run.queue.length > 0 ? (
             <span className="run-chip" data-tip="prompts waiting behind this one">
