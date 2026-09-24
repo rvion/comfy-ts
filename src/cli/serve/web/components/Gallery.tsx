@@ -513,7 +513,21 @@ export const Gallery = observer(function Gallery(p: { st: WebSt; compact?: boole
                         </div>
                      ),
                   )}
-                  {r.images.length === 0 && (r.texts ?? []).length === 0 ? (
+                  {(r.audios ?? []).map((a, ix) =>
+                     a.url != null ? (
+                        <div key={`${r.promptId}-audio-${ix}`} className="audio-cell">
+                           <audio controls preload="metadata" src={a.url} />
+                           <a className="hint" href={a.url} download={a.filename}>
+                              {a.filename}
+                           </a>
+                        </div>
+                     ) : (
+                        <div key={`${r.promptId}-audio-${ix}`} className="noimg">
+                           {a.filename} (not kept — no preview)
+                        </div>
+                     ),
+                  )}
+                  {r.images.length === 0 && (r.texts ?? []).length === 0 && (r.audios ?? []).length === 0 ? (
                      <div className="noimg">no outputs</div>
                   ) : null}
                </div>

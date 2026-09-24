@@ -35,6 +35,7 @@ export {
 } from 'src/runner/ComfyWorkflow.ts'
 export {
    ComfyExecution,
+   type ComfyAudioOutput,
    type ComfyExecutionData,
    type ComfyTextOutput,
    type ExecutionProgress,

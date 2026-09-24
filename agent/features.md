@@ -64,7 +64,7 @@ Types for every KNOWN custom node / plugin / model in the ecosystem (`src/manage
 
 ## G9 — leave no traces (ephemeral outputs)
 
-Images that never persist: `SaveImageWebsocket` outputs stream over the ws and never touch the server disk (every image example uses it); local saving is OPT-IN (`run({ save })` — default keeps outputs in memory only); `ephemeral: true` rewrites `SaveImage` → `SaveImageWebsocket` in the sent prompt and scrubs the server history entry after the run (`host.deleteHistory`/`clearHistory`). Honest limits are part of the feature: uploads persist server-side (base64 loaders are the feature-detected alternative, absent on cloud), video/audio savers have no ws variant, server logs/RAM/cloud retention are out of reach. Contract: architecture.md item 14.
+Images that never persist: `SaveImageWebsocket` outputs stream over the ws and never touch the server disk (every image example uses it); local saving is OPT-IN (`run({ save })` — default keeps outputs in memory only); `ephemeral: true` rewrites `SaveImage` → `SaveImageWebsocket` in the sent prompt and scrubs the server history entry after the run (`host.deleteHistory`/`clearHistory`). Honest limits are part of the feature: uploads persist server-side (base64 loaders are the feature-detected alternative, absent on cloud), video/audio savers have no ws variant (audio outputs still come back: `execution.audios`, downloaded like images, playable in the serve panel), server logs/RAM/cloud retention are out of reach. Contract: architecture.md item 14.
 
 - ✅ ws output correlation + memory-default outputs + opt-in `save`
 - ✅ `ephemeral` rewrite + history scrub + upload warning

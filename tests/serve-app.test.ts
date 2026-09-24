@@ -674,3 +674,59 @@ describe('text outputs reach the panel', () => {
       expect(body.texts).toEqual([])
    })
 })
+
+// a music graph produces an audio file and no image: the panel needs a url it can hand to <audio>
+describe('audio outputs reach the panel', () => {
+   it('a saved audio maps to an /outputs url served with its audio content type', async () => {
+      const outputRoot = join(root, 'out')
+      const abs = join(outputRoot, 'songs', 'song_00001_.flac')
+      mkdirSync(join(outputRoot, 'songs'), { recursive: true })
+      const bytes = new Uint8Array([0x66, 0x4c, 0x61, 0x43, 9, 9])
+      writeFileSync(abs, bytes)
+      const mod = makeModule('wf-audio-saved')
+      const app = new ServeApp([mod], {
+         outputRoot,
+         starter: () =>
+            Promise.resolve({
+               ...fakeExecution(),
+               audios: [{ absPath: abs, filename: 'song_00001_.flac', mime: 'audio/flac', bytes }],
+            }),
+      })
+      const body = parse(await post(app, '/generate/wf-audio-saved/default', {}))
+      expect(body.images).toEqual([])
+      const audio = (body.audios as { url: string; filename: string; mime: string }[])[0]!
+      expect(audio.url).toBe('/outputs/songs/song_00001_.flac')
+      expect(audio.mime).toBe('audio/flac')
+      const fetched = await app.handle({ method: 'GET', url: audio.url })
+      expect(fetched.contentType).toBe('audio/flac')
+      expect(fetched.body).toEqual(bytes)
+   })
+
+   it('an in-memory audio (saving off) is served from /audio/<promptId>/<ix>', async () => {
+      const bytes = new Uint8Array([0x49, 0x44, 0x33, 1])
+      const mod = makeModule('wf-audio-mem')
+      const app = new ServeApp([mod], {
+         outputRoot: join(root, 'out'),
+         starter: () =>
+            Promise.resolve({
+               ...fakeExecution({ id: 'p-audio' }),
+               audios: [{ absPath: null, filename: 'ComfyUI_temp_00001_.mp3', mime: 'audio/mpeg', bytes }],
+            }),
+      })
+      const body = parse(await post(app, '/generate/wf-audio-mem/default', {}))
+      const audio = (body.audios as { url: string }[])[0]!
+      expect(audio.url).toBe('/audio/p-audio/0')
+      const fetched = await app.handle({ method: 'GET', url: audio.url })
+      expect(fetched.status).toBe(200)
+      expect(fetched.contentType).toBe('audio/mpeg')
+      expect(fetched.body).toEqual(bytes)
+   })
+
+   // control: a run without audio still reports the key, empty
+   it('a run with no audio reports an empty list', async () => {
+      const mod = makeModule('wf-audio-none')
+      const app = new ServeApp([mod], { outputRoot: join(root, 'out'), starter: snapshottingStarter([]) })
+      const body = parse(await post(app, '/generate/wf-audio-none/default', {}))
+      expect(body.audios).toEqual([])
+   })
+})

@@ -36,6 +36,30 @@ export type ComfyExecutionData = {
    status?: ComfyExecutionStatus | null
 }
 
+/** one audio file an output node published, downloaded as the server wrote it.
+ * `absPath` is null when saving is off: `bytes` is then the only copy */
+export type ComfyAudioOutput = {
+   nodeId: ComfyNodeId
+   filename: string
+   mime: string
+   bytes: Uint8Array
+   absPath: AbsolutePath | null
+}
+
+const AUDIO_MIMES: Record<string, string> = {
+   flac: 'audio/flac',
+   mp3: 'audio/mpeg',
+   opus: 'audio/ogg',
+   ogg: 'audio/ogg',
+   wav: 'audio/wav',
+   m4a: 'audio/mp4',
+}
+
+export function audioMime(filename: string): string {
+   const ext = filename.split('.').pop()?.toLowerCase() ?? ''
+   return AUDIO_MIMES[ext] ?? 'application/octet-stream'
+}
+
 /** one text output as an output node published it (`nodeKey` is null when the node left the snapshot) */
 export type ComfyTextOutput = {
    nodeId: ComfyNodeId
@@ -142,6 +166,7 @@ export class ComfyExecution {
       if (!this.logProgress) return
       const p = this.progress
       const outputs = [`${this.images.length} image(s)`]
+      if (this.audios.length > 0) outputs.push(`${this.audios.length} audio(s)`)
       if (this.texts.length > 0) outputs.push(`${this.texts.length} text(s)`)
       const line = `${this.status === 'Failure' ? '🔴' : '🟢'} ${this.status.toLowerCase()} in ${(p.elapsedMs / 1000).toFixed(1)}s · ${outputs.join(' · ')}`
       if (globalThis.process?.stdout?.isTTY) process.stdout.write(`\r\x1b[2K${line}\n`)
@@ -239,8 +264,43 @@ export class ComfyExecution {
             )
          }
       }
+      for (const audio of msg.data.output?.audio ?? []) {
+         this.pendingPromises.push(
+            this.retrieveAudio(audio, promptNodeID).catch((e: unknown) => {
+               console.error(`🔴 failed to retrieve ${audio.filename}:`, e)
+               this.audioErrors.push({ audio, error: e })
+            }),
+         )
+      }
    }
    private pendingPromises: Promise<void>[] = []
+
+   /** audio retrievals that failed (their files are missing from `audios`) */
+   audioErrors: { audio: ComfyImageInfo; error: unknown }[] = []
+
+   /** audio files retrieved for this execution, in arrival order (final once `done` resolves) */
+   audios: ComfyAudioOutput[] = []
+
+   private retrieveAudio = async (info: ComfyImageInfo, promptNodeID: ComfyNodeId): Promise<void> => {
+      const response = await this.host.fetchFile('/view?' + new URLSearchParams(info).toString())
+      const bytes = new Uint8Array(await response.arrayBuffer())
+      const mime = audioMime(info.filename)
+      const sf = this.save
+      if (sf == null) {
+         this.audios.push({ nodeId: promptNodeID, filename: info.filename, mime, bytes, absPath: null })
+         return
+      }
+      const promptPrefix = this.workflow.data.apiJson?.[promptNodeID]?.inputs['filename_prefix']
+      const written = await this.encodeAndWrite({
+         bytes,
+         // never re-encoded: `save.format` is an image setting
+         sf: { ...sf, format: 'raw' },
+         filenamePrefix: typeof promptPrefix === 'string' ? promptPrefix : undefined,
+         subfolder: info.subfolder,
+         filename: info.filename,
+      })
+      this.audios.push({ nodeId: promptNodeID, filename: info.filename, mime, bytes, absPath: written.path })
+   }
 
    /** image retrievals that failed (their images are missing from `images`);
     * `image` is null for SaveImageWebsocket frames (no server-side file info exists) */

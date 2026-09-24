@@ -82,6 +82,8 @@ export type ServeExecution = {
    /** STRING outputs (PreviewAny, i.e. every llm graph). A text-only workflow has no images at
     * all, so without these its run reply is empty and the panel shows nothing */
    texts?: { nodeId: string; nodeKey: string | null; text: string }[]
+   /** audio files (SaveAudio*, PreviewAudio). absPath null = saving off, bytes the only copy */
+   audios?: { absPath: string | null; filename: string; mime: string; bytes: Uint8Array }[]
    data: { id: string; error?: unknown }
    /** live global progress (ComfyExecution has it; fakes may omit) — the /run/<module> poll reads it */
    progressGlobal?: { percent: number }
@@ -228,6 +230,12 @@ const CONTENT_TYPES: Record<string, string> = {
    '.gif': 'image/gif',
    '.mp4': 'video/mp4',
    '.webm': 'video/webm',
+   '.flac': 'audio/flac',
+   '.mp3': 'audio/mpeg',
+   '.opus': 'audio/ogg',
+   '.ogg': 'audio/ogg',
+   '.wav': 'audio/wav',
+   '.m4a': 'audio/mp4',
    '.json': 'application/json',
    '.txt': 'text/plain',
 }
@@ -286,6 +294,7 @@ const USAGE = [
    'GET  /hosts/<hostId>/ping — is that host answering right now (restart watch)',
    'GET  /hosts/<hostId>/logs — the last lines of that host console',
    'GET  /images/<promptId>/<ix> — an in-memory output (saving off), while the process lives',
+   'GET  /audio/<promptId>/<ix> — the same for an in-memory audio output',
    'GET  /outputs/<path> — generated files',
 ]
 
@@ -411,6 +420,8 @@ export class ServeApp {
                return await this.replyHostDrift(segs[1], req.url.includes('full=1'))
             if (segs[0] === 'images' && segs.length === 3 && segs[1] != null && segs[2] != null)
                return this.replyMemoryImage(`${segs[1]}/${segs[2]}`)
+            if (segs[0] === 'audio' && segs.length === 3 && segs[1] != null && segs[2] != null)
+               return this.replyMemoryImage(`audio/${segs[1]}/${segs[2]}`)
             if (segs[0] === 'outputs') return this.replyOutput(segs.slice(1))
             return json(404, { error: `no route: GET ${path}`, usage: USAGE })
          }
@@ -1070,7 +1081,7 @@ export class ServeApp {
       const hit = this.memoryImages.get(key)
       if (hit == null)
          return json(404, {
-            error: `no in-memory image '${key}' — it expired (only the last ${this.MEMORY_IMAGE_CAP} are kept) or the server restarted. Turn saving on to keep outputs.`,
+            error: `no in-memory output '${key}' — it expired (only the last ${this.MEMORY_IMAGE_CAP} are kept) or the server restarted. Turn saving on to keep outputs.`,
          })
       return { status: 200, contentType: hit.contentType, body: hit.bytes }
    }
@@ -1466,6 +1477,8 @@ export class ServeApp {
       }
 
       const produced = [`${execution.images.length} image(s)`]
+      const audios = execution.audios ?? []
+      if (audios.length > 0) produced.push(`${audios.length} audio(s)`)
       if ((execution.texts ?? []).length > 0) produced.push(`${(execution.texts ?? []).length} text(s)`)
       console.log(`[serve] 🟢 ${mod.key}/${draft} done in ${(durationMs / 1000).toFixed(1)}s · ${produced.join(' · ')}`)
 
@@ -1477,6 +1490,15 @@ export class ServeApp {
          const key = `${execution.data.id}/${ix}`
          this.rememberMemoryImage(key, img.buffer, img.filename)
          memoryKeys.set(ix, key)
+      }
+
+      // same store as the images, own key space: the audio route adds the `audio/` prefix
+      const audioKeys = new Map<number, string>()
+      for (const [ix, a] of audios.entries()) {
+         if (a.absPath != null) continue
+         const key = `${execution.data.id}/${ix}`
+         this.rememberMemoryImage(`audio/${key}`, a.bytes, a.filename)
+         audioKeys.set(ix, key)
       }
 
       // Accept: image/* → first image's bytes directly (curl -o, <img src>)
@@ -1513,6 +1535,20 @@ export class ServeApp {
                          .join('/')}`
                     : null,
             absPath: img.absPath,
+         })),
+         audios: audios.map((a, ix) => ({
+            filename: a.filename,
+            mime: a.mime,
+            url:
+               a.absPath != null
+                  ? this.outputUrl(a.absPath)
+                  : audioKeys.has(ix)
+                    ? `/audio/${(audioKeys.get(ix) ?? '')
+                         .split('/')
+                         .map((seg) => encodeURIComponent(seg))
+                         .join('/')}`
+                    : null,
+            absPath: a.absPath,
          })),
       })
    }

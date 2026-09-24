@@ -22,6 +22,9 @@ export type GeneratedImage = { filename: string; url: string | null; absPath: st
 /** a STRING output (PreviewAny). An llm graph produces these and no images at all */
 export type GeneratedText = { nodeKey: string | null; text: string }
 
+/** an audio file (SaveAudio*, PreviewAudio): the panel plays it in an <audio> player */
+export type GeneratedAudio = { filename: string; mime: string; url: string | null; absPath: string | null }
+
 export type GenerateOk = {
    ok: true
    module: string
@@ -31,6 +34,7 @@ export type GenerateOk = {
    seeds: Record<string, number>
    images: GeneratedImage[]
    texts?: GeneratedText[]
+   audios?: GeneratedAudio[]
 }
 
 async function jsonFetch<T>(url: string, init?: RequestInit): Promise<T> {

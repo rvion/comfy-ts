@@ -352,6 +352,8 @@ input[type='range'].setting-range:disabled { opacity: 0.3; }
 .gallery.view-grid { flex-direction: row; flex-wrap: wrap; align-items: flex-start; }
 .gallery.view-grid .run-card { max-width: 100%; }
 .run-card .noimg { color: var(--dim); font-style: italic; }
+.audio-cell { display: flex; flex-direction: column; gap: 4px; width: min(100%, 480px); }
+.audio-cell audio { width: 100%; }
 .run-card.running { border-color: var(--accent-dim); }
 /* what the host is on, in the node's own unit — the live signal of a text run, which has
    neither a latent frame nor an image to show */
