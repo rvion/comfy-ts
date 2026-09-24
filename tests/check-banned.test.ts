@@ -36,8 +36,12 @@ describe('banned keyword matching', () => {
 
    test('a commit message drops git comment lines before matching', () => {
       const rules = parseBannedRows('MySecretLora\n')
-      expect(scanText(rules, 'commit message', commitMessageText('feat: add mysecretlora preset\n# c\n'))).toHaveLength(1)
-      expect(scanText(rules, 'commit message', commitMessageText('feat: clean\n# mysecretlora in a comment\n'))).toEqual([])
+      expect(scanText(rules, 'commit message', commitMessageText('feat: add mysecretlora preset\n# c\n'))).toHaveLength(
+         1,
+      )
+      expect(
+         scanText(rules, 'commit message', commitMessageText('feat: clean\n# mysecretlora in a comment\n')),
+      ).toEqual([])
    })
 
    test('re: rows match as case-insensitive regex, in content and in messages', () => {
@@ -48,7 +52,9 @@ describe('banned keyword matching', () => {
 
    test('re: rows do NOT match legit prefixed names (ComfyUI-Manager)', () => {
       const rules = parseBannedRows(`${API_KEY_ROW}\n`)
-      expect(scanFile(rules, 'a.ts', 'import { x } from "ComfyUI-Manager"\nconst y = "comfyui-frontend-master"\n')).toEqual([])
+      expect(
+         scanFile(rules, 'a.ts', 'import { x } from "ComfyUI-Manager"\nconst y = "comfyui-frontend-master"\n'),
+      ).toEqual([])
    })
 
    test('an invalid re: row fails LOUDLY, naming the row', () => {

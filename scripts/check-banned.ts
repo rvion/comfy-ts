@@ -5,7 +5,14 @@
 import { spawnSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { join } from 'pathe'
-import { commitMessageText, loadBannedRules, scanFile, scanText, type BannedRule, type Hit } from 'scripts/bannedKeywords.ts'
+import {
+   commitMessageText,
+   loadBannedRules,
+   scanFile,
+   scanText,
+   type BannedRule,
+   type Hit,
+} from 'scripts/bannedKeywords.ts'
 
 const KEYWORDS_FILE = '.shipkit/private/banned-keywords.txt'
 
