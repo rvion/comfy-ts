@@ -22,7 +22,8 @@ import {
 } from 'src/cli/serve/web/api.ts'
 import { EnhancerSt } from 'src/cli/serve/web/state/EnhancerSt.ts'
 import { OmniboxSt } from 'src/cli/serve/web/state/OmniboxSt.ts'
-import { FormSt, type VarSt } from 'src/cli/serve/web/state/FormSt.ts'
+import { asLatentMode, type LatentMode } from 'src/cli/serve/web/state/latentMode.ts'
+import { FORM_TIMING, FormSt, type FormTiming, type VarSt } from 'src/cli/serve/web/state/FormSt.ts'
 import { logWebError } from 'src/cli/serve/web/logWeb.ts'
 import { asSeedForm } from 'src/cli/serve/web/state/payload.ts'
 import { readUrlSelection, resolveSelection, writeUrlSelection } from 'src/cli/serve/web/state/urlSelection.ts'
@@ -88,7 +89,8 @@ type StoredSelection = {
    /** the one-shot 60 → 200 default bump already happened for this browser */
    loraCapMigrated?: boolean
    layout?: string
-   latent?: boolean
+   /** a LatentMode; a boolean in blobs written before the corner mode */
+   latent?: boolean | string
    /** results blurred until hovered */
    blur?: boolean
    /** fit = one per row at the panel's width, grid = the slider's size, wrapping */
@@ -242,7 +244,7 @@ export class WebSt {
     * index is still loading needs a form, and dropping it was the silent failure */
    private hostChain: Promise<void> = Promise.resolve()
 
-   constructor() {
+   constructor(private formTiming: FormTiming = FORM_TIMING) {
       this.run = new RunSt()
       // a finished run reports the seed it used; the form shows it, and the autosave carries it
       // into the draft, which is also what the server continues from, so `+` keeps stepping
@@ -263,7 +265,7 @@ export class WebSt {
       this.loraCap = clampLoraCap(
          stored.loraCapMigrated !== true && stored.loraCap === LEGACY_LORA_CAP ? DEFAULT_LORA_CAP : stored.loraCap,
       )
-      this.showLatent = stored.latent ?? true
+      this.latentMode = asLatentMode(stored.latent)
       this.blurResults = stored.blur ?? false
       this.resultsView = stored.resultsView === 'grid' ? 'grid' : 'fit'
       this.resultsSize = clampResultsSize(stored.resultsSize)
@@ -274,7 +276,7 @@ export class WebSt {
       this.sizeStars = stored.sizeStars ?? {}
       this.labelWidth = clampLabelWidth(stored.labelWidth)
       this.showLogs = stored.logs ?? false
-      makeAutoObservable<WebSt, 'hostOrigin' | 'hostChain' | 'lastPostedState' | 'switches'>(this, {
+      makeAutoObservable<WebSt, 'hostOrigin' | 'hostChain' | 'lastPostedState' | 'switches' | 'formTiming'>(this, {
          run: false,
          enhancer: false,
          omnibox: false,
@@ -284,6 +286,7 @@ export class WebSt {
          hostChain: false,
          lastPostedState: false,
          switches: false,
+         formTiming: false,
       })
       // inside a host page → listen for what it asks; a plain tab never sees a message
       if (isEmbedded()) window.addEventListener('message', (e) => this.onHostMessage(e))
@@ -403,7 +406,7 @@ export class WebSt {
                loraCap: this.loraCap,
                loraCapMigrated: true,
                layout: this.layout,
-               latent: this.showLatent,
+               latent: this.latentMode,
                blur: this.blurResults,
                resultsView: this.resultsView,
                resultsSize: this.resultsSize,
@@ -527,7 +530,7 @@ export class WebSt {
          const reply = await fetchDraftValues(p)
          // a newer select owns the screen now: telling the host about this one would be a lie
          if (token !== this.selectToken) return
-         const form = new FormSt(p.module, p.draft, mod, reply.values ?? {})
+         const form = new FormSt(p.module, p.draft, mod, reply.values ?? {}, this.formTiming)
          // the host mirrors user edits on the autosave's own debounce (pinned only)
          form.onSettled = (): void => this.mirrorState()
          runInAction(() => {
@@ -803,8 +806,8 @@ export class WebSt {
    showLogs = false
    logLines: string[] = []
    logsError: string | null = null
-   /** the latent frames during a run: on by default, off when you only want the final image */
-   showLatent = true
+   /** the latent frames during a run: full in the running card, small in a corner, or none */
+   latentMode: LatentMode = 'full'
    /** results blurred until the pointer is on them: a screen someone else may see */
    blurResults = false
 
@@ -822,8 +825,8 @@ export class WebSt {
    expandedPreviews: string[] = []
    private logsTimer: ReturnType<typeof setInterval> | null = null
 
-   toggleLatent(): void {
-      this.showLatent = !this.showLatent
+   setLatentMode(v: LatentMode): void {
+      this.latentMode = v
       this.persist()
    }
 

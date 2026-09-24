@@ -45,6 +45,15 @@ afterAll(() => {
    else Reflect.deleteProperty(globalThis, 'comfyts')
 })
 
+/** polls instead of sleeping a guessed worst case: the debounce plus a sharp render */
+async function until(what: string, pred: () => boolean): Promise<void> {
+   const deadline = Date.now() + 3000
+   while (!pred()) {
+      if (Date.now() > deadline) throw new Error(`timed out waiting for: ${what}`)
+      await Bun.sleep(5)
+   }
+}
+
 describe('fsListing (pure fs layer)', () => {
    it('lists dirs first then images, alphabetical, dot files skipped, extension-filtered', () => {
       const listing = listImageDir(imagesDir, EXTS)
@@ -290,21 +299,21 @@ describe('ImagePickerSt (overlay state machine)', () => {
       // highlight the real jpg (rows: .outputs, sub, a.png, b.jpg, dog.jpg)
       runInAction(() => (ip.ix = 4))
       expect(ip.highlightedImage).toBe(join(imagesDir, 'dog.jpg'))
-      await Bun.sleep(350) // debounce ~120ms + sharp render
+      await until('dog.jpg rendered', () => st.preview.overlay?.name === 'dog.jpg' && st.preview.overlay.ansi != null)
       expect(st.preview.overlay?.name).toBe('dog.jpg')
       expect(st.preview.overlay?.ansi).not.toBeNull()
       expect(st.preview.overlay?.note).toBeNull()
 
       // a stub 'png' sharp cannot decode → note placeholder, never a crash
       runInAction(() => (ip.ix = 2))
-      await Bun.sleep(350)
+      await until('a.png noted', () => st.preview.overlay?.name === 'a.png' && st.preview.overlay.note != null)
       expect(st.preview.overlay?.name).toBe('a.png')
       expect(st.preview.overlay?.ansi).toBeNull()
       expect(st.preview.overlay?.note).not.toBeNull()
 
       // closing the overlay clears the slot (reaction fires on mode change)
       ip.cancel()
-      await Bun.sleep(250)
+      await until('overlay cleared', () => st.preview.overlay == null)
       expect(st.preview.overlay).toBeNull()
       st.dispose()
    })

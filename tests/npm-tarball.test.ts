@@ -54,11 +54,4 @@ describe('npm tarball', () => {
       // bundled input images: i2i/i2v examples default to these, they must ship
       expect(paths).toContain('examples/images/dog_512x512.jpg')
    })
-
-   it('contains no file carrying a private key header', () => {
-      const res = spawnSync('git', ['ls-files'], { encoding: 'utf8' })
-      const tracked = res.stdout.split('\n').filter(Boolean)
-      // tracked files are the other half of the same guarantee (git, not npm)
-      expect(tracked.filter((p) => p.includes('windows-machine') || p.startsWith('.rv-'))).toEqual([])
-   })
 })

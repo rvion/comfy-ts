@@ -62,6 +62,10 @@ export class VarSt {
    }
 }
 
+/** the debounces a form runs on: tests set them to a few ms rather than wait them out */
+export type FormTiming = { autosaveMs: number; previewMs: number }
+export const FORM_TIMING: FormTiming = { autosaveMs: 500, previewMs: 250 }
+
 export class FormSt {
    vars: VarSt[]
    /** the module's host id — lora hover data routes are host-scoped */
@@ -92,6 +96,7 @@ export class FormSt {
       public readonly draft: string,
       mod: ModuleDescription,
       values: Record<string, unknown>,
+      timing: FormTiming = FORM_TIMING,
    ) {
       this.host = mod.host
       this.vars = Object.entries(mod.vars).map(
@@ -126,7 +131,7 @@ export class FormSt {
                void this.save()
                this.onSettled?.()
             },
-            { delay: 500 },
+            { delay: timing.autosaveMs },
          ),
       )
       // live previews: the same values json, asked sooner than the save (they are what you
@@ -137,7 +142,7 @@ export class FormSt {
             reaction(
                () => JSON.stringify(this.valuesJSON()),
                () => void this.refreshPreviews(),
-               { delay: 250, fireImmediately: true },
+               { delay: timing.previewMs, fireImmediately: true },
             ),
          )
    }

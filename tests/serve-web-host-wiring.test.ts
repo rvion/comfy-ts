@@ -44,6 +44,8 @@ const MODULES: ModuleDescription[] = [
 ]
 
 const HOST_ORIGIN = 'http://host.test'
+// the real debounces, shrunk: the order of events is what is under test, never the 500ms
+const TIMING = { autosaveMs: 20, previewMs: 10 }
 const GLOBALS = ['window', 'document', 'localStorage', 'fetch'] as const
 const saved = new Map<string, unknown>(GLOBALS.map((k) => [k, Reflect.get(globalThis, k)]))
 const live: WebSt[] = []
@@ -150,7 +152,7 @@ function boot(p: { search: string; stored?: Record<string, unknown>; index?: 'ok
          return new Response('{"error":"nope"}', { status: 404 })
       },
    })
-   const st = new WebSt()
+   const st = new WebSt(TIMING)
    live.push(st)
    return {
       st,
@@ -229,8 +231,8 @@ describe('a host message during the boot', () => {
 const replies = (posted: Posted[]): Posted[] =>
    posted.filter((m) => (m.comfyTs === 'state' || m.comfyTs === 'error') && m.request != null)
 
-/** long enough for the 500ms autosave debounce to have fired, so a late extra reply shows */
-const settle = (): Promise<void> => new Promise((r) => setTimeout(r, 700))
+/** long enough for the autosave debounce to have fired, so a late extra reply shows */
+const settle = (): Promise<void> => new Promise((r) => setTimeout(r, TIMING.autosaveMs * 3))
 
 async function ready(search = '?workflow=wf&draft=default'): Promise<ReturnType<typeof boot>> {
    const t = boot({ search })

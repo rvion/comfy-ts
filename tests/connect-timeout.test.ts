@@ -57,14 +57,14 @@ describe('connect() against an unreachable host fails loud instead of hanging', 
       if (addr == null || typeof addr === 'string') throw new Error('no port')
       const host = comfy.host({ id: 'silent-host', host: '127.0.0.1', port: addr.port })
       const t0 = Date.now()
-      const err = await host.connect({ timeoutMs: 1500 }).then(
+      const err = await host.connect({ timeoutMs: 300 }).then(
          () => null,
          (e: unknown) => e,
       )
       const elapsed = Date.now() - t0
       expect(err).toBeInstanceOf(Error)
-      expect(String(err)).toContain('1500')
-      expect(elapsed, 'the deadline was not honoured for a silent server').toBeGreaterThan(1200)
+      expect(String(err)).toContain('300ms')
+      expect(elapsed, 'the deadline was not honoured for a silent server').toBeGreaterThan(250)
       host.disconnect()
       server.close()
    })
