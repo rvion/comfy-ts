@@ -89,6 +89,8 @@ type StoredSelection = {
    latent?: boolean
    /** results blurred until hovered */
    blur?: boolean
+   /** live previews folded shut, as `module/name` */
+   foldedPreviews?: string[]
    logs?: boolean
    /** module key → the var names in the order you dragged them into */
    varOrder?: Record<string, string[]>
@@ -240,6 +242,9 @@ export class WebSt {
       )
       this.showLatent = stored.latent ?? true
       this.blurResults = stored.blur ?? false
+      this.foldedPreviews = Array.isArray(stored.foldedPreviews)
+         ? stored.foldedPreviews.filter((x): x is string => typeof x === 'string')
+         : []
       this.varOrder = stored.varOrder ?? {}
       this.sizeStars = stored.sizeStars ?? {}
       this.labelWidth = clampLabelWidth(stored.labelWidth)
@@ -369,6 +374,7 @@ export class WebSt {
                layout: this.layout,
                latent: this.showLatent,
                blur: this.blurResults,
+               foldedPreviews: this.foldedPreviews,
                logs: this.showLogs,
                varOrder: this.varOrder,
                sizeStars: this.sizeStars,
@@ -769,10 +775,19 @@ export class WebSt {
    showLatent = true
    /** results blurred until the pointer is on them: a screen someone else may see */
    blurResults = false
+   /** live previews folded shut, as `module/name` */
+   foldedPreviews: string[] = []
    private logsTimer: ReturnType<typeof setInterval> | null = null
 
    toggleLatent(): void {
       this.showLatent = !this.showLatent
+      this.persist()
+   }
+
+   togglePreviewFold(key: string): void {
+      this.foldedPreviews = this.foldedPreviews.includes(key)
+         ? this.foldedPreviews.filter((k) => k !== key)
+         : [...this.foldedPreviews, key]
       this.persist()
    }
 

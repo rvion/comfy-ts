@@ -33,6 +33,10 @@ export type DefineWorkflowSpec<ID extends string, V extends VarsSpec> = {
    /** builds the graph from the CURRENT var values; re-executed on every run().
     * may be async (e.g. image uploads through the wf param) */
    build: (b: SdkForHost<ID>['Builder'], vars: VarValues<V>, wf: ComfyWorkflow<ID>) => void | Promise<void>
+   /** named texts computed from the CURRENT var values, the same `vars` build receives, shown
+    * live while the vars are edited (the serve panel: a foldable block under generate). Use the
+    * function build uses, so a preview is what the run sends, never a paraphrase of it */
+   previews?: Record<string, (vars: VarValues<V>) => string>
 }
 
 /** type predicate (not a cast): a VarsSpec is a plain record, never callable */
@@ -73,6 +77,30 @@ export class DefinedWorkflow<ID extends string = string, V extends VarsSpec = Va
                throw new Error(
                   `workflow '${spec.id ?? '?'}': var '${key}' is activeWhen '${other}', which is not one of its vars (${names.join(', ')})`,
                )
+   }
+
+   /** every preview for the current var values. A preview that throws, or vars that cannot be
+    * read yet (an image var still empty), give a line saying so instead of failing the others */
+   computePreviews(): Record<string, string> {
+      const previews = this.spec.previews ?? {}
+      const names = Object.keys(previews)
+      if (names.length === 0) return {}
+      let values: VarValues<V>
+      try {
+         values = varValues(this.vars)
+      } catch (e) {
+         const why = `unavailable: ${e instanceof Error ? e.message : String(e)}`
+         return Object.fromEntries(names.map((n) => [n, why]))
+      }
+      const out: Record<string, string> = {}
+      for (const [name, fn] of Object.entries(previews)) {
+         try {
+            out[name] = fn(values)
+         } catch (e) {
+            out[name] = `🔴 preview '${name}' failed: ${e instanceof Error ? e.message : String(e)}`
+         }
+      }
+      return out
    }
 
    /** [name, var] pairs, for drivers that enumerate the knobs */

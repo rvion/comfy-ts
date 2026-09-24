@@ -7,6 +7,8 @@ export type ModuleDescription = {
    host: string
    drafts: string[]
    vars: Record<string, VarDescriptor>
+   /** names of the workflow's live previews (POST /preview/<module>) */
+   previews?: string[]
 }
 
 export type IndexPayload = {
@@ -54,6 +56,20 @@ export function postGenerate(p: {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(p.payload),
+   })
+}
+
+/** the workflow's previews for these values: nothing runs, nothing is written */
+export function fetchPreviews(p: {
+   module: string
+   values: Record<string, unknown>
+   signal?: AbortSignal
+}): Promise<{ previews: Record<string, string> }> {
+   return jsonFetch(`/preview/${encodeURIComponent(p.module)}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(p.values),
+      signal: p.signal,
    })
 }
 

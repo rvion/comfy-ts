@@ -37,6 +37,31 @@ function useSelectAllInFields(): void {
 }
 
 /** the preview panel's own controls, on top of it: where it sits, what shows while it runs */
+/** the workflow's live previews (defineWorkflow({ previews })): text computed from the values
+ * on screen, refreshed as you edit, each block foldable and remembered folded */
+const LivePreviews = observer(function LivePreviews(p: { st: WebSt }) {
+   const form = p.st.form
+   const names = form == null ? [] : (p.st.moduleByKey(form.moduleKey)?.previews ?? [])
+   if (form == null || names.length === 0) return null
+   return (
+      <div className="live-previews">
+         {form.previewError != null ? <div className="error">🔴 preview: {form.previewError}</div> : null}
+         {names.map((name) => {
+            const key = `${form.moduleKey}/${name}`
+            const folded = p.st.foldedPreviews.includes(key)
+            return (
+               <div key={name} className="live-preview">
+                  <button type="button" className="live-preview-head" onClick={() => p.st.togglePreviewFold(key)}>
+                     <span className="live-preview-caret">{folded ? '▸' : '▾'}</span> {name}
+                  </button>
+                  {folded ? null : <pre className="live-preview-text">{form.previews[name] ?? '…'}</pre>}
+               </div>
+            )
+         })}
+      </div>
+   )
+})
+
 const ResultsHead = observer(function ResultsHead(p: { st: WebSt }) {
    return (
       <div className="results-head">
@@ -207,6 +232,7 @@ export const App = observer(function App(p: { st: WebSt }) {
                {p.st.run.error != null ? <span className="error">🔴 {p.st.run.error}</span> : null}
             </div>
          ) : null}
+         <LivePreviews st={p.st} />
          <Gallery st={p.st} compact={layout === 'pinned'} />
       </div>
    )

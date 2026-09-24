@@ -314,7 +314,6 @@ button.accent:hover { background: var(--accent-dim); color: #fff; }
 .run-card.running { border-color: var(--accent-dim); }
 /* what the host is on, in the node's own unit — the live signal of a text run, which has
    neither a latent frame nor an image to show */
-.run-node { color: var(--accent); font-size: 12px; margin-bottom: 6px; font-variant-numeric: tabular-nums; }
 
 /* a STRING output: the answer is prose, so it wraps and selects like prose. Monospace because
    an expanded prompt is copied into another field verbatim */
@@ -338,6 +337,24 @@ button.accent:hover { background: var(--accent-dim); color: #fff; }
 }
 .run-live-body.dim { color: var(--dim); }
 .progress-track { height: 6px; background: var(--panel-2); border-radius: 3px; overflow: hidden; margin-bottom: 8px; }
+/* live previews under generate: a caret and a name, then the text, monospace so a prompt's
+   commas and line breaks read as sent */
+.live-previews { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+.live-preview-head { background: none; border: 0; padding: 0; color: var(--dim); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; }
+.live-preview-head:hover { color: var(--text); }
+.live-preview-caret { display: inline-block; width: 1em; }
+.live-preview-text {
+   margin: 3px 0 0; padding: 7px 9px; background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+   white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; line-height: 1.45; max-height: 220px; overflow-y: auto;
+   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+/* the running image's frame, reserved at its final ratio: the latent fills it, the bar rides its
+   foot, so a run never changes the page's height */
+.run-frame { position: relative; max-width: 100%; background: var(--bg); border-radius: 6px; overflow: hidden; }
+.run-frame .img-button { display: block; width: 100%; height: 100%; padding: 0; border: 0; background: none; }
+.run-frame img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.progress-track.over { position: absolute; left: 6px; right: 6px; bottom: 6px; margin: 0; background: rgba(0, 0, 0, 0.45); }
+.run-meta-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .progress-fill { height: 100%; background: var(--accent); border-radius: 3px; transition: width 0.4s ease; }
 
 .lora-chip {
@@ -716,6 +733,8 @@ button.head-icon.danger:hover { color: var(--red); border-color: var(--red); }
 .detail-examples img { width: 96px; height: 96px; object-fit: cover; border-radius: 6px; }
 
 button.warn-action { color: var(--amber); border-color: var(--amber); }
+/* destructive but routine (clear queue): neutral at rest, it only turns red under the pointer */
+button.quiet-danger:hover { color: var(--red); border-color: var(--red); }
 button.warn-action:hover { background: var(--panel); }
 .lora-warn { color: var(--amber); display: inline-flex; margin-left: 4px; vertical-align: -0.1em; }
 /* an anchor that must read as a button (it opens the host's own page, so it IS a link) */

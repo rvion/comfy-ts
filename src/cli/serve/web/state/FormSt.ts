@@ -3,7 +3,7 @@
 // reaction is owned here). DRAFTS ARE LIVE (the TUI model): edits autosave
 // through PUT /drafts, generate posts {} — the draft is the one source of truth
 import { makeAutoObservable, observableRef, reaction, runInAction, type IReactionDisposer } from 'mobx'
-import { saveDraft, type ModuleDescription } from 'src/cli/serve/web/api.ts'
+import { fetchPreviews, saveDraft, type ModuleDescription } from 'src/cli/serve/web/api.ts'
 import type { VarDescriptor } from 'src/cli/serve/describeVar.ts'
 import { normalizeInitial, payloadSnapshot } from 'src/cli/serve/web/state/payload.ts'
 import {
@@ -82,6 +82,10 @@ export class FormSt {
    /** called on the autosave debounce, right after the save is queued: the embedding host
     * mirrors the form from it (WebSt), one call per settled burst of edits, never per key */
    onSettled: (() => void) | null = null
+   /** the workflow's live previews for the values on screen, name → text */
+   previews: Record<string, string> = {}
+   previewError: string | null = null
+   private previewAbort: AbortController | null = null
 
    constructor(
       public readonly moduleKey: string,
@@ -98,18 +102,22 @@ export class FormSt {
       // next save() must actually send, otherwise the server keeps building the stale record
       this.lastSaved = JSON.stringify(Object.fromEntries(this.vars.map((v) => [v.name, values[v.name]])))
       this.lastQueued = this.lastSaved
-      makeAutoObservable<FormSt, 'disposers' | 'saveChain' | 'lastSaved' | 'lastQueued' | 'queueSeq'>(this, {
-         vars: false,
-         moduleKey: false,
-         draft: false,
-         host: false,
-         disposers: false,
-         saveChain: false,
-         lastSaved: false,
-         lastQueued: false,
-         queueSeq: false,
-         onSettled: false,
-      })
+      makeAutoObservable<FormSt, 'disposers' | 'saveChain' | 'lastSaved' | 'lastQueued' | 'queueSeq' | 'previewAbort'>(
+         this,
+         {
+            vars: false,
+            moduleKey: false,
+            draft: false,
+            host: false,
+            disposers: false,
+            saveChain: false,
+            lastSaved: false,
+            lastQueued: false,
+            queueSeq: false,
+            onSettled: false,
+            previewAbort: false,
+         },
+      )
       // the persistence idiom: the values json is change-detector AND payload
       this.disposers.push(
          reaction(
@@ -121,6 +129,35 @@ export class FormSt {
             { delay: 500 },
          ),
       )
+      // live previews: the same values json, asked sooner than the save (they are what you
+      // watch while typing), the older request cancelled so a slow reply never lands last
+      const previewNames = mod.previews ?? []
+      if (previewNames.length > 0)
+         this.disposers.push(
+            reaction(
+               () => JSON.stringify(this.valuesJSON()),
+               () => void this.refreshPreviews(),
+               { delay: 250, fireImmediately: true },
+            ),
+         )
+   }
+
+   async refreshPreviews(): Promise<void> {
+      this.previewAbort?.abort()
+      const abort = new AbortController()
+      this.previewAbort = abort
+      try {
+         const reply = await fetchPreviews({ module: this.moduleKey, values: this.valuesJSON(), signal: abort.signal })
+         runInAction(() => {
+            this.previews = reply.previews
+            this.previewError = null
+         })
+      } catch (e) {
+         if (abort.signal.aborted) return
+         runInAction(() => {
+            this.previewError = e instanceof Error ? e.message : String(e)
+         })
+      }
    }
 
    /** stop the autosave. `flush: false` is the DELETE path: flushing there would write the
@@ -128,6 +165,7 @@ export class FormSt {
    dispose(p: { flush?: boolean } = {}): void {
       for (const d of this.disposers) d()
       this.disposers = []
+      this.previewAbort?.abort()
       if (p.flush === false) return
       // a draft switch inside the debounce window must not lose the edit. Compared against
       // lastQueued, like save() itself: lastSaved lags behind an in-flight write, so a revert

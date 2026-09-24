@@ -258,6 +258,7 @@ const USAGE = [
    'GET  /drafts/<module>/<draft> — one draft with its stored values',
    'POST /generate/<module>/<draft> with { ...vars } — run, blocking',
    'POST /generate/<draft> — unqualified, when unambiguous',
+   'POST /preview/<module> with { ...draft values } — the workflow previews for those values, nothing is run',
    'PUT  /drafts/<module>/<draft> with { ...vars } — save (or duplicate to a new name) a draft',
    'DELETE /drafts/<module>/<draft> — delete that draft file',
    'GET  /run/<module> — live run status · /run/<module>/preview — latent preview bytes',
@@ -405,6 +406,8 @@ export class ServeApp {
             if ('error' in target) return json(target.status, { error: target.error })
             return await this.generate(target.mod, target.draft, req)
          }
+         if (req.method === 'POST' && segs[0] === 'preview' && segs.length === 2 && segs[1] != null)
+            return await this.replyPreview(segs[1], req)
          if (req.method === 'POST' && segs[0] === 'upload' && segs.length === 1) return this.replyUpload(req)
          if (req.method === 'PUT' && segs[0] === 'drafts' && segs.length === 3 && segs[1] != null && segs[2] != null)
             return await this.replySaveDraft(segs[1], segs[2], req)
@@ -576,6 +579,8 @@ export class ServeApp {
             (d) => `POST /generate/${encodeURIComponent(mod.key)}/${encodeURIComponent(d)}`,
          ),
          vars,
+         // the names of the workflow's live previews: the panel asks POST /preview/<module>
+         previews: Object.keys(mod.dw.spec.previews ?? {}),
       }
    }
 
@@ -598,6 +603,34 @@ export class ServeApp {
             error: `module '${modKey}' has no draft '${draft}' — drafts: ${this.draftsFor(mod).join(', ')}`,
          })
       return json(200, { ...this.describeModule(mod), draft, values: this.draftValues(mod, draft) })
+   }
+
+   /** the workflow's previews for the values the panel holds right now. The vars are SHARED
+    * state (a run reads them), so this runs under the module lock: load the values, compute,
+    * put the old values back. Nothing is queued, nothing is written */
+   private async replyPreview(key: string, req: ServeRequest): Promise<ServeReply> {
+      const mod = this.moduleByKey(key)
+      if (mod == null) return json(404, { error: `unknown workflow '${key}'` })
+      let values: unknown
+      try {
+         values = JSON.parse(req.body ?? '{}')
+      } catch (e) {
+         return json(400, { error: `body is not valid json: ${extractErrorMessage(e)}` })
+      }
+      if (values == null || typeof values !== 'object' || Array.isArray(values))
+         return json(400, { error: 'expects { "<var>": value, … }' })
+      const incoming = values as Record<string, unknown>
+      const previews = await this.exclusive(mod.key, () => {
+         const saved = mod.dw.entries().map(([k, v]) => [k, v.toJSON()] as const)
+         try {
+            for (const [k, v] of mod.dw.entries()) if (k in incoming) v.loadJSON(incoming[k])
+            return Promise.resolve(mod.dw.computePreviews())
+         } finally {
+            const byName = new Map(mod.dw.entries())
+            for (const [k, json] of saved) byName.get(k)?.loadJSON(json)
+         }
+      })
+      return json(200, { previews })
    }
 
    /** stored values (toJSON shapes); 'default' without a file falls back to descriptor defaults */
