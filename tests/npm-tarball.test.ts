@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
-import { spawnSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
+import { bunPackList } from 'tests/packList.ts'
 
 /**
  * repro-turned-guard: `files` in package.json is a WHITELIST, and a whitelisted
@@ -8,20 +8,12 @@ import { existsSync } from 'node:fs'
  * packed src/__private__ — an OpenSSH PRIVATE KEY included — into the 0.3.0
  * tarball, caught by hand seconds before publishing. The hazards now live in
  * .shipkit/private/ (outside every whitelisted dir); this test is what keeps the
- * guarantee mechanical instead of remembered.
+ * guarantee mechanical instead of remembered. The list comes from bun's packer
+ * (0.04s against npm's 2.2s); npm-tarball-parity.test.ts pins that both agree.
  */
 describe('npm tarball', () => {
-   const packed = (): string[] => {
-      const res = spawnSync('npm', ['pack', '--dry-run', '--json'], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })
-      if (res.status !== 0) throw new Error(`npm pack failed: ${res.stderr}`)
-      const parsed: { files?: { path: string }[] }[] = JSON.parse(res.stdout)
-      const files = parsed[0]?.files
-      if (files == null) throw new Error('npm pack --json returned no file list')
-      return files.map((f) => f.path)
-   }
-
    it('ships dist + src + README + LICENSE, and nothing private', () => {
-      const paths = packed()
+      const paths = bunPackList()
       expect(paths.length).toBeGreaterThan(100)
 
       // hazard classes, each one a real thing that lives in this repo

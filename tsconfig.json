@@ -16,6 +16,7 @@
       "paths": {
          "src/*": ["./src/*"],
          "scripts/*": ["./scripts/*"],
+         "tests/*": ["./tests/*"],
          "examples/*": ["./examples/*"],
          // lets the generated .comfy-ts/hosts/*/sdk.d.ts import 'comfy-ts'
          // in-repo exactly like consumers do from node_modules
