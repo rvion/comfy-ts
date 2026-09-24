@@ -7,7 +7,8 @@ import { Gallery } from 'src/cli/serve/web/components/Gallery.tsx'
 import { Icon } from 'src/cli/serve/web/components/Icon.tsx'
 import { Omnibox, useOmniboxShortcut } from 'src/cli/serve/web/components/Omnibox.tsx'
 import { TooltipLayer } from 'src/cli/serve/web/components/TooltipLayer.tsx'
-import { GenerateButton, MOD_KEY, VarsForm } from 'src/cli/serve/web/components/VarsForm.tsx'
+import { MOD_KEY } from 'src/cli/serve/web/components/modKey.ts'
+import { GenerateButton, VarsForm } from 'src/cli/serve/web/components/VarsForm.tsx'
 import { LAYOUTS, type WebSt } from 'src/cli/serve/web/state/WebSt.ts'
 
 /** ⌘A / ctrl+A selects the field you are in. The browser does this on its own until something

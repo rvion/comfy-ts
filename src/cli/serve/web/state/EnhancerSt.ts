@@ -71,6 +71,26 @@ export function nextPresetName(base: string, taken: readonly string[]): string {
    return `${base} ${taken.length + 1}`
 }
 
+/** the master prompt a workflow opens on when none was picked for it yet: the one whose name
+ * shares the most words with the module (`10-anima-t2i` → `refine-anima-prompt`), the full
+ * name before a `-basic` variant. null when no name shares a word */
+export function guessPreset(module: string, names: readonly string[]): string | null {
+   const words = (x: string): string[] =>
+      x
+         .toLowerCase()
+         .split(/[^a-z0-9]+/)
+         .filter((w) => w.length > 2 && !/^\d+$/.test(w))
+   const mod = new Set(words(module))
+   let best: { name: string; score: number } | null = null
+   for (const name of names) {
+      const score = words(name).filter((w) => mod.has(w)).length
+      if (score === 0) continue
+      if (best == null || score > best.score || (score === best.score && name.length < best.name.length))
+         best = { name, score }
+   }
+   return best?.name ?? null
+}
+
 function readStored(): EnhancerSettings {
    try {
       return normalizeSettings(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}'))
@@ -101,6 +121,10 @@ export class EnhancerSt {
    presetsError = ''
    saveState: SaveState = 'saved'
    saveError = ''
+
+   /** per config name: does its endpoint answer the model list right now */
+   configStatus = new Map<string, 'checking' | 'up' | 'down'>()
+   configStatusError = new Map<string, string>()
 
    models: LlmModel[] = []
    modelsState: 'idle' | 'loading' | 'error' = 'idle'
@@ -249,6 +273,7 @@ export class EnhancerSt {
             if (!this.configs.some((c) => c.name === this.configName)) this.configName = this.configs[0]?.name ?? ''
             this.lastSavedConfig = JSON.stringify(this.configEntry)
          })
+         void this.probeConfigs()
       } catch (e) {
          runInAction(() => {
             this.configsState = 'error'
@@ -279,6 +304,38 @@ export class EnhancerSt {
       }
    }
 
+   /** ask every config's endpoint for its model list, in parallel: the tabs show which ones
+    * answer, and the selected one's list fills the model picker without a click */
+   async probeConfigs(): Promise<void> {
+      const entries = this.configs.map((c) => ({ name: c.name, config: c.config }))
+      await Promise.all(
+         entries.map(async (c) => {
+            runInAction(() => this.configStatus.set(c.name, 'checking'))
+            const endpoint = {
+               provider: c.config.provider,
+               baseUrl: c.config.baseUrl,
+               key: this.keyByProvider[c.config.provider] ?? '',
+            }
+            try {
+               const models = await fetchModels(endpoint)
+               runInAction(() => {
+                  this.configStatus.set(c.name, 'up')
+                  this.configStatusError.delete(c.name)
+                  if (c.name === this.configEntry?.name && this.models.length === 0) {
+                     this.models = models
+                     this.modelsState = 'idle'
+                  }
+               })
+            } catch (e) {
+               runInAction(() => {
+                  this.configStatus.set(c.name, 'down')
+                  this.configStatusError.set(c.name, e instanceof Error ? e.message : String(e))
+               })
+            }
+         }),
+      )
+   }
+
    selectConfig(name: string): void {
       if (!this.configs.some((c) => c.name === name)) return
       this.configName = name
@@ -286,6 +343,7 @@ export class EnhancerSt {
       // the loaded list belongs to the other config's endpoint
       this.clearModels()
       this.persist()
+      if (this.configStatus.get(name) === 'up') void this.loadModels()
    }
 
    /** create (or duplicate): a new FILE, saved immediately so it exists on disk */
@@ -530,9 +588,22 @@ export class EnhancerSt {
       this.phase = 'idle'
       const remembered = this.presetByModule[p.module]
       if (remembered != null) this.presetName = remembered
-      if (this.presets.length === 0) void this.loadPresets()
+      if (this.presets.length === 0) void this.loadPresets().then(() => this.guessFor(p.module))
+      else this.guessFor(p.module)
       // re-read every open: a config edited in another window or by hand is picked up
       void this.loadConfigs()
+   }
+
+   /** no preset picked for this workflow yet: take the one its name points at */
+   private guessFor(module: string): void {
+      if (this.presetByModule[module] != null) return
+      const guess = guessPreset(
+         module,
+         this.presets.map((x) => x.name),
+      )
+      if (guess == null) return
+      this.presetName = guess
+      this.lastSaved = JSON.stringify(this.preset)
    }
 
    close(): void {
@@ -562,11 +633,15 @@ export class EnhancerSt {
          runInAction(() => {
             this.models = models
             this.modelsState = 'idle'
+            const name = this.configEntry?.name
+            if (name != null) this.configStatus.set(name, 'up')
          })
       } catch (e) {
          runInAction(() => {
             this.modelsState = 'error'
             this.modelsError = e instanceof Error ? e.message : String(e)
+            const name = this.configEntry?.name
+            if (name != null) this.configStatus.set(name, 'down')
          })
       }
    }

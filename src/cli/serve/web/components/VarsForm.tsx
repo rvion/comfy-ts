@@ -2,6 +2,7 @@
 // web ui — architecture item 12) + the sticky run bar
 import { observer, useLocalObservable } from 'mobx-react-lite'
 import { useEffect, useRef, type ReactNode } from 'react'
+import { MOD_KEY } from 'src/cli/serve/web/components/modKey.ts'
 import { jumpTargets, SHORTCUT_KEYS, shortcutOf } from 'src/cli/serve/web/state/shortcuts.ts'
 import {
    ChoiceControl,
@@ -195,9 +196,6 @@ function LabelResizer(p: { st: WebSt }): ReactNode {
       />
    )
 }
-
-/** the modifier the shortcuts use on THIS machine, as a key cap shows it */
-export const MOD_KEY = /mac|iphone|ipad/i.test(navigator.userAgent) ? '⌘' : 'Ctrl+'
 
 /** `new`, `new 2`, … the first name no draft of this workflow has */
 function freeDraftName(drafts: readonly string[]): string {

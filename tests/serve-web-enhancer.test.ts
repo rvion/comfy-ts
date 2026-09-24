@@ -10,7 +10,7 @@ import {
    ThinkSplitter,
    type Endpoint,
 } from 'src/cli/serve/web/llm.ts'
-import { nextPresetName, normalizeSettings } from 'src/cli/serve/web/state/EnhancerSt.ts'
+import { guessPreset, nextPresetName, normalizeSettings } from 'src/cli/serve/web/state/EnhancerSt.ts'
 import { normalizeLlmConfig, withProvider } from 'src/cli/serve/llmConfigShape.ts'
 
 /** a fake llm: SSE chunks split at arbitrary boundaries, like a real socket delivers them */
@@ -321,5 +321,18 @@ describe('llm config shape (a hand-editable file)', () => {
       expect(cloud.baseUrl).toBe('https://openrouter.ai/api/v1')
       expect(cloud.model).toBe('anthropic/claude-sonnet-5')
       expect(withProvider(local, 'openai')).toBe(local)
+   })
+})
+
+describe('the master prompt a workflow opens on', () => {
+   const names = ['basic-generic', 'refine-anima-prompt', 'refine-krea2-prompt-basic', 'refine-krea2-prompt']
+   it('the one whose name shares a word with the module, the full one before a variant', () => {
+      expect(guessPreset('10-anima-t2i', names)).toBe('refine-anima-prompt')
+      expect(guessPreset('04-krea2-turbo-t2i', names)).toBe('refine-krea2-prompt')
+   })
+
+   it('none when no name shares a word: numbers and short words never count', () => {
+      expect(guessPreset('08-qwen-image-21-t2i', names)).toBeNull()
+      expect(guessPreset('01-txt2img', [])).toBeNull()
    })
 })

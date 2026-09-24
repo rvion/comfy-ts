@@ -1,8 +1,11 @@
-// ✨ on a prompt row → the refine modal: openrouter key + thinking model +
-// a library of named master prompts. Nothing touches the var until APPLY.
+// ✨ on a prompt row → the refine modal: the LLM configs and the master prompts as two lists of
+// vertical tabs on the left, the job (yours → rewrite) first on the right, then the selected
+// LLM's settings and master prompt text. Nothing touches the var until APPLY.
 import { Icon } from 'src/cli/serve/web/components/Icon.tsx'
 import { observer } from 'mobx-react-lite'
-import { useEffect } from 'react'
+import { useEffect, type ReactNode } from 'react'
+import { MenuButton, MenuItem } from 'src/cli/serve/web/components/MenuButton.tsx'
+import { MOD_KEY } from 'src/cli/serve/web/components/modKey.ts'
 import type { ProviderId, ReasoningEffort } from 'src/cli/serve/web/llm.ts'
 import { PROVIDERS, type EnhancerSt, type SaveState } from 'src/cli/serve/web/state/EnhancerSt.ts'
 import type { VarSt } from 'src/cli/serve/web/state/FormSt.ts'
@@ -22,15 +25,19 @@ const BASE_PLACEHOLDER: Record<ProviderId, string> = {
    openai: 'http://localhost:8080/v1',
 }
 
-/** one bar for a library of named files (LLM configs, master prompts): pick one, new,
- * duplicate, rename, delete, and where its autosave stands */
-const LibraryBar = observer(function LibraryBar(p: {
+/** one library of named files (LLM configs, master prompts) as VERTICAL TABS: click a tab to
+ * select it, its ⋯ holds duplicate / rename / delete, `+ new` closes the list. On a narrow
+ * screen the same list is a dropdown (css swaps them) */
+const TabList = observer(function TabList(p: {
+   title: string
    names: string[]
    selected: string
    kind: string
    newName: string
    save: SaveState
    saveError: string
+   /** a dot before the name (the LLM's up/down), absent = none */
+   status?: (name: string) => { cls: string; tip: string } | null
    onSelect(name: string): void
    onCreate(name: string): void
    onDuplicate(): void
@@ -48,63 +55,172 @@ const LibraryBar = observer(function LibraryBar(p: {
    const remove = (): void => {
       if (window.confirm(`delete ${p.kind} '${p.selected}'? its file is removed.`)) p.onDelete()
    }
+   const dot = (name: string): ReactNode => {
+      const st = p.status?.(name) ?? null
+      return st == null ? null : <span className={`enh-dot ${st.cls}`} data-tip={st.tip} />
+   }
    return (
-      <div className="enh-row">
-         <select value={p.selected} onChange={(ev) => p.onSelect(ev.target.value)} style={{ flex: 1 }}>
+      <div className="enh-tabs">
+         <div className="enh-tabs-title">
+            {p.title}
+            {p.save === 'saving' ? <span className="enh-save">saving…</span> : null}
+            {p.save === 'error' ? (
+               <span className="enh-save error" data-tip={p.saveError}>
+                  🔴 not saved
+               </span>
+            ) : null}
+         </div>
+         <select className="enh-tab-select" value={p.selected} onChange={(ev) => p.onSelect(ev.target.value)}>
             {p.names.map((n) => (
                <option key={n} value={n}>
                   {n}
                </option>
             ))}
          </select>
-         <button type="button" onClick={create}>
-            new
-         </button>
-         <button type="button" onClick={() => p.onDuplicate()}>
-            duplicate
-         </button>
-         <button type="button" onClick={rename}>
-            rename
-         </button>
-         <button type="button" onClick={remove} data-tip={`delete this ${p.kind} file`}>
-            <Icon name="close" />
-         </button>
-         <span className="hint">
-            {p.save === 'saving' ? 'saving…' : null}
-            {p.save === 'saved' ? 'autosaved to disk' : null}
-            {p.save === 'error' ? `🔴 save failed: ${p.saveError}` : null}
-         </span>
+         <div className="enh-tab-list" role="tablist">
+            {p.names.map((n) => (
+               <div key={n} className={n === p.selected ? 'enh-tab sel' : 'enh-tab'}>
+                  <button type="button" role="tab" aria-selected={n === p.selected} onClick={() => p.onSelect(n)}>
+                     {dot(n)}
+                     <span className="enh-tab-name">{n}</span>
+                  </button>
+                  {n === p.selected ? (
+                     <MenuButton tip={`${p.kind}: duplicate, rename, delete`}>
+                        {(close) => (
+                           <>
+                              <MenuItem
+                                 label="duplicate"
+                                 onClick={() => {
+                                    close()
+                                    p.onDuplicate()
+                                 }}
+                              />
+                              <MenuItem
+                                 label="rename"
+                                 onClick={() => {
+                                    close()
+                                    rename()
+                                 }}
+                              />
+                              <MenuItem
+                                 label="delete"
+                                 onClick={() => {
+                                    close()
+                                    remove()
+                                 }}
+                              />
+                           </>
+                        )}
+                     </MenuButton>
+                  ) : null}
+               </div>
+            ))}
+            <button type="button" className="enh-tab-new" onClick={create}>
+               <Icon name="plus" /> new {p.kind}
+            </button>
+         </div>
       </div>
    )
 })
 
-const Settings = observer(function Settings(p: { e: EnhancerSt }) {
-   const models = p.e.visibleModels
-   const local = p.e.provider !== 'openrouter'
-   const entry = p.e.configEntry
+const Side = observer(function Side(p: { e: EnhancerSt }) {
+   const e = p.e
+   const entry = e.configEntry
+   const preset = e.preset
    return (
-      <div>
-         <div className="section-title">
-            llm · {entry == null ? 'no config yet, any edit creates one' : `.comfy-ts/llm-configs/${entry.name}.json`}
-         </div>
-         {entry == null ? null : (
-            <LibraryBar
-               names={p.e.configs.map((c) => c.name)}
+      <nav className="enh-side">
+         {entry == null ? (
+            <div className="enh-tabs">
+               <div className="enh-tabs-title">llm</div>
+               <div className="enh-empty">no llm config yet: set one up on the right, it is saved as you type</div>
+            </div>
+         ) : (
+            <TabList
+               title="llm"
+               names={e.configs.map((c) => c.name)}
                selected={entry.name}
-               kind="llm config"
+               kind="llm"
                newName="my-llm"
-               save={p.e.configSaveState}
-               saveError={p.e.configSaveError}
-               onSelect={(n) => p.e.selectConfig(n)}
-               onCreate={(n) => p.e.addConfig(n)}
-               onDuplicate={() => p.e.duplicateConfig()}
-               onRename={(n) => void p.e.renameConfig(n)}
-               onDelete={() => void p.e.deleteConfig()}
+               save={e.configSaveState}
+               saveError={e.configSaveError}
+               status={(name) => {
+                  const st = e.configStatus.get(name)
+                  if (st == null) return null
+                  const err = e.configStatusError.get(name)
+                  return {
+                     cls: st,
+                     tip: st === 'up' ? 'answers' : st === 'checking' ? 'checking…' : `does not answer: ${err ?? ''}`,
+                  }
+               }}
+               onSelect={(n) => e.selectConfig(n)}
+               onCreate={(n) => e.addConfig(n)}
+               onDuplicate={() => e.duplicateConfig()}
+               onRename={(n) => void e.renameConfig(n)}
+               onDelete={() => void e.deleteConfig()}
             />
          )}
-         {p.e.configsError !== '' ? <div className="error">🔴 {p.e.configsError}</div> : null}
-         <div className="enh-row">
-            <select value={p.e.provider} onChange={(ev) => p.e.setProvider(ev.target.value)}>
+         {preset == null ? (
+            <div className="enh-tabs">
+               <div className="enh-tabs-title">master prompt</div>
+               <button type="button" className="enh-tab-new" onClick={() => e.addPreset('refine-prompt')}>
+                  <Icon name="plus" /> new master prompt
+               </button>
+            </div>
+         ) : (
+            <TabList
+               title="master prompt"
+               names={e.presets.map((m) => m.name)}
+               selected={preset.name}
+               kind="master prompt"
+               newName="refine-<model>-prompt"
+               save={e.saveState}
+               saveError={e.saveError}
+               onSelect={(n) => e.selectPreset(n)}
+               onCreate={(n) => e.addPreset(n)}
+               onDuplicate={() => e.duplicatePreset()}
+               onRename={(n) => void e.renamePreset(n)}
+               onDelete={() => void e.deletePreset()}
+            />
+         )}
+      </nav>
+   )
+})
+
+/** a numbered section with a title you can read from across the room */
+function Section(p: { n: number; title: ReactNode; tip?: string; children: ReactNode }): ReactNode {
+   return (
+      <section className="enh-section">
+         <h3 className="enh-h" data-tip={p.tip}>
+            <span className="enh-num">{p.n}</span>
+            {p.title}
+         </h3>
+         {p.children}
+      </section>
+   )
+}
+
+const LlmSettings = observer(function LlmSettings(p: { e: EnhancerSt }) {
+   const e = p.e
+   const models = e.visibleModels
+   const local = e.provider !== 'openrouter'
+   const entry = e.configEntry
+   return (
+      <Section
+         n={2}
+         title={
+            <>
+               llm <span className="enh-h-name">{entry?.name ?? 'new'}</span>
+            </>
+         }
+         tip={
+            entry == null
+               ? 'any edit creates the config file'
+               : `.comfy-ts/llm-configs/${entry.name}.json, saved as you type`
+         }
+      >
+         <div className="enh-grid">
+            <label>provider</label>
+            <select value={e.provider} onChange={(ev) => e.setProvider(ev.target.value)}>
                {PROVIDERS.map((id) => (
                   <option key={id} value={id}>
                      {PROVIDER_LABEL[id]}
@@ -112,119 +228,170 @@ const Settings = observer(function Settings(p: { e: EnhancerSt }) {
                ))}
             </select>
             {local ? (
-               <input
-                  type="text"
-                  placeholder={BASE_PLACEHOLDER[p.e.provider]}
-                  value={p.e.baseUrl}
-                  onChange={(ev) => p.e.setBaseUrl(ev.target.value)}
-                  style={{ flex: 1, minWidth: 180 }}
-               />
+               <>
+                  <label>address</label>
+                  <input
+                     type="text"
+                     placeholder={BASE_PLACEHOLDER[e.provider]}
+                     value={e.baseUrl}
+                     onChange={(ev) => e.setBaseUrl(ev.target.value)}
+                  />
+               </>
             ) : null}
+            <label data-tip="kept in this browser only, never in a file">api key</label>
             <input
                type="password"
-               placeholder={
-                  local ? 'api key, blank if none (kept in this browser)' : 'sk-or-v1-… (kept in this browser)'
-               }
-               value={p.e.apiKey}
-               onChange={(ev) => p.e.setApiKey(ev.target.value)}
-               style={{ flex: 1, minWidth: 160 }}
+               placeholder={local ? 'blank if none' : 'sk-or-v1-…'}
+               value={e.apiKey}
+               onChange={(ev) => e.setApiKey(ev.target.value)}
             />
-            <button type="button" onClick={() => void p.e.loadModels()} disabled={p.e.modelsState === 'loading'}>
-               {p.e.modelsState === 'loading' ? 'loading…' : 'load models'}
-            </button>
-         </div>
-         <div className="enh-row">
-            {models.length > 0 ? (
-               <select value={p.e.model} onChange={(ev) => p.e.setModel(ev.target.value)} style={{ flex: 1 }}>
-                  {/* honest display for an id outside the loaded list (free text, or a filtered-out model) */}
-                  {models.some((m) => m.id === p.e.model) ? null : (
-                     <option value={p.e.model}>{p.e.model} (not in the list)</option>
-                  )}
-                  {models.map((m) => (
-                     <option key={m.id} value={m.id}>
-                        {m.id}
-                     </option>
-                  ))}
-               </select>
-            ) : (
-               <input
-                  type="text"
-                  placeholder={local ? 'model id, e.g. qwen3:8b' : 'model id, e.g. anthropic/claude-sonnet-5'}
-                  value={p.e.model}
-                  onChange={(ev) => p.e.setModel(ev.target.value)}
-                  style={{ flex: 1 }}
-               />
-            )}
-            <label className="row-inline" data-tip="hide models that report no reasoning support">
-               <input type="checkbox" checked={p.e.thinkingOnly} onChange={() => p.e.toggleThinkingOnly()} />
-               <span className="hint">thinking only</span>
-            </label>
-            {p.e.provider === 'openwebui' ? null : (
-               <label
-                  className="row-inline"
-                  data-tip={
-                     local
-                        ? 'off = no thinking (chat template switch), anything else = think first'
-                        : 'reasoning effort sent to the model'
-                  }
-               >
-                  <span className="hint">effort</span>
-                  <select value={p.e.effort} onChange={(ev) => p.e.setEffort(ev.target.value)}>
-                     {EFFORTS.map((x) => (
-                        <option key={x} value={x}>
-                           {x}
+            <label>model</label>
+            <div className="enh-inline">
+               {models.length > 0 ? (
+                  <select value={e.model} onChange={(ev) => e.setModel(ev.target.value)}>
+                     {models.some((m) => m.id === e.model) ? null : (
+                        <option value={e.model}>{e.model} (not in the list)</option>
+                     )}
+                     {models.map((m) => (
+                        <option key={m.id} value={m.id}>
+                           {m.id}
                         </option>
                      ))}
                   </select>
-               </label>
+               ) : (
+                  <input
+                     type="text"
+                     placeholder={local ? 'e.g. qwen3:8b' : 'e.g. anthropic/claude-sonnet-5'}
+                     value={e.model}
+                     onChange={(ev) => e.setModel(ev.target.value)}
+                  />
+               )}
+               <button type="button" onClick={() => void e.loadModels()} disabled={e.modelsState === 'loading'}>
+                  {e.modelsState === 'loading' ? 'asking…' : 'list models'}
+               </button>
+            </div>
+            {e.provider === 'openwebui' ? null : (
+               <>
+                  <label
+                     data-tip={
+                        local
+                           ? 'off = no thinking (chat template switch), anything else = think first'
+                           : 'reasoning effort sent to the model'
+                     }
+                  >
+                     thinking
+                  </label>
+                  <div className="enh-inline">
+                     <span className="btn-group">
+                        {EFFORTS.map((x) => (
+                           <button
+                              key={x}
+                              type="button"
+                              className={e.effort === x ? 'mode sel' : 'mode'}
+                              onClick={() => e.setEffort(x)}
+                           >
+                              {x}
+                           </button>
+                        ))}
+                     </span>
+                     <label className="row-inline" data-tip="hide models that report no reasoning support">
+                        <input type="checkbox" checked={e.thinkingOnly} onChange={() => e.toggleThinkingOnly()} />
+                        thinking models only
+                     </label>
+                  </div>
+               </>
             )}
          </div>
-         {local ? (
-            <div className="hint">
-               a local model's &lt;think&gt; block is routed to the thinking pane, never into your prompt
-            </div>
-         ) : null}
-         {p.e.modelsError !== '' ? <div className="error">🔴 {p.e.modelsError}</div> : null}
-      </div>
+         {e.modelsError !== '' ? <div className="error">🔴 {e.modelsError}</div> : null}
+         {e.configsError !== '' ? <div className="error">🔴 {e.configsError}</div> : null}
+      </Section>
    )
 })
 
 const MasterPrompt = observer(function MasterPrompt(p: { e: EnhancerSt }) {
    const preset = p.e.preset
-   if (preset == null) {
-      return (
-         <div>
-            <div className="section-title">master prompt</div>
-            <div className="hint">
-               {p.e.presetsState === 'loading' ? 'loading .comfy-ts/prompt-enhancers/…' : 'no master prompt yet'}
+   return (
+      <Section
+         n={3}
+         title={
+            <>
+               master prompt <span className="enh-h-name">{preset?.name ?? ''}</span>
+            </>
+         }
+         tip={preset == null ? undefined : `.comfy-ts/prompt-enhancers/${preset.name}.md, saved as you type`}
+      >
+         {preset == null ? (
+            <div className="enh-empty">
+               {p.e.presetsState === 'loading' ? 'loading…' : 'no master prompt yet: add one on the left'}
             </div>
-            {p.e.presetsError !== '' ? <div className="error">🔴 {p.e.presetsError}</div> : null}
-            <button type="button" onClick={() => p.e.addPreset('refine-prompt')}>
-               create one
+         ) : (
+            <textarea
+               className="enh-text"
+               rows={10}
+               value={preset.text}
+               onChange={(ev) => p.e.setPresetText(ev.target.value)}
+            />
+         )}
+         {p.e.presetsError !== '' ? <div className="error">🔴 {p.e.presetsError}</div> : null}
+      </Section>
+   )
+})
+
+const Job = observer(function Job(p: { e: EnhancerSt }) {
+   const e = p.e
+   const running = e.phase === 'running'
+   return (
+      <Section n={1} title="your prompt → rewrite">
+         <div className="enh-cols">
+            <div>
+               <div className="enh-label">yours, what gets sent (the form is untouched)</div>
+               <textarea
+                  className="enh-text"
+                  rows={8}
+                  value={e.original}
+                  onChange={(ev) => e.setOriginal(ev.target.value)}
+               />
+            </div>
+            <div>
+               <div className="enh-label">
+                  {running ? `rewriting… ${e.result.length} chars` : 'rewrite, editable before you apply'}
+               </div>
+               <textarea
+                  className="enh-text enh-result"
+                  rows={8}
+                  value={e.result}
+                  placeholder="press enhance"
+                  onChange={(ev) => e.setResult(ev.target.value)}
+               />
+            </div>
+         </div>
+         <div className="enh-actions">
+            {running ? (
+               <button type="button" className="enh-big" onClick={() => e.cancel()}>
+                  stop
+               </button>
+            ) : (
+               <button type="button" className="primary enh-big" onClick={() => e.run()}>
+                  <Icon name="sparkle" /> enhance <span className="kbd-hint">{MOD_KEY}⏎</span>
+               </button>
+            )}
+            <button
+               type="button"
+               className="accent enh-big"
+               onClick={() => e.apply()}
+               disabled={e.result.trim() === ''}
+            >
+               apply to prompt
             </button>
          </div>
-      )
-   }
-   return (
-      <div>
-         <div className="section-title">
-            master prompt · one per image model · .comfy-ts/prompt-enhancers/{preset.name}.md
-         </div>
-         <LibraryBar
-            names={p.e.presets.map((m) => m.name)}
-            selected={preset.name}
-            kind="master prompt"
-            newName="refine-<model>-prompt"
-            save={p.e.saveState}
-            saveError={p.e.saveError}
-            onSelect={(n) => p.e.selectPreset(n)}
-            onCreate={(n) => p.e.addPreset(n)}
-            onDuplicate={() => p.e.duplicatePreset()}
-            onRename={(n) => void p.e.renamePreset(n)}
-            onDelete={() => void p.e.deletePreset()}
-         />
-         <textarea rows={8} value={preset.text} onChange={(ev) => p.e.setPresetText(ev.target.value)} />
-      </div>
+         {e.error !== '' ? <div className="error">🔴 {e.error}</div> : null}
+         {e.thinking !== '' ? (
+            <details className="enh-think-box">
+               <summary>thinking ({e.thinking.length} chars)</summary>
+               <div className="enh-think">{e.thinking}</div>
+            </details>
+         ) : null}
+      </Section>
    )
 })
 
@@ -242,64 +409,29 @@ const Modal = observer(function Modal(p: { e: EnhancerSt }) {
       window.addEventListener('keydown', onKey)
       return () => window.removeEventListener('keydown', onKey)
    }, [e])
-   const running = e.phase === 'running'
    return (
-      <div className="modal-overlay" onClick={() => e.close()}>
-         <div className="modal" onClick={(ev) => ev.stopPropagation()}>
+      <div className="modal-overlay top" onClick={() => e.close()}>
+         <div className="modal enh-modal" onClick={(ev) => ev.stopPropagation()}>
             <div className="modal-head">
-               <b style={{ flex: 1 }}>
+               <b className="enh-title">
                   <Icon name="sparkle" /> enhance prompt
                </b>
-               <button type="button" onClick={() => e.close()}>
+               <button
+                  type="button"
+                  className="modal-close"
+                  data-tip="close (esc), nothing is applied"
+                  onClick={() => e.close()}
+               >
                   <Icon name="close" />
                </button>
             </div>
-            <div className="modal-body">
-               <Settings e={e} />
-               <MasterPrompt e={e} />
-               <div className="section-title">prompt</div>
-               <div className="enh-cols">
-                  <div>
-                     <div className="hint">yours (edit before refining, the var is untouched)</div>
-                     <textarea rows={8} value={e.original} onChange={(ev) => e.setOriginal(ev.target.value)} />
-                  </div>
-                  <div>
-                     <div className="hint">{running ? 'rewriting…' : 'rewritten (editable before apply)'}</div>
-                     <textarea
-                        rows={8}
-                        value={e.result}
-                        placeholder="hit enhance"
-                        onChange={(ev) => e.setResult(ev.target.value)}
-                     />
-                  </div>
+            <div className="enh-layout">
+               <Side e={e} />
+               <div className="modal-body enh-main">
+                  <Job e={e} />
+                  <LlmSettings e={e} />
+                  <MasterPrompt e={e} />
                </div>
-               {e.thinking !== '' ? (
-                  <div>
-                     <div className="section-title">thinking</div>
-                     <div className="enh-think">{e.thinking}</div>
-                  </div>
-               ) : null}
-               {e.error !== '' ? <div className="error">🔴 {e.error}</div> : null}
-            </div>
-            <div className="modal-foot">
-               {running ? (
-                  <button type="button" onClick={() => e.cancel()}>
-                     stop
-                  </button>
-               ) : (
-                  <button type="button" className="primary" onClick={() => e.run()} data-tip="⌘⏎ / ctrl+⏎">
-                     enhance
-                  </button>
-               )}
-               <button type="button" onClick={() => e.apply()} disabled={e.result.trim() === ''}>
-                  apply to prompt
-               </button>
-               <span className="hint" style={{ flex: 1 }}>
-                  {running ? `${e.result.length} chars streamed` : 'nothing is written until you apply'}
-               </span>
-               <button type="button" className="link" onClick={() => e.close()}>
-                  cancel
-               </button>
             </div>
          </div>
       </div>
