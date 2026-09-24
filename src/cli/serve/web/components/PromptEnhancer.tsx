@@ -10,7 +10,12 @@ import type { ProviderId, ReasoningEffort } from 'src/cli/serve/web/llm.ts'
 import { PROVIDERS, withCandidate, type EnhancerSt, type SaveState } from 'src/cli/serve/web/state/EnhancerSt.ts'
 import type { VarSt } from 'src/cli/serve/web/state/FormSt.ts'
 import type { WebSt } from 'src/cli/serve/web/state/WebSt.ts'
-import { ENHANCER_KEYS, enhancerShortcutOf, type EnhancerShortcut } from 'src/cli/serve/web/state/shortcuts.ts'
+import {
+   ENHANCER_KEYS,
+   enhancerShortcutOf,
+   SHORTCUT_KEYS,
+   type EnhancerShortcut,
+} from 'src/cli/serve/web/state/shortcuts.ts'
 
 const EFFORTS: ReasoningEffort[] = ['off', 'low', 'medium', 'high']
 
@@ -513,6 +518,8 @@ export const PromptEnhancer = observer(function PromptEnhancer(p: {
    lane?: number
    /** the icon alone, for a lane's bar */
    compact?: boolean
+   /** ⌘E opens THIS one (the first prompt): say so on the button */
+   shortcut?: boolean
 }) {
    const e = p.st.enhancer
    return (
@@ -525,6 +532,12 @@ export const PromptEnhancer = observer(function PromptEnhancer(p: {
          >
             <Icon name="sparkle" />
             {p.compact === true ? null : ' enhance'}
+            {p.shortcut === true ? (
+               <span className="kbd-hint">
+                  {MOD_KEY}
+                  {SHORTCUT_KEYS['open-enhancer']}
+               </span>
+            ) : null}
          </button>
          {e.target === p.v && e.targetLane === (p.lane ?? null) ? <Modal e={e} st={p.st} /> : null}
       </>

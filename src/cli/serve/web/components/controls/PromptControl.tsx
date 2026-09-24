@@ -102,7 +102,15 @@ const LANE_DRAG = 'application/x-comfy-lane'
 
 /** one prompt lane: a name pill and its box. Click the pill to use or leave out the lane, drag
  * it onto another lane to reorder, ⋯ to rename or remove. Nothing else on the bar */
-const LaneBox = observer(function LaneBox(p: { v: VarSt; st: WebSt; module: string; lanes: PromptLane[]; ix: number }) {
+const LaneBox = observer(function LaneBox(p: {
+   v: VarSt
+   st: WebSt
+   module: string
+   lanes: PromptLane[]
+   ix: number
+   /** ⌘E opens this lane's enhancer (lane 0 of the first prompt) */
+   shortcut: boolean
+}) {
    const [renaming, setRenaming] = useState(false)
    const lane = p.lanes[p.ix]
    if (lane == null) return null
@@ -156,7 +164,7 @@ const LaneBox = observer(function LaneBox(p: { v: VarSt; st: WebSt; module: stri
                </button>
             )}
             <span className="lane-tools">
-               <PromptEnhancer v={p.v} st={p.st} module={p.module} lane={p.ix} compact />
+               <PromptEnhancer v={p.v} st={p.st} module={p.module} lane={p.ix} compact shortcut={p.shortcut} />
                <MenuButton tip="lane actions">
                   {(close) => (
                      <>
@@ -192,7 +200,13 @@ const LaneBox = observer(function LaneBox(p: { v: VarSt; st: WebSt; module: stri
    )
 })
 
-export const PromptControl = observer(function PromptControl(p: { v: VarSt; st: WebSt; module: string }) {
+export const PromptControl = observer(function PromptControl(p: {
+   v: VarSt
+   st: WebSt
+   module: string
+   /** the first prompt: ⌘P lands here and ⌘E opens its enhancer */
+   jumpTarget?: boolean
+}) {
    const value = p.v.value
    if (isPromptLanes(value)) {
       const single = promptFromLanes(value)
@@ -202,7 +216,15 @@ export const PromptControl = observer(function PromptControl(p: { v: VarSt; st: 
             <div className="lanes">
                {value.lanes.map((lane, ix) => (
                   // index keys on purpose: a lane's name is editable and may repeat
-                  <LaneBox key={ix} v={p.v} st={p.st} module={p.module} lanes={value.lanes} ix={ix} />
+                  <LaneBox
+                     key={ix}
+                     v={p.v}
+                     st={p.st}
+                     module={p.module}
+                     lanes={value.lanes}
+                     ix={ix}
+                     shortcut={p.jumpTarget === true && ix === 0}
+                  />
                ))}
             </div>
             <div className="row-inline lane-foot">
@@ -241,7 +263,7 @@ export const PromptControl = observer(function PromptControl(p: { v: VarSt; st: 
          {/* three small separate actions under the box, the same size, none dressed as a link */}
          <div className="row-inline prompt-actions">
             <PresetPicker v={p.v} />
-            <PromptEnhancer v={p.v} st={p.st} module={p.module} />
+            <PromptEnhancer v={p.v} st={p.st} module={p.module} shortcut={p.jumpTarget} />
             <HistoryButton entries={p.st.promptHistory} what="prompt" onPick={(e) => p.v.set(e.value)} />
             <button
                type="button"

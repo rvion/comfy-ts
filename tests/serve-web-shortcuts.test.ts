@@ -18,6 +18,11 @@ describe('panel shortcuts', () => {
       expect(shortcutOf(key('b', { metaKey: true }))).toBe('toggle-blur')
    })
 
+   it('⌘E opens the enhancer on the first prompt, the same letter enhances once it is open', () => {
+      expect(shortcutOf(key('e', { metaKey: true }))).toBe('open-enhancer')
+      expect(enhancerShortcutOf(key('e', { metaKey: true }))).toBe('enhance')
+   })
+
    it('ignores the letter alone, another modifier, and other letters', () => {
       expect(shortcutOf(key('p', {}))).toBeNull()
       expect(shortcutOf(key('p', { metaKey: true, shiftKey: true }))).toBeNull()

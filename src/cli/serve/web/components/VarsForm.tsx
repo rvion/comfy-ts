@@ -5,6 +5,7 @@ import { useEffect, useRef, type ReactNode } from 'react'
 import { MOD_KEY } from 'src/cli/serve/web/components/modKey.ts'
 import { runChipText } from 'src/cli/serve/web/state/stableSlots.ts'
 import { jumpTargets, SHORTCUT_KEYS, shortcutOf } from 'src/cli/serve/web/state/shortcuts.ts'
+import { isPromptLanes } from 'src/vars/lanes.ts'
 import {
    ChoiceControl,
    NumberControl,
@@ -32,7 +33,7 @@ const VarControl = observer(function VarControl(p: {
 }) {
    switch (p.v.desc.kind) {
       case 'prompt':
-         return <PromptControl v={p.v} st={p.st} module={p.module} />
+         return <PromptControl v={p.v} st={p.st} module={p.module} jumpTarget={p.jumpTarget} />
       case 'text':
          return <TextControl v={p.v} />
       case 'int':
@@ -466,6 +467,8 @@ const SaveRow = observer(function SaveRow(p: { st: WebSt; module: string }) {
 
 export const VarsForm = observer(function VarsForm(p: { st: WebSt }) {
    const form = p.st.form
+   /** which var each jump lands on, as last rendered: the key handler reads it */
+   const targetsRef = useRef<{ prompt: string | null; loras: string | null }>({ prompt: null, loras: null })
    // ⌘⏎ / ctrl+⏎ generates from anywhere, textarea and enhancer included: one key, one meaning
    useEffect(() => {
       const onKey = (e: KeyboardEvent): void => {
@@ -479,8 +482,16 @@ export const VarsForm = observer(function VarsForm(p: { st: WebSt }) {
          // the jumps land in the form, which the enhancer covers: only the blur still makes sense
          if (p.st.enhancer.isOpen && s !== 'toggle-blur') return
          e.preventDefault()
-         if (s === 'toggle-blur') p.st.toggleBlur()
-         else p.st.requestJump(s === 'focus-prompt' ? 'prompt' : 'loras')
+         if (s === 'toggle-blur') return p.st.toggleBlur()
+         if (s === 'open-enhancer') {
+            const f = p.st.form
+            const v = f?.vars.find((x) => x.name === targetsRef.current.prompt)
+            // in lanes mode the enhancer opens on the first lane, the one its ✨ sits on
+            if (f != null && v != null)
+               p.st.enhancer.openFor({ v, module: f.moduleKey, lane: isPromptLanes(v.value) ? 0 : undefined })
+            return
+         }
+         p.st.requestJump(s === 'focus-prompt' ? 'prompt' : 'loras')
       }
       window.addEventListener('keydown', onKey)
       return () => window.removeEventListener('keydown', onKey)
@@ -496,6 +507,7 @@ export const VarsForm = observer(function VarsForm(p: { st: WebSt }) {
    const targets = jumpTargets(
       orderedVars.map((v) => ({ name: v.name, kind: v.desc.kind, inactive: form.inactiveReason(v) != null })),
    )
+   targetsRef.current = targets
    const jumpKeyOf = (name: string): string | null =>
       name === targets.prompt
          ? SHORTCUT_KEYS['focus-prompt']

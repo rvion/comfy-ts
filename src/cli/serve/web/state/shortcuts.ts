@@ -1,11 +1,13 @@
 /** the panel's jump keys, with ⌘ (ctrl elsewhere) and no other modifier. Each one works from ANY
  * focus, a prompt editor included: it is a jump, not an edit. Browser defaults they take over
  * (print, open file) are useless on this page */
-export type Shortcut = 'focus-prompt' | 'open-loras' | 'toggle-blur'
+export type Shortcut = 'focus-prompt' | 'open-loras' | 'open-enhancer' | 'toggle-blur'
 
 export const SHORTCUT_KEYS: Record<Shortcut, string> = {
    'focus-prompt': 'P',
    'open-loras': 'O',
+   // the same letter enhances once the enhancer is open (ENHANCER_KEYS): ⌘E, ⌘E
+   'open-enhancer': 'E',
    'toggle-blur': 'B',
 }
 
