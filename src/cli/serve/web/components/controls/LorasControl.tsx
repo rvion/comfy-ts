@@ -450,13 +450,22 @@ export const LorasControl = observer(function LorasControl(p: {
       filterRef.current?.select()
    }
 
-   const thumb = (name: string): ReactNode => {
+   // ONE size factor for every lora image (the slider): the palette card, its image, and the
+   // popup's grid all follow it. 168/130 and 120/110 are the base card and image sizes
+   const scale = p.st.loraScale
+   const cardWidth = Math.round(168 * scale)
+   const gridMin = Math.round(120 * scale)
+   const thumb = (name: string, height?: number): ReactNode => {
       if (!showImages) return null
+      const style = height == null ? undefined : { height }
       return local.previewFailed.has(name) ? (
-         <div className="lora-thumb none">no preview</div>
+         <div className="lora-thumb none" style={style}>
+            no preview
+         </div>
       ) : (
          <img
             key={name}
+            style={style}
             className={p.st.loraFill ? 'lora-thumb fill' : 'lora-thumb'}
             loading="lazy"
             src={loraPreviewSrc({ host: p.host, name })}
@@ -465,6 +474,20 @@ export const LorasControl = observer(function LorasControl(p: {
          />
       )
    }
+
+   /** the image size, a small slider: only while images are shown */
+   const sizeSlider = showImages ? (
+      <input
+         type="range"
+         className="lora-size"
+         min={0.6}
+         max={2}
+         step={0.05}
+         value={scale}
+         data-tip={`lora image size ×${scale.toFixed(2)}`}
+         onChange={(e) => p.st.setLoraScale(parseFloat(e.target.value))}
+      />
+   ) : null
 
    const visibilityToggles = (
       <>
@@ -517,7 +540,8 @@ export const LorasControl = observer(function LorasControl(p: {
             </button>
             {/* everything used now and then lives behind ⋯: the row shows loras, not a strip
                 of buttons. The rescan warning stays out, it asks for action */}
-            <MenuButton tip="display, sync, lanes">
+            {sizeSlider}
+            <MenuButton tip="display, lora manager, lanes">
                {(close) => (
                   <>
                      <MenuItem label="images" checked={showImages} onClick={() => p.st.toggleLoraImages()} />
@@ -645,6 +669,7 @@ export const LorasControl = observer(function LorasControl(p: {
                               <span
                                  key={name}
                                  className={`${showImages ? 'lora-chip card' : 'lora-chip'}${isOn(sec, name) ? '' : ' off'}`}
+                                 style={showImages ? { width: cardWidth } : undefined}
                                  draggable
                                  onMouseDown={(e) => {
                                     // the WHOLE card drags, so the browser hands it the pointer before any
@@ -687,7 +712,7 @@ export const LorasControl = observer(function LorasControl(p: {
                                        data-tip={`${name}\nclick for its details`}
                                        onClick={() => local.setDetails(name)}
                                     >
-                                       {thumb(name)}
+                                       {thumb(name, Math.round(130 * scale))}
                                     </button>
                                     <button
                                        type="button"
@@ -787,6 +812,7 @@ export const LorasControl = observer(function LorasControl(p: {
                   {/* the display toggles first, the search in the middle, close alone at the end */}
                   <div className="modal-head">
                      <span className="btn-group">{visibilityToggles}</span>
+                     {sizeSlider}
                      <input
                         ref={filterRef}
                         type="text"
@@ -878,7 +904,10 @@ export const LorasControl = observer(function LorasControl(p: {
                                  {group.folder === '' ? 'loose (no folder)' : `${group.folder}/`} · {group.names.length}
                               </div>
                            )}
-                           <div className="lora-grid">
+                           <div
+                              className="lora-grid"
+                              style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${gridMin}px, 1fr))` }}
+                           >
                               {group.names.map((name) => (
                                  <button
                                     key={name}
@@ -889,7 +918,7 @@ export const LorasControl = observer(function LorasControl(p: {
                                        if (target != null) setEntry(target, name, [1, 1])
                                     }}
                                  >
-                                    {thumb(name)}
+                                    {thumb(name, Math.round(110 * scale))}
                                     <div className="lora-label">
                                        {showTitles ? label(name) : name.slice(0, 2) + '···'}
                                        {warnBadge(name)}
