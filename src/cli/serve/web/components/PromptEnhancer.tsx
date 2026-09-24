@@ -4,7 +4,7 @@ import { Icon } from 'src/cli/serve/web/components/Icon.tsx'
 import { observer } from 'mobx-react-lite'
 import { useEffect } from 'react'
 import type { ProviderId, ReasoningEffort } from 'src/cli/serve/web/llm.ts'
-import { PROVIDERS, type EnhancerSt } from 'src/cli/serve/web/state/EnhancerSt.ts'
+import { PROVIDERS, type EnhancerSt, type SaveState } from 'src/cli/serve/web/state/EnhancerSt.ts'
 import type { VarSt } from 'src/cli/serve/web/state/FormSt.ts'
 import type { WebSt } from 'src/cli/serve/web/state/WebSt.ts'
 
@@ -22,12 +22,87 @@ const BASE_PLACEHOLDER: Record<ProviderId, string> = {
    openai: 'http://localhost:8080/v1',
 }
 
+/** one bar for a library of named files (LLM configs, master prompts): pick one, new,
+ * duplicate, rename, delete, and where its autosave stands */
+const LibraryBar = observer(function LibraryBar(p: {
+   names: string[]
+   selected: string
+   kind: string
+   newName: string
+   save: SaveState
+   saveError: string
+   onSelect(name: string): void
+   onCreate(name: string): void
+   onDuplicate(): void
+   onRename(name: string): void
+   onDelete(): void
+}) {
+   const create = (): void => {
+      const name = window.prompt(`name the new ${p.kind}`, p.newName)
+      if (name != null) p.onCreate(name)
+   }
+   const rename = (): void => {
+      const name = window.prompt(`rename this ${p.kind} (renames the file)`, p.selected)
+      if (name != null) p.onRename(name)
+   }
+   const remove = (): void => {
+      if (window.confirm(`delete ${p.kind} '${p.selected}'? its file is removed.`)) p.onDelete()
+   }
+   return (
+      <div className="enh-row">
+         <select value={p.selected} onChange={(ev) => p.onSelect(ev.target.value)} style={{ flex: 1 }}>
+            {p.names.map((n) => (
+               <option key={n} value={n}>
+                  {n}
+               </option>
+            ))}
+         </select>
+         <button type="button" onClick={create}>
+            new
+         </button>
+         <button type="button" onClick={() => p.onDuplicate()}>
+            duplicate
+         </button>
+         <button type="button" onClick={rename}>
+            rename
+         </button>
+         <button type="button" onClick={remove} data-tip={`delete this ${p.kind} file`}>
+            <Icon name="close" />
+         </button>
+         <span className="hint">
+            {p.save === 'saving' ? 'saving…' : null}
+            {p.save === 'saved' ? 'autosaved to disk' : null}
+            {p.save === 'error' ? `🔴 save failed: ${p.saveError}` : null}
+         </span>
+      </div>
+   )
+})
+
 const Settings = observer(function Settings(p: { e: EnhancerSt }) {
    const models = p.e.visibleModels
    const local = p.e.provider !== 'openrouter'
+   const entry = p.e.configEntry
    return (
       <div>
-         <div className="section-title">provider · keys stay in this browser</div>
+         <div className="section-title">
+            llm · {entry == null ? 'no config yet, any edit creates one' : `.comfy-ts/llm-configs/${entry.name}.json`}
+         </div>
+         {entry == null ? null : (
+            <LibraryBar
+               names={p.e.configs.map((c) => c.name)}
+               selected={entry.name}
+               kind="llm config"
+               newName="my-llm"
+               save={p.e.configSaveState}
+               saveError={p.e.configSaveError}
+               onSelect={(n) => p.e.selectConfig(n)}
+               onCreate={(n) => p.e.addConfig(n)}
+               onDuplicate={() => p.e.duplicateConfig()}
+               onRename={(n) => void p.e.renameConfig(n)}
+               onDelete={() => void p.e.deleteConfig()}
+            />
+         )}
+         {p.e.configsError !== '' ? <div className="error">🔴 {p.e.configsError}</div> : null}
          <div className="enh-row">
             <select value={p.e.provider} onChange={(ev) => p.e.setProvider(ev.target.value)}>
                {PROVIDERS.map((id) => (
@@ -47,7 +122,9 @@ const Settings = observer(function Settings(p: { e: EnhancerSt }) {
             ) : null}
             <input
                type="password"
-               placeholder={local ? 'api key (blank if none)' : 'sk-or-v1-… (localStorage only)'}
+               placeholder={
+                  local ? 'api key, blank if none (kept in this browser)' : 'sk-or-v1-… (kept in this browser)'
+               }
                value={p.e.apiKey}
                onChange={(ev) => p.e.setApiKey(ev.target.value)}
                style={{ flex: 1, minWidth: 160 }}
@@ -128,48 +205,24 @@ const MasterPrompt = observer(function MasterPrompt(p: { e: EnhancerSt }) {
          </div>
       )
    }
-   const rename = (): void => {
-      const name = window.prompt('rename this master prompt (renames the file)', preset.name)
-      if (name != null) void p.e.renamePreset(name)
-   }
-   const create = (): void => {
-      const name = window.prompt('name the new master prompt', 'refine-<model>-prompt')
-      if (name != null) p.e.addPreset(name)
-   }
-   const remove = (): void => {
-      if (window.confirm(`delete master prompt '${preset.name}'? the .md file is removed.`)) void p.e.deletePreset()
-   }
    return (
       <div>
          <div className="section-title">
             master prompt · one per image model · .comfy-ts/prompt-enhancers/{preset.name}.md
          </div>
-         <div className="enh-row">
-            <select value={preset.name} onChange={(ev) => p.e.selectPreset(ev.target.value)} style={{ flex: 1 }}>
-               {p.e.presets.map((m) => (
-                  <option key={m.name} value={m.name}>
-                     {m.name}
-                  </option>
-               ))}
-            </select>
-            <button type="button" onClick={create}>
-               new
-            </button>
-            <button type="button" onClick={() => p.e.duplicatePreset()}>
-               duplicate
-            </button>
-            <button type="button" onClick={rename}>
-               rename
-            </button>
-            <button type="button" onClick={remove} data-tip="delete this master prompt file">
-               <Icon name="close" />
-            </button>
-            <span className="hint">
-               {p.e.saveState === 'saving' ? 'saving…' : null}
-               {p.e.saveState === 'saved' ? 'autosaved to disk' : null}
-               {p.e.saveState === 'error' ? `🔴 save failed: ${p.e.saveError}` : null}
-            </span>
-         </div>
+         <LibraryBar
+            names={p.e.presets.map((m) => m.name)}
+            selected={preset.name}
+            kind="master prompt"
+            newName="refine-<model>-prompt"
+            save={p.e.saveState}
+            saveError={p.e.saveError}
+            onSelect={(n) => p.e.selectPreset(n)}
+            onCreate={(n) => p.e.addPreset(n)}
+            onDuplicate={() => p.e.duplicatePreset()}
+            onRename={(n) => void p.e.renamePreset(n)}
+            onDelete={() => void p.e.deletePreset()}
+         />
          <textarea rows={8} value={preset.text} onChange={(ev) => p.e.setPresetText(ev.target.value)} />
       </div>
    )

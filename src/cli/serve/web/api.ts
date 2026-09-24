@@ -1,4 +1,5 @@
 // typed fetch layer over the serve json api — the ONLY web-ui module that talks http
+import type { LlmConfigEntry } from 'src/cli/serve/llmConfigShape.ts'
 import type { VarDescriptor } from 'src/cli/serve/describeVar.ts'
 
 export type ModuleDescription = {
@@ -238,6 +239,23 @@ export function savePromptEnhancer(p: PromptEnhancer): Promise<{ ok: true; enhan
 
 export function deletePromptEnhancer(p: { name: string }): Promise<{ ok: true; enhancers: PromptEnhancer[] }> {
    return jsonFetch(`/prompt-enhancers/${encodeURIComponent(p.name)}`, { method: 'DELETE' })
+}
+
+/** the enhancer's LLM configs, files under `.comfy-ts/llm-configs/` (server-owned) */
+export function fetchLlmConfigs(): Promise<{ configs: LlmConfigEntry[] }> {
+   return jsonFetch('/llm-configs')
+}
+
+export function saveLlmConfig(p: LlmConfigEntry): Promise<{ ok: true; configs: LlmConfigEntry[] }> {
+   return jsonFetch(`/llm-configs/${encodeURIComponent(p.name)}`, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(p.config),
+   })
+}
+
+export function deleteLlmConfig(p: { name: string }): Promise<{ ok: true; configs: LlmConfigEntry[] }> {
+   return jsonFetch(`/llm-configs/${encodeURIComponent(p.name)}`, { method: 'DELETE' })
 }
 
 export async function uploadFile(p: { file: File }): Promise<{ path: string; url: string | null }> {

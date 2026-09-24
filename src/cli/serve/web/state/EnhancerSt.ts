@@ -1,19 +1,30 @@
-// the prompt enhancer: provider settings + the master-prompt library + one refine
-// run (architecture item 12, web ui). Hangs off the WebSt root.
-// SPLIT OF TRUTH: the master prompts are FILES on the server
-// (`.comfy-ts/prompt-enhancers/*.md`, autosaved like a draft), everything else is
-// browser-local in a localStorage blob, keys included, so the serve process never
-// holds a credential. normalizeSettings/nextPresetName are PURE and headless-tested.
+// the prompt enhancer: LLM configs + the master-prompt library + one refine run
+// (architecture item 12, web ui). Hangs off the WebSt root.
+// SPLIT OF TRUTH: the LLM configs (`.comfy-ts/llm-configs/*.json`) and the master
+// prompts (`.comfy-ts/prompt-enhancers/*.md`) are FILES on the server, autosaved like a
+// draft, so every browser and app window shares one setup. Only the api keys and which
+// entry is selected stay in a localStorage blob: the serve process never holds a key.
+// normalizeSettings/nextPresetName are PURE and headless-tested.
 import { makeAutoObservable, reaction, runInAction, type IReactionDisposer } from 'mobx'
 import { stringMap } from 'src/utils/stringMap.ts'
 import {
+   deleteLlmConfig,
    deletePromptEnhancer,
+   fetchLlmConfigs,
    fetchPromptEnhancers,
+   saveLlmConfig,
    savePromptEnhancer,
    type PromptEnhancer,
 } from 'src/cli/serve/web/api.ts'
 import {
-   defaultBaseUrl,
+   isEffort,
+   isProvider,
+   normalizeLlmConfig,
+   withProvider,
+   type LlmConfig,
+   type LlmConfigEntry,
+} from 'src/cli/serve/llmConfigShape.ts'
+import {
    fetchModels,
    streamRefine,
    type LlmModel,
@@ -25,61 +36,32 @@ import { isPromptLanes, patchLane } from 'src/vars/lanes.ts'
 
 const STORAGE_KEY = 'comfy-ts-serve-enhancer'
 
-/** explicit model ids, never an alias: behaviour and cost stay reproducible */
-const DEFAULT_MODEL: Record<ProviderId, string> = {
-   openrouter: 'anthropic/claude-sonnet-5',
-   openwebui: '',
-   openai: '',
-}
-
 export const PROVIDERS: ProviderId[] = ['openrouter', 'openwebui', 'openai']
 
+/** what stays in the browser: the keys, and which config and master prompt are selected */
 export type EnhancerSettings = {
-   provider: ProviderId
-   /** per provider, so switching one cannot send an openrouter model id to a local box */
    keyByProvider: Record<string, string>
-   baseUrlByProvider: Record<string, string>
-   modelByProvider: Record<string, string>
-   effort: ReasoningEffort
-   thinkingOnly: boolean
+   /** selected LLM config, by FILE NAME */
+   configName: string
    /** selected master prompt, by FILE NAME */
    presetName: string
    /** last preset used per module: a workflow reopens on its own refiner */
    presetByModule: Record<string, string>
 }
 
-function isProvider(raw: unknown): raw is ProviderId {
-   return raw === 'openrouter' || raw === 'openwebui' || raw === 'openai'
-}
-
-function isEffort(raw: unknown): raw is ReasoningEffort {
-   return raw === 'off' || raw === 'low' || raw === 'medium' || raw === 'high'
-}
-
 /** stored blob → usable settings. A hand-edited or half-written localStorage entry must
  * degrade to defaults, never break the modal (same wire tolerance as every stored blob) */
 export function normalizeSettings(raw: unknown): EnhancerSettings {
    const o = typeof raw === 'object' && raw !== null ? (raw as Record<string, unknown>) : {}
-   const models = stringMap(o.modelByProvider)
-   const bases = stringMap(o.baseUrlByProvider)
    return {
-      provider: isProvider(o.provider) ? o.provider : 'openrouter',
       keyByProvider: stringMap(o.keyByProvider),
-      baseUrlByProvider: {
-         openrouter: defaultBaseUrl('openrouter'),
-         openwebui: defaultBaseUrl('openwebui'),
-         openai: defaultBaseUrl('openai'),
-         ...bases,
-      },
-      modelByProvider: { ...DEFAULT_MODEL, ...models },
-      effort: isEffort(o.effort) ? o.effort : 'medium',
-      thinkingOnly: o.thinkingOnly !== false,
+      configName: typeof o.configName === 'string' ? o.configName : '',
       presetName: typeof o.presetName === 'string' ? o.presetName : '',
       presetByModule: stringMap(o.presetByModule),
    }
 }
 
-/** unique name for a new/duplicated master prompt — the name IS the filename */
+/** unique name for a new/duplicated entry (master prompt or config): the name IS the filename */
 export function nextPresetName(base: string, taken: readonly string[]): string {
    if (!taken.includes(base)) return base
    for (let i = 2; i < 1000; i++) {
@@ -97,21 +79,27 @@ function readStored(): EnhancerSettings {
    }
 }
 
+/** where a library's save stands, shown beside its bar */
+export type SaveState = 'saved' | 'saving' | 'error'
+
 export class EnhancerSt {
-   provider: ProviderId
    keyByProvider: Record<string, string>
-   baseUrlByProvider: Record<string, string>
-   modelByProvider: Record<string, string>
-   effort: ReasoningEffort
-   thinkingOnly: boolean
+   configName: string
    presetName: string
    presetByModule: Record<string, string>
+
+   /** the LLM configs, mirrored from the server (files) */
+   configs: LlmConfigEntry[] = []
+   configsState: 'idle' | 'loading' | 'error' = 'idle'
+   configsError = ''
+   configSaveState: SaveState = 'saved'
+   configSaveError = ''
 
    /** the master prompts, mirrored from the server (files) */
    presets: PromptEnhancer[] = []
    presetsState: 'idle' | 'loading' | 'error' = 'idle'
    presetsError = ''
-   saveState: 'saved' | 'saving' | 'error' = 'saved'
+   saveState: SaveState = 'saved'
    saveError = ''
 
    models: LlmModel[] = []
@@ -129,56 +117,88 @@ export class EnhancerSt {
    phase: 'idle' | 'running' | 'done' | 'error' = 'idle'
    error = ''
    private abort: AbortController | null = null
-   private disposer: IReactionDisposer
-   /** the preset json the server last confirmed — the autosave no-ops on it, so loading a
-    * library (or switching preset) never writes the files back unchanged */
+   private disposers: IReactionDisposer[]
+   /** the json the server last confirmed, per library — the autosave no-ops on it, so loading a
+    * library (or switching entry) never writes the file back unchanged */
    private lastSaved = ''
+   private lastSavedConfig = ''
 
    constructor() {
       const s = readStored()
-      this.provider = s.provider
       this.keyByProvider = s.keyByProvider
-      this.baseUrlByProvider = s.baseUrlByProvider
-      this.modelByProvider = s.modelByProvider
-      this.effort = s.effort
-      this.thinkingOnly = s.thinkingOnly
+      this.configName = s.configName
       this.presetName = s.presetName
       this.presetByModule = s.presetByModule
-      makeAutoObservable<EnhancerSt, 'abort' | 'disposer' | 'lastSaved'>(this, {
+      makeAutoObservable<EnhancerSt, 'abort' | 'disposers' | 'lastSaved' | 'lastSavedConfig'>(this, {
          abort: false,
-         disposer: false,
+         disposers: false,
          lastSaved: false,
+         lastSavedConfig: false,
       })
-      // the master prompt autosaves to its file, the live-drafts model (the values json is
-      // change-detector AND payload, the house persistence idiom)
-      this.disposer = reaction(
-         () => {
-            const p = this.preset
-            return p == null ? null : JSON.stringify(p)
-         },
-         (encoded) => {
-            if (encoded == null || encoded === this.lastSaved) return
-            void this.savePresetNow(JSON.parse(encoded) as PromptEnhancer)
-         },
-         { delay: 600 },
-      )
+      // both libraries autosave to their file, the live-drafts model (the json is change
+      // detector AND payload, the house persistence idiom)
+      this.disposers = [
+         reaction(
+            () => {
+               const p = this.preset
+               return p == null ? null : JSON.stringify(p)
+            },
+            (encoded) => {
+               if (encoded == null || encoded === this.lastSaved) return
+               void this.savePresetNow(JSON.parse(encoded) as PromptEnhancer)
+            },
+            { delay: 600 },
+         ),
+         reaction(
+            () => {
+               const c = this.configEntry
+               return c == null ? null : JSON.stringify(c)
+            },
+            (encoded) => {
+               if (encoded == null || encoded === this.lastSavedConfig) return
+               void this.saveConfigNow(JSON.parse(encoded) as LlmConfigEntry)
+            },
+            { delay: 600 },
+         ),
+      ]
    }
 
    dispose(): void {
-      this.disposer()
+      for (const d of this.disposers) d()
    }
 
-   // #region settings ---------------------------------------------------------
+   // #region llm configs (server files) ----------------------------------------
+   get configEntry(): LlmConfigEntry | null {
+      return this.configs.find((c) => c.name === this.configName) ?? this.configs[0] ?? null
+   }
+
+   /** the active config; before any exists, the defaults (nothing is written for them) */
+   get config(): LlmConfig {
+      return this.configEntry?.config ?? normalizeLlmConfig({})
+   }
+
+   get provider(): ProviderId {
+      return this.config.provider
+   }
+
    get apiKey(): string {
       return this.keyByProvider[this.provider] ?? ''
    }
 
    get baseUrl(): string {
-      return this.baseUrlByProvider[this.provider] ?? defaultBaseUrl(this.provider)
+      return this.config.baseUrl
    }
 
    get model(): string {
-      return this.modelByProvider[this.provider] ?? ''
+      return this.config.model
+   }
+
+   get effort(): ReasoningEffort {
+      return this.config.effort
+   }
+
+   get thinkingOnly(): boolean {
+      return this.config.thinkingOnly
    }
 
    get endpoint(): { provider: ProviderId; baseUrl: string; key: string } {
@@ -201,12 +221,8 @@ export class EnhancerSt {
 
    settingsJSON(): EnhancerSettings {
       return {
-         provider: this.provider,
          keyByProvider: this.keyByProvider,
-         baseUrlByProvider: this.baseUrlByProvider,
-         modelByProvider: this.modelByProvider,
-         effort: this.effort,
-         thinkingOnly: this.thinkingOnly,
+         configName: this.configName,
          presetName: this.presetName,
          presetByModule: this.presetByModule,
       }
@@ -216,19 +232,145 @@ export class EnhancerSt {
       try {
          localStorage.setItem(STORAGE_KEY, JSON.stringify(this.settingsJSON()))
       } catch {
-         // storage full/blocked: settings just won't survive the reload
+         // storage full/blocked: the selection just won't survive the reload
       }
+   }
+
+   async loadConfigs(): Promise<void> {
+      runInAction(() => {
+         this.configsState = 'loading'
+         this.configsError = ''
+      })
+      try {
+         const reply = await fetchLlmConfigs()
+         runInAction(() => {
+            this.configs = reply.configs
+            this.configsState = 'idle'
+            if (!this.configs.some((c) => c.name === this.configName)) this.configName = this.configs[0]?.name ?? ''
+            this.lastSavedConfig = JSON.stringify(this.configEntry)
+         })
+      } catch (e) {
+         runInAction(() => {
+            this.configsState = 'error'
+            this.configsError = e instanceof Error ? e.message : String(e)
+         })
+      }
+   }
+
+   private async saveConfigNow(entry: LlmConfigEntry): Promise<void> {
+      runInAction(() => {
+         this.configSaveState = 'saving'
+         this.lastSavedConfig = JSON.stringify(entry)
+      })
+      try {
+         const reply = await saveLlmConfig(entry)
+         runInAction(() => {
+            // the local copy of the saved entry wins over the server's normalized one: a base url
+            // cleared to be retyped must not snap back to its default mid-typing
+            this.configs = reply.configs.map((c) => this.configs.find((x) => x.name === c.name) ?? c)
+            this.configSaveState = 'saved'
+            this.configSaveError = ''
+         })
+      } catch (e) {
+         runInAction(() => {
+            this.configSaveState = 'error'
+            this.configSaveError = e instanceof Error ? e.message : String(e)
+         })
+      }
+   }
+
+   selectConfig(name: string): void {
+      if (!this.configs.some((c) => c.name === name)) return
+      this.configName = name
+      this.lastSavedConfig = JSON.stringify(this.configEntry)
+      // the loaded list belongs to the other config's endpoint
+      this.clearModels()
+      this.persist()
+   }
+
+   /** create (or duplicate): a new FILE, saved immediately so it exists on disk */
+   addConfig(name: string, config: LlmConfig = normalizeLlmConfig({})): void {
+      if (name.trim() === '') return
+      const clean = nextPresetName(
+         name.trim(),
+         this.configs.map((c) => c.name),
+      )
+      this.configs = [...this.configs, { name: clean, config }]
+      this.configName = clean
+      this.clearModels()
+      this.persist()
+      void this.saveConfigNow({ name: clean, config })
+   }
+
+   duplicateConfig(): void {
+      const c = this.configEntry
+      if (c != null) this.addConfig(`${c.name} copy`, c.config)
+   }
+
+   /** rename = write the new file, delete the old one (the filename IS the identity) */
+   async renameConfig(rawName: string): Promise<void> {
+      const c = this.configEntry
+      const clean = nextPresetName(
+         rawName.trim(),
+         this.configs.filter((x) => x.name !== c?.name).map((x) => x.name),
+      )
+      if (c == null || clean === '' || clean === c.name) return
+      await this.saveConfigNow({ name: clean, config: c.config })
+      runInAction(() => {
+         this.configName = clean
+         this.persist()
+      })
+      await this.removeConfigFile(c.name)
+   }
+
+   async deleteConfig(): Promise<void> {
+      const c = this.configEntry
+      if (c == null) return
+      await this.removeConfigFile(c.name)
+      runInAction(() => {
+         if (!this.configs.some((x) => x.name === this.configName)) this.configName = this.configs[0]?.name ?? ''
+         this.lastSavedConfig = JSON.stringify(this.configEntry)
+         this.persist()
+      })
+   }
+
+   private async removeConfigFile(name: string): Promise<void> {
+      try {
+         const reply = await deleteLlmConfig({ name })
+         runInAction(() => {
+            this.configs = reply.configs
+         })
+      } catch (e) {
+         runInAction(() => {
+            this.configSaveState = 'error'
+            this.configSaveError = e instanceof Error ? e.message : String(e)
+         })
+      }
+   }
+
+   /** every edit replaces the ENTRY, so the autosave reaction sees a change. With no config yet,
+    * the first edit creates one: a setting typed into an empty modal is never dropped */
+   private patchConfig(patch: (c: LlmConfig) => LlmConfig): void {
+      const c = this.configEntry
+      if (c == null) {
+         this.addConfig('default', patch(this.config))
+         return
+      }
+      this.configs = this.configs.map((x) => (x.name === c.name ? { name: x.name, config: patch(x.config) } : x))
+   }
+
+   private clearModels(): void {
+      this.models = []
+      this.modelsState = 'idle'
+      this.modelsError = ''
    }
 
    setProvider(v: string): void {
       if (!isProvider(v)) return
-      this.provider = v
+      this.patchConfig((c) => withProvider(c, v))
       // the loaded list belongs to the OTHER provider: showing it would offer models this
       // endpoint has never heard of
-      this.models = []
-      this.modelsState = 'idle'
-      this.modelsError = ''
-      this.persist()
+      this.clearModels()
    }
 
    setApiKey(v: string): void {
@@ -237,24 +379,20 @@ export class EnhancerSt {
    }
 
    setBaseUrl(v: string): void {
-      this.baseUrlByProvider[this.provider] = v.trim()
-      this.persist()
+      this.patchConfig((c) => ({ ...c, baseUrl: v.trim() }))
    }
 
    setModel(v: string): void {
-      this.modelByProvider[this.provider] = v
-      this.persist()
+      this.patchConfig((c) => ({ ...c, model: v }))
    }
 
    setEffort(v: string): void {
       if (!isEffort(v)) return
-      this.effort = v
-      this.persist()
+      this.patchConfig((c) => ({ ...c, effort: v }))
    }
 
    toggleThinkingOnly(): void {
-      this.thinkingOnly = !this.thinkingOnly
-      this.persist()
+      this.patchConfig((c) => ({ ...c, thinkingOnly: !c.thinkingOnly }))
    }
 
    // #region master prompts (server files) -------------------------------------
@@ -393,6 +531,8 @@ export class EnhancerSt {
       const remembered = this.presetByModule[p.module]
       if (remembered != null) this.presetName = remembered
       if (this.presets.length === 0) void this.loadPresets()
+      // re-read every open: a config edited in another window or by hand is picked up
+      void this.loadConfigs()
    }
 
    close(): void {

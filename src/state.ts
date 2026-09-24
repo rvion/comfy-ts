@@ -110,6 +110,11 @@ export class ComfyTS {
       return asAbsolutePath(join(this.baseFolder, 'prompt-enhancers', relativePath))
    }
 
+   /** the serve web ui's LLM configs (prompt enhancer), one json per config */
+   resolveFromLlmConfigs(relativePath: string): AbsolutePath {
+      return asAbsolutePath(join(this.baseFolder, 'llm-configs', relativePath))
+   }
+
    resolveFromCache(relativePath: string): AbsolutePath {
       return asAbsolutePath(join(this.baseFolder, 'cache', relativePath))
    }

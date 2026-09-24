@@ -11,6 +11,7 @@ import {
    type Endpoint,
 } from 'src/cli/serve/web/llm.ts'
 import { nextPresetName, normalizeSettings } from 'src/cli/serve/web/state/EnhancerSt.ts'
+import { normalizeLlmConfig, withProvider } from 'src/cli/serve/llmConfigShape.ts'
 
 /** a fake llm: SSE chunks split at arbitrary boundaries, like a real socket delivers them */
 function stubFetch(p: {
@@ -264,48 +265,61 @@ describe('streamRefine', () => {
    })
 })
 
-describe('enhancer settings blob', () => {
-   it('an empty/garbage blob yields cloud defaults with both base urls filled in', () => {
-      const s = normalizeSettings({})
-      expect(s.provider).toBe('openrouter')
-      expect(s.baseUrlByProvider.openwebui).toBe('http://localhost:3000')
-      expect(s.modelByProvider.openrouter).toBe('anthropic/claude-sonnet-5')
-      expect(s.effort).toBe('medium')
-      expect(s.thinkingOnly).toBe(true)
-      expect(normalizeSettings('garbage').provider).toBe('openrouter')
+describe('enhancer settings blob (keys and selection only: the configs are files)', () => {
+   it('an empty or garbage blob yields empty selections and no keys', () => {
+      expect(normalizeSettings({})).toEqual({ keyByProvider: {}, configName: '', presetName: '', presetByModule: {} })
+      expect(normalizeSettings('garbage').configName).toBe('')
    })
 
-   it('keys, base urls and models are kept PER PROVIDER so a switch cannot cross them', () => {
-      const s = normalizeSettings({
-         provider: 'openwebui',
-         keyByProvider: { openrouter: 'sk-or', openwebui: '', bogus: 7 },
-         baseUrlByProvider: { openwebui: 'http://gpu-box:3000' },
-         modelByProvider: { openwebui: 'qwen3:8b' },
-         effort: 'nonsense',
-         thinkingOnly: false,
-      })
-      expect(s.provider).toBe('openwebui')
-      expect(s.keyByProvider).toEqual({ openrouter: 'sk-or', openwebui: '' })
-      expect(s.baseUrlByProvider.openwebui).toBe('http://gpu-box:3000')
-      expect(s.baseUrlByProvider.openrouter).toBe('https://openrouter.ai/api/v1')
-      expect(s.modelByProvider.openwebui).toBe('qwen3:8b')
-      expect(s.modelByProvider.openrouter).toBe('anthropic/claude-sonnet-5')
-      expect(s.effort).toBe('medium')
-      expect(s.thinkingOnly).toBe(false)
-   })
-
-   it('the openai-compatible provider round-trips and gets its own default base url', () => {
-      expect(normalizeSettings({ provider: 'openai' }).provider).toBe('openai')
-      expect(normalizeSettings({}).baseUrlByProvider.openai).toBe('http://localhost:8080/v1')
-   })
-
-   it('an unknown provider falls back instead of pointing the ui at nothing', () => {
-      expect(normalizeSettings({ provider: 'ollama-direct' }).provider).toBe('openrouter')
+   it('keys stay per provider, junk values drop', () => {
+      const s = normalizeSettings({ keyByProvider: { openrouter: 'sk-or', bogus: 7 }, configName: 'wm-9b' })
+      expect(s.keyByProvider).toEqual({ openrouter: 'sk-or' })
+      expect(s.configName).toBe('wm-9b')
    })
 
    it('preset names never collide: the name IS the filename', () => {
       expect(nextPresetName('refine-krea2-prompt', [])).toBe('refine-krea2-prompt')
       expect(nextPresetName('a', ['a'])).toBe('a 2')
       expect(nextPresetName('a', ['a', 'a 2'])).toBe('a 3')
+   })
+})
+
+describe('llm config shape (a hand-editable file)', () => {
+   it('an empty or garbage file yields the cloud defaults', () => {
+      expect(normalizeLlmConfig({})).toEqual({
+         provider: 'openrouter',
+         baseUrl: 'https://openrouter.ai/api/v1',
+         model: 'anthropic/claude-sonnet-5',
+         effort: 'medium',
+         thinkingOnly: true,
+      })
+      expect(normalizeLlmConfig('garbage').provider).toBe('openrouter')
+      expect(normalizeLlmConfig([1]).provider).toBe('openrouter')
+   })
+
+   it('a local config round-trips, a bad field degrades alone', () => {
+      const c = normalizeLlmConfig({
+         provider: 'openai',
+         baseUrl: ' https://box:8081/v1 ',
+         model: 'qwen.gguf',
+         effort: 'nonsense',
+         thinkingOnly: false,
+      })
+      expect(c).toEqual({
+         provider: 'openai',
+         baseUrl: 'https://box:8081/v1',
+         model: 'qwen.gguf',
+         effort: 'medium',
+         thinkingOnly: false,
+      })
+      expect(normalizeLlmConfig({ provider: 'openai', baseUrl: '' }).baseUrl).toBe('http://localhost:8080/v1')
+   })
+
+   it('switching provider resets the base url and the model, never crosses them', () => {
+      const local = normalizeLlmConfig({ provider: 'openai', baseUrl: 'https://box/v1', model: 'q.gguf' })
+      const cloud = withProvider(local, 'openrouter')
+      expect(cloud.baseUrl).toBe('https://openrouter.ai/api/v1')
+      expect(cloud.model).toBe('anthropic/claude-sonnet-5')
+      expect(withProvider(local, 'openai')).toBe(local)
    })
 })

@@ -18,6 +18,8 @@ import { basename, dirname, extname, join, resolve } from 'pathe'
 import { applyVarPayload } from 'src/cli/serve/applyVarPayload.ts'
 import { describeVar, type VarDescriptor } from 'src/cli/serve/describeVar.ts'
 import { deletePromptEnhancer, listPromptEnhancers, writePromptEnhancer } from 'src/promptEnhancers.ts'
+import { deleteLlmConfig, listLlmConfigs, writeLlmConfig } from 'src/cli/serve/llmConfigs.ts'
+import { normalizeLlmConfig } from 'src/cli/serve/llmConfigShape.ts'
 import { managerOnlyLoraOptions } from 'src/cli/serve/managerOnlyLoras.ts'
 import { resolveTagSource, TagSources } from 'src/cli/serve/tagSource.ts'
 import { FAVICON_DATA_URI } from 'src/cli/serve/favicon.ts'
@@ -275,6 +277,8 @@ const USAGE = [
    'GET  /lora-about/<hostId>/<lora> — civitai description + example images (live from the extension)',
    'GET  /prompt-enhancers — the web ui master prompts (.comfy-ts/prompt-enhancers/*.md)',
    'PUT  /prompt-enhancers/<name> with {"text"} — write one · DELETE /prompt-enhancers/<name> — remove it',
+   'GET  /llm-configs — the enhancer LLM configs (.comfy-ts/llm-configs/*.json)',
+   'PUT  /llm-configs/<name> with {provider, baseUrl, model, effort, thinkingOnly} · DELETE /llm-configs/<name>',
    'GET  /settings — { saveToDisk } · PUT /settings with {"saveToDisk"} — write outputs to disk, or keep them in memory',
    'GET  /hosts — every host this process knows · PUT /hosts/<module> with {"host"} — run that workflow elsewhere',
    'POST /hosts/<hostId>/<interrupt|clear-queue|restart|refresh-loras|refresh-schema> — act on a ComfyUI host',
@@ -393,6 +397,7 @@ export class ServeApp {
             if (segs[0] === 'lora-about' && segs.length === 3 && segs[1] != null && segs[2] != null)
                return await this.replyLoraAbout(segs[1], segs[2])
             if (segs[0] === 'prompt-enhancers' && segs.length === 1) return this.replyPromptEnhancers()
+            if (segs[0] === 'llm-configs' && segs.length === 1) return this.replyLlmConfigs()
             if (segs[0] === 'tags' && segs.length === 3 && segs[1] != null && segs[2] != null)
                return await this.replyTags(segs[1], segs[2], req.url)
             if (segs[0] === 'settings' && segs.length === 1) return this.replySettings()
@@ -438,6 +443,10 @@ export class ServeApp {
             return this.replySavePromptEnhancer(segs[1], req)
          if (req.method === 'DELETE' && segs[0] === 'prompt-enhancers' && segs.length === 2 && segs[1] != null)
             return this.replyDeletePromptEnhancer(segs[1])
+         if (req.method === 'PUT' && segs[0] === 'llm-configs' && segs.length === 2 && segs[1] != null)
+            return this.replySaveLlmConfig(segs[1], req)
+         if (req.method === 'DELETE' && segs[0] === 'llm-configs' && segs.length === 2 && segs[1] != null)
+            return this.replyDeleteLlmConfig(segs[1])
          return json(404, { error: `no route: ${req.method} ${path}`, usage: USAGE })
       } catch (e) {
          console.error('[serve] request crashed:', e)
@@ -1189,6 +1198,46 @@ export class ServeApp {
       }
       console.log(`[serve] prompt enhancer deleted: ${name}`)
       return json(200, { ok: true, name, enhancers: listPromptEnhancers() })
+   }
+
+   private replyLlmConfigs(): ServeReply {
+      try {
+         return json(200, { configs: listLlmConfigs() })
+      } catch (e) {
+         return json(500, { error: `llm-configs folder unreadable: ${extractErrorMessage(e)}` })
+      }
+   }
+
+   private replySaveLlmConfig(rawName: string, req: ServeRequest): ServeReply {
+      const name = validStoreName(rawName)
+      if (name == null)
+         return json(400, { error: `invalid config name '${rawName}' — letters/digits then letters, digits, ". -_"` })
+      let parsed: unknown
+      try {
+         parsed = JSON.parse(req.body ?? '')
+      } catch (e) {
+         return json(400, { error: `body is not valid json: ${extractErrorMessage(e)}` })
+      }
+      if (parsed == null || typeof parsed !== 'object' || Array.isArray(parsed))
+         return json(400, { error: 'body must be { provider, baseUrl, model, effort, thinkingOnly }' })
+      try {
+         writeLlmConfig(name, normalizeLlmConfig(parsed))
+      } catch (e) {
+         return json(500, { error: `could not write llm config '${name}': ${extractErrorMessage(e)}` })
+      }
+      return json(200, { ok: true, name, configs: listLlmConfigs() })
+   }
+
+   private replyDeleteLlmConfig(rawName: string): ServeReply {
+      const name = validStoreName(rawName)
+      if (name == null) return json(400, { error: `invalid config name '${rawName}'` })
+      try {
+         deleteLlmConfig(name)
+      } catch (e) {
+         return json(500, { error: `could not delete llm config '${name}': ${extractErrorMessage(e)}` })
+      }
+      console.log(`[serve] llm config deleted: ${name}`)
+      return json(200, { ok: true, name, configs: listLlmConfigs() })
    }
 
    // #region live run state (web ui polling: progress + latent preview) --------

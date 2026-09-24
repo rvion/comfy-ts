@@ -132,3 +132,43 @@ describe('prompt enhancers live in .comfy-ts/prompt-enhancers/', () => {
       expect((await app.handle({ method: 'PUT', url: '/prompt-enhancers/x', body: '{"text":7}' })).status).toBe(400)
    })
 })
+
+describe('llm configs as files (.comfy-ts/llm-configs/*.json)', () => {
+   it('PUT writes a normalized json file, GET lists it, DELETE removes it', async () => {
+      const app = makeApp()
+      expect(body(await app.handle({ method: 'GET', url: '/llm-configs' })).configs).toEqual([])
+      const put = await app.handle({
+         method: 'PUT',
+         url: '/llm-configs/wm-9b',
+         body: JSON.stringify({ provider: 'openai', baseUrl: 'https://box:8081/v1', model: 'q.gguf', effort: 'off' }),
+      })
+      expect(put.status).toBe(200)
+      const file = join(comfy.resolveFromLlmConfigs(''), 'wm-9b.json')
+      expect(JSON.parse(readFileSync(file, 'utf8'))).toEqual({
+         provider: 'openai',
+         baseUrl: 'https://box:8081/v1',
+         model: 'q.gguf',
+         effort: 'off',
+         thinkingOnly: true,
+      })
+      const list = body(await app.handle({ method: 'GET', url: '/llm-configs' })).configs as { name: string }[]
+      expect(list.map((c) => c.name)).toEqual(['wm-9b'])
+      expect((await app.handle({ method: 'DELETE', url: '/llm-configs/wm-9b' })).status).toBe(200)
+      expect(existsSync(file)).toBe(false)
+   })
+
+   it('a name that could escape the folder and a body that is not an object are refused', async () => {
+      const app = makeApp()
+      expect((await app.handle({ method: 'PUT', url: '/llm-configs/..%2Fx', body: '{}' })).status).toBe(400)
+      expect((await app.handle({ method: 'PUT', url: '/llm-configs/ok', body: '[1]' })).status).toBe(400)
+      expect((await app.handle({ method: 'PUT', url: '/llm-configs/ok', body: 'nope' })).status).toBe(400)
+   })
+
+   it('a broken file is skipped, the others still list', async () => {
+      const app = makeApp()
+      await app.handle({ method: 'PUT', url: '/llm-configs/good', body: '{}' })
+      writeFileSync(join(comfy.resolveFromLlmConfigs(''), 'broken.json'), '{ nope')
+      const list = body(await app.handle({ method: 'GET', url: '/llm-configs' })).configs as { name: string }[]
+      expect(list.map((c) => c.name)).toEqual(['good'])
+   })
+})
