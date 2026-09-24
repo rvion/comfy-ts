@@ -40,7 +40,9 @@ describe('tag list', () => {
       expect(list.search('long').map((h) => h.name)).toEqual(['long_hair', 'long_coat', 'very_long_hair'])
       expect(list.search('long h').map((h) => h.name)).toEqual(['long_hair', 'very_long_hair'])
       expect(list.search('hair').map((h) => h.name)).toEqual(['long_hair', 'very_long_hair', 'silver_hair'])
-      expect(list.search('aeno')).toEqual([{ name: 'hammer_(sunset_beach)', category: 1, count: 5418, alias: 'aenobas' }])
+      expect(list.search('aeno')).toEqual([
+         { name: 'hammer_(sunset_beach)', category: 1, count: 5418, alias: 'aenobas' },
+      ])
       expect(list.search('LONGH')[0]?.name).toBe('long_hair')
       expect(list.search('')).toEqual([])
    })
@@ -48,7 +50,10 @@ describe('tag list', () => {
 
 describe('tag source', () => {
    it('resolves paths against the workflow file', () => {
-      expect(resolveTagSource('https://x/tags.csv', '/w/a.cflow.ts')).toEqual({ kind: 'http', url: 'https://x/tags.csv' })
+      expect(resolveTagSource('https://x/tags.csv', '/w/a.cflow.ts')).toEqual({
+         kind: 'http',
+         url: 'https://x/tags.csv',
+      })
       expect(resolveTagSource('./tags.csv', '/w/sub/a.cflow.ts')).toEqual({ kind: 'file', path: '/w/sub/tags.csv' })
       expect(resolveTagSource('/abs/t.csv', '/w/a.cflow.ts')).toEqual({ kind: 'file', path: '/abs/t.csv' })
       expect(resolveTagSource('file:///abs/t.csv', '/w/a.cflow.ts')).toEqual({ kind: 'file', path: '/abs/t.csv' })

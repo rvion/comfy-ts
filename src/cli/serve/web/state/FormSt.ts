@@ -281,6 +281,26 @@ export class FormSt {
       return out
    }
 
+   /** every keyword part the build will add in front, with the lora it comes from (the editor
+    * flags a tag you typed that a lora already adds) */
+   injectedTagsFor(promptVar: VarSt): { tag: string; source: string }[] {
+      return this.loraKeywordGroups(promptVar)
+         .filter((g) => g.running)
+         .flatMap((g) => g.parts.filter((w) => w.on).map((w) => ({ tag: w.text, source: g.label })))
+   }
+
+   /** the keyword parts of EVERY lora in the list, running or not: the editor completes them */
+   loraWordsFor(promptVar: VarSt): { word: string; source: string }[] {
+      const sourceName = promptVar.desc.keywordsFrom
+      const source = sourceName == null ? null : this.vars.find((v) => v.name === sourceName)
+      if (source == null) return []
+      const keywords = source.desc.optionKeywords ?? {}
+      const labels = source.desc.optionLabels ?? {}
+      return Object.entries(keywords).flatMap(([name, kw]) =>
+         keywordParts(kw).map((word) => ({ word, source: labels[name] ?? name })),
+      )
+   }
+
    /** mute or unmute one part of a lora's keyword, stored on that lora in the draft */
    toggleKeywordPart(promptVar: VarSt, lora: string, part: string): void {
       const found = this.keywordSource(promptVar)

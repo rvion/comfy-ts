@@ -250,3 +250,17 @@ export async function uploadFile(p: { file: File }): Promise<{ path: string; url
       body: JSON.stringify({ name: p.file.name, dataBase64: btoa(bin) }),
    })
 }
+
+export type TagHit = { name: string; category: number | null; count: number; alias?: string }
+
+/** completion hits from the tag list a prompt var declares; a missing list throws its reason */
+export function fetchTags(p: {
+   module: string
+   varName: string
+   q: string
+   limit?: number
+   signal?: AbortSignal
+}): Promise<{ hits: TagHit[] }> {
+   const q = new URLSearchParams({ q: p.q, limit: String(p.limit ?? 20) })
+   return jsonFetch(`/tags/${encodeURIComponent(p.module)}/${encodeURIComponent(p.varName)}?${q}`, { signal: p.signal })
+}

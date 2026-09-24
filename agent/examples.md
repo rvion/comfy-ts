@@ -16,7 +16,7 @@ examples/
       07-local-llm-text-gen.cflow.ts  core TextGenerate: a local LLM, no image. `--sweep` probes every text encoder on the box
       08-qwen-image-21-t2i.cflow.ts   qwen image 2.1 on windows-1 (image_qwen_image_2_1_t2i), not on the cloud catalog yet
       09-qwen-image-21-edit.cflow.ts  qwen image 2.1 edit, one reference in the `images.image_1` autogrow slot; the `remove background` preset = image_qwen_image_2_1_background_removal
-      10-anima-t2i.cflow.ts           anima on windows-1: a model choice (turbo v1.1, aesthetic v1.1, base v1.0, base + turbo lora; distilled = 8 steps cfg 1, else the steps/cfg vars), a sampler choice (auto = er_sde or euler), the model card's leading tags as buttons above the prompt (safety, score, quality; score skipped on aesthetic, `animaTags`), loras from `anima/` folders only, RMBG cutout like 04
+      10-anima-t2i.cflow.ts           anima on windows-1: a model choice (turbo v1.1, aesthetic v1.1, base v1.0, base + turbo lora; distilled = 8 steps cfg 1, else the steps/cfg vars), a sampler choice (auto = er_sde or euler), the model card's leading tags as buttons above the prompt (safety, score, quality; score skipped on aesthetic, `animaTags`), danbooru tag completion in the prompt (`tags`, the tagcomplete csv by url, artists get `@`), loras from `anima/` folders only, RMBG cutout like 04
                                     the `streaming` toggle swaps in extra/comfyui-textgen-stream's node when the host has it (feature-detected), so the answer is watched as it is written
    comfy-cloud/
       sdk.d.ts                   committed cloud catalog (gen:sdk:cloud)

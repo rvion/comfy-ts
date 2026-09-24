@@ -11,6 +11,8 @@ const host = comfy.host({ id: 'windows-1', host: 'desktop-im18794', port: 8085 }
 await host.loadSchemaFromCache()
 
 const TURBO_LORA = 'anima\\anima-turbo-lora-v0.2.safetensors'
+// the a1111 tagcomplete list: fetched by serve on first use, never part of this repo
+const DANBOORU_TAGS = 'https://raw.githubusercontent.com/DominikDoom/a1111-sd-webui-tagcomplete/main/tags/danbooru.csv'
 
 const MODELS = {
    // distilled: fast, stable, a strong default style. What the author suggests starting with
@@ -109,6 +111,8 @@ export const animaT2i = host.defineWorkflow({
             '1girl, silver hair, long coat, standing on a rooftop at dusk, city lights, wind, looking at viewer\n- blurry, jpeg artifacts, sepia',
             {
                loraKeywordsFrom: loras,
+               // danbooru tag completion. The card: lowercase, spaces for underscores, artists as `@name`
+               tags: { url: DANBOORU_TAGS, artistPrefix: '@' },
                // named starting texts: picking one REPLACES the box, the draft reverts it
                presets: {
                   'rooftop portrait':
@@ -149,7 +153,8 @@ export const animaT2i = host.defineWorkflow({
    previews: {
       prompt: (vars) => {
          const p = animaPrompts(vars)
-         return p.negative === '' ? p.positive : `${p.positive}\n\nnegative: ${p.negative}`
+         // written like the prompt box: the negative is a `- ` line, never part of the positive
+         return p.negative === '' ? p.positive : `${p.positive}\n- ${p.negative}`
       },
    },
    build: (b, vars) => {

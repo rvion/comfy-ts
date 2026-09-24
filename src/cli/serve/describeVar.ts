@@ -100,7 +100,10 @@ export function describeVar(varDef: AnyVar): VarDescriptor {
             ...base,
             payload: 'string ("//" starts a comment, "- " lines = negative)',
             textPresets: presetsOrUndefined(v.presets),
-            tags: v.tags == null ? undefined : { underscores: v.tags.underscores === true, artistPrefix: v.tags.artistPrefix },
+            tags:
+               v.tags == null
+                  ? undefined
+                  : { underscores: v.tags.underscores === true, artistPrefix: v.tags.artistPrefix },
             weights: v.promptOpts.weights === false ? false : undefined,
          }
       }

@@ -4,6 +4,7 @@ import { observer } from 'mobx-react-lite'
 import { useState } from 'react'
 import { MenuButton, MenuItem } from 'src/cli/serve/web/components/MenuButton.tsx'
 import { PresetPicker } from 'src/cli/serve/web/components/controls/PresetPicker.tsx'
+import { PromptEditor } from 'src/cli/serve/web/components/controls/PromptEditor.tsx'
 import { PromptEnhancer } from 'src/cli/serve/web/components/PromptEnhancer.tsx'
 import type { VarSt } from 'src/cli/serve/web/state/FormSt.ts'
 import type { WebSt } from 'src/cli/serve/web/state/WebSt.ts'
@@ -17,8 +18,6 @@ import {
    toPromptLanes,
    type PromptLane,
 } from 'src/vars/lanes.ts'
-
-const rowsFor = (text: string, min: number): number => Math.min(12, Math.max(min, text.split('\n').length + 1))
 
 /** the words each active lora adds in front of the prompt. One line per lora, cut with an
  * ellipsis; clicking opens the full list with a checkbox per word and all / none */
@@ -180,10 +179,13 @@ const LaneBox = observer(function LaneBox(p: { v: VarSt; st: WebSt; module: stri
                </MenuButton>
             </span>
          </div>
-         <textarea
-            rows={rowsFor(lane.prompt, 2)}
+         <PromptEditor
+            v={p.v}
+            st={p.st}
+            module={p.module}
             value={lane.prompt}
-            onChange={(e) => write(patchLane(p.lanes, p.ix, { prompt: e.target.value }))}
+            onChange={(text) => write(patchLane(p.lanes, p.ix, { prompt: text }))}
+            minLines={2}
          />
       </div>
    )
@@ -224,7 +226,7 @@ export const PromptControl = observer(function PromptControl(p: { v: VarSt; st: 
                      single box
                   </button>
                )}
-               <span className="hint">lanes merge top to bottom · // line = comment · "- " line = negative prompt</span>
+               <span className="hint">lanes merge top to bottom</span>
             </div>
          </div>
       )
@@ -233,9 +235,8 @@ export const PromptControl = observer(function PromptControl(p: { v: VarSt; st: 
    return (
       <div>
          <KeywordGroups v={p.v} st={p.st} />
-         <textarea rows={rowsFor(text, 4)} value={text} onChange={(e) => p.v.set(e.target.value)} />
+         <PromptEditor v={p.v} st={p.st} module={p.module} value={text} onChange={(t) => p.v.set(t)} minLines={4} />
          <div className="row-inline">
-            <span className="hint">// line = comment · "- " line = negative prompt</span>
             <PresetPicker v={p.v} />
             <PromptEnhancer v={p.v} st={p.st} module={p.module} />
             <button

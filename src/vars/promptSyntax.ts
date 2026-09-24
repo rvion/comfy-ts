@@ -299,7 +299,8 @@ export function tagIssues(
    const scan = (side: Chunk[], sideName: string): void => {
       const seen = new Set<string>()
       for (const ch of side) {
-         if (seen.has(ch.tag)) out.push({ from: ch.from, to: ch.to, message: `'${ch.tag}' is already in the ${sideName}` })
+         if (seen.has(ch.tag))
+            out.push({ from: ch.from, to: ch.to, message: `'${ch.tag}' is already in the ${sideName}` })
          seen.add(ch.tag)
       }
    }
@@ -308,8 +309,10 @@ export function tagIssues(
    const negTags = new Set(negative.map((c) => c.tag))
    for (const ch of positive) {
       const source = injected.get(ch.tag)
-      if (source != null) out.push({ from: ch.from, to: ch.to, message: `'${ch.tag}' is already added by the lora ${source}` })
-      if (negTags.has(ch.tag)) out.push({ from: ch.from, to: ch.to, message: `'${ch.tag}' is also in the negative prompt` })
+      if (source != null)
+         out.push({ from: ch.from, to: ch.to, message: `'${ch.tag}' is already added by the lora ${source}` })
+      if (negTags.has(ch.tag))
+         out.push({ from: ch.from, to: ch.to, message: `'${ch.tag}' is also in the negative prompt` })
    }
    return out.sort((a, b) => a.from - b.from)
 }

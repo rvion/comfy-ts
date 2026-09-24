@@ -159,7 +159,6 @@ export class TextVar extends ComfyVar<string> {
    }
 }
 
-
 /** what PromptVar needs from a loras var: covariant face, so LorasVar<'a'|'b'> fits.
  * `hostId` scopes the keyword lookup: the same file name on two hosts is often a
  * different model, and injecting the other host's trigger words is a silently

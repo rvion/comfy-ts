@@ -189,7 +189,11 @@ input[type='checkbox'] { accent-color: var(--accent); width: 16px; height: 16px;
 /* the tools of a lane only show under the pointer: a calm list of lanes at rest */
 .lane-tools { display: inline-flex; gap: 4px; align-items: center; opacity: 0; transition: opacity 0.12s; }
 .lane-box:hover .lane-tools, .lora-section:hover .lane-tools, .lane-tools:focus-within { opacity: 1; }
-.lane-box.off textarea, .lora-section.off .lora-lane { opacity: 0.4; }
+.lane-box.off textarea, .lane-box.off .prompt-editor, .lora-section.off .lora-lane { opacity: 0.4; }
+/* the prompt editor's own colors live in its CodeMirror theme (web/promptEditor/); here only the footer */
+.pe-foot { display: flex; gap: 10px; justify-content: flex-end; font-size: 11px; color: var(--dim); padding: 2px 2px 0; }
+.pe-keys, .pe-tokens { cursor: help; }
+.pe-error { color: var(--red); margin-right: auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lane-foot { gap: 14px; }
 .lora-add-card {
    align-self: stretch; min-width: 56px; min-height: 56px; border: 1px dashed var(--border);
@@ -337,17 +341,20 @@ button.accent:hover { background: var(--accent-dim); color: #fff; }
 }
 .run-live-body.dim { color: var(--dim); }
 .progress-track { height: 6px; background: var(--panel-2); border-radius: 3px; overflow: hidden; margin-bottom: 8px; }
-/* live previews under generate: a caret and a name, then the text, monospace so a prompt's
-   commas and line breaks read as sent */
-.live-previews { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
-.live-preview-head { background: none; border: 0; padding: 0; color: var(--dim); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; }
-.live-preview-head:hover { color: var(--text); }
-.live-preview-caret { display: inline-block; width: 1em; }
-.live-preview-text {
-   margin: 3px 0 0; padding: 7px 9px; background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
-   white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; line-height: 1.45; max-height: 220px; overflow-y: auto;
-   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+/* live previews under generate: compact, the name inline, each line cut to one; a click opens
+   the full text. A negative line is dim red, as the prompt box would read it */
+.live-previews { display: flex; flex-direction: column; gap: 3px; margin-bottom: 8px; }
+.live-preview {
+   display: flex; gap: 8px; align-items: baseline; width: 100%; min-width: 0; text-align: left;
+   background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 4px 8px;
+   font-size: 11px; line-height: 1.4; cursor: pointer;
 }
+.live-preview:hover { border-color: var(--accent-dim); }
+.live-preview-name { flex-shrink: 0; color: var(--dim); text-transform: uppercase; letter-spacing: 0.06em; font-size: 10px; }
+.live-preview-lines { display: flex; flex-direction: column; min-width: 0; flex: 1; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.live-preview-line { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
+.live-preview-line.negative { color: #c9848f; }
+.live-preview.expanded .live-preview-line { white-space: pre-wrap; overflow-wrap: anywhere; }
 /* the running image's frame, reserved at its final ratio: the latent fills it, the bar rides its
    foot, so a run never changes the page's height */
 .run-frame { position: relative; max-width: 100%; background: var(--bg); border-radius: 6px; overflow: hidden; }
