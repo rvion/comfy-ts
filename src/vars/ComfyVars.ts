@@ -20,6 +20,7 @@ import {
 } from 'src/vars/lanes.ts'
 import { keptKeyword, loraIsOn, loraMuted, loraStrengths, withLora, type LoraStrength } from 'src/vars/loraEntry.ts'
 import { logError } from 'src/utils/log.ts'
+import { COMMENT_LINE_RE, NEGATIVE_LINE_RE, parsePromptText } from 'src/vars/promptSyntax.ts'
 import { toPresetList, type VarPreset, type VarPresetSpec } from 'src/vars/presets.ts'
 
 /**
@@ -158,8 +159,6 @@ export class TextVar extends ComfyVar<string> {
    }
 }
 
-const commentLineRe = /^\s*\/\//
-const negativeLineRe = /^\s*- (.*)$/
 
 /** what PromptVar needs from a loras var: covariant face, so LorasVar<'a'|'b'> fits.
  * `hostId` scopes the keyword lookup: the same file name on two hosts is often a
@@ -172,13 +171,33 @@ export type ActiveLoraSource = {
    mutedWords?(name: string): string[]
 }
 
+/** where a prompt's tag completion comes from (the serve web editor). The list is never shipped:
+ * `url` is a local path (relative to the workflow file, `~/`, `file://`) or an http(s) url */
+export type PromptTagsOpts = {
+   url: string
+   /** insert `long_hair` as written in the list; default inserts `long hair` */
+   underscores?: boolean
+   /** put in front of an artist tag on insert (Anima: `@`) */
+   artistPrefix?: string
+}
+
+export type PromptVarOpts = {
+   label?: string
+   loraKeywordsFrom?: ActiveLoraSource
+   presets?: VarPresetSpec
+   /** booru tag completion for this prompt: a tag list url, or the url with its insert rules */
+   tags?: string | PromptTagsOpts
+   /** false when the model's encoder ignores `(text:1.2)`: the editor then flags every weight */
+   weights?: boolean
+}
+
 /** what a prompt CONTRIBUTES to build: `vars.prompt.positive` / `.negative` */
 export type PromptValue = { positive: string; negative: string }
 
 /**
  * prompt text with editor comforts, all resolved at BUILD time (the editor and
  * drafts keep the raw text):
- *   - `//` lines are COMMENTS — stripped
+ *   - `//` starts a COMMENT to the end of the line (src/vars/promptSyntax.ts) — stripped
  *   - `- ` lines are NEGATIVE prompt lines — removed from `.positive`,
  *     comma-joined into `.negative`
  *   - with `loraKeywordsFrom`, the ACTIVE loras' hand-assigned keywords
@@ -191,11 +210,7 @@ export class PromptVar extends ComfyVarBase<PromptInput, PromptValue> {
    readonly presets: VarPreset[]
    constructor(
       defaultValue: PromptInput,
-      public promptOpts: {
-         label?: string
-         loraKeywordsFrom?: ActiveLoraSource
-         presets?: VarPresetSpec
-      } = {},
+      public promptOpts: PromptVarOpts = {},
    ) {
       super(defaultValue, promptOpts.label)
       this.presets = toPresetList(promptOpts.presets)
@@ -217,11 +232,17 @@ export class PromptVar extends ComfyVarBase<PromptInput, PromptValue> {
    get text(): string {
       return promptText(this.value)
    }
+   /** the tag list options in their one object form, null when this prompt has no completion */
+   get tags(): PromptTagsOpts | null {
+      const t = this.promptOpts.tags
+      if (t == null) return null
+      return typeof t === 'string' ? { url: t } : t
+   }
    static isCommentLine(line: string): boolean {
-      return commentLineRe.test(line)
+      return COMMENT_LINE_RE.test(line)
    }
    static isNegativeLine(line: string): boolean {
-      return negativeLineRe.test(line)
+      return NEGATIVE_LINE_RE.test(line)
    }
    /** the keyword prefix the flag will inject (deduped, lora-list order) — the TUI previews this */
    injectedKeywords(): string[] {
@@ -237,21 +258,12 @@ export class PromptVar extends ComfyVarBase<PromptInput, PromptValue> {
       ]
    }
    outValue(): PromptValue {
-      const pos: string[] = []
-      const neg: string[] = []
-      for (const line of this.text.split('\n')) {
-         if (commentLineRe.test(line)) continue
-         const m = negativeLineRe.exec(line)
-         if (m != null) {
-            const text = (m[1] ?? '').trim()
-            if (text !== '') neg.push(text)
-         } else pos.push(line)
-      }
-      const body = pos.join('\n').trim()
+      const parsed = parsePromptText(this.text)
+      const body = parsed.positive
       const keywords = this.injectedKeywords()
       const positive =
          keywords.length === 0 ? body : body === '' ? keywords.join(', ') : `${keywords.join(', ')}, ${body}`
-      return { positive, negative: neg.join(', ') }
+      return { positive, negative: parsed.negative }
    }
 }
 
@@ -900,7 +912,7 @@ export const v = {
    prompt: (
       /** a string, or `{ lanes: [{ name, prompt, active }] }` merged in listed order */
       defaultValue: PromptInput,
-      opts: { label?: string; loraKeywordsFrom?: ActiveLoraSource; presets?: VarPresetSpec } = {},
+      opts: PromptVarOpts = {},
    ): PromptVar => new PromptVar(defaultValue, opts),
    int: (defaultValue: number, opts: { min?: number; max?: number; label?: string } = {}): IntVar =>
       new IntVar(defaultValue, opts),

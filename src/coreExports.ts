@@ -115,6 +115,8 @@ export type {
    SizePreset,
    ImageVarOpts,
    TextVarOpts,
+   PromptVarOpts,
+   PromptTagsOpts,
 } from 'src/vars/ComfyVars.ts'
 export { toPresetList, activePresetLabel, type VarPreset, type VarPresetSpec } from 'src/vars/presets.ts'
 export type {
