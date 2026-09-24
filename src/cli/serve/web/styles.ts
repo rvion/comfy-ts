@@ -623,7 +623,13 @@ div.lora-thumb.none {
 .enh-tab-edit { background: none; border: 0; color: var(--dim); padding: 4px 8px; cursor: pointer; }
 .enh-tab-edit:hover, .enh-tab-edit.sel { color: var(--accent); }
 .enh-right { position: relative; min-height: 0; display: flex; flex-direction: column; }
-.enh-right > .enh-main { flex: 1; }
+.enh-right > .enh-main { flex: 1; overflow: hidden; }
+.enh-job { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 6px; }
+.enh-job .enh-actions { margin-bottom: 8px; }
+.enh-box { flex: 1; min-height: 60px; resize: none; }
+.enh-box.enh-result { flex: 1.3; }
+button.enh-go { min-width: 130px; justify-content: center; }
+.enh-think-tip { margin-left: 6px; cursor: help; }
 /* the editor covers the job, inside the modal: nothing clips it, nothing beside it moves */
 .enh-edit {
    position: absolute; inset: 0; z-index: 2; display: flex; flex-direction: column;
@@ -639,13 +645,11 @@ button.enh-edit-close { background: var(--accent); border-color: var(--accent); 
 .enh-dot.down { background: var(--red); }
 .enh-dot.checking { background: var(--amber); }
 .enh-empty { color: var(--dim); font-size: 13px; padding: 4px; }
-.enh-section { display: flex; flex-direction: column; gap: 10px; }
 .enh-h { display: flex; align-items: center; gap: 10px; margin: 0; font-size: 16px; font-weight: 700; color: var(--text); }
 .enh-h-name { color: var(--accent); font-weight: 600; }
 .enh-label { font-size: 13px; color: var(--dim); margin-bottom: 4px; }
 .enh-text { width: 100%; font-size: 14px; line-height: 1.5; }
 .enh-result { border-color: var(--accent-dim); }
-.enh-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .enh-actions { display: flex; gap: 10px; align-items: center; }
 button.enh-big { font-size: 14px; padding: 8px 18px; }
 .enh-grid { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 8px 12px; align-items: center; }
@@ -654,11 +658,6 @@ button.enh-big { font-size: 14px; padding: 8px 18px; }
 .enh-inline { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; min-width: 0; }
 .enh-inline > select, .enh-inline > input[type='text'] { flex: 1; min-width: 160px; }
 .enh-inline .row-inline { font-size: 13px; color: var(--dim); }
-.enh-think-box summary { cursor: pointer; color: var(--dim); font-size: 13px; }
-.enh-think {
-   margin-top: 6px; max-height: 180px; overflow-y: auto; white-space: pre-wrap; font-size: 13px;
-   color: var(--dim); background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 8px;
-}
 
 .img-preview { margin-top: 8px; }
 .img-preview img { max-width: 220px; max-height: 220px; border-radius: 6px; border: 1px solid var(--border); }
@@ -926,8 +925,6 @@ button .icon + * { margin-left: 4px; }
    .modal { max-height: 100%; height: 100%; width: 100%; border-radius: 0; }
    .lora-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
    .runbar { flex-wrap: wrap; }
-   /* side by side prompts do not fit a phone: stack yours over the rewrite */
-   .enh-cols { grid-template-columns: 1fr; }
    /* the two tab lists become two dropdowns above the job */
    .enh-layout { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
    .enh-side { flex-direction: row; gap: 10px; border-right: 0; border-bottom: 1px solid var(--border); padding: 8px 10px; }

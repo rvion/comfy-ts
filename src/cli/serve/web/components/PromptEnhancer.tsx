@@ -356,42 +356,21 @@ const MasterPrompt = observer(function MasterPrompt(p: { e: EnhancerSt }) {
    )
 })
 
+/** the job, top to bottom: the actions, then yours, then the rewrite. The two boxes share the
+ * height the modal has, so nothing scrolls and nothing below the buttons ever moves them */
 const Job = observer(function Job(p: { e: EnhancerSt }) {
    const e = p.e
    const running = e.phase === 'running'
    return (
-      <section className="enh-section">
-         <h3 className="enh-h">your prompt → rewrite</h3>
-         <div className="enh-cols">
-            <div>
-               <div className="enh-label">yours, what gets sent (the form is untouched)</div>
-               <textarea
-                  className="enh-text"
-                  rows={8}
-                  value={e.original}
-                  onChange={(ev) => e.setOriginal(ev.target.value)}
-               />
-            </div>
-            <div>
-               <div className="enh-label">
-                  {running ? `rewriting… ${e.result.length} chars` : 'rewrite, editable before you apply'}
-               </div>
-               <textarea
-                  className="enh-text enh-result"
-                  rows={8}
-                  value={e.result}
-                  placeholder="press enhance"
-                  onChange={(ev) => e.setResult(ev.target.value)}
-               />
-            </div>
-         </div>
+      <section className="enh-job">
          <div className="enh-actions">
+            {/* one width for enhance and stop, so the swap never moves apply */}
             {running ? (
-               <button type="button" className="enh-big" onClick={() => e.cancel()}>
+               <button type="button" className="enh-big enh-go" onClick={() => e.cancel()}>
                   stop
                </button>
             ) : (
-               <button type="button" className="primary enh-big" onClick={() => e.run()}>
+               <button type="button" className="primary enh-big enh-go" onClick={() => e.run()}>
                   <Icon name="sparkle" /> enhance <span className="kbd-hint">{MOD_KEY}⏎</span>
                </button>
             )}
@@ -403,14 +382,26 @@ const Job = observer(function Job(p: { e: EnhancerSt }) {
             >
                apply to prompt
             </button>
+            <span className="run-error" data-tip={e.error === '' ? undefined : e.error}>
+               {e.error === '' ? '' : `🔴 ${e.error}`}
+            </span>
          </div>
-         {e.error !== '' ? <div className="error">🔴 {e.error}</div> : null}
-         {e.thinking !== '' ? (
-            <details className="enh-think-box">
-               <summary>thinking ({e.thinking.length} chars)</summary>
-               <div className="enh-think">{e.thinking}</div>
-            </details>
-         ) : null}
+         <div className="enh-label">yours, what gets sent (the form is untouched)</div>
+         <textarea className="enh-text enh-box" value={e.original} onChange={(ev) => e.setOriginal(ev.target.value)} />
+         <div className="enh-label">
+            {running ? `rewriting… ${e.result.length} chars` : 'rewrite, editable before you apply'}
+            {e.thinking === '' ? null : (
+               <span className="enh-think-tip" data-tip={e.thinking}>
+                  · thinking ({e.thinking.length} chars)
+               </span>
+            )}
+         </div>
+         <textarea
+            className="enh-text enh-box enh-result"
+            value={e.result}
+            placeholder="press enhance"
+            onChange={(ev) => e.setResult(ev.target.value)}
+         />
       </section>
    )
 })
