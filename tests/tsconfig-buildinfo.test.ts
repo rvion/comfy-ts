@@ -39,7 +39,9 @@ describe('incremental caches are not shared between tsconfigs', () => {
 // invoked typecheck owns its cache, and the folder-open `tsc --watch` runs the ROOT config too, so
 // the gate's typecheck read the watcher's cache and failed on a method that exists
 describe('the gate typecheck never reads the editor watcher cache', () => {
-   const scripts = (JSON.parse(readFileSync(join(repoRoot, 'package.json'), 'utf8')) as { scripts: Record<string, string> }).scripts
+   const scripts = (
+      JSON.parse(readFileSync(join(repoRoot, 'package.json'), 'utf8')) as { scripts: Record<string, string> }
+   ).scripts
    const rootCall = (script: string): string => script.split('&&')[0]?.trim() ?? ''
 
    it('the root typecheck call passes its own --tsBuildInfoFile', () => {
