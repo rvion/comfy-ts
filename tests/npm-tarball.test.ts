@@ -2,14 +2,24 @@ import { describe, expect, it } from 'bun:test'
 import { spawnSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
 
+/** the paths of `bun pm pack` output, color codes or not: a shell with FORCE_COLOR set wraps
+ * every `packed` line in escapes, and a pattern anchored on the bare word matched nothing */
+function parsePackList(stdout: string): string[] {
+   return stdout
+      .replaceAll(/\u001b\[[0-9;]*m/g, '')
+      .split('\n')
+      .map((l) => /^packed \S+ (.+)$/.exec(l.trim())?.[1])
+      .filter((p): p is string => p != null)
+}
+
 /** the tarball file list as bun packs it: scripts/release.ts publishes with bun, so this is the shipped list */
 function bunPackList(): string[] {
-   const res = spawnSync('bun', ['pm', 'pack', '--dry-run'], { encoding: 'utf8' })
+   // colors off whatever the calling shell asks for: the list is parsed, never shown
+   const env: Record<string, string | undefined> = { ...process.env, NO_COLOR: '1' }
+   delete env.FORCE_COLOR
+   const res = spawnSync('bun', ['pm', 'pack', '--dry-run'], { encoding: 'utf8', env })
    if (res.status !== 0) throw new Error(`bun pm pack failed: ${res.stderr}`)
-   const paths = res.stdout
-      .split('\n')
-      .map((l) => /^packed \S+ (.+)$/.exec(l)?.[1])
-      .filter((p): p is string => p != null)
+   const paths = parsePackList(res.stdout)
    if (paths.length === 0) throw new Error(`bun pm pack listed no file:\n${res.stdout}`)
    return paths
 }
@@ -24,6 +34,16 @@ function bunPackList(): string[] {
  * the one scripts/release.ts publishes with.
  */
 describe('npm tarball', () => {
+   // why we think it is actually a bug, and not just meaning spec should change: run from a shell
+   // with FORCE_COLOR=1, the guard failed with "listed no file" and never inspected a single path,
+   // so a real leak and a colored terminal looked the same
+   it('reads the pack list through color codes', () => {
+      const colored =
+         '\u001b[0m\u001b[1m\u001b[36mpacked\u001b[0m 5.19KB package.json\n\u001b[0m\u001b[1m\u001b[36mpacked\u001b[0m 1.1KB LICENSE\n'
+      expect(parsePackList(colored)).toEqual(['package.json', 'LICENSE'])
+      expect(parsePackList('packed 1.1KB LICENSE\n')).toEqual(['LICENSE'])
+   })
+
    it('ships dist + src + README + LICENSE, and nothing private', () => {
       const paths = bunPackList()
       expect(paths.length).toBeGreaterThan(100)
