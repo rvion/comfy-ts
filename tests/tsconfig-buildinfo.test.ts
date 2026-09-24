@@ -34,3 +34,22 @@ describe('incremental caches are not shared between tsconfigs', () => {
       }
    })
 })
+
+// why we think it is actually a bug, and not just meaning spec should change: coding.md says every
+// invoked typecheck owns its cache, and the folder-open `tsc --watch` runs the ROOT config too, so
+// the gate's typecheck read the watcher's cache and failed on a method that exists
+describe('the gate typecheck never reads the editor watcher cache', () => {
+   const scripts = (JSON.parse(readFileSync(join(repoRoot, 'package.json'), 'utf8')) as { scripts: Record<string, string> }).scripts
+   const rootCall = (script: string): string => script.split('&&')[0]?.trim() ?? ''
+
+   it('the root typecheck call passes its own --tsBuildInfoFile', () => {
+      const call = rootCall(scripts.typecheck ?? '')
+      const own = /--tsBuildInfoFile\s+(\S+)/.exec(call)?.[1] ?? ''
+      expect(own, `typecheck must pass --tsBuildInfoFile: ${call}`).not.toBe('')
+      expect(own).not.toBe(buildInfoOf('tsconfig.json'))
+   })
+
+   it('control: the root config still declares the cache the watcher uses', () => {
+      expect(buildInfoOf('tsconfig.json')).toBe('node_modules/.cache/tsbuildinfo.json')
+   })
+})

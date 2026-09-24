@@ -30,7 +30,7 @@ Runtime deps: `arktype`, `image-meta`, `nanoid`, `pathe`, `sharp`, `ws`, `ink` +
 
 ## tsconfigs: one incremental cache each (hard)
 
-Every tsconfig that is actually invoked (root, `tsconfig.lib.json`, `src/cli/serve/web`, `examples/web`) sets its OWN `tsBuildInfoFile`. Two configs with different `include` sets writing one tsbuildinfo poison each other: the gate then fails on a symbol that exists (an editor typechecking in the background with the root config is enough to trigger it), which is a red gate on green code. `tests/tsconfig-buildinfo.test.ts` is the guard. Stale cache symptom, if it ever returns: `rm node_modules/.cache/tsbuildinfo*.json`.
+Every tsconfig that is actually invoked (root, `tsconfig.lib.json`, `src/cli/serve/web`, `examples/web`) sets its OWN `tsBuildInfoFile`. Two configs with different `include` sets writing one tsbuildinfo poison each other: the gate then fails on a symbol that exists (an editor typechecking in the background with the root config is enough to trigger it), which is a red gate on green code. The folder-open `tsc --watch` also runs the root config, so `bun run typecheck` passes its own `--tsBuildInfoFile` (`tsbuildinfo-typecheck.json`) rather than share the watcher's. `tests/tsconfig-buildinfo.test.ts` is the guard. Stale cache symptom, if it ever returns: `rm node_modules/.cache/tsbuildinfo*.json`.
 
 ## Lint & format config (zero output is the contract)
 
