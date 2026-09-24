@@ -9,5 +9,4 @@ export default globalProcess({
     description: 'comfy-ts web panel over examples/rvion',
     cmd: ['bun', 'run', 'serve:rvion'],
     url: 'http://127.0.0.1:8288',
-    app: true,
 })
