@@ -125,7 +125,10 @@ button.danger:hover { color: var(--red); border-color: var(--red); }
 /* labels never wrap: one line at the height of a control, cut with an ellipsis, whole on hover.
    The icon and the (?) keep their size, only the name gives way */
 .var-label { display: flex; align-items: center; justify-content: flex-end; min-height: 28px; min-width: 0; cursor: grab; }
-.var-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.var-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+/* the ⌘ key that jumps to this var, on its own line under the name */
+.var-label.has-kbd { flex-wrap: wrap; align-content: center; row-gap: 3px; }
+.var-kbd-line { flex-basis: 100%; display: flex; justify-content: flex-end; color: var(--dim); }
 .var-row.inactive .var-control { opacity: 0.18; filter: grayscale(1); }
 .var-row.inactive .var-label { opacity: 0.45; }
 .var-label:active { cursor: grabbing; }

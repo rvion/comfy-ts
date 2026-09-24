@@ -178,6 +178,8 @@ export const LorasControl = observer(function LorasControl(p: {
    host: string
    st: WebSt
    hostUrl: string | null
+   /** ⌘O opens THIS var's picker: the first loras var of the form */
+   jumpTarget: boolean
 }) {
    const local = useLocalObservable<LocalSt>(() => ({
       open: false,
@@ -386,6 +388,14 @@ export const LorasControl = observer(function LorasControl(p: {
             .catch(() => local.noteInfo(name, 'error'))
       }
    }, [open, activeKey, host, local])
+
+   // ⌘O: a NEW jump opens the picker on the first section, as its own `add` would
+   const jump = p.st.jump
+   const firstIx = sections[0]?.ix ?? -1
+   useEffect(() => {
+      if (!p.jumpTarget || jump == null || jump.kind !== 'loras') return
+      local.openFor(firstIx)
+   }, [jump, p.jumpTarget, firstIx, local])
 
    // esc closes wherever focus is, not only inside the filter input
    useEffect(() => {

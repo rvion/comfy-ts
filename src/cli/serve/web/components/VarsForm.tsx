@@ -1,7 +1,8 @@
 // the var rows: each kind dispatches to its matching control (the point of the
 // web ui — architecture item 12) + the sticky run bar
 import { observer, useLocalObservable } from 'mobx-react-lite'
-import { useEffect, type ReactNode } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
+import { jumpTargets, SHORTCUT_KEYS, shortcutOf } from 'src/cli/serve/web/state/shortcuts.ts'
 import {
    ChoiceControl,
    NumberControl,
@@ -20,7 +21,13 @@ import { SizeControl } from 'src/cli/serve/web/components/controls/SizeControl.t
 import type { FormSt, VarSt } from 'src/cli/serve/web/state/FormSt.ts'
 import type { WebSt } from 'src/cli/serve/web/state/WebSt.ts'
 
-const VarControl = observer(function VarControl(p: { v: VarSt; host: string; st: WebSt; module: string }) {
+const VarControl = observer(function VarControl(p: {
+   v: VarSt
+   host: string
+   st: WebSt
+   module: string
+   jumpTarget: boolean
+}) {
    switch (p.v.desc.kind) {
       case 'prompt':
          return <PromptControl v={p.v} st={p.st} module={p.module} />
@@ -39,7 +46,15 @@ const VarControl = observer(function VarControl(p: { v: VarSt; host: string; st:
          // the OVERRIDE host, like every other host-scoped read: with `host` fixed at form
          // construction the previews, trigger words and details sheet came from the workflow's
          // own box while the manager link opened the one actually selected
-         return <LorasControl v={p.v} host={p.st.hostFor(p.module)} st={p.st} hostUrl={p.st.hostUrlFor(p.module)} />
+         return (
+            <LorasControl
+               v={p.v}
+               host={p.st.hostFor(p.module)}
+               st={p.st}
+               hostUrl={p.st.hostUrlFor(p.module)}
+               jumpTarget={p.jumpTarget}
+            />
+         )
       case 'size':
          return <SizeControl v={p.v} st={p.st} module={p.module} />
       case 'image':
@@ -59,7 +74,18 @@ const VarRow = observer(function VarRow(p: {
    names: readonly string[]
    /** where this row sits in a block of vars that go together, null outside any */
    place: GroupPlace
+   /** the ⌘ key that jumps here (first prompt, first loras), null for every other var */
+   jumpKey: string | null
 }) {
+   const rowRef = useRef<HTMLDivElement>(null)
+   const jump = p.st.jump
+   const jumpKind = p.jumpKey == null ? null : p.v.desc.kind
+   useEffect(() => {
+      if (jump == null || jumpKind !== 'prompt' || jump.kind !== 'prompt') return
+      const editor = rowRef.current?.querySelector<HTMLElement>('.cm-content')
+      editor?.focus()
+      editor?.scrollIntoView({ block: 'nearest' })
+   }, [jump, jumpKind])
    // the workflow's looks (VarUi): every slot optional, absent = the panel's own style. None
    // of them moves anything: a background or a border never shifts the label off its column
    const ui = p.v.desc.ui
@@ -67,6 +93,7 @@ const VarRow = observer(function VarRow(p: {
    const wide = p.v.desc.kind === 'loras' || p.v.desc.kind === 'prompt'
    return (
       <div
+         ref={rowRef}
          /* loras and prompts need the whole width on a phone; every other kind keeps its
             label beside the control, which is what makes the form readable at a glance */
          className={`var-row${wide ? ' wide' : ''}${inactive == null ? '' : ' inactive'}${p.place == null ? '' : ` in-group group-${p.place.pos}`}`}
@@ -91,7 +118,7 @@ const VarRow = observer(function VarRow(p: {
          {/* the LABEL is the handle: a separate grip was one more piece of permanent chrome
              for something the label itself can carry */}
          <div
-            className="var-label"
+            className={p.jumpKey == null ? 'var-label' : 'var-label has-kbd'}
             draggable
             onDragStart={(e) => {
                e.dataTransfer.effectAllowed = 'move'
@@ -125,10 +152,21 @@ const VarRow = observer(function VarRow(p: {
                   ●
                </button>
             ) : null}
+            {p.jumpKey == null ? null : (
+               <span
+                  className="var-kbd-line"
+                  data-tip={p.v.desc.kind === 'loras' ? 'opens the loras picker' : 'puts the cursor in this prompt'}
+               >
+                  <span className="kbd-hint">
+                     {MOD_KEY}
+                     {p.jumpKey}
+                  </span>
+               </span>
+            )}
          </div>
          {/* inert, not just dimmed: a disabled field must not take a click or a keystroke */}
          <div className="var-control" inert={inactive != null}>
-            <VarControl v={p.v} host={p.host} st={p.st} module={p.module} />
+            <VarControl v={p.v} host={p.host} st={p.st} module={p.module} jumpTarget={p.jumpKey != null} />
          </div>
       </div>
    )
@@ -421,7 +459,13 @@ export const VarsForm = observer(function VarsForm(p: { st: WebSt }) {
          if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
             e.preventDefault()
             p.st.generate()
+            return
          }
+         const s = shortcutOf(e)
+         if (s == null) return
+         e.preventDefault()
+         if (s === 'toggle-blur') p.st.toggleBlur()
+         else p.st.requestJump(s === 'focus-prompt' ? 'prompt' : 'loras')
       }
       window.addEventListener('keydown', onKey)
       return () => window.removeEventListener('keydown', onKey)
@@ -434,6 +478,15 @@ export const VarsForm = observer(function VarsForm(p: { st: WebSt }) {
    )
    const orderedVars = orderedNames.map((n) => form.vars.find((v) => v.name === n)).filter((v) => v != null)
    const places = groupPlaces(orderedVars.map((v) => v.desc.ui ?? {}))
+   const targets = jumpTargets(
+      orderedVars.map((v) => ({ name: v.name, kind: v.desc.kind, inactive: form.inactiveReason(v) != null })),
+   )
+   const jumpKeyOf = (name: string): string | null =>
+      name === targets.prompt
+         ? SHORTCUT_KEYS['focus-prompt']
+         : name === targets.loras
+           ? SHORTCUT_KEYS['open-loras']
+           : null
    return (
       <div>
          {/* the TUI header, on the web: labelled boxes for what you are editing and where it runs.
@@ -592,6 +645,7 @@ export const VarsForm = observer(function VarsForm(p: { st: WebSt }) {
                   index={ix}
                   names={orderedNames}
                   place={places[ix] ?? null}
+                  jumpKey={jumpKeyOf(v.name)}
                />
             ))}
             {/* the OUTPUT is a knob like the others: a row, not a lone button in the header */}

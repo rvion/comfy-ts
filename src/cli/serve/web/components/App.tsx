@@ -7,7 +7,7 @@ import { Gallery } from 'src/cli/serve/web/components/Gallery.tsx'
 import { Icon } from 'src/cli/serve/web/components/Icon.tsx'
 import { Omnibox, useOmniboxShortcut } from 'src/cli/serve/web/components/Omnibox.tsx'
 import { TooltipLayer } from 'src/cli/serve/web/components/TooltipLayer.tsx'
-import { GenerateButton, VarsForm } from 'src/cli/serve/web/components/VarsForm.tsx'
+import { GenerateButton, MOD_KEY, VarsForm } from 'src/cli/serve/web/components/VarsForm.tsx'
 import { LAYOUTS, type WebSt } from 'src/cli/serve/web/state/WebSt.ts'
 
 /** ⌘A / ctrl+A selects the field you are in. The browser does this on its own until something
@@ -158,15 +158,17 @@ const ResultsHead = observer(function ResultsHead(p: { st: WebSt }) {
             </span>
          </div>
          <div className="head-group-labeled">
-            <span className="group-caption">blur</span>
+            <span className="group-caption">
+               blur <span className="kbd-hint">{MOD_KEY}B</span>
+            </span>
             <span className="btn-group">
                <button
                   type="button"
                   className={p.st.blurResults ? 'sel' : ''}
                   data-tip={
                      p.st.blurResults
-                        ? 'blurred until you hover: click for always clear'
-                        : 'always clear: click to blur until you hover'
+                        ? `blurred until you hover: click (or ${MOD_KEY}B) for always clear`
+                        : `always clear: click (or ${MOD_KEY}B) to blur until you hover`
                   }
                   onClick={() => p.st.toggleBlur()}
                >

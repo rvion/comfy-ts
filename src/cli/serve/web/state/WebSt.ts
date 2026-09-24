@@ -807,6 +807,13 @@ export class WebSt {
    showLatent = true
    /** results blurred until the pointer is on them: a screen someone else may see */
    blurResults = false
+
+   /** the last ⌘P / ⌘O jump: the var it targets reacts to a NEW seq, so pressing it twice works */
+   jump: { kind: 'prompt' | 'loras'; seq: number } | null = null
+
+   requestJump(kind: 'prompt' | 'loras'): void {
+      this.jump = { kind, seq: (this.jump?.seq ?? 0) + 1 }
+   }
    /** fit: one image per row, as wide as the preview panel. grid: images at resultsSize px, as
     * many per row as fit */
    resultsView: 'fit' | 'grid' = 'fit'
