@@ -54,6 +54,11 @@ export type VarDescriptor = {
    /** loras: trigger words per option as the mirror knows them (words, fetched and empty, or
     * civitai never asked). An option ABSENT from this record is not in the mirror at all */
    optionTriggers?: Record<string, LoraTriggers>
+   /** prompt: tag completion is on (`v.prompt(…, { tags })`), with the insert rules. The list
+    * itself stays on the server: the editor asks `GET /tags/<module>/<var>?q=` */
+   tags?: { underscores: boolean; artistPrefix?: string }
+   /** prompt: false when the model ignores `(text:1.2)` weights */
+   weights?: false
    /** text: this one wants a box, not a line (`v.text(…, { multiline: true })`) */
    multiline?: boolean
    /** text + prompt: named starting texts (`{ presets: { label: text } }`). NOT `presets`, which
@@ -93,8 +98,10 @@ export function describeVar(varDef: AnyVar): VarDescriptor {
          const v = varDef as PromptVar
          return {
             ...base,
-            payload: 'string ("//" lines = comments, "- " lines = negative)',
+            payload: 'string ("//" starts a comment, "- " lines = negative)',
             textPresets: presetsOrUndefined(v.presets),
+            tags: v.tags == null ? undefined : { underscores: v.tags.underscores === true, artistPrefix: v.tags.artistPrefix },
+            weights: v.promptOpts.weights === false ? false : undefined,
          }
       }
       case 'text': {

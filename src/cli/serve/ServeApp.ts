@@ -19,6 +19,7 @@ import { applyVarPayload } from 'src/cli/serve/applyVarPayload.ts'
 import { describeVar, type VarDescriptor } from 'src/cli/serve/describeVar.ts'
 import { deletePromptEnhancer, listPromptEnhancers, writePromptEnhancer } from 'src/promptEnhancers.ts'
 import { managerOnlyLoraOptions } from 'src/cli/serve/managerOnlyLoras.ts'
+import { resolveTagSource, TagSources } from 'src/cli/serve/tagSource.ts'
 import { FAVICON_DATA_URI } from 'src/cli/serve/favicon.ts'
 import { driftChanged, summarizeDrift } from 'src/host/schemaDrift.ts'
 import { validSavePrefix, validStoreName } from 'src/utils/safeName.ts'
@@ -161,6 +162,9 @@ class DownloadRefused extends Error {
 
 const INPUT_DOWNLOAD_CAP = 50_000_000
 const INPUT_DOWNLOAD_TIMEOUT_MS = 60_000
+/** the danbooru list is ~3.5 MB; ten times that is still a tag list, beyond is a wrong url */
+const TAG_LIST_CAP = 40_000_000
+const TAG_LIST_TIMEOUT_MS = 120_000
 
 /** read a reply STREAMING, aborting the moment it passes the cap. `arrayBuffer()` buffers the
  * whole body first, so a chunked reply with no content-length could exhaust the process before
@@ -263,6 +267,7 @@ const USAGE = [
    'DELETE /drafts/<module>/<draft> — delete that draft file',
    'GET  /run/<module> — live run status · /run/<module>/preview — latent preview bytes',
    'POST /upload with {"name","dataBase64"} — store a browser file for an image var',
+   'GET  /tags/<module>/<var>?q=<text>&limit=<n> — tag completion from the list a prompt var declares (`tags`)',
    'GET  /hosts/<hostId>/drift[?full=1] — what changed on the host since the schema was loaded (model files; node types with full=1)',
    'GET  /lora-info/<hostId>/<lora> — display name + trigger words (local mirror)',
    'POST /hosts/<hostId>/lora-civitai/<lora> — fetch its civitai metadata (trigger words) through the lora manager, then re-sync the mirror',
@@ -388,6 +393,8 @@ export class ServeApp {
             if (segs[0] === 'lora-about' && segs.length === 3 && segs[1] != null && segs[2] != null)
                return await this.replyLoraAbout(segs[1], segs[2])
             if (segs[0] === 'prompt-enhancers' && segs.length === 1) return this.replyPromptEnhancers()
+            if (segs[0] === 'tags' && segs.length === 3 && segs[1] != null && segs[2] != null)
+               return await this.replyTags(segs[1], segs[2], req.url)
             if (segs[0] === 'settings' && segs.length === 1) return this.replySettings()
             if (segs[0] === 'hosts' && segs.length === 1) return this.replyHosts()
             if (segs[0] === 'hosts' && segs.length === 3 && segs[1] != null && segs[2] === 'logs')
@@ -1114,6 +1121,35 @@ export class ServeApp {
 
    // #region prompt enhancers (the web ui's master prompts, as .md files) ------
    /** the folder is seeded on the first read, so `refine-krea2-prompt.md` exists to be edited */
+   /** tag lists by source, loaded on the first query and kept for the process */
+   private tagSources = new TagSources({
+      cacheDir: () => join(comfyts.baseFolder, 'cache', 'tags'),
+      fetchText: async (url) => {
+         const res = await fetch(url, { redirect: 'follow', signal: AbortSignal.timeout(TAG_LIST_TIMEOUT_MS) })
+         if (!res.ok) throw new Error(`tag list download failed (http ${res.status}): ${url}`)
+         return new TextDecoder().decode(await readCapped(res, TAG_LIST_CAP, url))
+      },
+   })
+
+   private async replyTags(modKey: string, varName: string, url: string): Promise<ServeReply> {
+      const mod = this.moduleByKey(modKey)
+      if (mod == null) return json(404, { error: `unknown workflow '${modKey}'` })
+      const found = mod.dw.entries().find(([k]) => k === varName)?.[1]
+      if (found == null) return json(404, { error: `workflow '${modKey}' has no var '${varName}'` })
+      // cast: whitelist family 6, narrowed by kind
+      const tags = found.kind === 'prompt' ? (found as PromptVar).tags : null
+      if (tags == null) return json(404, { error: `var '${varName}' declares no tag list (v.prompt(…, { tags }))` })
+      const params = new URLSearchParams(url.split('?')[1] ?? '')
+      const limit = Math.min(100, Math.max(1, Number(params.get('limit') ?? '20') || 20))
+      try {
+         const list = await this.tagSources.load(resolveTagSource(tags.url, mod.file))
+         return json(200, { hits: list.search(params.get('q') ?? '', limit) })
+      } catch (e) {
+         console.error(`[serve] 🔴 tag list for ${modKey}/${varName}: ${extractErrorMessage(e)}`)
+         return json(502, { error: extractErrorMessage(e) })
+      }
+   }
+
    private replyPromptEnhancers(): ServeReply {
       try {
          return json(200, { enhancers: listPromptEnhancers() })
