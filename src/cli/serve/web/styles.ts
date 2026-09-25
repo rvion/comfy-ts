@@ -419,13 +419,14 @@ input[type='range'].setting-range:disabled { opacity: 0.3; }
 .host-action.danger:hover { color: var(--red); border-color: var(--red); }
 .lightbox-bar .host-action { padding: 4px 10px; }
 .run-card img { max-width: min(320px, 100%); max-height: 320px; border-radius: 6px; display: block; }
-/* fit: every image as wide as the panel, one per row. grid: the slider sets the size (inline),
-   run cards wrap several per row */
-.gallery.view-fit .imgs { flex-direction: column; }
-.gallery.view-fit .img-cell, .gallery.view-fit .img-button { width: 100%; }
-.gallery.view-fit .run-card img { width: 100%; height: auto; max-width: 100%; max-height: none; }
-.gallery.view-grid { flex-direction: row; flex-wrap: wrap; align-items: flex-start; }
-.gallery.view-grid .run-card { max-width: 100%; }
+/* columns: equal shares of the panel width (the count is inline), every image as wide as its
+   column. A result without an image, and the run card of a graph without one, take a full row */
+.gallery.cols { display: grid; align-items: start; }
+.gallery.cols > .run-card { grid-column: 1 / -1; min-width: 0; }
+.gallery.cols > .run-card.has-image, .gallery.cols > .run-card.cell { grid-column: auto; }
+.gallery.cols .imgs { flex-direction: column; }
+.gallery.cols .img-cell, .gallery.cols .img-button { width: 100%; }
+.gallery.cols .run-card img { width: 100%; height: auto; max-width: 100%; max-height: none; }
 .run-card .noimg { color: var(--dim); font-style: italic; }
 .audio-cell { display: flex; flex-direction: column; gap: 4px; width: min(100%, 480px); }
 .audio-cell audio { width: 100%; }
@@ -815,8 +816,8 @@ button.enh-big { font-size: 14px; padding: 8px 18px; }
 /* a result with an image is only its image: the title and delete show over its top edge on
    hover. Out of the flow, the title no longer sizes the card, so grid cards wrap at the image
    width. A screen with no hover keeps the line visible */
-.gallery.view-fit .run-card.has-image, .gallery.view-grid .run-card.has-image { position: relative; }
-.gallery.view-fit .run-card.has-image > .meta, .gallery.view-grid .run-card.has-image > .meta {
+.gallery.cols .run-card.has-image { position: relative; }
+.gallery.cols .run-card.has-image > .meta {
    position: absolute; top: 0; left: 0; right: 0; z-index: 2; margin: 0; padding: 6px 8px 14px;
    align-items: flex-start; color: #fff; border-radius: 6px 6px 0 0;
    background: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0));
@@ -831,7 +832,12 @@ button.enh-big { font-size: 14px; padding: 8px 18px; }
 .work.layout-bottom .results-col { margin-top: 16px; }
 /* the panel's own controls sit on top of it */
 .head-group-labeled { display: flex; flex-direction: column; gap: 2px; }
-.results-view { gap: 6px; flex-wrap: nowrap; }
+/* the columns count: one button tall, the word inside, like the blur toggle beside it */
+.cols-field {
+   display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 8px; font-size: 13px;
+   border: 1px solid var(--border); border-radius: 6px; background: var(--panel-2); color: var(--dim);
+}
+.cols-field input { width: 3.2em; padding: 1px 4px; font-size: 13px; text-align: center; }
 .head-row { gap: 6px; flex-wrap: nowrap; }
 .group-caption { font-size: 10px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.06em; padding-left: 2px; }
 .results-head {

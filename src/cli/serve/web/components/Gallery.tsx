@@ -376,7 +376,7 @@ const RunningCard = observer(function RunningCard(p: { st: WebSt; local: Gallery
    const imageGraph = size != null || p.st.run.hasPreview
    const ratio = size == null ? 1 : size.width / size.height
    return (
-      <div className="run-card running">
+      <div className={imageGraph ? 'run-card running cell' : 'run-card running'}>
          <div className="meta">
             <span className="run-meta-text">
                generating {moduleKey}…
@@ -392,11 +392,8 @@ const RunningCard = observer(function RunningCard(p: { st: WebSt; local: Gallery
                className="run-frame"
                style={{
                   aspectRatio: String(ratio),
-                  // the box the finished image will take in the current view, so it lands in place
-                  width:
-                     p.st.resultsView === 'fit'
-                        ? '100%'
-                        : `min(100%, ${p.st.resultsSize}px, calc(${p.st.resultsSize}px * ${ratio}))`,
+                  // one column's width, the box the finished image takes, so it lands in place
+                  width: '100%',
                }}
             >
                {p.st.run.hasPreview && p.st.latentMode === 'full' ? (
@@ -439,7 +436,10 @@ export const Gallery = observer(function Gallery(p: { st: WebSt; compact?: boole
       // fit: one per row at the panel's width; grid: the slider's size, wrapping. The corner
       // placement keeps its own compact look
       <div
-         className={`gallery${p.st.blurResults ? ' blur' : ''}${p.compact === true ? '' : ` view-${p.st.resultsView}`}`}
+         className={`gallery${p.st.blurResults ? ' blur' : ''}${p.compact === true ? '' : ' cols'}`}
+         style={
+            p.compact === true ? undefined : { gridTemplateColumns: `repeat(${p.st.resultsColumns}, minmax(0, 1fr))` }
+         }
       >
          <RunningCard st={p.st} local={local} />
          {/* the count and clear-all moved onto the run line beside the generate button: two
@@ -481,15 +481,7 @@ export const Gallery = observer(function Gallery(p: { st: WebSt; compact?: boole
                                     })
                               }}
                            >
-                              <img
-                                 src={img.url}
-                                 alt={img.filename}
-                                 style={
-                                    p.st.resultsView === 'grid' && p.compact !== true
-                                       ? { maxWidth: `min(100%, ${p.st.resultsSize}px)`, maxHeight: p.st.resultsSize }
-                                       : undefined
-                                 }
-                              />
+                              <img src={img.url} alt={img.filename} />
                               <BlurHint st={p.st} />
                            </button>
                            {/* the EMBEDDING page's buttons (host protocol): what it does with the

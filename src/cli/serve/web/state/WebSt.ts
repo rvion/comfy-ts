@@ -102,8 +102,11 @@ type StoredSelection = {
    /** results blurred until hovered */
    blur?: boolean
    /** fit = one per row at the panel's width, grid = the slider's size, wrapping */
+   /** the fit/grid pair before columns: read once to seed resultsColumns */
    resultsView?: string
    resultsSize?: number
+   /** how many results side by side in the preview, 1 = each as wide as the panel */
+   resultsColumns?: number
    /** live previews opened to their full text, as `module/name` */
    expandedPreviews?: string[]
    logs?: boolean
@@ -138,12 +141,16 @@ export function readLoraScales(stored: StoredSelection): { form: number; popup: 
    }
 }
 
-export const DEFAULT_RESULTS_SIZE = 320
+/** results side by side: one full width image at 1, a thumbnail wall at the top */
+export function clampResultsColumns(raw: unknown): number {
+   const n = typeof raw === 'number' && Number.isFinite(raw) ? Math.round(raw) : 1
+   return Math.min(8, Math.max(1, n))
+}
 
-/** a result's side in grid view: a thumbnail wall at the small end, one big image at the other */
-export function clampResultsSize(raw: unknown): number {
-   const n = typeof raw === 'number' && Number.isFinite(raw) ? Math.round(raw) : DEFAULT_RESULTS_SIZE
-   return Math.min(640, Math.max(120, n))
+/** a blob written before columns keeps its look: fit was one per row, grid about three */
+export function readResultsColumns(stored: StoredSelection): number {
+   if (stored.resultsColumns != null) return clampResultsColumns(stored.resultsColumns)
+   return stored.resultsView === 'grid' ? 3 : 1
 }
 
 export const DEFAULT_LABEL_WIDTH = 120
@@ -293,8 +300,7 @@ export class WebSt {
       )
       this.latentMode = asLatentMode(stored.latent)
       this.blurResults = stored.blur ?? false
-      this.resultsView = stored.resultsView === 'grid' ? 'grid' : 'fit'
-      this.resultsSize = clampResultsSize(stored.resultsSize)
+      this.resultsColumns = readResultsColumns(stored)
       this.expandedPreviews = Array.isArray(stored.expandedPreviews)
          ? stored.expandedPreviews.filter((x): x is string => typeof x === 'string')
          : []
@@ -440,8 +446,7 @@ export class WebSt {
                layout: this.layout,
                latent: this.latentMode,
                blur: this.blurResults,
-               resultsView: this.resultsView,
-               resultsSize: this.resultsSize,
+               resultsColumns: this.resultsColumns,
                expandedPreviews: this.expandedPreviews,
                logs: this.showLogs,
                varOrder: this.varOrder,
@@ -853,10 +858,8 @@ export class WebSt {
    requestJump(kind: 'prompt' | 'loras'): void {
       this.jump = { kind, seq: (this.jump?.seq ?? 0) + 1 }
    }
-   /** fit: one image per row, as wide as the preview panel. grid: images at resultsSize px, as
-    * many per row as fit */
-   resultsView: 'fit' | 'grid' = 'fit'
-   resultsSize = DEFAULT_RESULTS_SIZE
+   /** results side by side in the preview, each column an equal share of its width */
+   resultsColumns = 1
    /** live previews opened to their full text, as `module/name`; the rest show one line each */
    expandedPreviews: string[] = []
    private logsTimer: ReturnType<typeof setInterval> | null = null
@@ -873,13 +876,8 @@ export class WebSt {
       this.persist()
    }
 
-   setResultsView(v: 'fit' | 'grid'): void {
-      this.resultsView = v
-      this.persist()
-   }
-
-   setResultsSize(px: number): void {
-      this.resultsSize = clampResultsSize(px)
+   setResultsColumns(n: number): void {
+      this.resultsColumns = clampResultsColumns(n)
       this.persist()
    }
 

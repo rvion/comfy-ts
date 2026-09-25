@@ -131,43 +131,21 @@ const ResultsHead = observer(function ResultsHead(p: { st: WebSt }) {
                </span>
             </span>
          </div>
-         <div className="head-group-labeled">
-            <span className="group-caption">results</span>
-            <span className="row-inline results-view">
-               <span className="btn-group">
-                  <button
-                     type="button"
-                     className={p.st.resultsView === 'fit' ? 'sel' : ''}
-                     data-tip="fit: one image per row, as wide as this panel"
-                     onClick={() => p.st.setResultsView('fit')}
-                  >
-                     <Icon name="rows" />
-                  </button>
-                  <button
-                     type="button"
-                     className={p.st.resultsView === 'grid' ? 'sel' : ''}
-                     data-tip="grid: images at the size you set, as many per row as fit"
-                     onClick={() => p.st.setResultsView('grid')}
-                  >
-                     <Icon name="grid" />
-                  </button>
-               </span>
-               {/* always here, greyed out in fit: appearing with grid moved the groups beside it */}
-               <input
-                  type="range"
-                  className="setting-range"
-                  min={120}
-                  max={640}
-                  step={20}
-                  disabled={p.st.resultsView !== 'grid'}
-                  value={p.st.resultsSize}
-                  data-tip={
-                     p.st.resultsView === 'grid' ? `image size ${p.st.resultsSize}px` : 'image size, for the grid view'
-                  }
-                  onChange={(e) => p.st.setResultsSize(Number(e.target.value))}
-               />
-            </span>
-         </div>
+         <label className="cols-field" data-tip="results side by side: 1 is one image as wide as this panel">
+            <Icon name="grid" />
+            <input
+               type="number"
+               min={1}
+               max={8}
+               step={1}
+               value={p.st.resultsColumns}
+               onChange={(e) => {
+                  const n = Number(e.target.value)
+                  if (e.target.value !== '' && Number.isFinite(n)) p.st.setResultsColumns(n)
+               }}
+            />
+            cols
+         </label>
          <span className="btn-group">
             <button
                type="button"
