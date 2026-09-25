@@ -153,8 +153,11 @@ function applyTag(insert: string): Completion['apply'] {
    }
 }
 
-/** the options for one search text: lora words containing it, then the tag list's hits */
-async function optionsFor(c: PromptEditorCtx, text: string, signal: AbortSignal): Promise<Completion[]> {
+/** the options for one search text: lora words containing it, then the tag list's hits. Only
+ * for a prompt that declares a tag list (v.prompt(…, { tags })): completion is opt in per
+ * workflow, the loras words included */
+export async function optionsFor(c: PromptEditorCtx, text: string, signal: AbortSignal): Promise<Completion[]> {
+   if (c.tags == null) return []
    const q = text.trim().toLowerCase()
    const options: Completion[] = []
    const seenWords = new Set<string>()
@@ -164,7 +167,7 @@ async function optionsFor(c: PromptEditorCtx, text: string, signal: AbortSignal)
       seenWords.add(lower)
       options.push({ label: w.word, detail: w.source, type: 'lora', boost: 50, apply: applyTag(w.word) })
    }
-   if (c.tags == null || q === '') return options
+   if (q === '') return options
    const hits = await c.searchTags(text.trim(), signal)
    c.onTagError(null)
    hits.forEach((h, ix) => {
