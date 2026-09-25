@@ -87279,7 +87279,7 @@ declare global {
          interface Builder {
             /** displayName="Add Layer" category="image" name="AddLayer" output=[LAYERS] */
             AddLayer(p: IN['AddLayer'], meta?: ComfyNodeMetadata): Node['AddLayer']
-            /** displayName="null" category="model_sampling_noise" name="AddNoise" output=[LATENT] */
+            /** displayName="AddNoise" category="model_sampling_noise" name="AddNoise" output=[LATENT] */
             AddNoise(p: IN['AddNoise'], meta?: ComfyNodeMetadata): Node['AddNoise']
             /**
              * Add a prefix to all texts.
@@ -87531,7 +87531,7 @@ declare global {
                p: IN['AdvancedLivePortrait.PrintExpData:'],
                meta?: ComfyNodeMetadata,
             ): Node['AdvancedLivePortrait.PrintExpData:']
-            /** displayName="null" category="model_sampling_schedulers" name="AlignYourStepsScheduler" output=[SIGMAS] */
+            /** displayName="AlignYourStepsScheduler" category="model_sampling_schedulers" name="AlignYourStepsScheduler" output=[SIGMAS] */
             AlignYourStepsScheduler(
                p: IN['AlignYourStepsScheduler'],
                meta?: ComfyNodeMetadata,
@@ -90510,7 +90510,7 @@ declare global {
              * displayName="Apply Texture to Mesh" category="3d_texturing" name="ApplyTextureToMesh" output=[mesh]
              **/
             ApplyTextureToMesh(p: IN['ApplyTextureToMesh'], meta?: ComfyNodeMetadata): Node['ApplyTextureToMesh']
-            /** displayName="null" category="model_conditioning_autoregressive" name="ARVideoI2V" output=[MODEL, LATENT] */
+            /** displayName="ARVideoI2V" category="model_conditioning_autoregressive" name="ARVideoI2V" output=[MODEL, LATENT] */
             ARVideoI2V(p: IN['ARVideoI2V'], meta?: ComfyNodeMetadata): Node['ARVideoI2V']
             /**
              * Combine two audio tracks by overlaying their waveforms.
@@ -90578,7 +90578,7 @@ declare global {
              * displayName="Concatenate Audio" category="audio" name="AudioConcat" output=[AUDIO]
              **/
             AudioConcat(p: IN['AudioConcat'], meta?: ComfyNodeMetadata): Node['AudioConcat']
-            /** displayName="null" category="model_conditioning" name="AudioEncoderEncode" output=[AUDIO_ENCODER_OUTPUT] */
+            /** displayName="AudioEncoderEncode" category="model_conditioning" name="AudioEncoderEncode" output=[AUDIO_ENCODER_OUTPUT] */
             AudioEncoderEncode(p: IN['AudioEncoderEncode'], meta?: ComfyNodeMetadata): Node['AudioEncoderEncode']
             /** displayName="Load Audio Encoder" category="model_loaders" name="AudioEncoderLoader" output=[AUDIO_ENCODER] */
             AudioEncoderLoader(p: IN['AudioEncoderLoader'], meta?: ComfyNodeMetadata): Node['AudioEncoderLoader']
@@ -93802,7 +93802,7 @@ declare global {
             ): Node['basic_data_handling.TensorUnaryOp']
             /** displayName="Basic Guider" category="model_sampling_guiders" name="BasicGuider" output=[GUIDER] */
             BasicGuider(p: IN['BasicGuider'], meta?: ComfyNodeMetadata): Node['BasicGuider']
-            /** displayName="null" category="model_sampling_schedulers" name="BasicScheduler" output=[SIGMAS] */
+            /** displayName="BasicScheduler" category="model_sampling_schedulers" name="BasicScheduler" output=[SIGMAS] */
             BasicScheduler(p: IN['BasicScheduler'], meta?: ComfyNodeMetadata): Node['BasicScheduler']
             /** displayName="Batch Images" category="image_batch" name="BatchImagesNode" output=[IMAGE] */
             BatchImagesNode(p: IN['BatchImagesNode'], meta?: ComfyNodeMetadata): Node['BatchImagesNode']
@@ -93815,7 +93815,7 @@ declare global {
              * displayName="Bernini Conditioning" category="model_conditioning_bernini" name="BerniniConditioning" output=[positive, negative, latent]
              **/
             BerniniConditioning(p: IN['BerniniConditioning'], meta?: ComfyNodeMetadata): Node['BerniniConditioning']
-            /** displayName="null" category="model_sampling_schedulers" name="BetaSamplingScheduler" output=[SIGMAS] */
+            /** displayName="BetaSamplingScheduler" category="model_sampling_schedulers" name="BetaSamplingScheduler" output=[SIGMAS] */
             BetaSamplingScheduler(
                p: IN['BetaSamplingScheduler'],
                meta?: ComfyNodeMetadata,
@@ -93854,14 +93854,14 @@ declare global {
             CenterCropImages(p: IN['CenterCropImages'], meta?: ComfyNodeMetadata): Node['CenterCropImages']
             /** displayName="CFG Guider" category="model_sampling_guiders" name="CFGGuider" output=[GUIDER] */
             CFGGuider(p: IN['CFGGuider'], meta?: ComfyNodeMetadata): Node['CFGGuider']
-            /** displayName="null" category="advanced_guidance" name="CFGNorm" output=[patched_model] */
+            /** displayName="CFGNorm" category="advanced_guidance" name="CFGNorm" output=[patched_model] */
             CFGNorm(p: IN['CFGNorm'], meta?: ComfyNodeMetadata): Node['CFGNorm']
             /**
              * Override cfg to a fixed value over a [start, end] percent (sigma) range. With multiple overrides, the one nearest the sampler wins on overlap.
              * displayName="CFG Override" category="model_sampling_guiders" name="CFGOverride" output=[MODEL]
              **/
             CFGOverride(p: IN['CFGOverride'], meta?: ComfyNodeMetadata): Node['CFGOverride']
-            /** displayName="null" category="advanced_guidance" name="CFGZeroStar" output=[patched_model] */
+            /** displayName="CFGZeroStar" category="advanced_guidance" name="CFGZeroStar" output=[patched_model] */
             CFGZeroStar(p: IN['CFGZeroStar'], meta?: ComfyNodeMetadata): Node['CFGZeroStar']
             /** displayName="Load Checkpoint With Config (DEPRECATED)" category="model_loaders" name="CheckpointLoader" output=[MODEL, CLIP, VAE] */
             CheckpointLoader(p: IN['CheckpointLoader'], meta?: ComfyNodeMetadata): Node['CheckpointLoader']
@@ -93875,13 +93875,13 @@ declare global {
             ): Node['CheckpointLoaderSimple']
             /**
              * Allows setting advanced options for the Chroma Radiance model.
-             * displayName="null" category="model_patch_chroma radiance" name="ChromaRadianceOptions" output=[MODEL]
+             * displayName="ChromaRadianceOptions" category="model_patch_chroma radiance" name="ChromaRadianceOptions" output=[MODEL]
              **/
             ChromaRadianceOptions(
                p: IN['ChromaRadianceOptions'],
                meta?: ComfyNodeMetadata,
             ): Node['ChromaRadianceOptions']
-            /** displayName="null" category="experimental_attention_experiments" name="CLIPAttentionMultiply" output=[CLIP] */
+            /** displayName="CLIPAttentionMultiply" category="experimental_attention_experiments" name="CLIPAttentionMultiply" output=[CLIP] */
             CLIPAttentionMultiply(
                p: IN['CLIPAttentionMultiply'],
                meta?: ComfyNodeMetadata,
@@ -93924,7 +93924,7 @@ declare global {
                p: IN['CLIPTextEncodeControlnet'],
                meta?: ComfyNodeMetadata,
             ): Node['CLIPTextEncodeControlnet']
-            /** displayName="null" category="model_conditioning_flux" name="CLIPTextEncodeFlux" output=[CONDITIONING] */
+            /** displayName="CLIPTextEncodeFlux" category="model_conditioning_flux" name="CLIPTextEncodeFlux" output=[CONDITIONING] */
             CLIPTextEncodeFlux(p: IN['CLIPTextEncodeFlux'], meta?: ComfyNodeMetadata): Node['CLIPTextEncodeFlux']
             /** displayName="CLIP Text Encode (HiDream)" category="model_conditioning_hidream" name="CLIPTextEncodeHiDream" output=[CONDITIONING] */
             CLIPTextEncodeHiDream(
@@ -94228,7 +94228,7 @@ declare global {
                p: IN['ConditioningSetTimestepRange'],
                meta?: ComfyNodeMetadata,
             ): Node['ConditioningSetTimestepRange']
-            /** displayName="null" category="model_conditioning_stable audio" name="ConditioningStableAudio" output=[positive, negative] */
+            /** displayName="ConditioningStableAudio" category="model_conditioning_stable audio" name="ConditioningStableAudio" output=[positive, negative] */
             ConditioningStableAudio(
                p: IN['ConditioningStableAudio'],
                meta?: ComfyNodeMetadata,
@@ -94693,12 +94693,12 @@ declare global {
                p: IN['ConvertDictionaryToString'],
                meta?: ComfyNodeMetadata,
             ): Node['ConvertDictionaryToString']
-            /** displayName="null" category="model_conditioning_cosmos" name="CosmosImageToVideoLatent" output=[LATENT] */
+            /** displayName="CosmosImageToVideoLatent" category="model_conditioning_cosmos" name="CosmosImageToVideoLatent" output=[LATENT] */
             CosmosImageToVideoLatent(
                p: IN['CosmosImageToVideoLatent'],
                meta?: ComfyNodeMetadata,
             ): Node['CosmosImageToVideoLatent']
-            /** displayName="null" category="model_conditioning_cosmos" name="CosmosPredict2ImageToVideoLatent" output=[LATENT] */
+            /** displayName="CosmosPredict2ImageToVideoLatent" category="model_conditioning_cosmos" name="CosmosPredict2ImageToVideoLatent" output=[LATENT] */
             CosmosPredict2ImageToVideoLatent(
                p: IN['CosmosPredict2ImageToVideoLatent'],
                meta?: ComfyNodeMetadata,
@@ -95231,7 +95231,7 @@ declare global {
             ): Node['DifferentialDiffusion']
             /** displayName="Load Diffusers Model (DEPRECATED)" category="model_loaders" name="DiffusersLoader" output=[MODEL, CLIP, VAE] */
             DiffusersLoader(p: IN['DiffusersLoader'], meta?: ComfyNodeMetadata): Node['DiffusersLoader']
-            /** displayName="null" category="model_sampling_noise" name="DisableNoise" output=[NOISE] */
+            /** displayName="DisableNoise" category="model_sampling_noise" name="DisableNoise" output=[NOISE] */
             DisableNoise(p: IN['DisableNoise'], meta?: ComfyNodeMetadata): Node['DisableNoise']
             /** displayName="Draw BBoxes" category="image_detection" name="DrawBBoxes" output=[out_image] */
             DrawBBoxes(p: IN['DrawBBoxes'], meta?: ComfyNodeMetadata): Node['DrawBBoxes']
@@ -95405,11 +95405,11 @@ declare global {
                p: IN['EmptyAceStepLatentAudio'],
                meta?: ComfyNodeMetadata,
             ): Node['EmptyAceStepLatentAudio']
-            /** displayName="null" category="model_latent_autoregressive" name="EmptyARVideoLatent" output=[LATENT] */
+            /** displayName="EmptyARVideoLatent" category="model_latent_autoregressive" name="EmptyARVideoLatent" output=[LATENT] */
             EmptyARVideoLatent(p: IN['EmptyARVideoLatent'], meta?: ComfyNodeMetadata): Node['EmptyARVideoLatent']
             /** displayName="Empty Audio" category="audio" name="EmptyAudio" output=[AUDIO] */
             EmptyAudio(p: IN['EmptyAudio'], meta?: ComfyNodeMetadata): Node['EmptyAudio']
-            /** displayName="null" category="model_latent_chroma radiance" name="EmptyChromaRadianceLatentImage" output=[LATENT] */
+            /** displayName="EmptyChromaRadianceLatentImage" category="model_latent_chroma radiance" name="EmptyChromaRadianceLatentImage" output=[LATENT] */
             EmptyChromaRadianceLatentImage(
                p: IN['EmptyChromaRadianceLatentImage'],
                meta?: ComfyNodeMetadata,
@@ -95479,7 +95479,7 @@ declare global {
                p: IN['EmptyMiniMaxMusic3LatentAudio'],
                meta?: ComfyNodeMetadata,
             ): Node['EmptyMiniMaxMusic3LatentAudio']
-            /** displayName="null" category="model_latent_mochi" name="EmptyMochiLatentVideo" output=[LATENT] */
+            /** displayName="EmptyMochiLatentVideo" category="model_latent_mochi" name="EmptyMochiLatentVideo" output=[LATENT] */
             EmptyMochiLatentVideo(
                p: IN['EmptyMochiLatentVideo'],
                meta?: ComfyNodeMetadata,
@@ -95489,7 +95489,7 @@ declare global {
                p: IN['EmptyQwenImageLayeredLatentImage'],
                meta?: ComfyNodeMetadata,
             ): Node['EmptyQwenImageLayeredLatentImage']
-            /** displayName="null" category="model_latent_stable diffusion" name="EmptySD3LatentImage" output=[LATENT] */
+            /** displayName="EmptySD3LatentImage" category="model_latent_stable diffusion" name="EmptySD3LatentImage" output=[LATENT] */
             EmptySD3LatentImage(p: IN['EmptySD3LatentImage'], meta?: ComfyNodeMetadata): Node['EmptySD3LatentImage']
             /** displayName="Empty Trellis2 Latent Structure" category="model_latent_trellis" name="EmptyTrellis2LatentStructure" output=[LATENT] */
             EmptyTrellis2LatentStructure(
@@ -95550,7 +95550,7 @@ declare global {
                p: IN['enricos-nodes.ImageColorSampler'],
                meta?: ComfyNodeMetadata,
             ): Node['enricos-nodes.ImageColorSampler']
-            /** displayName="null" category="model_patch_unet" name="Epsilon Scaling" output=[MODEL] */
+            /** displayName="Epsilon Scaling" category="model_patch_unet" name="Epsilon Scaling" output=[MODEL] */
             'Epsilon Scaling'(p: IN['Epsilon Scaling'], meta?: ComfyNodeMetadata): Node['Epsilon Scaling']
             /** displayName="🔧 Apply CLIPSeg" category="essentials_segmentation" name="ApplyCLIPSeg+" output=[MASK] */
             'essentials.ApplyCLIPSeg+'(
@@ -95865,9 +95865,9 @@ declare global {
                p: IN['essentials.TransparentBGSession+'],
                meta?: ComfyNodeMetadata,
             ): Node['essentials.TransparentBGSession+']
-            /** displayName="null" category="model_sampling_schedulers" name="ExponentialScheduler" output=[SIGMAS] */
+            /** displayName="ExponentialScheduler" category="model_sampling_schedulers" name="ExponentialScheduler" output=[SIGMAS] */
             ExponentialScheduler(p: IN['ExponentialScheduler'], meta?: ComfyNodeMetadata): Node['ExponentialScheduler']
-            /** displayName="null" category="model_sampling_sigmas" name="ExtendIntermediateSigmas" output=[SIGMAS] */
+            /** displayName="ExtendIntermediateSigmas" category="model_sampling_sigmas" name="ExtendIntermediateSigmas" output=[SIGMAS] */
             ExtendIntermediateSigmas(
                p: IN['ExtendIntermediateSigmas'],
                meta?: ComfyNodeMetadata,
@@ -96713,7 +96713,7 @@ declare global {
                p: IN['FlashVSR_Ultra_Fast.FlashVSRNodeAdv'],
                meta?: ComfyNodeMetadata,
             ): Node['FlashVSR_Ultra_Fast.FlashVSRNodeAdv']
-            /** displayName="null" category="model_sampling_sigmas" name="FlipSigmas" output=[SIGMAS] */
+            /** displayName="FlipSigmas" category="model_sampling_sigmas" name="FlipSigmas" output=[SIGMAS] */
             FlipSigmas(p: IN['FlipSigmas'], meta?: ComfyNodeMetadata): Node['FlipSigmas']
             /** displayName="DownloadAndLoadFlorence2Lora" category="Florence2" name="DownloadAndLoadFlorence2Lora" output=[lora] */
             'florence2.DownloadAndLoadFlorence2Lora'(
@@ -96730,18 +96730,18 @@ declare global {
                p: IN['florence2.Florence2Run'],
                meta?: ComfyNodeMetadata,
             ): Node['florence2.Florence2Run']
-            /** displayName="null" category="model_sampling_schedulers" name="Flux2Scheduler" output=[SIGMAS] */
+            /** displayName="Flux2Scheduler" category="model_sampling_schedulers" name="Flux2Scheduler" output=[SIGMAS] */
             Flux2Scheduler(p: IN['Flux2Scheduler'], meta?: ComfyNodeMetadata): Node['Flux2Scheduler']
             /**
              * This node completely disables the guidance embed on Flux and Flux like models
-             * displayName="null" category="model_conditioning_flux" name="FluxDisableGuidance" output=[CONDITIONING]
+             * displayName="FluxDisableGuidance" category="model_conditioning_flux" name="FluxDisableGuidance" output=[CONDITIONING]
              **/
             FluxDisableGuidance(p: IN['FluxDisableGuidance'], meta?: ComfyNodeMetadata): Node['FluxDisableGuidance']
-            /** displayName="null" category="model_conditioning_flux" name="FluxGuidance" output=[CONDITIONING] */
+            /** displayName="FluxGuidance" category="model_conditioning_flux" name="FluxGuidance" output=[CONDITIONING] */
             FluxGuidance(p: IN['FluxGuidance'], meta?: ComfyNodeMetadata): Node['FluxGuidance']
             /**
              * This node resizes the image to one that is more optimal for flux kontext.
-             * displayName="null" category="model_conditioning_flux" name="FluxKontextImageScale" output=[IMAGE]
+             * displayName="FluxKontextImageScale" category="model_conditioning_flux" name="FluxKontextImageScale" output=[IMAGE]
              **/
             FluxKontextImageScale(
                p: IN['FluxKontextImageScale'],
@@ -96929,9 +96929,9 @@ declare global {
                p: IN['FrameInterpolationModelLoader'],
                meta?: ComfyNodeMetadata,
             ): Node['FrameInterpolationModelLoader']
-            /** displayName="null" category="model_patch_unet" name="FreeU" output=[MODEL] */
+            /** displayName="FreeU" category="model_patch_unet" name="FreeU" output=[MODEL] */
             FreeU(p: IN['FreeU'], meta?: ComfyNodeMetadata): Node['FreeU']
-            /** displayName="null" category="model_patch_unet" name="FreeU_V2" output=[MODEL] */
+            /** displayName="FreeU_V2" category="model_patch_unet" name="FreeU_V2" output=[MODEL] */
             FreeU_V2(p: IN['FreeU_V2'], meta?: ComfyNodeMetadata): Node['FreeU_V2']
             /**
              * Applies frequency-dependent scaling to the guidance
@@ -96982,7 +96982,7 @@ declare global {
                p: IN['GIMM-VFI.GIMMVFI_interpolate'],
                meta?: ComfyNodeMetadata,
             ): Node['GIMM-VFI.GIMMVFI_interpolate']
-            /** displayName="null" category="model_sampling_schedulers" name="GITSScheduler" output=[SIGMAS] */
+            /** displayName="GITSScheduler" category="model_sampling_schedulers" name="GITSScheduler" output=[SIGMAS] */
             GITSScheduler(p: IN['GITSScheduler'], meta?: ComfyNodeMetadata): Node['GITSScheduler']
             /** displayName="Load GLIGEN Model" category="model_loaders" name="GLIGENLoader" output=[GLIGEN] */
             GLIGENLoader(p: IN['GLIGENLoader'], meta?: ComfyNodeMetadata): Node['GLIGENLoader']
@@ -97011,21 +97011,21 @@ declare global {
                p: IN['HiDreamO1ReferenceImages'],
                meta?: ComfyNodeMetadata,
             ): Node['HiDreamO1ReferenceImages']
-            /** displayName="null" category="model_conditioning_hunyuan 3d" name="Hunyuan3Dv2Conditioning" output=[positive, negative] */
+            /** displayName="Hunyuan3Dv2Conditioning" category="model_conditioning_hunyuan 3d" name="Hunyuan3Dv2Conditioning" output=[positive, negative] */
             Hunyuan3Dv2Conditioning(
                p: IN['Hunyuan3Dv2Conditioning'],
                meta?: ComfyNodeMetadata,
             ): Node['Hunyuan3Dv2Conditioning']
-            /** displayName="null" category="model_conditioning_hunyuan 3d" name="Hunyuan3Dv2ConditioningMultiView" output=[positive, negative] */
+            /** displayName="Hunyuan3Dv2ConditioningMultiView" category="model_conditioning_hunyuan 3d" name="Hunyuan3Dv2ConditioningMultiView" output=[positive, negative] */
             Hunyuan3Dv2ConditioningMultiView(
                p: IN['Hunyuan3Dv2ConditioningMultiView'],
                meta?: ComfyNodeMetadata,
             ): Node['Hunyuan3Dv2ConditioningMultiView']
-            /** displayName="null" category="model_conditioning_hunyuan video" name="HunyuanImageToVideo" output=[positive, latent] */
+            /** displayName="HunyuanImageToVideo" category="model_conditioning_hunyuan video" name="HunyuanImageToVideo" output=[positive, latent] */
             HunyuanImageToVideo(p: IN['HunyuanImageToVideo'], meta?: ComfyNodeMetadata): Node['HunyuanImageToVideo']
             /** displayName="Hunyuan Latent Refiner" category="model_conditioning_hunyuan video" name="HunyuanRefinerLatent" output=[positive, negative, latent] */
             HunyuanRefinerLatent(p: IN['HunyuanRefinerLatent'], meta?: ComfyNodeMetadata): Node['HunyuanRefinerLatent']
-            /** displayName="null" category="model_conditioning_hunyuan video" name="HunyuanVideo15ImageToVideo" output=[positive, negative, latent] */
+            /** displayName="HunyuanVideo15ImageToVideo" category="model_conditioning_hunyuan video" name="HunyuanVideo15ImageToVideo" output=[positive, negative, latent] */
             HunyuanVideo15ImageToVideo(
                p: IN['HunyuanVideo15ImageToVideo'],
                meta?: ComfyNodeMetadata,
@@ -97042,7 +97042,7 @@ declare global {
             ): Node['HunyuanVideo15SuperResolution']
             /** displayName="Load Hypernetwork" category="model_loaders" name="HypernetworkLoader" output=[MODEL] */
             HypernetworkLoader(p: IN['HypernetworkLoader'], meta?: ComfyNodeMetadata): Node['HypernetworkLoader']
-            /** displayName="null" category="model_patch_unet" name="HyperTile" output=[MODEL] */
+            /** displayName="HyperTile" category="model_patch_unet" name="HyperTile" output=[MODEL] */
             HyperTile(p: IN['HyperTile'], meta?: ComfyNodeMetadata): Node['HyperTile']
             /** displayName="IC Light Apply Mask Grey" category="mask_compositing" name="ICLightApplyMaskGrey" output=[IMAGE] */
             'ic-light-native.ICLightApplyMaskGrey'(
@@ -98569,7 +98569,7 @@ declare global {
                p: IN['InpaintModelConditioning'],
                meta?: ComfyNodeMetadata,
             ): Node['InpaintModelConditioning']
-            /** displayName="null" category="model_conditioning_instructpix2pix" name="InstructPixToPixConditioning" output=[positive, negative, latent] */
+            /** displayName="InstructPixToPixConditioning" category="model_conditioning_instructpix2pix" name="InstructPixToPixConditioning" output=[positive, negative, latent] */
             InstructPixToPixConditioning(
                p: IN['InstructPixToPixConditioning'],
                meta?: ComfyNodeMetadata,
@@ -98840,12 +98840,12 @@ declare global {
             JoinImageWithAlpha(p: IN['JoinImageWithAlpha'], meta?: ComfyNodeMetadata): Node['JoinImageWithAlpha']
             /** displayName="Extract Text from JSON" category="text" name="JsonExtractString" output=[STRING] */
             JsonExtractString(p: IN['JsonExtractString'], meta?: ComfyNodeMetadata): Node['JsonExtractString']
-            /** displayName="null" category="model_conditioning_kandinsky" name="Kandinsky5ImageToVideo" output=[positive, negative, latent, cond_latent] */
+            /** displayName="Kandinsky5ImageToVideo" category="model_conditioning_kandinsky" name="Kandinsky5ImageToVideo" output=[positive, negative, latent, cond_latent] */
             Kandinsky5ImageToVideo(
                p: IN['Kandinsky5ImageToVideo'],
                meta?: ComfyNodeMetadata,
             ): Node['Kandinsky5ImageToVideo']
-            /** displayName="null" category="model_sampling_schedulers" name="KarrasScheduler" output=[SIGMAS] */
+            /** displayName="KarrasScheduler" category="model_sampling_schedulers" name="KarrasScheduler" output=[SIGMAS] */
             KarrasScheduler(p: IN['KarrasScheduler'], meta?: ComfyNodeMetadata): Node['KarrasScheduler']
             /**
              *
@@ -98858,7 +98858,7 @@ declare global {
              * displayName="Add Label" category="KJNodes_text" name="AddLabel" output=[IMAGE]
              **/
             'KJNodes.AddLabel'(p: IN['KJNodes.AddLabel'], meta?: ComfyNodeMetadata): Node['KJNodes.AddLabel']
-            /** displayName="null" category="conditioning_video_models" name="AddNoiseToTrackPath" output=[TRACKS] */
+            /** displayName="AddNoiseToTrackPath" category="conditioning_video_models" name="AddNoiseToTrackPath" output=[TRACKS] */
             'KJNodes.AddNoiseToTrackPath'(
                p: IN['KJNodes.AddNoiseToTrackPath'],
                meta?: ComfyNodeMetadata,
@@ -99004,7 +99004,7 @@ declare global {
              *
              * 'reinhard_lab_gpu' method uses Kornia for GPU-accelerated color transfer in Lab color space.
              *
-             * displayName="null" category="KJNodes_image" name="ColorMatchV2" output=[image]
+             * displayName="ColorMatchV2" category="KJNodes_image" name="ColorMatchV2" output=[image]
              **/
             'KJNodes.ColorMatchV2'(
                p: IN['KJNodes.ColorMatchV2'],
@@ -99527,7 +99527,7 @@ declare global {
                p: IN['KJNodes.GetPreviewOverrideFramesKJ'],
                meta?: ComfyNodeMetadata,
             ): Node['KJNodes.GetPreviewOverrideFramesKJ']
-            /** displayName="null" category="conditioning_video_models" name="GetTrackRange" output=[TRACKS] */
+            /** displayName="GetTrackRange" category="conditioning_video_models" name="GetTrackRange" output=[TRACKS] */
             'KJNodes.GetTrackRange'(
                p: IN['KJNodes.GetTrackRange'],
                meta?: ComfyNodeMetadata,
@@ -99744,7 +99744,7 @@ declare global {
             ): Node['KJNodes.ImageBatchRepeatInterleaving']
             /**
              * Generate a batch of images with sequential numbers rendered in a chosen font.
-             * displayName="null" category="KJNodes_text" name="ImageBatchTestPattern" output=[image]
+             * displayName="ImageBatchTestPattern" category="KJNodes_text" name="ImageBatchTestPattern" output=[image]
              **/
             'KJNodes.ImageBatchTestPattern'(
                p: IN['KJNodes.ImageBatchTestPattern'],
@@ -99757,7 +99757,7 @@ declare global {
              * channel-replicate for mask→image).
              * When match_image_size is False and dimensions don't match along the shared axis,
              * the smaller image is centered and zero-padded instead of erroring.
-             * displayName="null" category="KJNodes_image" name="ImageConcanate" output=[output]
+             * displayName="ImageConcanate" category="KJNodes_image" name="ImageConcanate" output=[output]
              **/
             'KJNodes.ImageConcanate'(
                p: IN['KJNodes.ImageConcanate'],
@@ -100098,7 +100098,7 @@ declare global {
                p: IN['KJNodes.LoadAndResizeImage'],
                meta?: ComfyNodeMetadata,
             ): Node['KJNodes.LoadAndResizeImage']
-            /** displayName="null" category="KJNodes_lora" name="LoraExtractKJ" output=[] */
+            /** displayName="LoraExtractKJ" category="KJNodes_lora" name="LoraExtractKJ" output=[] */
             'KJNodes.LoraExtractKJ'(
                p: IN['KJNodes.LoraExtractKJ'],
                meta?: ComfyNodeMetadata,
@@ -100166,7 +100166,7 @@ declare global {
             ): Node['KJNodes.LTX2SamplingPreviewOverride']
             /**
              * Add multiple guide images at specified frame indices with strengths, uses DynamicCombo which requires ComfyUI 0.8.1 and frontend 1.33.4 or later.
-             * displayName="null" category="KJNodes_ltxv" name="LTXVAddGuideMulti" output=[positive, negative, latent]
+             * displayName="LTXVAddGuideMulti" category="KJNodes_ltxv" name="LTXVAddGuideMulti" output=[positive, negative, latent]
              **/
             'KJNodes.LTXVAddGuideMulti'(
                p: IN['KJNodes.LTXVAddGuideMulti'],
@@ -100174,7 +100174,7 @@ declare global {
             ): Node['KJNodes.LTXVAddGuideMulti']
             /**
              * Adds multiple guide images from a batch to the latent at corresponding frame indices. Non-black images in the batch are used as guides.
-             * displayName="null" category="conditioning_ltxv" name="LTXVAddGuidesFromBatch" output=[positive, negative, latent]
+             * displayName="LTXVAddGuidesFromBatch" category="conditioning_ltxv" name="LTXVAddGuidesFromBatch" output=[positive, negative, latent]
              **/
             'KJNodes.LTXVAddGuidesFromBatch'(
                p: IN['KJNodes.LTXVAddGuidesFromBatch'],
@@ -100182,7 +100182,7 @@ declare global {
             ): Node['KJNodes.LTXVAddGuidesFromBatch']
             /**
              * Creates noise masks for video and audio latents based on specified time ranges. New content is generated within these masked regions
-             * displayName="null" category="KJNodes_ltxv" name="LTXVAudioVideoMask" output=[video_latent, audio_latent]
+             * displayName="LTXVAudioVideoMask" category="KJNodes_ltxv" name="LTXVAudioVideoMask" output=[video_latent, audio_latent]
              **/
             'KJNodes.LTXVAudioVideoMask'(
                p: IN['KJNodes.LTXVAudioVideoMask'],
@@ -100206,7 +100206,7 @@ declare global {
             ): Node['KJNodes.LTXVEnhanceAVideoKJ']
             /**
              * Replaces video latent frames with the encoded input images, uses DynamicCombo which requires ComfyUI 0.8.1 and frontend 1.33.4 or later.
-             * displayName="null" category="KJNodes_ltxv" name="LTXVImgToVideoInplaceKJ" output=[latent]
+             * displayName="LTXVImgToVideoInplaceKJ" category="KJNodes_ltxv" name="LTXVImgToVideoInplaceKJ" output=[latent]
              **/
             'KJNodes.LTXVImgToVideoInplaceKJ'(
                p: IN['KJNodes.LTXVImgToVideoInplaceKJ'],
@@ -100443,7 +100443,7 @@ declare global {
             ): Node['KJNodes.PreviewImageOrMask']
             /**
              * Previews the latent noise mask
-             * displayName="null" category="KJNodes_latents" name="PreviewLatentNoiseMask" output=[mask]
+             * displayName="PreviewLatentNoiseMask" category="KJNodes_latents" name="PreviewLatentNoiseMask" output=[mask]
              **/
             'KJNodes.PreviewLatentNoiseMask'(
                p: IN['KJNodes.PreviewLatentNoiseMask'],
@@ -100516,7 +100516,7 @@ declare global {
             'KJNodes.RoundMask'(p: IN['KJNodes.RoundMask'], meta?: ComfyNodeMetadata): Node['KJNodes.RoundMask']
             /**
              * Attempt to implement https://github.com/agwmon/self-refine-video, for testing only, MAY NOT WORK AS INTENDED.
-             * displayName="null" category="KJNodes_samplers" name="SamplerSelfRefineVideo" output=[SAMPLER]
+             * displayName="SamplerSelfRefineVideo" category="KJNodes_samplers" name="SamplerSelfRefineVideo" output=[SAMPLER]
              **/
             'KJNodes.SamplerSelfRefineVideo'(
                p: IN['KJNodes.SamplerSelfRefineVideo'],
@@ -100597,7 +100597,7 @@ declare global {
              *     Supported functions: abs(), round(), min(), max(), pow(), sqrt(), sin(), cos(), tan(), log(), log10(), exp(), floor(), ceil()
              *     Supported constants: pi, euler, True, False
              *
-             * displayName="null" category="KJNodes_misc" name="SimpleCalculatorKJ" output=[FLOAT, INT, BOOLEAN]
+             * displayName="SimpleCalculatorKJ" category="KJNodes_misc" name="SimpleCalculatorKJ" output=[FLOAT, INT, BOOLEAN]
              **/
             'KJNodes.SimpleCalculatorKJ'(
                p: IN['KJNodes.SimpleCalculatorKJ'],
@@ -100879,7 +100879,7 @@ declare global {
             ): Node['KJNodes.VAEDecodeLoopKJ']
             /** displayName="VAELoader KJ" category="KJNodes_vae" name="VAELoaderKJ" output=[VAE] */
             'KJNodes.VAELoaderKJ'(p: IN['KJNodes.VAELoaderKJ'], meta?: ComfyNodeMetadata): Node['KJNodes.VAELoaderKJ']
-            /** displayName="null" category="KJNodes_misc" name="VisualizeSigmasKJ" output=[sigmas_out, image] */
+            /** displayName="VisualizeSigmasKJ" category="KJNodes_misc" name="VisualizeSigmasKJ" output=[sigmas_out, image] */
             'KJNodes.VisualizeSigmasKJ'(
                p: IN['KJNodes.VisualizeSigmasKJ'],
                meta?: ComfyNodeMetadata,
@@ -100909,7 +100909,7 @@ declare global {
                p: IN['KJNodes.WanChunkFeedForward'],
                meta?: ComfyNodeMetadata,
             ): Node['KJNodes.WanChunkFeedForward']
-            /** displayName="null" category="conditioning_video_models" name="WanImageToVideoSVIPro" output=[positive, negative, latent] */
+            /** displayName="WanImageToVideoSVIPro" category="conditioning_video_models" name="WanImageToVideoSVIPro" output=[positive, negative, latent] */
             'KJNodes.WanImageToVideoSVIPro'(
                p: IN['KJNodes.WanImageToVideoSVIPro'],
                meta?: ComfyNodeMetadata,
@@ -100986,7 +100986,7 @@ declare global {
             KSampler(p: IN['KSampler'], meta?: ComfyNodeMetadata): Node['KSampler']
             /** displayName="KSampler (Advanced)" category="model_sampling" name="KSamplerAdvanced" output=[LATENT] */
             KSamplerAdvanced(p: IN['KSamplerAdvanced'], meta?: ComfyNodeMetadata): Node['KSamplerAdvanced']
-            /** displayName="null" category="model_sampling_samplers" name="KSamplerSelect" output=[SAMPLER] */
+            /** displayName="KSamplerSelect" category="model_sampling_samplers" name="KSamplerSelect" output=[SAMPLER] */
             KSamplerSelect(p: IN['KSamplerSelect'], meta?: ComfyNodeMetadata): Node['KSamplerSelect']
             /** displayName="(Down)load ChatGLM3 Model" category="KwaiKolorsWrapper" name="DownloadAndLoadChatGLM3" output=[chatglm3_model] */
             'KwaiKolorsWrapper.DownloadAndLoadChatGLM3'(
@@ -101013,20 +101013,20 @@ declare global {
                p: IN['KwaiKolorsWrapper.LoadChatGLM3'],
                meta?: ComfyNodeMetadata,
             ): Node['KwaiKolorsWrapper.LoadChatGLM3']
-            /** displayName="null" category="model_sampling_schedulers" name="LaplaceScheduler" output=[SIGMAS] */
+            /** displayName="LaplaceScheduler" category="model_sampling_schedulers" name="LaplaceScheduler" output=[SIGMAS] */
             LaplaceScheduler(p: IN['LaplaceScheduler'], meta?: ComfyNodeMetadata): Node['LaplaceScheduler']
-            /** displayName="null" category="model_latent_advanced" name="LatentAdd" output=[LATENT] */
+            /** displayName="LatentAdd" category="model_latent_advanced" name="LatentAdd" output=[LATENT] */
             LatentAdd(p: IN['LatentAdd'], meta?: ComfyNodeMetadata): Node['LatentAdd']
-            /** displayName="null" category="model_latent_advanced_operations" name="LatentApplyOperation" output=[LATENT] */
+            /** displayName="LatentApplyOperation" category="model_latent_advanced_operations" name="LatentApplyOperation" output=[LATENT] */
             LatentApplyOperation(p: IN['LatentApplyOperation'], meta?: ComfyNodeMetadata): Node['LatentApplyOperation']
-            /** displayName="null" category="model_latent_advanced_operations" name="LatentApplyOperationCFG" output=[MODEL] */
+            /** displayName="LatentApplyOperationCFG" category="model_latent_advanced_operations" name="LatentApplyOperationCFG" output=[MODEL] */
             LatentApplyOperationCFG(
                p: IN['LatentApplyOperationCFG'],
                meta?: ComfyNodeMetadata,
             ): Node['LatentApplyOperationCFG']
             /** displayName="Batch Latents (DEPRECATED)" category="model_latent_batch" name="LatentBatch" output=[LATENT] */
             LatentBatch(p: IN['LatentBatch'], meta?: ComfyNodeMetadata): Node['LatentBatch']
-            /** displayName="null" category="model_latent_advanced" name="LatentBatchSeedBehavior" output=[LATENT] */
+            /** displayName="LatentBatchSeedBehavior" category="model_latent_advanced" name="LatentBatchSeedBehavior" output=[LATENT] */
             LatentBatchSeedBehavior(
                p: IN['LatentBatchSeedBehavior'],
                meta?: ComfyNodeMetadata,
@@ -101040,35 +101040,35 @@ declare global {
                p: IN['LatentCompositeMasked'],
                meta?: ComfyNodeMetadata,
             ): Node['LatentCompositeMasked']
-            /** displayName="null" category="model_latent_advanced" name="LatentConcat" output=[LATENT] */
+            /** displayName="LatentConcat" category="model_latent_advanced" name="LatentConcat" output=[LATENT] */
             LatentConcat(p: IN['LatentConcat'], meta?: ComfyNodeMetadata): Node['LatentConcat']
             /** displayName="Crop Latent" category="model_latent_transform" name="LatentCrop" output=[LATENT] */
             LatentCrop(p: IN['LatentCrop'], meta?: ComfyNodeMetadata): Node['LatentCrop']
-            /** displayName="null" category="model_latent_advanced" name="LatentCut" output=[LATENT] */
+            /** displayName="LatentCut" category="model_latent_advanced" name="LatentCut" output=[LATENT] */
             LatentCut(p: IN['LatentCut'], meta?: ComfyNodeMetadata): Node['LatentCut']
-            /** displayName="null" category="model_latent_advanced" name="LatentCutToBatch" output=[LATENT] */
+            /** displayName="LatentCutToBatch" category="model_latent_advanced" name="LatentCutToBatch" output=[LATENT] */
             LatentCutToBatch(p: IN['LatentCutToBatch'], meta?: ComfyNodeMetadata): Node['LatentCutToBatch']
             /** displayName="Flip Latent" category="model_latent_transform" name="LatentFlip" output=[LATENT] */
             LatentFlip(p: IN['LatentFlip'], meta?: ComfyNodeMetadata): Node['LatentFlip']
             /** displayName="Get Latent From Batch" category="model_latent_batch" name="LatentFromBatch" output=[LATENT] */
             LatentFromBatch(p: IN['LatentFromBatch'], meta?: ComfyNodeMetadata): Node['LatentFromBatch']
-            /** displayName="null" category="model_latent_advanced" name="LatentInterpolate" output=[LATENT] */
+            /** displayName="LatentInterpolate" category="model_latent_advanced" name="LatentInterpolate" output=[LATENT] */
             LatentInterpolate(p: IN['LatentInterpolate'], meta?: ComfyNodeMetadata): Node['LatentInterpolate']
-            /** displayName="null" category="model_latent_advanced" name="LatentMultiply" output=[LATENT] */
+            /** displayName="LatentMultiply" category="model_latent_advanced" name="LatentMultiply" output=[LATENT] */
             LatentMultiply(p: IN['LatentMultiply'], meta?: ComfyNodeMetadata): Node['LatentMultiply']
-            /** displayName="null" category="model_latent_advanced_operations" name="LatentOperationSharpen" output=[LATENT_OPERATION] */
+            /** displayName="LatentOperationSharpen" category="model_latent_advanced_operations" name="LatentOperationSharpen" output=[LATENT_OPERATION] */
             LatentOperationSharpen(
                p: IN['LatentOperationSharpen'],
                meta?: ComfyNodeMetadata,
             ): Node['LatentOperationSharpen']
-            /** displayName="null" category="model_latent_advanced_operations" name="LatentOperationTonemapReinhard" output=[LATENT_OPERATION] */
+            /** displayName="LatentOperationTonemapReinhard" category="model_latent_advanced_operations" name="LatentOperationTonemapReinhard" output=[LATENT_OPERATION] */
             LatentOperationTonemapReinhard(
                p: IN['LatentOperationTonemapReinhard'],
                meta?: ComfyNodeMetadata,
             ): Node['LatentOperationTonemapReinhard']
             /** displayName="Rotate Latent" category="model_latent_transform" name="LatentRotate" output=[LATENT] */
             LatentRotate(p: IN['LatentRotate'], meta?: ComfyNodeMetadata): Node['LatentRotate']
-            /** displayName="null" category="model_latent_advanced" name="LatentSubtract" output=[LATENT] */
+            /** displayName="LatentSubtract" category="model_latent_advanced" name="LatentSubtract" output=[LATENT] */
             LatentSubtract(p: IN['LatentSubtract'], meta?: ComfyNodeMetadata): Node['LatentSubtract']
             /** displayName="Upscale Latent" category="model_latent" name="LatentUpscale" output=[LATENT] */
             LatentUpscale(p: IN['LatentUpscale'], meta?: ComfyNodeMetadata): Node['LatentUpscale']
@@ -102266,11 +102266,11 @@ declare global {
             'logic.Int'(p: IN['logic.Int'], meta?: ComfyNodeMetadata): Node['logic.Int']
             /** displayName="String" category="Logic" name="String" output=[STRING] */
             'logic.String'(p: IN['logic.String'], meta?: ComfyNodeMetadata): Node['logic.String']
-            /** displayName="null" category="sd" name="LoopIteration" output=[INT, BOOLEAN, BOOLEAN_1, *, *_1] */
+            /** displayName="LoopIteration" category="sd" name="LoopIteration" output=[INT, BOOLEAN, BOOLEAN_1, *, *_1] */
             LoopIteration(p: IN['LoopIteration'], meta?: ComfyNodeMetadata): Node['LoopIteration']
-            /** displayName="null" category="sd" name="LoopProgress" output=[INT] */
+            /** displayName="LoopProgress" category="sd" name="LoopProgress" output=[INT] */
             LoopProgress(p: IN['LoopProgress'], meta?: ComfyNodeMetadata): Node['LoopProgress']
-            /** displayName="null" category="sd" name="LoopResult" output=[] */
+            /** displayName="LoopResult" category="sd" name="LoopResult" output=[] */
             LoopResult(p: IN['LoopResult'], meta?: ComfyNodeMetadata): Node['LoopResult']
             /**
              * This LoRA loader is used to modify both diffusion and CLIP models, altering the way in which latents are denoised such as applying styles. Multiple LoRA nodes can be linked together.
@@ -102306,7 +102306,7 @@ declare global {
             ): Node['Lotus.LoadLotusModel']
             /** displayName="Lotus Sampler" category="ComfyUI-Lotus" name="LotusSampler" output=[samples] */
             'Lotus.LotusSampler'(p: IN['Lotus.LotusSampler'], meta?: ComfyNodeMetadata): Node['Lotus.LotusSampler']
-            /** displayName="null" category="model_conditioning_lotus" name="LotusConditioning" output=[conditioning] */
+            /** displayName="LotusConditioning" category="model_conditioning_lotus" name="LotusConditioning" output=[conditioning] */
             LotusConditioning(p: IN['LotusConditioning'], meta?: ComfyNodeMetadata): Node['LotusConditioning']
             /**
              * Recipes:
@@ -102325,7 +102325,7 @@ declare global {
                p: IN['LTXVAddGeneratedKeyframes'],
                meta?: ComfyNodeMetadata,
             ): Node['LTXVAddGeneratedKeyframes']
-            /** displayName="null" category="model_conditioning_ltxv" name="LTXVAddGuide" output=[positive, negative, latent] */
+            /** displayName="LTXVAddGuide" category="model_conditioning_ltxv" name="LTXVAddGuide" output=[positive, negative, latent] */
             LTXVAddGuide(p: IN['LTXVAddGuide'], meta?: ComfyNodeMetadata): Node['LTXVAddGuide']
             /**
              * Pins an already-encoded latent as a guide, for when the guide comes out of an earlier stage rather than an image. Same effect as LTXV Add Guide without the VAE decode/encode round trip. A guide that is spatially smaller than the target (an IC-LoRA or detailing reference) is dilated onto a sparse grid, and its RoPE end positions are expanded by the same ratio so it covers the target canvas instead of addressing only the top-left corner of it.
@@ -102343,14 +102343,14 @@ declare global {
              * displayName="Concat AV Latent" category="model_latent_ltxv" name="LTXVConcatAVLatent" output=[latent]
              **/
             LTXVConcatAVLatent(p: IN['LTXVConcatAVLatent'], meta?: ComfyNodeMetadata): Node['LTXVConcatAVLatent']
-            /** displayName="null" category="model_conditioning_ltxv" name="LTXVConditioning" output=[positive, negative] */
+            /** displayName="LTXVConditioning" category="model_conditioning_ltxv" name="LTXVConditioning" output=[positive, negative] */
             LTXVConditioning(p: IN['LTXVConditioning'], meta?: ComfyNodeMetadata): Node['LTXVConditioning']
             /**
              * Set context windows for LTXV-like models.
              * displayName="LTXV Context Windows" category="model_patch_ltxv" name="LTXVContextWindows" output=[MODEL]
              **/
             LTXVContextWindows(p: IN['LTXVContextWindows'], meta?: ComfyNodeMetadata): Node['LTXVContextWindows']
-            /** displayName="null" category="model_conditioning_ltxv" name="LTXVCropGuides" output=[positive, negative, latent] */
+            /** displayName="LTXVCropGuides" category="model_conditioning_ltxv" name="LTXVCropGuides" output=[positive, negative, latent] */
             LTXVCropGuides(p: IN['LTXVCropGuides'], meta?: ComfyNodeMetadata): Node['LTXVCropGuides']
             /**
              * Separate CFG scales for the video and audio modalities of a packed LTXV-AV latent.
@@ -102380,7 +102380,7 @@ declare global {
                p: IN['LTXVGeneratedKeyframesToGuides'],
                meta?: ComfyNodeMetadata,
             ): Node['LTXVGeneratedKeyframesToGuides']
-            /** displayName="null" category="model_conditioning_ltxv" name="AddLatentGuide" output=[positive, negative, latent] */
+            /** displayName="AddLatentGuide" category="model_conditioning_ltxv" name="AddLatentGuide" output=[positive, negative, latent] */
             'LTXVideo.AddLatentGuide'(
                p: IN['LTXVideo.AddLatentGuide'],
                meta?: ComfyNodeMetadata,
@@ -102852,14 +102852,14 @@ declare global {
                p: IN['LTXVideo.STGGuiderNode'],
                meta?: ComfyNodeMetadata,
             ): Node['LTXVideo.STGGuiderNode']
-            /** displayName="null" category="model_conditioning_ltxv" name="LTXVImgToVideo" output=[positive, negative, latent] */
+            /** displayName="LTXVImgToVideo" category="model_conditioning_ltxv" name="LTXVImgToVideo" output=[positive, negative, latent] */
             LTXVImgToVideo(p: IN['LTXVImgToVideo'], meta?: ComfyNodeMetadata): Node['LTXVImgToVideo']
-            /** displayName="null" category="model_conditioning_ltxv" name="LTXVImgToVideoInplace" output=[latent] */
+            /** displayName="LTXVImgToVideoInplace" category="model_conditioning_ltxv" name="LTXVImgToVideoInplace" output=[latent] */
             LTXVImgToVideoInplace(
                p: IN['LTXVImgToVideoInplace'],
                meta?: ComfyNodeMetadata,
             ): Node['LTXVImgToVideoInplace']
-            /** displayName="null" category="model_latent_ltxv" name="LTXVLatentUpsampler" output=[LATENT] */
+            /** displayName="LTXVLatentUpsampler" category="model_latent_ltxv" name="LTXVLatentUpsampler" output=[LATENT] */
             LTXVLatentUpsampler(p: IN['LTXVLatentUpsampler'], meta?: ComfyNodeMetadata): Node['LTXVLatentUpsampler']
             /**
              * Cross-modal (audio-video) guidance for LTXV-AV. Runs one extra forward pass per step with the a2v/v2a cross-attention severed, then pushes the result toward the coupled prediction - strengthening audio-visual sync (e.g. lip-sync). Reference default modality_scale is 3.0. Stacks with the dual-CFG guider and STG. Set to 1.0 to disable (no extra pass).
@@ -102873,7 +102873,7 @@ declare global {
              * displayName="LTXV Reference Audio (ID-LoRA)" category="model_conditioning_ltxv" name="LTXVReferenceAudio" output=[MODEL, positive, negative]
              **/
             LTXVReferenceAudio(p: IN['LTXVReferenceAudio'], meta?: ComfyNodeMetadata): Node['LTXVReferenceAudio']
-            /** displayName="null" category="model_sampling_schedulers" name="LTXVScheduler" output=[SIGMAS] */
+            /** displayName="LTXVScheduler" category="model_sampling_schedulers" name="LTXVScheduler" output=[SIGMAS] */
             LTXVScheduler(p: IN['LTXVScheduler'], meta?: ComfyNodeMetadata): Node['LTXVScheduler']
             /**
              * Split a joint AV latent into its video and audio latents (any AV model, e.g. LTXV or MiniMax H3).
@@ -102906,7 +102906,7 @@ declare global {
              * displayName="Make Training Dataset" category="model_training" name="MakeTrainingDataset" output=[latents, conditioning]
              **/
             MakeTrainingDataset(p: IN['MakeTrainingDataset'], meta?: ComfyNodeMetadata): Node['MakeTrainingDataset']
-            /** displayName="null" category="model_sampling_sigmas" name="ManualSigmas" output=[SIGMAS] */
+            /** displayName="ManualSigmas" category="model_sampling_sigmas" name="ManualSigmas" output=[SIGMAS] */
             ManualSigmas(p: IN['ManualSigmas'], meta?: ComfyNodeMetadata): Node['ManualSigmas']
             /**
              * Turns a decoded Marigold V2 prediction into an image: normalized depth with near as bright, unit surface normals, or sRGB albedo.
@@ -103323,7 +103323,7 @@ declare global {
             ): Node['ModelSamplingDiscrete']
             /** displayName="ModelSamplingFlux" category="model_patch_flux" name="ModelSamplingFlux" output=[MODEL] */
             ModelSamplingFlux(p: IN['ModelSamplingFlux'], meta?: ComfyNodeMetadata): Node['ModelSamplingFlux']
-            /** displayName="null" category="model_patch_ltxv" name="ModelSamplingLTXV" output=[MODEL] */
+            /** displayName="ModelSamplingLTXV" category="model_patch_ltxv" name="ModelSamplingLTXV" output=[MODEL] */
             ModelSamplingLTXV(p: IN['ModelSamplingLTXV'], meta?: ComfyNodeMetadata): Node['ModelSamplingLTXV']
             /** displayName="ModelSamplingSD3" category="model_patch_stable diffusion" name="ModelSamplingSD3" output=[MODEL] */
             ModelSamplingSD3(p: IN['ModelSamplingSD3'], meta?: ComfyNodeMetadata): Node['ModelSamplingSD3']
@@ -103426,7 +103426,7 @@ declare global {
             NormalizeImages(p: IN['NormalizeImages'], meta?: ComfyNodeMetadata): Node['NormalizeImages']
             /**
              * Normalizes the initial frames of a video latent to match the mean and standard deviation of subsequent reference frames. Helps reduce differences between the starting frames and the rest of the video.
-             * displayName="null" category="model_conditioning" name="NormalizeVideoLatentStart" output=[latent]
+             * displayName="NormalizeVideoLatentStart" category="model_conditioning" name="NormalizeVideoLatentStart" output=[latent]
              **/
             NormalizeVideoLatentStart(
                p: IN['NormalizeVideoLatentStart'],
@@ -103474,7 +103474,7 @@ declare global {
             ): Node['OneButtonPrompt.OneButtonSuperPrompt']
             /** displayName="Load Optical Flow Model" category="model_loaders" name="OpticalFlowLoader" output=[OPTICAL_FLOW] */
             OpticalFlowLoader(p: IN['OpticalFlowLoader'], meta?: ComfyNodeMetadata): Node['OpticalFlowLoader']
-            /** displayName="null" category="model_sampling_schedulers" name="OptimalStepsScheduler" output=[SIGMAS] */
+            /** displayName="OptimalStepsScheduler" category="model_sampling_schedulers" name="OptimalStepsScheduler" output=[SIGMAS] */
             OptimalStepsScheduler(
                p: IN['OptimalStepsScheduler'],
                meta?: ComfyNodeMetadata,
@@ -103515,7 +103515,7 @@ declare global {
             PerpNeg(p: IN['PerpNeg'], meta?: ComfyNodeMetadata): Node['PerpNeg']
             /** displayName="Perp-Neg Guider" category="experimental" name="PerpNegGuider" output=[GUIDER] */
             PerpNegGuider(p: IN['PerpNegGuider'], meta?: ComfyNodeMetadata): Node['PerpNegGuider']
-            /** displayName="null" category="model_patch_unet" name="PerturbedAttentionGuidance" output=[MODEL] */
+            /** displayName="PerturbedAttentionGuidance" category="model_patch_unet" name="PerturbedAttentionGuidance" output=[MODEL] */
             PerturbedAttentionGuidance(
                p: IN['PerturbedAttentionGuidance'],
                meta?: ComfyNodeMetadata,
@@ -103546,7 +103546,7 @@ declare global {
                p: IN['PlyPreview.PlyPreviewProcessGaussianPLYEnhance'],
                meta?: ComfyNodeMetadata,
             ): Node['PlyPreview.PlyPreviewProcessGaussianPLYEnhance']
-            /** displayName="null" category="model_sampling_schedulers" name="PolyexponentialScheduler" output=[SIGMAS] */
+            /** displayName="PolyexponentialScheduler" category="model_sampling_schedulers" name="PolyexponentialScheduler" output=[SIGMAS] */
             PolyexponentialScheduler(
                p: IN['PolyexponentialScheduler'],
                meta?: ComfyNodeMetadata,
@@ -104274,7 +104274,7 @@ declare global {
              * displayName="Crop Image (Random)" category="image_transform" name="RandomCropImages" output=[images]
              **/
             RandomCropImages(p: IN['RandomCropImages'], meta?: ComfyNodeMetadata): Node['RandomCropImages']
-            /** displayName="null" category="model_sampling_noise" name="RandomNoise" output=[NOISE] */
+            /** displayName="RandomNoise" category="model_sampling_noise" name="RandomNoise" output=[NOISE] */
             RandomNoise(p: IN['RandomNoise'], meta?: ComfyNodeMetadata): Node['RandomNoise']
             /** displayName="Rebatch Images" category="image_batch" name="RebatchImages" output=[IMAGE] */
             RebatchImages(p: IN['RebatchImages'], meta?: ComfyNodeMetadata): Node['RebatchImages']
@@ -104326,7 +104326,7 @@ declare global {
              * displayName="Render UV Atlas" category="3d_texturing" name="RenderUVAtlas" output=[image]
              **/
             RenderUVAtlas(p: IN['RenderUVAtlas'], meta?: ComfyNodeMetadata): Node['RenderUVAtlas']
-            /** displayName="null" category="model_patch" name="RenormCFG" output=[MODEL] */
+            /** displayName="RenormCFG" category="model_patch" name="RenormCFG" output=[MODEL] */
             RenormCFG(p: IN['RenormCFG'], meta?: ComfyNodeMetadata): Node['RenormCFG']
             /** displayName="Repeat Image Batch" category="image_batch" name="RepeatImageBatch" output=[IMAGE] */
             RepeatImageBatch(p: IN['RepeatImageBatch'], meta?: ComfyNodeMetadata): Node['RepeatImageBatch']
@@ -106065,29 +106065,29 @@ declare global {
             SAM3DBody_Smooth(p: IN['SAM3DBody_Smooth'], meta?: ComfyNodeMetadata): Node['SAM3DBody_Smooth']
             /** displayName="Sampler AR Video" category="model_sampling_samplers" name="SamplerARVideo" output=[SAMPLER] */
             SamplerARVideo(p: IN['SamplerARVideo'], meta?: ComfyNodeMetadata): Node['SamplerARVideo']
-            /** displayName="null" category="model_sampling_custom" name="SamplerCustom" output=[output, denoised_output] */
+            /** displayName="SamplerCustom" category="model_sampling_custom" name="SamplerCustom" output=[output, denoised_output] */
             SamplerCustom(p: IN['SamplerCustom'], meta?: ComfyNodeMetadata): Node['SamplerCustom']
-            /** displayName="null" category="model_sampling_custom" name="SamplerCustomAdvanced" output=[output, denoised_output] */
+            /** displayName="SamplerCustomAdvanced" category="model_sampling_custom" name="SamplerCustomAdvanced" output=[output, denoised_output] */
             SamplerCustomAdvanced(
                p: IN['SamplerCustomAdvanced'],
                meta?: ComfyNodeMetadata,
             ): Node['SamplerCustomAdvanced']
-            /** displayName="null" category="model_sampling_samplers" name="SamplerDPMAdaptative" output=[SAMPLER] */
+            /** displayName="SamplerDPMAdaptative" category="model_sampling_samplers" name="SamplerDPMAdaptative" output=[SAMPLER] */
             SamplerDPMAdaptative(p: IN['SamplerDPMAdaptative'], meta?: ComfyNodeMetadata): Node['SamplerDPMAdaptative']
-            /** displayName="null" category="model_sampling_samplers" name="SamplerDPMPP_2M_SDE" output=[SAMPLER] */
+            /** displayName="SamplerDPMPP_2M_SDE" category="model_sampling_samplers" name="SamplerDPMPP_2M_SDE" output=[SAMPLER] */
             SamplerDPMPP_2M_SDE(p: IN['SamplerDPMPP_2M_SDE'], meta?: ComfyNodeMetadata): Node['SamplerDPMPP_2M_SDE']
-            /** displayName="null" category="model_sampling_samplers" name="SamplerDPMPP_2S_Ancestral" output=[SAMPLER] */
+            /** displayName="SamplerDPMPP_2S_Ancestral" category="model_sampling_samplers" name="SamplerDPMPP_2S_Ancestral" output=[SAMPLER] */
             SamplerDPMPP_2S_Ancestral(
                p: IN['SamplerDPMPP_2S_Ancestral'],
                meta?: ComfyNodeMetadata,
             ): Node['SamplerDPMPP_2S_Ancestral']
-            /** displayName="null" category="model_sampling_samplers" name="SamplerDPMPP_3M_SDE" output=[SAMPLER] */
+            /** displayName="SamplerDPMPP_3M_SDE" category="model_sampling_samplers" name="SamplerDPMPP_3M_SDE" output=[SAMPLER] */
             SamplerDPMPP_3M_SDE(p: IN['SamplerDPMPP_3M_SDE'], meta?: ComfyNodeMetadata): Node['SamplerDPMPP_3M_SDE']
-            /** displayName="null" category="model_sampling_samplers" name="SamplerDPMPP_SDE" output=[SAMPLER] */
+            /** displayName="SamplerDPMPP_SDE" category="model_sampling_samplers" name="SamplerDPMPP_SDE" output=[SAMPLER] */
             SamplerDPMPP_SDE(p: IN['SamplerDPMPP_SDE'], meta?: ComfyNodeMetadata): Node['SamplerDPMPP_SDE']
-            /** displayName="null" category="model_sampling_samplers" name="SamplerER_SDE" output=[SAMPLER] */
+            /** displayName="SamplerER_SDE" category="model_sampling_samplers" name="SamplerER_SDE" output=[SAMPLER] */
             SamplerER_SDE(p: IN['SamplerER_SDE'], meta?: ComfyNodeMetadata): Node['SamplerER_SDE']
-            /** displayName="null" category="model_sampling_samplers" name="SamplerEulerAncestral" output=[SAMPLER] */
+            /** displayName="SamplerEulerAncestral" category="model_sampling_samplers" name="SamplerEulerAncestral" output=[SAMPLER] */
             SamplerEulerAncestral(
                p: IN['SamplerEulerAncestral'],
                meta?: ComfyNodeMetadata,
@@ -106101,14 +106101,14 @@ declare global {
             SamplerEulerCFGpp(p: IN['SamplerEulerCFGpp'], meta?: ComfyNodeMetadata): Node['SamplerEulerCFGpp']
             /**
              * LCM sampler with tunable per-step noise. s_noise is a multiplier on the model's training noise scale
-             * displayName="null" category="model_sampling_samplers" name="SamplerLCM" output=[SAMPLER]
+             * displayName="SamplerLCM" category="model_sampling_samplers" name="SamplerLCM" output=[SAMPLER]
              **/
             SamplerLCM(p: IN['SamplerLCM'], meta?: ComfyNodeMetadata): Node['SamplerLCM']
-            /** displayName="null" category="model_sampling_samplers" name="SamplerLCMUpscale" output=[SAMPLER] */
+            /** displayName="SamplerLCMUpscale" category="model_sampling_samplers" name="SamplerLCMUpscale" output=[SAMPLER] */
             SamplerLCMUpscale(p: IN['SamplerLCMUpscale'], meta?: ComfyNodeMetadata): Node['SamplerLCMUpscale']
-            /** displayName="null" category="model_sampling_samplers" name="SamplerLMS" output=[SAMPLER] */
+            /** displayName="SamplerLMS" category="model_sampling_samplers" name="SamplerLMS" output=[SAMPLER] */
             SamplerLMS(p: IN['SamplerLMS'], meta?: ComfyNodeMetadata): Node['SamplerLMS']
-            /** displayName="null" category="model_sampling_samplers" name="SamplerSASolver" output=[SAMPLER] */
+            /** displayName="SamplerSASolver" category="model_sampling_samplers" name="SamplerSASolver" output=[SAMPLER] */
             SamplerSASolver(p: IN['SamplerSASolver'], meta?: ComfyNodeMetadata): Node['SamplerSASolver']
             /**
              * This sampler node can represent multiple samplers:
@@ -106121,10 +106121,10 @@ declare global {
              *
              * exp_heun_2_x0_sde
              * - solver_type=phi_2, r=1.0, eta=1.0, s_noise=1.0
-             * displayName="null" category="model_sampling_samplers" name="SamplerSEEDS2" output=[SAMPLER]
+             * displayName="SamplerSEEDS2" category="model_sampling_samplers" name="SamplerSEEDS2" output=[SAMPLER]
              **/
             SamplerSEEDS2(p: IN['SamplerSEEDS2'], meta?: ComfyNodeMetadata): Node['SamplerSEEDS2']
-            /** displayName="null" category="model_sampling_sigmas" name="SamplingPercentToSigma" output=[sigma_value] */
+            /** displayName="SamplingPercentToSigma" category="model_sampling_sigmas" name="SamplingPercentToSigma" output=[sigma_value] */
             SamplingPercentToSigma(
                p: IN['SamplingPercentToSigma'],
                meta?: ComfyNodeMetadata,
@@ -106213,7 +106213,7 @@ declare global {
             SCAIL2ColoredMask(p: IN['SCAIL2ColoredMask'], meta?: ComfyNodeMetadata): Node['SCAIL2ColoredMask']
             /**
              * Scale and shift the ROPE of the model.
-             * displayName="null" category="model_patch" name="ScaleROPE" output=[MODEL]
+             * displayName="ScaleROPE" category="model_patch" name="ScaleROPE" output=[MODEL]
              **/
             ScaleROPE(p: IN['ScaleROPE'], meta?: ComfyNodeMetadata): Node['ScaleROPE']
             /** displayName="Schema Audio Parameter" category="inout_schema" name="SchemaAudioParameter" output=[value] */
@@ -106256,7 +106256,7 @@ declare global {
                p: IN['SchemaNodes.SchemaVideoParameter'],
                meta?: ComfyNodeMetadata,
             ): Node['SchemaNodes.SchemaVideoParameter']
-            /** displayName="null" category="model_conditioning_stable diffusion upscaler" name="SD_4XUpscale_Conditioning" output=[positive, negative, latent] */
+            /** displayName="SD_4XUpscale_Conditioning" category="model_conditioning_stable diffusion upscaler" name="SD_4XUpscale_Conditioning" output=[positive, negative, latent] */
             SD_4XUpscale_Conditioning(
                p: IN['SD_4XUpscale_Conditioning'],
                meta?: ComfyNodeMetadata,
@@ -106283,7 +106283,7 @@ declare global {
                p: IN['SDPoseKeypointExtractor'],
                meta?: ComfyNodeMetadata,
             ): Node['SDPoseKeypointExtractor']
-            /** displayName="null" category="model_sampling_schedulers" name="SDTurboScheduler" output=[SIGMAS] */
+            /** displayName="SDTurboScheduler" category="model_sampling_schedulers" name="SDTurboScheduler" output=[SIGMAS] */
             SDTurboScheduler(p: IN['SDTurboScheduler'], meta?: ComfyNodeMetadata): Node['SDTurboScheduler']
             /**
              * Visualize coordinate points on an image or blank canvas. Useful for previewing point selections.
@@ -106486,7 +106486,7 @@ declare global {
             ): Node['SenseNovaSamplingOptions']
             /** displayName="Set CLIP Hooks" category="advanced_hooks_clip" name="SetClipHooks" output=[CLIP] */
             SetClipHooks(p: IN['SetClipHooks'], meta?: ComfyNodeMetadata): Node['SetClipHooks']
-            /** displayName="null" category="model_sampling_sigmas" name="SetFirstSigma" output=[SIGMAS] */
+            /** displayName="SetFirstSigma" category="model_sampling_sigmas" name="SetFirstSigma" output=[SIGMAS] */
             SetFirstSigma(p: IN['SetFirstSigma'], meta?: ComfyNodeMetadata): Node['SetFirstSigma']
             /** displayName="Set Hook Keyframes" category="advanced_hooks_scheduling" name="SetHookKeyframes" output=[HOOKS] */
             SetHookKeyframes(p: IN['SetHookKeyframes'], meta?: ComfyNodeMetadata): Node['SetHookKeyframes']
@@ -106607,12 +106607,12 @@ declare global {
             ): Node['Skimmed_CFG.SkimReplacePreCFG']
             /**
              * Generic version of SkipLayerGuidance node that can be used on every DiT model.
-             * displayName="null" category="advanced_guidance" name="SkipLayerGuidanceDiT" output=[MODEL]
+             * displayName="SkipLayerGuidanceDiT" category="advanced_guidance" name="SkipLayerGuidanceDiT" output=[MODEL]
              **/
             SkipLayerGuidanceDiT(p: IN['SkipLayerGuidanceDiT'], meta?: ComfyNodeMetadata): Node['SkipLayerGuidanceDiT']
             /**
              * Simple version of the SkipLayerGuidanceDiT node that only modifies the uncond pass.
-             * displayName="null" category="advanced_guidance" name="SkipLayerGuidanceDiTSimple" output=[MODEL]
+             * displayName="SkipLayerGuidanceDiTSimple" category="advanced_guidance" name="SkipLayerGuidanceDiTSimple" output=[MODEL]
              **/
             SkipLayerGuidanceDiTSimple(
                p: IN['SkipLayerGuidanceDiTSimple'],
@@ -106620,7 +106620,7 @@ declare global {
             ): Node['SkipLayerGuidanceDiTSimple']
             /**
              * Generic version of SkipLayerGuidance node that can be used on every DiT model.
-             * displayName="null" category="advanced_guidance" name="SkipLayerGuidanceSD3" output=[MODEL]
+             * displayName="SkipLayerGuidanceSD3" category="advanced_guidance" name="SkipLayerGuidanceSD3" output=[MODEL]
              **/
             SkipLayerGuidanceSD3(p: IN['SkipLayerGuidanceSD3'], meta?: ComfyNodeMetadata): Node['SkipLayerGuidanceSD3']
             /** displayName="Create Solid Mask" category="image_mask" name="SolidMask" output=[MASK] */
@@ -106647,16 +106647,16 @@ declare global {
             SplitImageToTileList(p: IN['SplitImageToTileList'], meta?: ComfyNodeMetadata): Node['SplitImageToTileList']
             /** displayName="Split Image with Alpha" category="image_compositing" name="SplitImageWithAlpha" output=[IMAGE, MASK] */
             SplitImageWithAlpha(p: IN['SplitImageWithAlpha'], meta?: ComfyNodeMetadata): Node['SplitImageWithAlpha']
-            /** displayName="null" category="model_sampling_sigmas" name="SplitSigmas" output=[high_sigmas, low_sigmas] */
+            /** displayName="SplitSigmas" category="model_sampling_sigmas" name="SplitSigmas" output=[high_sigmas, low_sigmas] */
             SplitSigmas(p: IN['SplitSigmas'], meta?: ComfyNodeMetadata): Node['SplitSigmas']
-            /** displayName="null" category="model_sampling_sigmas" name="SplitSigmasDenoise" output=[high_sigmas, low_sigmas] */
+            /** displayName="SplitSigmasDenoise" category="model_sampling_sigmas" name="SplitSigmasDenoise" output=[high_sigmas, low_sigmas] */
             SplitSigmasDenoise(p: IN['SplitSigmasDenoise'], meta?: ComfyNodeMetadata): Node['SplitSigmasDenoise']
             /** displayName="Empty Stable Cascade Latent Image" category="model_latent_stable cascade" name="StableCascade_EmptyLatentImage" output=[stage_c, stage_b] */
             StableCascade_EmptyLatentImage(
                p: IN['StableCascade_EmptyLatentImage'],
                meta?: ComfyNodeMetadata,
             ): Node['StableCascade_EmptyLatentImage']
-            /** displayName="null" category="model_conditioning_stable cascade" name="StableCascade_StageB_Conditioning" output=[CONDITIONING] */
+            /** displayName="StableCascade_StageB_Conditioning" category="model_conditioning_stable cascade" name="StableCascade_StageB_Conditioning" output=[CONDITIONING] */
             StableCascade_StageB_Conditioning(
                p: IN['StableCascade_StageB_Conditioning'],
                meta?: ComfyNodeMetadata,
@@ -106666,17 +106666,17 @@ declare global {
                p: IN['StableCascade_StageC_VAEEncode'],
                meta?: ComfyNodeMetadata,
             ): Node['StableCascade_StageC_VAEEncode']
-            /** displayName="null" category="experimental_stable cascade" name="StableCascade_SuperResolutionControlnet" output=[controlnet_input, stage_c, stage_b] */
+            /** displayName="StableCascade_SuperResolutionControlnet" category="experimental_stable cascade" name="StableCascade_SuperResolutionControlnet" output=[controlnet_input, stage_c, stage_b] */
             StableCascade_SuperResolutionControlnet(
                p: IN['StableCascade_SuperResolutionControlnet'],
                meta?: ComfyNodeMetadata,
             ): Node['StableCascade_SuperResolutionControlnet']
-            /** displayName="null" category="model_conditioning_stable zero123" name="StableZero123_Conditioning" output=[positive, negative, latent] */
+            /** displayName="StableZero123_Conditioning" category="model_conditioning_stable zero123" name="StableZero123_Conditioning" output=[positive, negative, latent] */
             StableZero123_Conditioning(
                p: IN['StableZero123_Conditioning'],
                meta?: ComfyNodeMetadata,
             ): Node['StableZero123_Conditioning']
-            /** displayName="null" category="model_conditioning_stable zero123" name="StableZero123_Conditioning_Batched" output=[positive, negative, latent] */
+            /** displayName="StableZero123_Conditioning_Batched" category="model_conditioning_stable zero123" name="StableZero123_Conditioning_Batched" output=[positive, negative, latent] */
             StableZero123_Conditioning_Batched(
                p: IN['StableZero123_Conditioning_Batched'],
                meta?: ComfyNodeMetadata,
@@ -106907,9 +106907,9 @@ declare global {
             'supir.SUPIR_tiles'(p: IN['supir.SUPIR_tiles'], meta?: ComfyNodeMetadata): Node['supir.SUPIR_tiles']
             /** displayName="SUPIR Upscale (Legacy)" category="SUPIR" name="SUPIR_Upscale" output=[upscaled_image] */
             'supir.SUPIR_Upscale'(p: IN['supir.SUPIR_Upscale'], meta?: ComfyNodeMetadata): Node['supir.SUPIR_Upscale']
-            /** displayName="null" category="model_patch_supir" name="SUPIRApply" output=[MODEL] */
+            /** displayName="SUPIRApply" category="model_patch_supir" name="SUPIRApply" output=[MODEL] */
             SUPIRApply(p: IN['SUPIRApply'], meta?: ComfyNodeMetadata): Node['SUPIRApply']
-            /** displayName="null" category="model_conditioning_stable video 3d" name="SV3D_Conditioning" output=[positive, negative, latent] */
+            /** displayName="SV3D_Conditioning" category="model_conditioning_stable video 3d" name="SV3D_Conditioning" output=[positive, negative, latent] */
             SV3D_Conditioning(p: IN['SV3D_Conditioning'], meta?: ComfyNodeMetadata): Node['SV3D_Conditioning']
             /** displayName="SVD_img2vid_Conditioning" category="model_conditioning_stable video" name="SVD_img2vid_Conditioning" output=[positive, negative, latent] */
             SVD_img2vid_Conditioning(
@@ -107081,31 +107081,31 @@ declare global {
                p: IN['test-framework.TestMaskGenerator'],
                meta?: ComfyNodeMetadata,
             ): Node['test-framework.TestMaskGenerator']
-            /** displayName="null" category="model_conditioning_ace" name="TextEncodeAceStepAudio" output=[CONDITIONING] */
+            /** displayName="TextEncodeAceStepAudio" category="model_conditioning_ace" name="TextEncodeAceStepAudio" output=[CONDITIONING] */
             TextEncodeAceStepAudio(
                p: IN['TextEncodeAceStepAudio'],
                meta?: ComfyNodeMetadata,
             ): Node['TextEncodeAceStepAudio']
-            /** displayName="null" category="model_conditioning_ace" name="TextEncodeAceStepAudio1.5" output=[CONDITIONING] */
+            /** displayName="TextEncodeAceStepAudio1.5" category="model_conditioning_ace" name="TextEncodeAceStepAudio1.5" output=[CONDITIONING] */
             'TextEncodeAceStepAudio1.5'(
                p: IN['TextEncodeAceStepAudio1.5'],
                meta?: ComfyNodeMetadata,
             ): Node['TextEncodeAceStepAudio1.5']
-            /** displayName="null" category="model_conditioning_boogu" name="TextEncodeBooguEdit" output=[positive, negative] */
+            /** displayName="TextEncodeBooguEdit" category="model_conditioning_boogu" name="TextEncodeBooguEdit" output=[positive, negative] */
             TextEncodeBooguEdit(p: IN['TextEncodeBooguEdit'], meta?: ComfyNodeMetadata): Node['TextEncodeBooguEdit']
-            /** displayName="null" category="model_conditioning_hunyuan video" name="TextEncodeHunyuanVideo_ImageToVideo" output=[CONDITIONING] */
+            /** displayName="TextEncodeHunyuanVideo_ImageToVideo" category="model_conditioning_hunyuan video" name="TextEncodeHunyuanVideo_ImageToVideo" output=[CONDITIONING] */
             TextEncodeHunyuanVideo_ImageToVideo(
                p: IN['TextEncodeHunyuanVideo_ImageToVideo'],
                meta?: ComfyNodeMetadata,
             ): Node['TextEncodeHunyuanVideo_ImageToVideo']
-            /** displayName="null" category="model_conditioning_joyimage" name="TextEncodeJoyImageEdit" output=[CONDITIONING] */
+            /** displayName="TextEncodeJoyImageEdit" category="model_conditioning_joyimage" name="TextEncodeJoyImageEdit" output=[CONDITIONING] */
             TextEncodeJoyImageEdit(
                p: IN['TextEncodeJoyImageEdit'],
                meta?: ComfyNodeMetadata,
             ): Node['TextEncodeJoyImageEdit']
             /**
              * Encode an edit instruction with one or more reference images for Mage-Flow-Edit. Reference latents are resized to the output resolution (width/height, or the first image's size when 0). Use the latent output for sampling so the sizes always match.
-             * displayName="null" category="model_conditioning_mage" name="TextEncodeMageFlowEdit" output=[positive, negative, latent]
+             * displayName="TextEncodeMageFlowEdit" category="model_conditioning_mage" name="TextEncodeMageFlowEdit" output=[positive, negative, latent]
              **/
             TextEncodeMageFlowEdit(
                p: IN['TextEncodeMageFlowEdit'],
@@ -107126,7 +107126,7 @@ declare global {
                p: IN['TextEncodeQwenImageEditPlus'],
                meta?: ComfyNodeMetadata,
             ): Node['TextEncodeQwenImageEditPlus']
-            /** displayName="null" category="model_conditioning_z-image" name="TextEncodeZImageOmni" output=[CONDITIONING] */
+            /** displayName="TextEncodeZImageOmni" category="model_conditioning_z-image" name="TextEncodeZImageOmni" output=[CONDITIONING] */
             TextEncodeZImageOmni(p: IN['TextEncodeZImageOmni'], meta?: ComfyNodeMetadata): Node['TextEncodeZImageOmni']
             /** displayName="Generate Text" category="text" name="TextGenerate" output=[generated_text] */
             TextGenerate(p: IN['TextGenerate'], meta?: ComfyNodeMetadata): Node['TextGenerate']
@@ -107196,9 +107196,9 @@ declare global {
                p: IN['timeslice-nodes.TimeSliceWave'],
                meta?: ComfyNodeMetadata,
             ): Node['timeslice-nodes.TimeSliceWave']
-            /** displayName="null" category="model_patch_unet" name="TomePatchModel" output=[MODEL] */
+            /** displayName="TomePatchModel" category="model_patch_unet" name="TomePatchModel" output=[MODEL] */
             TomePatchModel(p: IN['TomePatchModel'], meta?: ComfyNodeMetadata): Node['TomePatchModel']
-            /** displayName="null" category="experimental" name="TorchCompileModel" output=[MODEL] */
+            /** displayName="TorchCompileModel" category="experimental" name="TorchCompileModel" output=[MODEL] */
             TorchCompileModel(p: IN['TorchCompileModel'], meta?: ComfyNodeMetadata): Node['TorchCompileModel']
             /** displayName="Train LoRA" category="model_training" name="TrainLoraNode" output=[lora, loss_map, steps] */
             TrainLoraNode(p: IN['TrainLoraNode'], meta?: ComfyNodeMetadata): Node['TrainLoraNode']
@@ -107321,19 +107321,19 @@ declare global {
             ): Node['unCLIPCheckpointLoader']
             /** displayName="unCLIPConditioning" category="model_conditioning" name="unCLIPConditioning" output=[CONDITIONING] */
             unCLIPConditioning(p: IN['unCLIPConditioning'], meta?: ComfyNodeMetadata): Node['unCLIPConditioning']
-            /** displayName="null" category="experimental_attention_experiments" name="UNetCrossAttentionMultiply" output=[MODEL] */
+            /** displayName="UNetCrossAttentionMultiply" category="experimental_attention_experiments" name="UNetCrossAttentionMultiply" output=[MODEL] */
             UNetCrossAttentionMultiply(
                p: IN['UNetCrossAttentionMultiply'],
                meta?: ComfyNodeMetadata,
             ): Node['UNetCrossAttentionMultiply']
             /** displayName="Load Diffusion Model" category="model_loaders" name="UNETLoader" output=[MODEL] */
             UNETLoader(p: IN['UNETLoader'], meta?: ComfyNodeMetadata): Node['UNETLoader']
-            /** displayName="null" category="experimental_attention_experiments" name="UNetSelfAttentionMultiply" output=[MODEL] */
+            /** displayName="UNetSelfAttentionMultiply" category="experimental_attention_experiments" name="UNetSelfAttentionMultiply" output=[MODEL] */
             UNetSelfAttentionMultiply(
                p: IN['UNetSelfAttentionMultiply'],
                meta?: ComfyNodeMetadata,
             ): Node['UNetSelfAttentionMultiply']
-            /** displayName="null" category="experimental_attention_experiments" name="UNetTemporalAttentionMultiply" output=[MODEL] */
+            /** displayName="UNetTemporalAttentionMultiply" category="experimental_attention_experiments" name="UNetTemporalAttentionMultiply" output=[MODEL] */
             UNetTemporalAttentionMultiply(
                p: IN['UNetTemporalAttentionMultiply'],
                meta?: ComfyNodeMetadata,
@@ -107978,7 +107978,7 @@ declare global {
             ): Node['VideoTriangleCFGGuidance']
             /** displayName="Trim Video (Advanced)" category="video" name="VideoTrim" output=[VIDEO] */
             VideoTrim(p: IN['VideoTrim'], meta?: ComfyNodeMetadata): Node['VideoTrim']
-            /** displayName="null" category="model_conditioning_void" name="VOIDInpaintConditioning" output=[positive, negative, latent] */
+            /** displayName="VOIDInpaintConditioning" category="model_conditioning_void" name="VOIDInpaintConditioning" output=[positive, negative, latent] */
             VOIDInpaintConditioning(
                p: IN['VOIDInpaintConditioning'],
                meta?: ComfyNodeMetadata,
@@ -107988,11 +107988,11 @@ declare global {
                p: IN['VOIDQuadmaskPreprocess'],
                meta?: ComfyNodeMetadata,
             ): Node['VOIDQuadmaskPreprocess']
-            /** displayName="null" category="model_sampling_samplers" name="VOIDSampler" output=[SAMPLER] */
+            /** displayName="VOIDSampler" category="model_sampling_samplers" name="VOIDSampler" output=[SAMPLER] */
             VOIDSampler(p: IN['VOIDSampler'], meta?: ComfyNodeMetadata): Node['VOIDSampler']
-            /** displayName="null" category="model_latent_void" name="VOIDWarpedNoise" output=[warped_noise] */
+            /** displayName="VOIDWarpedNoise" category="model_latent_void" name="VOIDWarpedNoise" output=[warped_noise] */
             VOIDWarpedNoise(p: IN['VOIDWarpedNoise'], meta?: ComfyNodeMetadata): Node['VOIDWarpedNoise']
-            /** displayName="null" category="model_latent_void" name="VOIDWarpedNoiseSource" output=[NOISE] */
+            /** displayName="VOIDWarpedNoiseSource" category="model_latent_void" name="VOIDWarpedNoiseSource" output=[NOISE] */
             VOIDWarpedNoiseSource(
                p: IN['VOIDWarpedNoiseSource'],
                meta?: ComfyNodeMetadata,
@@ -108007,26 +108007,26 @@ declare global {
              * displayName="Voxel to Mesh (Basic) (DEPRECATED)" category="3d" name="VoxelToMeshBasic" output=[MESH]
              **/
             VoxelToMeshBasic(p: IN['VoxelToMeshBasic'], meta?: ComfyNodeMetadata): Node['VoxelToMeshBasic']
-            /** displayName="null" category="model_sampling_schedulers" name="VPScheduler" output=[SIGMAS] */
+            /** displayName="VPScheduler" category="model_sampling_schedulers" name="VPScheduler" output=[SIGMAS] */
             VPScheduler(p: IN['VPScheduler'], meta?: ComfyNodeMetadata): Node['VPScheduler']
-            /** displayName="null" category="model_conditioning_wan_fun control" name="Wan22FunControlToVideo" output=[positive, negative, latent] */
+            /** displayName="Wan22FunControlToVideo" category="model_conditioning_wan_fun control" name="Wan22FunControlToVideo" output=[positive, negative, latent] */
             Wan22FunControlToVideo(
                p: IN['Wan22FunControlToVideo'],
                meta?: ComfyNodeMetadata,
             ): Node['Wan22FunControlToVideo']
-            /** displayName="null" category="model_conditioning_wan" name="Wan22ImageToVideoLatent" output=[LATENT] */
+            /** displayName="Wan22ImageToVideoLatent" category="model_conditioning_wan" name="Wan22ImageToVideoLatent" output=[LATENT] */
             Wan22ImageToVideoLatent(
                p: IN['Wan22ImageToVideoLatent'],
                meta?: ComfyNodeMetadata,
             ): Node['Wan22ImageToVideoLatent']
             /**
              * Caches the pose-video's per-block activations so it runs once instead of on every sampling step. Roughly halves generation time Tradeoff is ~12.5 GB of system RAM at 480x832/81 frames in bf16 (scales with resolution and length). With context windows each window is cached separately, so RAM scales with the window count; use the static_standard schedule, as uniform schedules shift the windows every step and nothing ever recurs to hit the cache.
-             * displayName="null" category="model_conditioning_wan_animate" name="WanAnimate2Cache" output=[MODEL]
+             * displayName="WanAnimate2Cache" category="model_conditioning_wan_animate" name="WanAnimate2Cache" output=[MODEL]
              **/
             WanAnimate2Cache(p: IN['WanAnimate2Cache'], meta?: ComfyNodeMetadata): Node['WanAnimate2Cache']
             /**
              * Animate a character in a reference image using a video, effectively replicating the facial animation, body motion and hands gesture from the video.
-             * displayName="null" category="model_conditioning_wan_animate" name="WanAnimate2ToVideo" output=[positive, negative, latent, trim_latent, trim_image, video_frame_offset]
+             * displayName="WanAnimate2ToVideo" category="model_conditioning_wan_animate" name="WanAnimate2ToVideo" output=[positive, negative, latent, trim_latent, trim_image, video_frame_offset]
              **/
             WanAnimate2ToVideo(p: IN['WanAnimate2ToVideo'], meta?: ComfyNodeMetadata): Node['WanAnimate2ToVideo']
             /**
@@ -108069,16 +108069,16 @@ declare global {
                p: IN['WanAnimatePreprocess.PoseRetargetPromptHelper'],
                meta?: ComfyNodeMetadata,
             ): Node['WanAnimatePreprocess.PoseRetargetPromptHelper']
-            /** displayName="null" category="model_conditioning_wan_animate" name="WanAnimateToVideo" output=[positive, negative, latent, trim_latent, trim_image, video_frame_offset] */
+            /** displayName="WanAnimateToVideo" category="model_conditioning_wan_animate" name="WanAnimateToVideo" output=[positive, negative, latent, trim_latent, trim_image, video_frame_offset] */
             WanAnimateToVideo(p: IN['WanAnimateToVideo'], meta?: ComfyNodeMetadata): Node['WanAnimateToVideo']
             /**
              * Intercept wanBlockSwap custom node that causes major instability and make it no-op.
-             * displayName="null" category="" name="wanBlockSwap" output=[MODEL]
+             * displayName="wanBlockSwap" category="" name="wanBlockSwap" output=[MODEL]
              **/
             wanBlockSwap(p: IN['wanBlockSwap'], meta?: ComfyNodeMetadata): Node['wanBlockSwap']
-            /** displayName="null" category="model_conditioning_wan_camera" name="WanCameraEmbedding" output=[camera_embedding, width, height, length] */
+            /** displayName="WanCameraEmbedding" category="model_conditioning_wan_camera" name="WanCameraEmbedding" output=[camera_embedding, width, height, length] */
             WanCameraEmbedding(p: IN['WanCameraEmbedding'], meta?: ComfyNodeMetadata): Node['WanCameraEmbedding']
-            /** displayName="null" category="model_conditioning_wan_camera" name="WanCameraImageToVideo" output=[positive, negative, latent] */
+            /** displayName="WanCameraImageToVideo" category="model_conditioning_wan_camera" name="WanCameraImageToVideo" output=[positive, negative, latent] */
             WanCameraImageToVideo(
                p: IN['WanCameraImageToVideo'],
                meta?: ComfyNodeMetadata,
@@ -108091,67 +108091,67 @@ declare global {
                p: IN['WanContextWindowsManual'],
                meta?: ComfyNodeMetadata,
             ): Node['WanContextWindowsManual']
-            /** displayName="null" category="model_conditioning_wan_dancer" name="WanDancerEncodeAudio" output=[audio_encoder_output, fps_string] */
+            /** displayName="WanDancerEncodeAudio" category="model_conditioning_wan_dancer" name="WanDancerEncodeAudio" output=[audio_encoder_output, fps_string] */
             WanDancerEncodeAudio(p: IN['WanDancerEncodeAudio'], meta?: ComfyNodeMetadata): Node['WanDancerEncodeAudio']
-            /** displayName="null" category="image_video" name="WanDancerPadKeyframes" output=[keyframes_sequence, keyframes_mask, audio_segment] */
+            /** displayName="WanDancerPadKeyframes" category="image_video" name="WanDancerPadKeyframes" output=[keyframes_sequence, keyframes_mask, audio_segment] */
             WanDancerPadKeyframes(
                p: IN['WanDancerPadKeyframes'],
                meta?: ComfyNodeMetadata,
             ): Node['WanDancerPadKeyframes']
-            /** displayName="null" category="image_video" name="WanDancerPadKeyframesList" output=[keyframes_sequence, keyframes_mask, audio_segment] */
+            /** displayName="WanDancerPadKeyframesList" category="image_video" name="WanDancerPadKeyframesList" output=[keyframes_sequence, keyframes_mask, audio_segment] */
             WanDancerPadKeyframesList(
                p: IN['WanDancerPadKeyframesList'],
                meta?: ComfyNodeMetadata,
             ): Node['WanDancerPadKeyframesList']
-            /** displayName="null" category="model_conditioning_wan_dancer" name="WanDancerVideo" output=[positive, negative, latent] */
+            /** displayName="WanDancerVideo" category="model_conditioning_wan_dancer" name="WanDancerVideo" output=[positive, negative, latent] */
             WanDancerVideo(p: IN['WanDancerVideo'], meta?: ComfyNodeMetadata): Node['WanDancerVideo']
-            /** displayName="null" category="model_conditioning_wan" name="WanFirstLastFrameToVideo" output=[positive, negative, latent] */
+            /** displayName="WanFirstLastFrameToVideo" category="model_conditioning_wan" name="WanFirstLastFrameToVideo" output=[positive, negative, latent] */
             WanFirstLastFrameToVideo(
                p: IN['WanFirstLastFrameToVideo'],
                meta?: ComfyNodeMetadata,
             ): Node['WanFirstLastFrameToVideo']
-            /** displayName="null" category="model_conditioning_wan_fun control" name="WanFunControlToVideo" output=[positive, negative, latent] */
+            /** displayName="WanFunControlToVideo" category="model_conditioning_wan_fun control" name="WanFunControlToVideo" output=[positive, negative, latent] */
             WanFunControlToVideo(p: IN['WanFunControlToVideo'], meta?: ComfyNodeMetadata): Node['WanFunControlToVideo']
-            /** displayName="null" category="model_conditioning_wan_fun inpaint" name="WanFunInpaintToVideo" output=[positive, negative, latent] */
+            /** displayName="WanFunInpaintToVideo" category="model_conditioning_wan_fun inpaint" name="WanFunInpaintToVideo" output=[positive, negative, latent] */
             WanFunInpaintToVideo(p: IN['WanFunInpaintToVideo'], meta?: ComfyNodeMetadata): Node['WanFunInpaintToVideo']
-            /** displayName="null" category="model_conditioning_wan_humo" name="WanHuMoImageToVideo" output=[positive, negative, latent] */
+            /** displayName="WanHuMoImageToVideo" category="model_conditioning_wan_humo" name="WanHuMoImageToVideo" output=[positive, negative, latent] */
             WanHuMoImageToVideo(p: IN['WanHuMoImageToVideo'], meta?: ComfyNodeMetadata): Node['WanHuMoImageToVideo']
-            /** displayName="null" category="model_conditioning_wan" name="WanImageToVideo" output=[positive, negative, latent] */
+            /** displayName="WanImageToVideo" category="model_conditioning_wan" name="WanImageToVideo" output=[positive, negative, latent] */
             WanImageToVideo(p: IN['WanImageToVideo'], meta?: ComfyNodeMetadata): Node['WanImageToVideo']
-            /** displayName="null" category="model_conditioning_wan_infinite talk" name="WanInfiniteTalkToVideo" output=[model, positive, negative, latent, trim_image] */
+            /** displayName="WanInfiniteTalkToVideo" category="model_conditioning_wan_infinite talk" name="WanInfiniteTalkToVideo" output=[model, positive, negative, latent, trim_image] */
             WanInfiniteTalkToVideo(
                p: IN['WanInfiniteTalkToVideo'],
                meta?: ComfyNodeMetadata,
             ): Node['WanInfiniteTalkToVideo']
-            /** displayName="null" category="model_conditioning_wan_move" name="WanMoveConcatTrack" output=[TRACKS] */
+            /** displayName="WanMoveConcatTrack" category="model_conditioning_wan_move" name="WanMoveConcatTrack" output=[TRACKS] */
             WanMoveConcatTrack(p: IN['WanMoveConcatTrack'], meta?: ComfyNodeMetadata): Node['WanMoveConcatTrack']
-            /** displayName="null" category="model_conditioning_wan_move" name="WanMoveTracksFromCoords" output=[TRACKS, track_length] */
+            /** displayName="WanMoveTracksFromCoords" category="model_conditioning_wan_move" name="WanMoveTracksFromCoords" output=[TRACKS, track_length] */
             WanMoveTracksFromCoords(
                p: IN['WanMoveTracksFromCoords'],
                meta?: ComfyNodeMetadata,
             ): Node['WanMoveTracksFromCoords']
-            /** displayName="null" category="model_conditioning_wan_move" name="WanMoveTrackToVideo" output=[positive, negative, latent] */
+            /** displayName="WanMoveTrackToVideo" category="model_conditioning_wan_move" name="WanMoveTrackToVideo" output=[positive, negative, latent] */
             WanMoveTrackToVideo(p: IN['WanMoveTrackToVideo'], meta?: ComfyNodeMetadata): Node['WanMoveTrackToVideo']
-            /** displayName="null" category="model_conditioning_wan_move" name="WanMoveVisualizeTracks" output=[IMAGE] */
+            /** displayName="WanMoveVisualizeTracks" category="model_conditioning_wan_move" name="WanMoveVisualizeTracks" output=[IMAGE] */
             WanMoveVisualizeTracks(
                p: IN['WanMoveVisualizeTracks'],
                meta?: ComfyNodeMetadata,
             ): Node['WanMoveVisualizeTracks']
-            /** displayName="null" category="model_conditioning_wan_phantom subject" name="WanPhantomSubjectToVideo" output=[positive, negative_text, negative_img_text, latent] */
+            /** displayName="WanPhantomSubjectToVideo" category="model_conditioning_wan_phantom subject" name="WanPhantomSubjectToVideo" output=[positive, negative_text, negative_img_text, latent] */
             WanPhantomSubjectToVideo(
                p: IN['WanPhantomSubjectToVideo'],
                meta?: ComfyNodeMetadata,
             ): Node['WanPhantomSubjectToVideo']
-            /** displayName="null" category="model_conditioning_wan_scail" name="WanSCAILToVideo" output=[positive, negative, latent, video_frame_offset] */
+            /** displayName="WanSCAILToVideo" category="model_conditioning_wan_scail" name="WanSCAILToVideo" output=[positive, negative, latent, video_frame_offset] */
             WanSCAILToVideo(p: IN['WanSCAILToVideo'], meta?: ComfyNodeMetadata): Node['WanSCAILToVideo']
-            /** displayName="null" category="model_conditioning_wan_sound" name="WanSoundImageToVideo" output=[positive, negative, latent] */
+            /** displayName="WanSoundImageToVideo" category="model_conditioning_wan_sound" name="WanSoundImageToVideo" output=[positive, negative, latent] */
             WanSoundImageToVideo(p: IN['WanSoundImageToVideo'], meta?: ComfyNodeMetadata): Node['WanSoundImageToVideo']
-            /** displayName="null" category="model_conditioning_wan_sound" name="WanSoundImageToVideoExtend" output=[positive, negative, latent] */
+            /** displayName="WanSoundImageToVideoExtend" category="model_conditioning_wan_sound" name="WanSoundImageToVideoExtend" output=[positive, negative, latent] */
             WanSoundImageToVideoExtend(
                p: IN['WanSoundImageToVideoExtend'],
                meta?: ComfyNodeMetadata,
             ): Node['WanSoundImageToVideoExtend']
-            /** displayName="null" category="model_conditioning_wan_move" name="WanTrackToVideo" output=[positive, negative, latent] */
+            /** displayName="WanTrackToVideo" category="model_conditioning_wan_move" name="WanTrackToVideo" output=[positive, negative, latent] */
             WanTrackToVideo(p: IN['WanTrackToVideo'], meta?: ComfyNodeMetadata): Node['WanTrackToVideo']
             /** displayName="Apply Wan Uni3C ControlNet" category="model_patch_wan" name="WanUni3CControlnetApply" output=[MODEL] */
             WanUni3CControlnetApply(
@@ -108221,7 +108221,7 @@ declare global {
                p: IN['wanvaceadvanced.WVAPipeSimple'],
                meta?: ComfyNodeMetadata,
             ): Node['wanvaceadvanced.WVAPipeSimple']
-            /** displayName="null" category="model_conditioning_wan_vace" name="WanVaceToVideo" output=[positive, negative, latent, trim_latent] */
+            /** displayName="WanVaceToVideo" category="model_conditioning_wan_vace" name="WanVaceToVideo" output=[positive, negative, latent, trim_latent] */
             WanVaceToVideo(p: IN['WanVaceToVideo'], meta?: ComfyNodeMetadata): Node['WanVaceToVideo']
             /**
              * Helper node to generate a list of floats that can be used to schedule cfg scale for the steps, outside the set range cfg is set to 1.0
@@ -108755,7 +108755,7 @@ declare global {
                p: IN['WanVideoWrapper.WanVideoLatentReScale'],
                meta?: ComfyNodeMetadata,
             ): Node['WanVideoWrapper.WanVideoLatentReScale']
-            /** displayName="null" category="WanVideoWrapper" name="WanVideoLongCatAvatarExtendEmbeds" output=[image_embeds, samples_slice] */
+            /** displayName="WanVideoLongCatAvatarExtendEmbeds" category="WanVideoWrapper" name="WanVideoLongCatAvatarExtendEmbeds" output=[image_embeds, samples_slice] */
             'WanVideoWrapper.WanVideoLongCatAvatarExtendEmbeds'(
                p: IN['WanVideoWrapper.WanVideoLongCatAvatarExtendEmbeds'],
                meta?: ComfyNodeMetadata,

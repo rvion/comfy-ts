@@ -211,7 +211,7 @@ export function codegenSDK(this: ComfySchema, opts: CodegenOptions): string {
    // #region Builder ----------------------------------------------------------------------------
    p(`interface Builder {`)
    for (const n of nodes) {
-      const baseDescription = `displayName="${n.raw.display_name}" category="${n.category}" name="${n.nameInComfy}" output=[${n.outputs.map((o) => o.outKey).join(', ')}]`
+      const baseDescription = `displayName="${n.raw.display_name ?? n.nameInComfy}" category="${n.category}" name="${n.nameInComfy}" output=[${n.outputs.map((o) => o.outKey).join(', ')}]`
       if (n.raw.description) {
          p(`   /**`)
          p(

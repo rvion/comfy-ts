@@ -14,16 +14,16 @@ export const ComfyUIObjectInfoScope = scope({
          'hidden?': 'string[]',
       },
       output: 'ComfyInputType[]',
-      output_is_list: 'boolean[]',
+      output_is_list: '(boolean | null)[]',
       output_name: 'string[]',
       name: 'string',
-      display_name: 'string',
+      display_name: 'string | null',
       description: 'string',
       /**  */
       python_module: 'string',
       category: 'string',
       output_node: 'boolean',
-      'output_tooltips?': 'string[]',
+      'output_tooltips?': '(string | null)[]',
       // Stability Flags
       'deprecated?': 'boolean',
       'experimental?': 'boolean',
@@ -47,8 +47,8 @@ export const ComfyUIObjectInfoScope = scope({
       'tooltip?': 'string | null | ComfyInputOpts_advanced',
       'multiline?': 'boolean | null',
 
-      // 💬 2025-06-11 rvion: "number[]" added because of CreateShapeImageOnPath.input.optional.size_multiplier : CreateShapeImageOnPath.input.optional.size_multiplier[1].default must be a number, a string, boolean or null (was an object) or CreateShapeImageOnPath.input.optional.size_multiplier must be exactly length 1 (was 2)
-      'default?': 'boolean | number | string | null | number[]',
+      // number[] and object: widget defaults like a size pair, a curve, a trim window
+      'default?': 'boolean | number | string | null | number[] | object',
 
       'forceInput?': 'boolean | null',
       'min?': 'number | null',
