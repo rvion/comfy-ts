@@ -39,7 +39,10 @@ describe('no private draft name in a tracked file', () => {
       if (names.length === 0) return
       let out = ''
       try {
-         out = execFileSync('git', ['grep', '-l', '-F', ...names.flatMap((n) => ['-e', n])], { cwd: ROOT, encoding: 'utf8' })
+         out = execFileSync('git', ['grep', '-l', '-F', ...names.flatMap((n) => ['-e', n])], {
+            cwd: ROOT,
+            encoding: 'utf8',
+         })
       } catch (e) {
          // git grep exits 1 when nothing matches: that is the passing case
          if ((e as { status?: number }).status === 1) return

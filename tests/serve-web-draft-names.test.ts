@@ -8,7 +8,9 @@ describe('draft names given without asking', () => {
    })
 
    it('a duplicate increments a trailing number and skips taken names', () => {
-      expect(duplicateDraftName('rooftop-portrait-3', ['rooftop-portrait-3', 'rooftop-portrait-4'])).toBe('rooftop-portrait-5')
+      expect(duplicateDraftName('rooftop-portrait-3', ['rooftop-portrait-3', 'rooftop-portrait-4'])).toBe(
+         'rooftop-portrait-5',
+      )
       expect(duplicateDraftName('default', ['default'])).toBe('default-2')
    })
 })
