@@ -25,12 +25,13 @@ export function draftsDirForFile(file: string): string {
    return comfyts.resolveFromDrafts(draftKeyForFile(file))
 }
 
-function listDraftsInDir(dir: string): string[] {
+export function listDraftsInDir(dir: string): string[] {
    if (!existsSync(dir)) return []
    return readdirSync(dir)
       .filter((f) => f.endsWith('.json'))
       .map((f) => f.slice(0, -'.json'.length))
-      .sort()
+      // numeric: copy counters read 1, 2, 11, never 1, 11, 2
+      .sort((a, b) => a.localeCompare(b, 'en', { numeric: true }))
 }
 
 /** draft names stored for a workflow module (fs read — pair with DraftsSt.version for reactivity) */
