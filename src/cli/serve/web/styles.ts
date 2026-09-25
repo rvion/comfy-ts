@@ -275,7 +275,6 @@ button.primary {
 /* running: the fill sweeps across a dim track, the text stays, so nothing beside it moves */
 button.primary.running { color: #fff; border-color: var(--accent); }
 /* the run button: one short word, so a compact button */
-.run-line > button.primary { padding: 4px 11px; font-size: 13px; }
 .kbd-hint {
    font-size: 10px; opacity: 0.65; border: 1px solid currentColor; border-radius: 4px;
    padding: 0 4px; line-height: 1.4;
@@ -294,31 +293,21 @@ button.mini:hover { color: var(--text); }
 .prompt-actions { gap: 6px; margin-top: 4px; }
 button.accent:hover { background: var(--accent-dim); color: #fff; }
 
-/* the run line: button, queue count, result count. Every part is ALWAYS there at one size, so
-   nothing beside it moves when a run starts, a queue empties or a count grows a digit */
-.run-line { display: inline-flex; gap: 10px; align-items: center; flex-wrap: nowrap; }
-.run-chip-count { display: inline-block; min-width: 2.4ch; font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; color: var(--text); }
-.run-chip.empty { opacity: 0.6; }
-.run-chip.empty .run-chip-count { color: var(--dim); }
-.run-chip-clear {
-   display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 28px;
-   padding: 0; border: 0; border-right: 1px solid var(--border); border-radius: 0;
-   background: var(--panel-2); color: var(--text); cursor: pointer;
-}
-.run-chip-clear:hover:not(:disabled) { color: #fff; background: var(--red); }
-.run-chip-clear:disabled { cursor: default; opacity: 0.5; }
+/* two rows, three columns: Run / queue / images on top, the three buttons that end something
+   underneath, one per column, all the same size */
+.run-grid { display: inline-grid; grid-template-columns: repeat(3, minmax(110px, 1fr)); gap: 6px 8px; align-items: center; flex-shrink: 0; }
+.run-grid > button { width: 100%; justify-content: center; }
+.run-grid > button.primary { padding: 5px 12px; font-size: 13px; }
+.run-count { text-align: center; font-size: 13px; color: var(--dim); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.run-count b { color: var(--text); font-weight: 600; }
+.run-count.empty { opacity: 0.6; }
+button.run-end { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; font-size: 13px; }
+button.run-end:not(:disabled):hover { color: #fff; background: var(--red); border-color: var(--red); }
+button.run-end:disabled { opacity: 0.45; cursor: default; }
 .run-error { flex: 1; min-width: 0; height: 1.4em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--red); font-size: 12px; }
 input[type='range'].setting-range:disabled { opacity: 0.3; }
 .live-preview-error { margin-left: 4px; }
 .live-preview-line { min-height: 1.35em; }
-button.run-stop { padding: 4px 10px; font-size: 13px; flex-shrink: 0; }
-button.run-stop:not(:disabled) { color: var(--red); border-color: var(--red); }
-button.run-stop:disabled { opacity: 0.4; cursor: default; }
-.run-chip {
-   display: inline-flex; gap: 6px; align-items: center; color: var(--text); font-size: 13px;
-   border: 1px solid var(--border); border-radius: 999px; padding: 0 12px 0 0; flex-shrink: 0; overflow: hidden;
-}
-.run-chip-word { color: var(--dim); }
 .runbar {
    position: sticky; bottom: 0; display: flex; gap: 14px; align-items: center;
    background: var(--panel); border: 1px solid var(--border); border-radius: 8px;

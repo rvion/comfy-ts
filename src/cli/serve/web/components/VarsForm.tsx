@@ -347,43 +347,27 @@ const DraftBox = observer(function DraftBox(p: { st: WebSt; form: FormSt }) {
    )
 })
 
-function RunChip(p: {
-   kind: 'queue' | 'results'
-   count: number
-   tip: string
-   clearTip: string
-   canClear: boolean
-   onClear(): void
-}): ReactNode {
+/** a count, read-only: the action on it is the button under it */
+function RunCount(p: { kind: 'queue' | 'results'; count: number; tip: string }): ReactNode {
    const t = runChipText({ kind: p.kind, count: p.count })
-   // the clear ✕ LEADS the chip, big enough to hit: it is the only thing a chip does
    return (
-      <span className={p.count > 0 ? 'run-chip' : 'run-chip empty'} data-tip={p.tip}>
-         <button
-            type="button"
-            className="run-chip-clear"
-            data-tip={p.clearTip}
-            aria-label={`clear the ${t.label}`}
-            disabled={!p.canClear}
-            onClick={() => p.onClear()}
-         >
-            <Icon name="close" size={1.25} />
-         </button>
-         <span className="run-chip-word">{p.kind === 'queue' ? 'queue' : 'images'}</span>
-         <span className="run-chip-count">{t.count}</span>
+      <span className={p.count > 0 ? 'run-count' : 'run-count empty'} data-tip={p.tip}>
+         {p.kind === 'queue' ? 'queue' : 'images'}: <b>{t.count}</b>
       </span>
    )
 }
 
-/** everything about running on one line: the button, what is queued behind it, what it has
- * produced. a count and one clear is the whole decision a queue offers */
+/** everything about running in two rows. Top: Run and what it has queued and produced. Bottom,
+ * one button under each: stop, clear the queue, erase the images, the same size and style, so
+ * the three things that END something sit together. Every part is always there (disabled when
+ * it has nothing to act on), so neither row ever shifts */
 export const GenerateButton = observer(function GenerateButton(p: { st: WebSt }) {
    const run = p.st.run
    // the text never changes, so the button never changes size: the progress is a fill sweeping
    // across it, the exact percent is on the running card
    const look = generateButtonLook({ isRunning: run.isRunning, percent: run.progressPercent })
    return (
-      <span className="run-line">
+      <span className="run-grid">
          <button
             type="button"
             className={look.running ? 'primary running' : 'primary'}
@@ -405,35 +389,35 @@ export const GenerateButton = observer(function GenerateButton(p: { st: WebSt })
             {/* the shortcut is SAID, not only tooltipped: nobody hovers a button they can click */}
             <span className="kbd-hint">{MOD_KEY}⏎</span>
          </button>
-         {/* stop sits where you look while a run goes, not only in the host box; always here,
-             disabled when idle, so the line never shifts */}
+         <RunCount kind="queue" count={run.queue.length} tip="prompts waiting behind the one running" />
+         <RunCount kind="results" count={run.results.length} tip="runs kept in this page" />
          <button
             type="button"
-            className="run-stop"
+            className="run-end"
             disabled={!run.isRunning}
             data-tip="stop the run in progress (the queue behind it stays)"
             onClick={() => void p.st.hostAction('interrupt')}
          >
-            <Icon name="pause" size={0.9} /> stop
+            <Icon name="pause" /> stop
          </button>
-         {/* both chips are ALWAYS here at one width: a chip appearing, or a count growing a
-             digit, moved everything beside it. An empty one is dimmed, its clear disabled */}
-         <RunChip
-            kind="queue"
-            count={run.queue.length}
-            tip="prompts waiting behind this one"
-            clearTip={`drop the ${run.pendingCount} not yet sent to the host`}
-            canClear={run.pendingCount > 0}
-            onClear={() => run.clearQueue()}
-         />
-         <RunChip
-            kind="results"
-            count={run.results.length}
-            tip="runs kept in this page"
-            clearTip="forget every run shown here"
-            canClear={run.results.length > 0}
-            onClear={() => run.clear()}
-         />
+         <button
+            type="button"
+            className="run-end"
+            disabled={run.pendingCount === 0}
+            data-tip={`drop the ${run.pendingCount} prompt(s) not yet sent to the host`}
+            onClick={() => run.clearQueue()}
+         >
+            <Icon name="close" /> clear queue
+         </button>
+         <button
+            type="button"
+            className="run-end"
+            disabled={run.results.length === 0}
+            data-tip="forget every image shown here (saved files stay on disk)"
+            onClick={() => run.clear()}
+         >
+            <Icon name="trash" /> erase all
+         </button>
       </span>
    )
 })
