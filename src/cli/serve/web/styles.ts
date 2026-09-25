@@ -15,6 +15,9 @@ export const STYLES = /* css */ `
    --amber: #e0af68;
 }
 * { box-sizing: border-box; }
+/* every scroller: a thin thumb in the theme, no track. The system scrollbar is a 15px dark band
+   under always-visible scrollbars, beside each panel's own padding and the split handle */
+* { scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--dim) 40%, transparent) transparent; }
 html, body { margin: 0; height: 100%; }
 body {
    background: var(--bg);
