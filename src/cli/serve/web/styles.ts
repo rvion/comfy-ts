@@ -115,6 +115,13 @@ button.link.load-errors { color: var(--red); font-size: 11px; }
 }
 .draft-tab:hover button.draft-tab-close, .draft-tab.on button.draft-tab-close { opacity: 0.7; }
 .draft-tab button.draft-tab-close:hover { opacity: 1; background: var(--border); }
+/* the open tab's actions: its name to edit, then the menu's own draft rows */
+.tab-menu {
+   z-index: 60; display: flex; flex-direction: column; gap: 2px; min-width: 220px; padding: 6px;
+   background: var(--panel); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+.tab-menu input.head-input { width: 100%; margin-bottom: 4px; }
+.tab-menu .menu-action.danger:hover { color: var(--red); }
 .menu-col { padding: 0 0 14px; }
 /* ☰ + the name: the same height as the rail's first icon, so folding never moves it */
 .menu-head { display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 10px; border-bottom: 1px solid var(--border); }

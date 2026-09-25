@@ -1,4 +1,4 @@
-// the open drafts as tabs: pure list operations, the store (WebSt) owns when they run
+// the open drafts as tabs: pure list operations and key reads, the store (WebSt) owns when they run
 export type DraftTab = { module: string; draft: string }
 
 /** where the serve process keeps them, under .comfy-ts/: draft names are private, so this file
@@ -43,6 +43,20 @@ export function tabForKey(
    if (!/^[1-9]$/.test(e.key)) return null
    const n = Number(e.key)
    return (n === 9 ? tabs[tabs.length - 1] : tabs[n - 1]) ?? null
+}
+
+/** ⌘PageUp / ⌘PageDown (ctrl elsewhere): the previous or next tab, wrapping at the ends */
+export function tabStepForKey(
+   tabs: readonly DraftTab[],
+   active: DraftTab | null,
+   e: { key: string; metaKey: boolean; ctrlKey: boolean; altKey: boolean; shiftKey: boolean },
+): DraftTab | null {
+   if (!(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey) return null
+   const dir = e.key === 'PageDown' ? 1 : e.key === 'PageUp' ? -1 : 0
+   if (dir === 0 || tabs.length < 2) return null
+   const ix = active == null ? -1 : tabs.findIndex((x) => same(x, active))
+   if (ix < 0) return (dir > 0 ? tabs[0] : tabs[tabs.length - 1]) ?? null
+   return tabs[(ix + dir + tabs.length) % tabs.length] ?? null
 }
 
 /** a stored list, shape-checked, keeping only drafts that still exist */

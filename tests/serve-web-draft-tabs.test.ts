@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'bun:test'
-import { closeTab, openTab, readTabs, renameTab, tabForKey, type DraftTab } from 'src/cli/serve/web/state/draftTabs.ts'
+import {
+   closeTab,
+   openTab,
+   readTabs,
+   renameTab,
+   tabForKey,
+   tabStepForKey,
+   type DraftTab,
+} from 'src/cli/serve/web/state/draftTabs.ts'
 
 const t = (module: string, draft: string): DraftTab => ({ module, draft })
 const key = (
@@ -59,6 +67,17 @@ describe('draft tabs', () => {
       expect(tabForKey(tabs, key('5', { metaKey: true }))).toBe(null)
       expect(tabForKey(tabs, key('1'))).toBe(null)
       expect(tabForKey(tabs, key('1', { metaKey: true, shiftKey: true }))).toBe(null)
+   })
+
+   it('⌘PageUp and ⌘PageDown step to the previous and next tab, wrapping at the ends', () => {
+      const tabs = [t('wf', 'a'), t('wf', 'b'), t('wf', 'c')]
+      expect(tabStepForKey(tabs, t('wf', 'b'), key('PageDown', { metaKey: true }))).toEqual(t('wf', 'c'))
+      expect(tabStepForKey(tabs, t('wf', 'b'), key('PageUp', { ctrlKey: true }))).toEqual(t('wf', 'a'))
+      expect(tabStepForKey(tabs, t('wf', 'c'), key('PageDown', { metaKey: true }))).toEqual(t('wf', 'a'))
+      expect(tabStepForKey(tabs, t('wf', 'a'), key('PageUp', { metaKey: true }))).toEqual(t('wf', 'c'))
+      // a bare PageDown scrolls the page, one tab alone goes nowhere
+      expect(tabStepForKey(tabs, t('wf', 'a'), key('PageDown'))).toBe(null)
+      expect(tabStepForKey([t('wf', 'a')], t('wf', 'a'), key('PageDown', { metaKey: true }))).toBe(null)
    })
 
    it('a stored list drops junk and tabs whose draft no longer exists', () => {
