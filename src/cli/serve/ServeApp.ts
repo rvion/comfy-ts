@@ -29,6 +29,7 @@ import { workspaceLabels } from 'src/cli/serve/workspaceLabels.ts'
 import { driftChanged, summarizeDrift } from 'src/host/schemaDrift.ts'
 import { validSavePrefix, validStoreName } from 'src/utils/safeName.ts'
 import { readServeSettings, writeServeSettings, type ServeSettings } from 'src/cli/serve/serveSettings.ts'
+import { readTabs, SERVE_TABS_FILE, type DraftTab } from 'src/cli/serve/web/state/draftTabs.ts'
 import { assembleLogChunks } from 'src/cli/tui/state/LogsSt.ts'
 import { draftsDirForFile, listDraftsForFile } from 'src/cli/tui/state/DraftsSt.ts'
 import {
@@ -417,6 +418,7 @@ export class ServeApp {
             if (segs[0] === 'tags' && segs.length === 3 && segs[1] != null && segs[2] != null)
                return await this.replyTags(segs[1], segs[2], req.url)
             if (segs[0] === 'settings' && segs.length === 1) return this.replySettings()
+            if (segs[0] === 'tabs' && segs.length === 1) return this.replyTabs()
             if (segs[0] === 'hosts' && segs.length === 1) return this.replyHosts()
             if (segs[0] === 'hosts' && segs.length === 3 && segs[1] != null && segs[2] === 'logs')
                return await this.replyHostLogs(segs[1])
@@ -444,6 +446,7 @@ export class ServeApp {
          if (req.method === 'DELETE' && segs[0] === 'drafts' && segs.length === 3 && segs[1] != null && segs[2] != null)
             return await this.replyDeleteDraft(segs[1], segs[2])
          if (req.method === 'PUT' && segs[0] === 'settings' && segs.length === 1) return this.replySaveSettings(req)
+         if (req.method === 'PUT' && segs[0] === 'tabs' && segs.length === 1) return this.replySaveTabs(req)
          if (req.method === 'PUT' && segs[0] === 'hosts' && segs.length === 2 && segs[1] != null)
             return this.replySetHost(segs[1], req)
          if (req.method === 'POST' && segs[0] === 'hosts' && segs.length === 3 && segs[1] != null && segs[2] != null)
@@ -1191,6 +1194,60 @@ export class ServeApp {
          ...this.settings,
          effectivePrefix: Object.fromEntries(this.modules.map((m) => [m.key, this.savePrefixFor(m.key)])),
       })
+   }
+
+   // #region open draft tabs (the web ui's tab bar) ------------------------------
+   /** held by the process, so every window and reload sees the same tabs, and mirrored to a file
+    * under .comfy-ts/ (gitignored wholesale) so a restart keeps them. null = not read yet */
+   private tabs: DraftTab[] | null = null
+
+   private tabsFile(): string {
+      return join(comfyts.baseFolder, SERVE_TABS_FILE)
+   }
+
+   /** only drafts that still exist: a tab whose file was deleted elsewhere is dropped on read */
+   private liveTabs(raw: unknown): DraftTab[] {
+      return readTabs(
+         raw,
+         this.modules.map((m) => ({ module: m.key, drafts: this.draftsFor(m) })),
+      )
+   }
+
+   private replyTabs(): ServeReply {
+      if (this.tabs == null) {
+         const path = this.tabsFile()
+         let raw: unknown = []
+         try {
+            if (existsSync(path)) raw = JSON.parse(readFileSync(path, 'utf8'))
+         } catch (e) {
+            console.error(`[serve] 🔴 open tabs unreadable (${path}), starting with none:`, e)
+         }
+         this.tabs = this.liveTabs(raw)
+      }
+      this.tabs = this.liveTabs(this.tabs)
+      return json(200, { tabs: this.tabs })
+   }
+
+   private replySaveTabs(req: ServeRequest): ServeReply {
+      let parsed: unknown
+      try {
+         parsed = JSON.parse(req.body ?? '')
+      } catch (e) {
+         return json(400, { error: `body is not valid json: ${extractErrorMessage(e)}` })
+      }
+      const raw = parsed != null && typeof parsed === 'object' ? (parsed as { tabs?: unknown }).tabs : undefined
+      if (!Array.isArray(raw) || raw.length > 100)
+         return json(400, { error: 'expects { "tabs": [{ "module", "draft" }, …] }' })
+      this.tabs = this.liveTabs(raw)
+      try {
+         mkdirSync(comfyts.baseFolder, { recursive: true })
+         writeFileSync(this.tabsFile(), JSON.stringify(this.tabs, null, 2))
+      } catch (e) {
+         // kept for this process either way: only the restart loses them, and the reply says so
+         console.error(`[serve] 🔴 open tabs not saved to ${this.tabsFile()}:`, e)
+         return json(200, { tabs: this.tabs, warning: `not saved: ${extractErrorMessage(e)}` })
+      }
+      return json(200, { tabs: this.tabs })
    }
 
    // #region prompt enhancers (the web ui's master prompts, as .md files) ------

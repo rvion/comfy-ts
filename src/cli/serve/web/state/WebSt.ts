@@ -8,12 +8,14 @@ import {
    fetchHosts,
    fetchIndex,
    fetchSettings,
+   fetchTabs,
    pingHost,
    postHostAction,
    postLoraCivitai,
    fetchHostDrift,
    saveDraft,
    saveSettings,
+   saveTabs,
    setModuleHost,
    type HostAction,
    type HostsPayload,
@@ -28,6 +30,7 @@ import { asLatentMode, type LatentMode } from 'src/cli/serve/web/state/latentMod
 import { pushHistory, type HistoryEntry } from 'src/cli/serve/web/state/history.ts'
 import { isPromptInput, promptLanesToText, type PromptInput } from 'src/vars/lanes.ts'
 import { FORM_TIMING, FormSt, type FormTiming, type VarSt } from 'src/cli/serve/web/state/FormSt.ts'
+import { closeTab, openTab, readTabs, renameTab, type DraftTab } from 'src/cli/serve/web/state/draftTabs.ts'
 import { logWebError } from 'src/cli/serve/web/logWeb.ts'
 import { asSeedForm } from 'src/cli/serve/web/state/payload.ts'
 import { readUrlSelection, resolveSelection, writeUrlSelection } from 'src/cli/serve/web/state/urlSelection.ts'
@@ -466,6 +469,42 @@ export class WebSt {
       }
    }
 
+   /** the open drafts, left to right. The serve process keeps them (GET/PUT /tabs), never
+    * this browser: every window shows the same tabs */
+   tabs: readonly DraftTab[] = []
+
+   private async loadTabs(): Promise<void> {
+      try {
+         const reply = await fetchTabs()
+         const tabs = readTabs(
+            reply.tabs,
+            this.modules.map((m) => ({ module: m.module, drafts: m.drafts })),
+         )
+         runInAction(() => {
+            this.tabs = tabs
+         })
+      } catch (e) {
+         logWebError('the open tabs could not be read, starting with none', e)
+      }
+   }
+
+   private setTabs(next: readonly DraftTab[]): void {
+      if (next === this.tabs) return
+      this.tabs = next
+      saveTabs(next).catch((e: unknown) => logWebError('the open tabs could not be saved', e))
+   }
+
+   get activeTab(): DraftTab | null {
+      return this.form == null ? null : { module: this.form.moduleKey, draft: this.form.draft }
+   }
+
+   /** × on a tab: closing the open one moves to its neighbour, the last tab stays */
+   closeTab(t: DraftTab): void {
+      const r = closeTab(this.tabs, t, this.activeTab)
+      this.setTabs(r.tabs)
+      if (r.next != null) void this.select(r.next)
+   }
+
    moduleByKey(key: string): ModuleDescription | null {
       return this.modules.find((m) => m.module === key) ?? null
    }
@@ -496,6 +535,8 @@ export class WebSt {
             this.postHost({ comfyTs: 'error', code: 'boot', message: 'no workflows are served' })
             return
          }
+         // before the first select, which adds its own tab to the list it read
+         await this.loadTabs()
          await this.select(opening)
          if (this.form == null) {
             this.postHost({
@@ -583,6 +624,7 @@ export class WebSt {
          form.onSettled = (): void => this.mirrorState()
          runInAction(() => {
             this.form = form
+            this.setTabs(openTab(this.tabs, p))
             this.persist()
             this.syncUrl()
          })
@@ -1224,6 +1266,13 @@ export class WebSt {
                this.modules = this.modules.map((m) =>
                   m.module === form.moduleKey ? { ...m, drafts: reply.drafts } : m,
                )
+               this.setTabs(
+                  renameTab(
+                     this.tabs,
+                     { module: form.moduleKey, draft: from },
+                     { module: form.moduleKey, draft: name },
+                  ),
+               )
             }),
          (e: unknown) =>
             runInAction(() => {
@@ -1242,6 +1291,7 @@ export class WebSt {
    }
 
    private async deleteDraftNow(p: { module: string; draft: string }): Promise<void> {
+      const neighbour = closeTab(this.tabs, p, this.activeTab).next
       const form = this.form
       if (form != null && form.moduleKey === p.module && form.draft === p.draft) {
          form.dispose({ flush: false })
@@ -1253,9 +1303,12 @@ export class WebSt {
          const reply = await deleteDraft(p)
          runInAction(() => {
             this.modules = this.modules.map((m) => (m.module === p.module ? { ...m, drafts: reply.drafts } : m))
+            this.setTabs(this.tabs.filter((t) => t.module !== p.module || t.draft !== p.draft))
          })
+         // only when the open draft was the one deleted: its neighbour tab first, else the rule
+         if (this.form != null) return
          const fallback = reply.drafts.includes('default') ? 'default' : (reply.drafts[0] ?? 'default')
-         await this.select({ module: p.module, draft: fallback })
+         await this.select(neighbour ?? { module: p.module, draft: fallback })
       } catch (e) {
          runInAction(() => {
             this.formError = e instanceof Error ? e.message : String(e)

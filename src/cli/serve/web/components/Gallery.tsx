@@ -436,7 +436,7 @@ export const Gallery = observer(function Gallery(p: { st: WebSt; compact?: boole
       // fit: one per row at the panel's width; grid: the slider's size, wrapping. The corner
       // placement keeps its own compact look
       <div
-         className={`gallery${p.st.blurResults ? ' blur' : ''}${p.compact === true ? '' : ' cols'}`}
+         className={`gallery${p.st.blurResults ? ' blur' : ''}${p.compact === true ? '' : ' by-cols'}`}
          style={
             p.compact === true ? undefined : { gridTemplateColumns: `repeat(${p.st.resultsColumns}, minmax(0, 1fr))` }
          }

@@ -91,6 +91,30 @@ button.link.load-errors { color: var(--red); font-size: 11px; }
 .menu-panel { height: 100%; overflow-y: auto; overscroll-behavior: contain; background: var(--panel); border-right: 1px solid var(--border); }
 .menu-main { height: 100%; display: flex; min-width: 0; }
 .menu-main > .main { height: 100%; }
+/* the open drafts as tabs over the work area. The body below takes the rest: the panel group
+   inside it sets its own height to 100%, which must mean the room under the bar */
+.tabs-col { display: flex; flex-direction: column; flex: 1; min-width: 0; height: 100%; }
+.tabs-body { flex: 1; min-height: 0; display: flex; }
+.tabs-body > .main { height: 100%; }
+.draft-tabs {
+   display: flex; gap: 2px; padding: 4px 8px 0; overflow-x: auto; flex-shrink: 0;
+   background: var(--panel); border-bottom: 1px solid var(--border);
+}
+.draft-tab {
+   display: inline-flex; align-items: center; gap: 4px; max-width: 220px; padding: 4px 6px 4px 12px;
+   font-size: 13px; color: var(--dim); cursor: pointer; user-select: none; white-space: nowrap;
+   border: 1px solid transparent; border-bottom: 0; border-radius: 6px 6px 0 0; margin-bottom: -1px;
+}
+.draft-tab:hover { color: var(--text); background: var(--panel-2); }
+.draft-tab.on { color: var(--text); background: var(--bg); border-color: var(--border); }
+.draft-tab-name { overflow: hidden; text-overflow: ellipsis; }
+.draft-tab-wf { color: var(--dim); font-size: 11px; }
+.draft-tab button.draft-tab-close {
+   border: 0; background: none; padding: 1px; border-radius: 4px; color: inherit; opacity: 0;
+   display: inline-flex; align-items: center;
+}
+.draft-tab:hover button.draft-tab-close, .draft-tab.on button.draft-tab-close { opacity: 0.7; }
+.draft-tab button.draft-tab-close:hover { opacity: 1; background: var(--border); }
 .menu-col { padding: 0 0 14px; }
 /* ☰ + the name: the same height as the rail's first icon, so folding never moves it */
 .menu-head { display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 10px; border-bottom: 1px solid var(--border); }
@@ -435,12 +459,12 @@ input[type='range'].setting-range:disabled { opacity: 0.3; }
 .run-card img { max-width: min(320px, 100%); max-height: 320px; border-radius: 6px; display: block; }
 /* columns: equal shares of the panel width (the count is inline), every image as wide as its
    column. A result without an image, and the run card of a graph without one, take a full row */
-.gallery.cols { display: grid; align-items: start; }
-.gallery.cols > .run-card { grid-column: 1 / -1; min-width: 0; }
-.gallery.cols > .run-card.has-image, .gallery.cols > .run-card.cell { grid-column: auto; }
-.gallery.cols .imgs { flex-direction: column; }
-.gallery.cols .img-cell, .gallery.cols .img-button { width: 100%; }
-.gallery.cols .run-card img { width: 100%; height: auto; max-width: 100%; max-height: none; }
+.gallery.by-cols { display: grid; align-items: start; }
+.gallery.by-cols > .run-card { grid-column: 1 / -1; min-width: 0; }
+.gallery.by-cols > .run-card.has-image, .gallery.by-cols > .run-card.cell { grid-column: auto; }
+.gallery.by-cols .imgs { flex-direction: column; }
+.gallery.by-cols .img-cell, .gallery.by-cols .img-button { width: 100%; }
+.gallery.by-cols .run-card img { width: 100%; height: auto; max-width: 100%; max-height: none; }
 .run-card .noimg { color: var(--dim); font-style: italic; }
 .audio-cell { display: flex; flex-direction: column; gap: 4px; width: min(100%, 480px); }
 .audio-cell audio { width: 100%; }
@@ -830,8 +854,8 @@ button.enh-big { font-size: 14px; padding: 8px 18px; }
 /* a result with an image is only its image: the title and delete show over its top edge on
    hover. Out of the flow, the title no longer sizes the card, so grid cards wrap at the image
    width. A screen with no hover keeps the line visible */
-.gallery.cols .run-card.has-image { position: relative; }
-.gallery.cols .run-card.has-image > .meta {
+.gallery.by-cols .run-card.has-image { position: relative; }
+.gallery.by-cols .run-card.has-image > .meta {
    position: absolute; top: 0; left: 0; right: 0; z-index: 2; margin: 0; padding: 6px 8px 14px;
    align-items: flex-start; color: #fff; border-radius: 6px 6px 0 0;
    background: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0));

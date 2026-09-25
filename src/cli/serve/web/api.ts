@@ -98,6 +98,19 @@ export function saveDraft(
    })
 }
 
+/** the open draft tabs: the serve process keeps them, so every window shows the same ones */
+export function fetchTabs(): Promise<{ tabs: unknown }> {
+   return jsonFetch('/tabs')
+}
+
+export function saveTabs(tabs: readonly { module: string; draft: string }[]): Promise<{ tabs: unknown }> {
+   return jsonFetch('/tabs', {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ tabs }),
+   })
+}
+
 export function deleteDraft(p: { module: string; draft: string }): Promise<{ ok: true; drafts: string[] }> {
    return jsonFetch(`/drafts/${encodeURIComponent(p.module)}/${encodeURIComponent(p.draft)}`, { method: 'DELETE' })
 }

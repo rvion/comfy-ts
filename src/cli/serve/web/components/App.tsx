@@ -14,6 +14,7 @@ import { SHORTCUT_KEYS, shortcutOf } from 'src/cli/serve/web/state/shortcuts.ts'
 import { reaction } from 'mobx'
 import { collapsedPreview } from 'src/cli/serve/web/state/stableSlots.ts'
 import { GenerateButton, VarsForm } from 'src/cli/serve/web/components/VarsForm.tsx'
+import { DraftTabs, useTabShortcuts } from 'src/cli/serve/web/components/DraftTabs.tsx'
 import type { WebSt } from 'src/cli/serve/web/state/WebSt.ts'
 
 /** ⌘A / ctrl+A selects the field you are in. The browser does this on its own until something
@@ -349,6 +350,7 @@ function useMenuShortcut(st: WebSt, narrow: boolean): void {
 export const App = observer(function App(p: { st: WebSt }) {
    const narrow = useNarrow()
    useMenuShortcut(p.st, narrow)
+   useTabShortcuts(p.st)
    useSelectAllInFields()
    useOmniboxShortcut(p.st)
    if (p.st.phase === 'loading') return <div className="center">loading…</div>
@@ -443,7 +445,21 @@ export const App = observer(function App(p: { st: WebSt }) {
    return (
       <div className="app">
          {narrow ? <MobileBar st={p.st} /> : null}
-         <div className="cols">{narrow ? body : <MenuLayout st={p.st} main={body} />}</div>
+         <div className="cols">
+            {narrow ? (
+               body
+            ) : (
+               <MenuLayout
+                  st={p.st}
+                  main={
+                     <div className="tabs-col">
+                        <DraftTabs st={p.st} />
+                        <div className="tabs-body">{body}</div>
+                     </div>
+                  }
+               />
+            )}
+         </div>
          {narrow ? <MenuDrawer st={p.st} /> : null}
          <Omnibox st={p.st} />
          <TooltipLayer />
