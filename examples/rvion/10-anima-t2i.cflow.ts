@@ -88,7 +88,9 @@ export const animaT2i = host.defineWorkflow({
    tags: ['anime'],
    vars: (v) => {
       // every lora inside an `anima/` folder (never WanAnimate and friends), except the turbo one: the model choice owns it
-      const loras = v.loras(/^(?!.*anima-turbo-lora)(?:.*[\\/])?anima[\\/]/i)
+      const loras = v
+         .loras(/^(?!.*anima-turbo-lora)(?:.*[\\/])?anima[\\/]/i)
+         .ui({ group: 'loras', groupColor: 'rgba(187, 154, 247, 0.08)' })
       return {
          // the tags every anima prompt starts with, as buttons: the model card's order is
          // quality, score, safety, then the rest, and the build writes them in that order
@@ -122,23 +124,25 @@ export const animaT2i = host.defineWorkflow({
                   'good: good quality. best: best quality. masterpiece: masterpiece, best quality. Any of them puts worst quality, low quality in the negative',
             }),
          // anima reads booru tags and short phrases. `- ` lines are the negative prompt
-         prompt: v.prompt(
-            '1girl, silver hair, long coat, standing on a rooftop at dusk, city lights, wind, looking at viewer\n- blurry, jpeg artifacts, sepia',
-            {
-               loraKeywordsFrom: loras,
-               // danbooru tag completion. The card: lowercase, spaces for underscores, artists as `@name`
-               tags: { url: DANBOORU_TAGS, artistPrefix: '@' },
-               // named starting texts: picking one REPLACES the box, the draft reverts it
-               presets: {
-                  'rooftop portrait':
-                     '1girl, silver hair, long coat, standing on a rooftop at dusk, city lights, wind, looking at viewer\n- blurry, jpeg artifacts, sepia',
-                  'chibi sprite':
-                     'chibi, full body, simple background, white background, round sheep mascot, big eyes, flat colors\n- blurry, text, watermark',
-                  landscape:
-                     'no humans, scenery, floating islands, waterfalls, soft clouds, golden hour, detailed background\n- blurry, jpeg artifacts',
+         prompt: v
+            .prompt(
+               '1girl, silver hair, long coat, standing on a rooftop at dusk, city lights, wind, looking at viewer\n- blurry, jpeg artifacts, sepia',
+               {
+                  loraKeywordsFrom: loras,
+                  // danbooru tag completion. The card: lowercase, spaces for underscores, artists as `@name`
+                  tags: { url: DANBOORU_TAGS, artistPrefix: '@' },
+                  // named starting texts: picking one REPLACES the box, the draft reverts it
+                  presets: {
+                     'rooftop portrait':
+                        '1girl, silver hair, long coat, standing on a rooftop at dusk, city lights, wind, looking at viewer\n- blurry, jpeg artifacts, sepia',
+                     'chibi sprite':
+                        'chibi, full body, simple background, white background, round sheep mascot, big eyes, flat colors\n- blurry, text, watermark',
+                     landscape:
+                        'no humans, scenery, floating islands, waterfalls, soft clouds, golden hour, detailed background\n- blurry, jpeg artifacts',
+                  },
                },
-            },
-         ),
+            )
+            .ui({ group: 'prompt', groupColor: 'rgba(224, 175, 104, 0.07)' }),
          // right under the prompt: the loras and the words they add are read together
          loras,
          seed: v.seed(1, { mode: '+' }),
