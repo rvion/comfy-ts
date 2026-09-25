@@ -1,11 +1,35 @@
 // one-command release: preflight → bun publish → git tag vX.Y.Z → push → GitHub release
 // the CHANGELOG.md section for the version becomes the release notes; prepublishOnly runs the gate
-// resumable: if the version is on npm but the tag is missing (a past run died mid-pipeline),
-// publish is skipped and the tag/push/release steps run for the same version
+// resumable: every step checks its own result first, so a run that died anywhere (the version on
+// npm without its tag, or a tag and a GitHub release for a version npm never received) finishes
+// the same version. `bun publish` can exit 0 without the registry having the version: the
+// release waits until npm lists it, and stops before any tag when it does not
 // usage: bun scripts/release.ts [--dry-run] [--allow-dirty]
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'pathe'
+
+/** true once the registry lists `version`, false after `tries` reads that did not */
+export async function waitForVersion(p: {
+   version: string
+   tries: number
+   wait: () => Promise<void>
+   versions: () => Promise<Record<string, unknown> | undefined>
+}): Promise<boolean> {
+   for (let i = 0; i < p.tries; i++) {
+      if (i > 0) await p.wait()
+      if ((await p.versions())?.[p.version] != null) return true
+   }
+   return false
+}
+
+async function registryVersions(name: string): Promise<Record<string, unknown> | undefined> {
+   const res = await fetch(`https://registry.npmjs.org/${name}?t=${Date.now()}`, {
+      headers: { 'cache-control': 'no-cache' },
+   })
+   if (!res.ok) return undefined
+   return ((await res.json()) as { versions?: Record<string, unknown> }).versions
+}
 
 export function extractChangelogSection(p: { changelog: string; version: string }): string {
    const lines = p.changelog.split('\n')
@@ -72,6 +96,8 @@ async function main(): Promise<void> {
       )
    if (alreadyPublished)
       console.log(`[release] 🟡 ${version} already on npm but ${tag} missing: resuming after publish`)
+   if (tagExists && !alreadyPublished)
+      console.log(`[release] 🟡 ${tag} exists but npm lacks ${version}: publishing, then finishing what is missing`)
 
    const notes = extractChangelogSection({ changelog: await Bun.file('CHANGELOG.md').text(), version })
    console.log(`[release] 📝 notes: ${notes.split('\n').length} lines from CHANGELOG.md "## ${version}"`)
@@ -91,27 +117,40 @@ async function main(): Promise<void> {
       if (!alreadyPublished) {
          // bun's packer is the one tests/npm-tarball.test.ts guards: the tested tarball is the published one
          run({ cmd: ['bun', 'publish'], env: { NPM_CONFIG_TOKEN: token } })
+         const listed = await waitForVersion({
+            version,
+            tries: 20,
+            wait: () => Bun.sleep(3000),
+            versions: () => registryVersions(pkg.name),
+         })
+         if (!listed)
+            throw new Error(
+               `[release] 🔴 bun publish exited 0 but npm does not list ${pkg.name}@${version} after a minute. Nothing was tagged. Read bun publish's output above, fix, and rerun`,
+            )
       }
 
-      run({ cmd: ['git', 'tag', '-a', tag, '-m', `${pkg.name} ${version}`] })
+      if (!tagExists) run({ cmd: ['git', 'tag', '-a', tag, '-m', `${pkg.name} ${version}`] })
       run({ cmd: ['git', 'push'] })
       run({ cmd: ['git', 'push', 'origin', tag] })
 
       const notesFile = join(workDir, 'notes.md')
       writeFileSync(notesFile, notes)
-      run({
-         cmd: [
-            'gh',
-            'release',
-            'create',
-            tag,
-            '--verify-tag',
-            '--title',
-            `${pkg.name} ${version}`,
-            '--notes-file',
-            notesFile,
-         ],
-      })
+      const releaseExists =
+         Bun.spawnSync(['gh', 'release', 'view', tag], { stdout: 'ignore', stderr: 'ignore' }).exitCode === 0
+      if (!releaseExists)
+         run({
+            cmd: [
+               'gh',
+               'release',
+               'create',
+               tag,
+               '--verify-tag',
+               '--title',
+               `${pkg.name} ${version}`,
+               '--notes-file',
+               notesFile,
+            ],
+         })
       console.log(`[release] ✅ ${pkg.name}@${version} published, tagged ${tag}, GitHub release live`)
    } finally {
       rmSync(workDir, { recursive: true, force: true })
