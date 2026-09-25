@@ -184,6 +184,7 @@ function PathRow(p: { what: string; icon: IconName; value: PathLabel | null }): 
          type="button"
          className="menu-row path-row"
          data-tip={`${p.what}: ${value.path} (click to copy)`}
+         data-tip-side="right"
          onClick={() => void navigator.clipboard.writeText(value.path)}
       >
          <Icon name={p.icon} />

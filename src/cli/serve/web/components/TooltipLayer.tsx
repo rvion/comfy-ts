@@ -1,14 +1,15 @@
 // ONE tooltip for the whole panel: any element carrying `data-tip` gets it, so no component
 // wires anything. floating-ui places it in a portal, flips and shifts it at the screen edges,
 // and it never lives inside a scroll box, where a pseudo-element tooltip got clipped and even
-// made the box scroll. Instant, like the css tooltips it replaces: a delay was never wanted
+// made the box scroll. Instant, like the css tooltips it replaces: a delay was never wanted.
+// `data-tip-side="right"` puts it beside the element instead of under it
 import { autoUpdate, flip, FloatingPortal, offset, shift, useFloating } from '@floating-ui/react'
 import { useEffect, useState, type ReactNode } from 'react'
 
 export function TooltipLayer(): ReactNode {
    const [tip, setTip] = useState<{ el: Element; text: string } | null>(null)
    const { refs, floatingStyles } = useFloating({
-      placement: 'bottom-start',
+      placement: tip?.el.getAttribute('data-tip-side') === 'right' ? 'right' : 'bottom-start',
       middleware: [offset(6), flip(), shift({ padding: 8 })],
       whileElementsMounted: autoUpdate,
       elements: { reference: tip?.el ?? null },
