@@ -5,6 +5,9 @@
 - **Audio outputs come back to your code.** `execution.audios` lists every file an audio output node wrote (`SaveAudio`, `SaveAudioMP3`, `SaveAudioOpus`, `PreviewAudio`): filename, mime type, bytes, and the local path when `run({ save })` is on. The bytes stay exactly as the host wrote them. A failed download lands in `execution.audioErrors`.
 - **The web panel plays them.** Each audio result shows a player and a download link. The run reply carries `audios: [{ filename, mime, url, absPath }]`, and with saving off `GET /audio/<promptId>/<ix>` serves the file from memory.
 - **New example: YuE2 text to music** (`examples/rvion/11-yue2-t2a.cflow.ts`). The first prompt line is the style and the rest is the lyrics. ABC planning is a choice (full, melody, off), and the plan shows as a text result next to the song.
+- **New example: Stable Audio 3 Medium** (`examples/rvion/12-stable-audio-3-t2a.cflow.ts`): music, instruments, sound effects or one-shots from one description. With `reprompt` on, a local Qwen3.5 2B first rewrites the description with the official template's instructions for the chosen category.
+- **New example: ACE-Step 1.5 XL** (`examples/rvion/13-ace-step-15-xl-t2a.cflow.ts`): a song with vocals from a caption and lyrics, with the turbo, sft or base model, and bpm, key, beats per bar and language as settings.
+- **Quiet connect to ComfyUI 0.37.** A current host sends `null` for some node display names, tooltips and `output_is_list` entries, and object defaults for curve, trim and crop widgets. These now validate, so a connect no longer prints about 1300 schema warnings. Generated sdk comments show the node name when the display name is null.
 
 ## 2.12.0
 
