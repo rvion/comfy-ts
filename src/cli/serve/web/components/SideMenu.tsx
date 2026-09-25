@@ -170,7 +170,12 @@ function PathCard(p: { label: string; icon: IconName; value: PathLabel | null })
             data-tip={`${value.path} (click to copy)`}
             onClick={() => void navigator.clipboard.writeText(value.path)}
          >
-            <Icon name={p.icon} /> <span className="path-text">{value.label}</span>
+            <Icon name={p.icon} />{' '}
+            {/* rtl cuts a long path at its START; the bdi keeps the path itself left to right, or rtl
+                reorders the neutral `~` and `/` and `~/dev/x` reads `dev/x/~` */}
+            <span className="path-text">
+               <bdi>{value.label}</bdi>
+            </span>
          </button>
       </div>
    )
