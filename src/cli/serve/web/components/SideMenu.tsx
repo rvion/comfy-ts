@@ -368,6 +368,17 @@ export const MenuCards = observer(function MenuCards(p: { st: WebSt }) {
                ))}
             </div>
          </Section>
+         <Section title="help">
+            <button
+               type="button"
+               className="menu-row menu-action"
+               data-tip="every key the panel binds"
+               onClick={() => p.st.setShowShortcuts(true)}
+            >
+               <Icon name="keyboard" />
+               <span>shortcuts</span>
+            </button>
+         </Section>
       </div>
    )
 })
@@ -409,6 +420,9 @@ export const MenuRail = observer(function MenuRail(p: { st: WebSt; onExpand: () 
                <Icon name={it.icon} />
             </button>
          ))}
+         <button type="button" className="head-icon" data-tip="shortcuts" onClick={() => p.st.setShowShortcuts(true)}>
+            <Icon name="keyboard" />
+         </button>
       </div>
    )
 })

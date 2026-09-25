@@ -56,6 +56,7 @@ export type IconName =
    | 'server'
    | 'menu'
    | 'memory'
+   | 'keyboard'
 
 /** 24x24 viewBox paths, stroked (fill: none) unless the shape reads better solid */
 const PATHS: Record<IconName, ReactNode> = {
@@ -193,6 +194,7 @@ const PATHS: Record<IconName, ReactNode> = {
    ),
    menu: <path d="M4 7h16M4 12h16M4 17h16" />,
    memory: <path d="M6 6h12v12H6zM9 9h6v6H9zM9 3v3M15 3v3M9 18v3M15 18v3M3 9h3M3 15h3M18 9h3M18 15h3" />,
+   keyboard: <path d="M3 6h18v12H3zM7 10h.01M11 10h.01M15 10h.01M19 10h.01M8 14h8" />,
 }
 
 /** `size` is a multiplier of the surrounding font size, so icons scale with their button */

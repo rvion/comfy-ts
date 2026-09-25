@@ -910,6 +910,13 @@ export class WebSt {
    /** results blurred until the pointer is on them: a screen someone else may see */
    blurResults = false
 
+   /** the popup listing every key the panel binds */
+   showShortcuts = false
+
+   setShowShortcuts(b: boolean): void {
+      this.showShortcuts = b
+   }
+
    /** the last ⌘P / ⌘O jump: the var it targets reacts to a NEW seq, so pressing it twice works */
    jump: { kind: 'prompt' | 'loras'; seq: number } | null = null
 
