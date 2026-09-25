@@ -812,6 +812,22 @@ button.enh-big { font-size: 14px; padding: 8px 18px; }
 .results-col .gallery { margin-top: 0; }
 /* on the preview surface a result is its image, title and buttons, with no frame of its own */
 .results-col .run-card { background: none; border: 0; border-radius: 0; padding: 0; }
+/* a result with an image is only its image: the title and delete show over its top edge on
+   hover. Out of the flow, the title no longer sizes the card, so grid cards wrap at the image
+   width. A screen with no hover keeps the line visible */
+.gallery.view-fit .run-card.has-image, .gallery.view-grid .run-card.has-image { position: relative; }
+.gallery.view-fit .run-card.has-image > .meta, .gallery.view-grid .run-card.has-image > .meta {
+   position: absolute; top: 0; left: 0; right: 0; z-index: 2; margin: 0; padding: 6px 8px 14px;
+   align-items: flex-start; color: #fff; border-radius: 6px 6px 0 0;
+   background: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0));
+   opacity: 0; pointer-events: none; transition: opacity 0.12s;
+}
+.gallery .run-card.has-image > .meta .meta-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gallery .run-card.has-image:hover > .meta { opacity: 1; pointer-events: auto; }
+.gallery .run-card.has-image > .meta button.link { color: #fff; }
+@media (hover: none) {
+   .gallery .run-card.has-image > .meta { opacity: 1; pointer-events: auto; }
+}
 .work.layout-bottom .results-col { margin-top: 16px; }
 /* the panel's own controls sit on top of it */
 .head-group-labeled { display: flex; flex-direction: column; gap: 2px; }

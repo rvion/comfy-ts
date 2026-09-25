@@ -445,9 +445,12 @@ export const Gallery = observer(function Gallery(p: { st: WebSt; compact?: boole
          {/* the count and clear-all moved onto the run line beside the generate button: two
              headers for one idea is a header too many */}
          {results.map((r) => (
-            <div key={r.promptId} className="run-card">
+            <div
+               key={r.promptId}
+               className={r.images.some((img) => img.url != null) ? 'run-card has-image' : 'run-card'}
+            >
                <div className="meta">
-                  <span>
+                  <span className="meta-text">
                      {r.at} · {r.module}/{r.draft} · {(r.durationMs / 1000).toFixed(1)}s
                      {Object.entries(r.seeds).map(([k, seed]) => ` · ${k}: ${seed}`)}
                   </span>
