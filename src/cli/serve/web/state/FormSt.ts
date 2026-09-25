@@ -52,6 +52,21 @@ export class VarSt {
       this.uploadedUrl = url
    }
 
+   /** the workflow's declared default, in the shape the controls hold */
+   get defaultValue(): unknown {
+      return normalizeInitial(this.desc, this.desc.default)
+   }
+
+   /** by value: a size or a choice list is a fresh object every time */
+   get isAtDefault(): boolean {
+      return JSON.stringify(this.value) === JSON.stringify(this.defaultValue)
+   }
+
+   /** back to what the workflow declares; an edit like any other (autosaved, revertable) */
+   resetToDefault(): void {
+      this.set(this.defaultValue)
+   }
+
    revert(): void {
       this.value = this.initial
       this.dirty = false

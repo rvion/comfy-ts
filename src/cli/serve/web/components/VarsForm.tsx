@@ -118,6 +118,18 @@ const VarRow = observer(function VarRow(p: {
                p.st.moveVar({ module: p.module, names: p.names, from, to: p.index })
          }}
       >
+         {/* in the form's left gutter: back to the workflow's default. Always there (disabled at
+             the default), so no row moves when a value changes */}
+         <button
+            type="button"
+            className="var-reset"
+            disabled={p.v.isAtDefault}
+            data-tip={p.v.isAtDefault ? 'at the workflow default' : 'reset to the workflow default'}
+            aria-label="reset to the workflow default"
+            onClick={() => p.v.resetToDefault()}
+         >
+            <Icon name="refresh" size={0.95} />
+         </button>
          {/* the LABEL is the handle: a separate grip was one more piece of permanent chrome
              for something the label itself can carry */}
          <div

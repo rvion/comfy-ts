@@ -101,7 +101,17 @@ button.danger:hover { color: var(--red); border-color: var(--red); }
    rows — a per-row grid would give every row its own width. The 150px track is the
    pre-subgrid fallback, kept first so an old engine still gets aligned columns */
 /* the form needs air under the head boxes: the first var sat flush against them */
-.vars { display: grid; grid-template-columns: 120px minmax(0, 1fr); margin-top: 14px; position: relative; }
+.vars { display: grid; grid-template-columns: 120px minmax(0, 1fr); margin-top: 14px; position: relative; padding-left: 22px; }
+/* each row's reset, in the form's left gutter (the padding above): borderless until
+   hovered, out of the flow so it never moves a label */
+.var-row { position: relative; }
+button.var-reset {
+   position: absolute; left: -20px; top: 6px; width: 20px; height: 20px; padding: 0;
+   display: inline-flex; align-items: center; justify-content: center;
+   border: 1px solid transparent; border-radius: 5px; background: none; color: var(--dim); cursor: pointer;
+}
+button.var-reset:hover:not(:disabled) { border-color: var(--border); color: var(--text); background: var(--panel-2); }
+button.var-reset:disabled { opacity: 0.25; cursor: default; }
 /* the label column's edge: a thin strip you drag, lit on hover */
 .label-resizer {
    position: absolute; top: 0; bottom: 0; width: 6px; margin-left: -3px; z-index: 5;
