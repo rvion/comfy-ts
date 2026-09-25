@@ -224,8 +224,10 @@ const theme = EditorView.theme(
       '.cm-content': { padding: '6px 0', caretColor: 'var(--text)' },
       '.cm-line': { padding: '0 8px' },
       '.cm-cursor': { borderLeftColor: 'var(--text)' },
+      // opaque on purpose: webkit blends a translucent selection down to near the background
       '&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection': {
-         background: 'var(--accent-dim) !important',
+         background: '#c3d1f4 !important',
+         color: '#000 !important',
       },
       '.cm-placeholder': { color: 'var(--dim)' },
       '.pe-comment': { color: 'var(--dim)', fontStyle: 'italic' },

@@ -16,6 +16,7 @@ import { MenuButton, MenuItem } from 'src/cli/serve/web/components/MenuButton.ts
 import { logWebError } from 'src/cli/serve/web/logWeb.ts'
 import { observer, useLocalObservable } from 'mobx-react-lite'
 import { useEffect, useRef, useState, type DragEvent, type ReactNode } from 'react'
+import { isNewJump } from 'src/cli/serve/web/state/shortcuts.ts'
 import { fetchLoraAbout, fetchLoraInfo, loraPreviewSrc, type LoraAbout, type LoraInfo } from 'src/cli/serve/web/api.ts'
 import type { LoraStrength } from 'src/vars/loraEntry.ts'
 import type { VarSt } from 'src/cli/serve/web/state/FormSt.ts'
@@ -356,8 +357,8 @@ export const LorasControl = observer(function LorasControl(p: {
             </button>
             <input
                type="range"
-               min={-1}
-               max={2}
+               min={0}
+               max={1}
                step={0.05}
                value={value}
                onChange={(e) => write(which, parseFloat(e.target.value))}
@@ -392,8 +393,10 @@ export const LorasControl = observer(function LorasControl(p: {
    // ⌘O: a NEW jump opens the picker on the first section, as its own `add` would
    const jump = p.st.jump
    const firstIx = sections[0]?.ix ?? -1
+   const seenJump = useRef(jump?.seq ?? 0)
    useEffect(() => {
-      if (!p.jumpTarget || jump == null || jump.kind !== 'loras') return
+      if (!p.jumpTarget || !isNewJump(jump, 'loras', seenJump.current)) return
+      seenJump.current = jump?.seq ?? 0
       local.openFor(firstIx)
    }, [jump, p.jumpTarget, firstIx, local])
 

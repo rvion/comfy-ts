@@ -6,6 +6,15 @@ export const STYLES = /* css */ `
    --panel: #171a21;
    --panel-2: #1d2129;
    --border: #2a2f3a;
+   /* the chrome (menu, tabs bar, preview side): lifted off the work area by a cool tint and a
+      soft top light, split from it by hairlines instead of solid bands */
+   --chrome: linear-gradient(180deg, #1a1f2b 0%, #151922 40%, #13161d 100%);
+   --chrome-flat: #171b24;
+   --hairline: color-mix(in srgb, var(--border) 70%, transparent);
+   /* a picked option (segment, mode toggle): a tint of the accent, never a solid slab */
+   --sel-bg: color-mix(in srgb, var(--accent) 22%, var(--panel-2));
+   --sel-border: color-mix(in srgb, var(--accent) 55%, transparent);
+   --sel-text: #c3d3fb;
    --text: #e8eaf0;
    --dim: #8b93a7;
    --accent: #7aa2f7;
@@ -88,7 +97,7 @@ button.link.load-errors { color: var(--red); font-size: 11px; }
 
 /* the menu column: the TUI header on the web, one labelled card per scope, stacked */
 .menu-layout { flex: 1; min-width: 0; height: 100%; }
-.menu-panel { height: 100%; overflow-y: auto; overscroll-behavior: contain; background: var(--panel); border-right: 1px solid var(--border); }
+.menu-panel { height: 100%; overflow-y: auto; overscroll-behavior: contain; background: var(--chrome); }
 .menu-main { height: 100%; display: flex; min-width: 0; }
 .menu-main > .main { height: 100%; }
 /* the open drafts as tabs over the work area. The body below takes the rest: the panel group
@@ -97,20 +106,18 @@ button.link.load-errors { color: var(--red); font-size: 11px; }
 .tabs-body { flex: 1; min-height: 0; display: flex; }
 .tabs-body > .main { height: 100%; }
 .draft-tabs {
-   display: flex; gap: 0; padding: 4px 8px 0; overflow-x: auto; flex-shrink: 0;
-   background: var(--panel); border-bottom: 1px solid var(--border);
+   display: flex; gap: 0; padding: 0; overflow-x: auto; flex-shrink: 0;
+   background: var(--chrome-flat); border-bottom: 1px solid var(--hairline);
 }
+/* square segments split by hairlines, as tall as the menu head so both bottom lines meet. The
+   open one wears the btn-group pick: the accent tint and an accent underline */
 .draft-tab {
-   display: inline-flex; align-items: center; gap: 3px; max-width: 220px; padding: 3px 4px 3px 9px;
-   font-size: 13px; color: var(--dim); cursor: pointer; user-select: none; white-space: nowrap;
-   border: 1px solid var(--border); border-bottom: 0; border-radius: 6px 6px 0 0; margin-bottom: -1px;
-   position: relative;
+   display: inline-flex; align-items: center; gap: 4px; max-width: 240px; height: 44px; padding: 0 8px 0 14px;
+   font-size: 14px; color: var(--dim); cursor: pointer; user-select: none; white-space: nowrap;
+   border-right: 1px solid var(--hairline); position: relative;
 }
-/* neighbours share one border line, the open tab draws its own on top */
-.draft-tab + .draft-tab { margin-left: -1px; }
-.draft-tab.on { z-index: 1; }
 .draft-tab:hover { color: var(--text); background: var(--panel-2); }
-.draft-tab.on { color: var(--text); background: var(--bg); border-color: var(--border); }
+.draft-tab.on { color: var(--sel-text); background: var(--sel-bg); box-shadow: inset 0 -2px 0 var(--accent); }
 .draft-tab-name { overflow: hidden; text-overflow: ellipsis; }
 .draft-tab-wf { color: var(--dim); font-size: 11px; }
 .draft-tab button.draft-tab-close {
@@ -128,7 +135,7 @@ button.link.load-errors { color: var(--red); font-size: 11px; }
 .tab-menu .menu-action.danger:hover { color: var(--red); }
 .menu-col { padding: 0 0 14px; }
 /* ☰ + the name: the same height as the rail's first icon, so folding never moves it */
-.menu-head { display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 10px; border-bottom: 1px solid var(--border); }
+.menu-head { display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 10px; border-bottom: 1px solid var(--hairline); }
 .menu-brand { font-weight: 700; letter-spacing: 0.01em; }
 .menu-head-key { margin-left: auto; }
 /* a full-row action (duplicate, new): reads as an entry of the list, its key at the end */
@@ -145,7 +152,7 @@ button.link.load-errors { color: var(--red); font-size: 11px; }
 .layout-tile:hover { color: var(--text); background: var(--panel-2); }
 .layout-tile.sel { color: var(--accent); border-color: var(--accent); background: var(--accent-dim); font-weight: 600; }
 .menu-sections { display: flex; flex-direction: column; }
-.menu-section { padding: 10px 10px 12px; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 2px; }
+.menu-section { padding: 10px 10px 12px; border-bottom: 1px solid var(--hairline); display: flex; flex-direction: column; gap: 2px; }
 .menu-title {
    display: flex; align-items: center; justify-content: space-between; min-height: 24px; padding: 0 4px;
    color: var(--dim); font-size: 10.5px; letter-spacing: 0.07em; text-transform: uppercase;
@@ -251,7 +258,12 @@ button.var-reset:disabled { opacity: 0.25; cursor: default; }
 /* the label IS the drag handle for its row: no separate grip to reveal or aim at */
 /* labels never wrap: one line at the height of a control, cut with an ellipsis, whole on hover.
    The icon and the (?) keep their size, only the name gives way */
-.var-label { display: flex; align-items: center; justify-content: flex-end; min-height: 28px; min-width: 0; cursor: grab; }
+/* a drag handle never selects its text: WebKit starts a text selection instead of the drag
+   when the press lands on selectable text */
+.var-label {
+   display: flex; align-items: center; justify-content: flex-end; min-height: 28px; min-width: 0; cursor: grab;
+   user-select: none; -webkit-user-select: none; -webkit-user-drag: element;
+}
 .var-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
 /* the ⌘ key that jumps to this var, on its own line under the name */
 .var-label.has-kbd { flex-wrap: wrap; align-content: center; row-gap: 3px; }
@@ -259,7 +271,7 @@ button.var-reset:disabled { opacity: 0.25; cursor: default; }
 .var-row.inactive .var-control { opacity: 0.18; filter: grayscale(1); }
 .var-row.inactive .var-label { opacity: 0.45; }
 .var-label:active { cursor: grabbing; }
-.lora-chip[draggable='true'] { cursor: grab; }
+.lora-chip[draggable='true'] { cursor: grab; user-select: none; -webkit-user-select: none; -webkit-user-drag: element; }
 /* the card drags from anywhere, so its own controls must keep their cursor */
 .lora-chip input, .lora-chip label, .lora-chip button { cursor: pointer; }
 .lora-chip input[type='number'] { cursor: text; }
@@ -273,6 +285,9 @@ button.var-reset:disabled { opacity: 0.25; cursor: default; }
 }
 .var-label .dirty-dot:hover { background: var(--red); }
 .var-control { min-width: 0; }
+/* a one-line control sits on the label's 28px line: rows align to the top, so a shorter line
+   (a toggle and its word) floated above the label's centre */
+.var-control > .row-inline { min-height: 28px; }
 /* a workflow's own icons: beside a label, or inside a choice button */
 .var-icon { width: 15px; height: 15px; margin-right: 5px; flex-shrink: 0; }
 .btn-group button .var-icon { margin-right: 3px; }
@@ -295,7 +310,35 @@ input[type='range'] { width: 100%; accent-color: var(--accent); }
 /* a steps or cfg slider across a whole wide row is a long drag for a small number: 320px is
    still a fine grain for 1..60, and the number box keeps its place right after it */
 .var-control input[type='range'] { max-width: 320px; }
-input[type='checkbox'] { accent-color: var(--accent); width: 16px; height: 16px; }
+/* a number var's slider: a thin dark track, the accent up to the value, a small dot */
+input[type='range'].num-range {
+   appearance: none; height: 16px; margin: 0; padding: 0; cursor: pointer; border-radius: 2px;
+   background-color: transparent; background-size: 100% 4px; background-position: center; background-repeat: no-repeat;
+}
+input[type='range'].num-range::-webkit-slider-runnable-track { height: 4px; background: transparent; }
+input[type='range'].num-range::-webkit-slider-thumb {
+   appearance: none; width: 14px; height: 14px; border-radius: 50%; margin-top: -5px;
+   background: var(--accent); border: 2px solid var(--bg); box-shadow: 0 0 0 1px var(--accent-dim);
+}
+input[type='range'].num-range:hover::-webkit-slider-thumb { box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 25%, transparent); }
+input[type='range'].num-range::-moz-range-track { height: 4px; background: transparent; }
+input[type='range'].num-range::-moz-range-thumb {
+   width: 10px; height: 10px; border-radius: 50%; background: var(--accent); border: 2px solid var(--bg);
+}
+/* every checkbox is drawn as a toggle, the same pill as .switch: the native box was the one
+   control on the page still in the browser's own chrome */
+input[type='checkbox'] {
+   appearance: none; position: relative; flex-shrink: 0; width: 36px; height: 20px; margin: 0; align-self: center;
+   border-radius: 999px; background: var(--panel-2); border: 1px solid var(--border); cursor: pointer;
+   vertical-align: middle; transition: background 0.15s, border-color 0.15s;
+}
+input[type='checkbox']::before {
+   content: ''; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%;
+   background: var(--dim); transition: transform 0.15s, background 0.15s;
+}
+input[type='checkbox']:checked { background: var(--sel-bg); border-color: var(--sel-border); }
+input[type='checkbox']:checked::before { transform: translateX(16px); background: var(--accent); }
+input[type='checkbox']:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .row-inline { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 /* lanes (src/vars/lanes.ts): named groups merged top to bottom. Each lane is a BAND: a tinted
    strip, its name as plain small text on the left (clickable, not dressed as a button: click
@@ -410,7 +453,7 @@ button.link { border: 0; background: none; color: var(--accent); padding: 0; }
 button.link.danger { color: var(--dim); }
 button.link.danger:hover { color: var(--red); }
 button.mode { padding: 2px 7px; font-size: 12px; }
-button.mode.sel { background: var(--accent); border-color: var(--accent); color: #0d1117; }
+button.mode.sel { background: var(--sel-bg); border-color: var(--sel-border); color: var(--sel-text); }
 /* the actions that START something (new draft, add loras): accent outline, so the eye finds
    them before the neutral ones. The lit segment of a group is a solid accent fill */
 button.accent { color: var(--accent); border-color: var(--accent-dim); }
@@ -656,6 +699,17 @@ button.live-preview-copy:not(:disabled):hover { color: var(--text); border-color
    height, so typing a filter or hiding images never moves it */
 .modal-overlay.top { align-items: flex-start; padding-top: 5vh; }
 .modal.loras-modal { height: min(86vh, 100%); max-height: none; }
+.modal.shortcuts-modal { width: min(640px, 100%); max-height: min(86vh, 100%); }
+.shortcuts-modal .modal-head { align-items: center; }
+.shortcuts-title { flex: 1; font-weight: 600; }
+.shortcuts-body { overflow-y: auto; padding: 4px 14px 14px; }
+.shortcuts-group { padding-top: 10px; }
+.shortcuts-row { display: flex; align-items: baseline; gap: 12px; padding: 4px 0; font-size: 13px; }
+.shortcuts-keys { display: inline-flex; flex-wrap: wrap; gap: 4px; width: 200px; flex-shrink: 0; }
+.shortcuts-row kbd {
+   font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; padding: 1px 6px; border-radius: 5px;
+   background: var(--panel-2); border: 1px solid var(--border); border-bottom-width: 2px; color: var(--text);
+}
 .modal.loras-modal { width: min(1180px, 100%); }
 /* the palette sits BESIDE the gallery, each scrolling alone: picking a lora grows the palette
    and never moves a card under the pointer. Narrow: a fixed-height strip above, same reason */
@@ -929,13 +983,16 @@ button.enh-big { font-size: 14px; padding: 8px 18px; }
 .work.split { flex: 1; min-width: 0; height: 100%; gap: 0; align-items: stretch; }
 .split-panel { height: 100%; overflow-y: auto; overscroll-behavior: contain; }
 .split-form { padding: 12px 14px 14px; }
-.split-results { background: var(--panel); padding: 10px 12px; }
+.split-results { background: var(--chrome); padding: 10px 12px; }
 .work.split .results-col {
    position: static; width: auto; max-height: none; overflow: visible;
    background: none; border: 0; border-radius: 0; padding: 0;
 }
-.split-handle { width: 5px; background: var(--border); cursor: col-resize; transition: background 0.1s; }
-.split-handle:hover, .split-handle[data-separator-state='drag'] { background: var(--accent); }
+.split-handle {
+   width: 5px; cursor: col-resize; transition: background 0.1s;
+   background: linear-gradient(90deg, transparent 2px, var(--hairline) 2px, var(--hairline) 3px, transparent 3px);
+}
+.split-handle:hover, .split-handle[data-separator-state='drag'] { background: var(--accent-dim); }
 
 /* the placements. Each one is a BUTTON and nothing else: there is no width rule that quietly
    moves the panel somewhere no button is showing */
@@ -1002,11 +1059,11 @@ button.enh-big { font-size: 14px; padding: 8px 18px; }
 }
 .btn-group button:first-child { border-top-left-radius: 6px; border-bottom-left-radius: 6px; }
 .btn-group button:last-child { border-right-width: 1px; border-top-right-radius: 6px; border-bottom-right-radius: 6px; }
-.btn-group button.sel { background: var(--accent); border-color: var(--accent); color: #0d1117; font-weight: 600; }
+.btn-group button.sel { background: var(--sel-bg); border-color: var(--sel-border); color: var(--sel-text); font-weight: 600; }
 /* the selected segment owns the divider on both sides, else its highlight looks clipped */
-.btn-group button.sel + button { border-left-color: var(--accent); }
+.btn-group button.sel + button { border-left-color: var(--sel-border); }
 .btn-group button:hover { background: var(--panel); }
-.btn-group button.sel:hover { background: var(--accent); }
+.btn-group button.sel:hover { background: var(--sel-bg); }
 /* ONE height for every button a var row shows in a group or an action line: a choice, the
    lora toggles, a lane header, the seed modes. Before, each kind had its own padding and a
    choice sat visibly smaller than the toggles beside it */
@@ -1060,7 +1117,7 @@ button.head-icon.danger:hover { color: var(--red); border-color: var(--red); }
    content: ''; position: absolute; top: 1px; left: 1px; width: 12px; height: 12px; border-radius: 50%;
    background: var(--dim); transition: transform 0.15s, background 0.15s;
 }
-.switch input:checked + .track { background: var(--accent-dim); border-color: var(--accent); }
+.switch input:checked + .track { background: var(--sel-bg); border-color: var(--sel-border); }
 .switch input:checked + .track::after { transform: translateX(12px); background: var(--accent); }
 .switch input:focus-visible + .track { outline: 2px solid var(--accent); outline-offset: 2px; }
 

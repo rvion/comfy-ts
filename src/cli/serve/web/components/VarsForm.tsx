@@ -1,12 +1,13 @@
 // the var rows: each kind dispatches to its matching control (the point of the
 // web ui — architecture item 12) + the sticky run bar
 import { observer } from 'mobx-react-lite'
-import { useEffect, useRef, type ReactNode } from 'react'
+import { useEffect, useRef, type HTMLAttributes, type ReactNode } from 'react'
 import { MOD_KEY } from 'src/cli/serve/web/components/modKey.ts'
 import { RunError } from 'src/cli/serve/web/components/RunError.tsx'
 import { runChipText } from 'src/cli/serve/web/state/stableSlots.ts'
-import { jumpTargets, SHORTCUT_KEYS, shortcutOf } from 'src/cli/serve/web/state/shortcuts.ts'
+import { isNewJump, jumpTargets, SHORTCUT_KEYS, shortcutOf } from 'src/cli/serve/web/state/shortcuts.ts'
 import { isPromptLanes } from 'src/vars/lanes.ts'
+import { formRowNames, OUTPUT_ROW } from 'src/cli/serve/web/state/formRows.ts'
 import {
    ChoiceControl,
    NumberControl,
@@ -69,6 +70,36 @@ const VarControl = observer(function VarControl(p: {
    }
 })
 
+/** a form row's reorder wiring: the row takes the drop, its label is the handle */
+function rowDrag(p: { st: WebSt; module: string; names: readonly string[]; index: number }): {
+   row: Pick<HTMLAttributes<HTMLDivElement>, 'onDragOver' | 'onDrop'>
+   handle: Pick<HTMLAttributes<HTMLDivElement>, 'draggable' | 'onDragStart'>
+} {
+   return {
+      row: {
+         onDragOver: (e) => {
+            // only a row drag: a file dropped on an image var must still reach its own handler
+            if (e.dataTransfer.types.includes('application/x-comfy-var')) e.preventDefault()
+         },
+         onDrop: (e) => {
+            const raw = e.dataTransfer.getData('application/x-comfy-var')
+            if (raw === '') return
+            e.preventDefault()
+            const from = Number(raw)
+            if (Number.isInteger(from) && from !== p.index)
+               p.st.moveVar({ module: p.module, names: p.names, from, to: p.index })
+         },
+      },
+      handle: {
+         draggable: true,
+         onDragStart: (e) => {
+            e.dataTransfer.effectAllowed = 'move'
+            e.dataTransfer.setData('application/x-comfy-var', String(p.index))
+         },
+      },
+   }
+}
+
 const VarRow = observer(function VarRow(p: {
    v: VarSt
    host: string
@@ -84,8 +115,10 @@ const VarRow = observer(function VarRow(p: {
    const rowRef = useRef<HTMLDivElement>(null)
    const jump = p.st.jump
    const jumpKind = p.jumpKey == null ? null : p.v.desc.kind
+   const seenJump = useRef(jump?.seq ?? 0)
    useEffect(() => {
-      if (jump == null || jumpKind !== 'prompt' || jump.kind !== 'prompt') return
+      if (jumpKind !== 'prompt' || !isNewJump(jump, 'prompt', seenJump.current)) return
+      seenJump.current = jump?.seq ?? 0
       const editor = rowRef.current?.querySelector<HTMLElement>('.cm-content')
       editor?.focus()
       editor?.scrollIntoView({ block: 'nearest' })
@@ -95,6 +128,7 @@ const VarRow = observer(function VarRow(p: {
    const ui = p.v.desc.ui
    const inactive = p.st.form?.inactiveReason(p.v) ?? null
    const wide = p.v.desc.kind === 'loras' || p.v.desc.kind === 'prompt'
+   const drag = rowDrag(p)
    return (
       <div
          ref={rowRef}
@@ -106,18 +140,7 @@ const VarRow = observer(function VarRow(p: {
             outline: ui?.border == null ? undefined : `1px solid ${ui.border}`,
             outlineOffset: ui?.border == null ? undefined : '-1px',
          }}
-         onDragOver={(e) => {
-            // only a row drag: a file dropped on an image var must still reach its own handler
-            if (e.dataTransfer.types.includes('application/x-comfy-var')) e.preventDefault()
-         }}
-         onDrop={(e) => {
-            const raw = e.dataTransfer.getData('application/x-comfy-var')
-            if (raw === '') return
-            e.preventDefault()
-            const from = Number(raw)
-            if (Number.isInteger(from) && from !== p.index)
-               p.st.moveVar({ module: p.module, names: p.names, from, to: p.index })
-         }}
+         {...drag.row}
       >
          {/* in the form's left gutter: back to the workflow's default. Always there (disabled at
              the default), so no row moves when a value changes */}
@@ -133,14 +156,7 @@ const VarRow = observer(function VarRow(p: {
          </button>
          {/* the LABEL is the handle: a separate grip was one more piece of permanent chrome
              for something the label itself can carry */}
-         <div
-            className={p.jumpKey == null ? 'var-label' : 'var-label has-kbd'}
-            draggable
-            onDragStart={(e) => {
-               e.dataTransfer.effectAllowed = 'move'
-               e.dataTransfer.setData('application/x-comfy-var', String(p.index))
-            }}
-         >
+         <div className={p.jumpKey == null ? 'var-label' : 'var-label has-kbd'} {...drag.handle}>
             {/* the kind is a TOOLTIP, not a second line: printed under every label it was a
                 column of noise you read past, and it only ever answers a question you ask once */}
             {/* the (?) LEADS: labels are right-aligned against their control, so what trails a
@@ -281,12 +297,13 @@ export const GenerateButton = observer(function GenerateButton(p: { st: WebSt })
 
 /** where the generated images go: the same row shape as a var, because it is one more knob
  * of the run. The toggle and the folder are SERVER settings, so curl sees the same choice */
-const SaveRow = observer(function SaveRow(p: { st: WebSt; module: string }) {
+const SaveRow = observer(function SaveRow(p: { st: WebSt; module: string; index: number; names: readonly string[] }) {
    const on = p.st.saveToDisk
+   const drag = rowDrag(p)
    return (
-      <div className="var-row">
-         <div className="var-label">
-            <span data-tip="save — where this workflow's images go">output</span>
+      <div className="var-row" {...drag.row}>
+         <div className="var-label" {...drag.handle}>
+            <span data-tip={"save — where this workflow's images go\ndrag the label to reorder"}>output</span>
          </div>
          <div className="var-control">
             <div className="row-inline">
@@ -356,12 +373,10 @@ export const VarsForm = observer(function VarsForm(p: { st: WebSt }) {
    }, [p.st])
    if (form == null) return null
    // YOUR order (drag), falling back to the workflow's own declaration order
-   const orderedNames = p.st.orderedVars(
-      form.moduleKey,
-      form.vars.map((v) => v.name),
-   )
+   const orderedNames = p.st.orderedVars(form.moduleKey, formRowNames(form.vars.map((v) => v.name)))
    const orderedVars = orderedNames.map((n) => form.vars.find((v) => v.name === n)).filter((v) => v != null)
-   const places = groupPlaces(orderedVars.map((v) => v.desc.ui ?? {}))
+   // over every ROW, the output slot included, so an index here is a row index
+   const places = groupPlaces(orderedNames.map((n) => form.vars.find((v) => v.name === n)?.desc.ui ?? {}))
    const targets = jumpTargets(
       orderedVars.map((v) => ({ name: v.name, kind: v.desc.kind, inactive: form.inactiveReason(v) != null })),
    )
@@ -381,25 +396,30 @@ export const VarsForm = observer(function VarsForm(p: { st: WebSt }) {
              drag it (kept in this browser): labels never wrap, a cut one shows whole on hover */}
          <div className="vars" style={{ gridTemplateColumns: `${p.st.labelWidth}px minmax(0, 1fr)` }}>
             <LabelResizer st={p.st} />
-            {orderedVars.map((v, ix) => (
+            {orderedNames.map((name, ix) => {
+               // the OUTPUT is a knob like the others: a row, not a lone button in the header
+               if (name === OUTPUT_ROW)
+                  return <SaveRow key={OUTPUT_ROW} st={p.st} module={form.moduleKey} index={ix} names={orderedNames} />
+               const v = form.vars.find((x) => x.name === name)
+               if (v == null) return null
                // keyed by MODULE and DRAFT: a switch must reset per-row ui state (lora filter,
                // remembered strengths, paused set), not carry the other selection's over.
                // module matters because every workflow has a `default` draft and a `prompt`
                // var, so draft+name alone matches across workflows and react reuses the row
-               <VarRow
-                  key={`${form.moduleKey}/${form.draft}/${v.name}`}
-                  v={v}
-                  host={form.host}
-                  st={p.st}
-                  module={form.moduleKey}
-                  index={ix}
-                  names={orderedNames}
-                  place={places[ix] ?? null}
-                  jumpKey={jumpKeyOf(v.name)}
-               />
-            ))}
-            {/* the OUTPUT is a knob like the others: a row, not a lone button in the header */}
-            <SaveRow st={p.st} module={form.moduleKey} />
+               return (
+                  <VarRow
+                     key={`${form.moduleKey}/${form.draft}/${v.name}`}
+                     v={v}
+                     host={form.host}
+                     st={p.st}
+                     module={form.moduleKey}
+                     index={ix}
+                     names={orderedNames}
+                     place={places[ix] ?? null}
+                     jumpKey={jumpKeyOf(v.name)}
+                  />
+               )
+            })}
          </div>
          {/* side and pinned put generate INSIDE the results panel; the form keeps it otherwise.
              The error shows under the prompt preview, in the results panel, unless that is off */}

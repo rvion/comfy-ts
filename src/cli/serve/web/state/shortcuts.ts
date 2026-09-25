@@ -73,6 +73,16 @@ export function shortcutOf(e: {
    return null
 }
 
+/** does this ⌘P / ⌘O press act on a var whose last seen press is `seenSeq`. The stored jump
+ * outlives the press: a var that mounts later (a tab switch rebuilds the form) must not replay it */
+export function isNewJump(
+   jump: { kind: 'prompt' | 'loras'; seq: number } | null,
+   kind: 'prompt' | 'loras',
+   seenSeq: number,
+): boolean {
+   return jump != null && jump.kind === kind && jump.seq > seenSeq
+}
+
 /** which var each jump lands on: the FIRST var of that kind in the order shown, skipping one
  * that is disabled (it takes no focus) */
 export function jumpTargets(vars: readonly { name: string; kind: string; inactive: boolean }[]): {

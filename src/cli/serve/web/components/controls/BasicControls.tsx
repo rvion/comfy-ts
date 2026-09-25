@@ -57,7 +57,8 @@ export const NumberControl = observer(function NumberControl(p: { v: VarSt }) {
          {min != null && max != null ? (
             <input
                type="range"
-               style={{ flex: 1, minWidth: 120 }}
+               className="num-range"
+               style={{ flex: 1, minWidth: 120, backgroundImage: rangeFill(num, min, max) }}
                value={num}
                min={min}
                max={max}
@@ -69,6 +70,12 @@ export const NumberControl = observer(function NumberControl(p: { v: VarSt }) {
       </div>
    )
 })
+
+// the accent up to the value, drawn on the input: the track itself is transparent
+function rangeFill(num: number, min: number, max: number): string {
+   const pct = max > min ? ((Math.min(max, Math.max(min, num)) - min) / (max - min)) * 100 : 0
+   return `linear-gradient(90deg, var(--accent) ${pct}%, var(--border) ${pct}%)`
+}
 
 export const ToggleControl = observer(function ToggleControl(p: { v: VarSt }) {
    return (
