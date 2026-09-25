@@ -361,23 +361,21 @@ export const MenuCards = observer(function MenuCards(p: { st: WebSt }) {
          )}
          {/* where the results sit: page layout, so it is here rather than in the preview head */}
          <Section title="preview">
-            <div className="menu-row">
-               <span className="btn-group">
-                  {LAYOUTS.map((l) => (
-                     <button
-                        key={l.id}
-                        type="button"
-                        className={p.st.layout === l.id ? 'sel' : ''}
-                        data-tip={l.title}
-                        onClick={() => p.st.setLayout(l.id)}
-                     >
-                        <Icon name={l.icon} />
-                     </button>
-                  ))}
-               </span>
-            </div>
-            <div className="menu-row menu-caption">
-               {LAYOUTS.find((l) => l.id === p.st.layout)?.title ?? p.st.layout}
+            {/* one tile per placement, the word under the icon: an icon alone did not say where the
+                results go. The long explanation stays in the tooltip */}
+            <div className="layout-tiles">
+               {LAYOUTS.map((l) => (
+                  <button
+                     key={l.id}
+                     type="button"
+                     className={p.st.layout === l.id ? 'layout-tile sel' : 'layout-tile'}
+                     data-tip={l.title}
+                     onClick={() => p.st.setLayout(l.id)}
+                  >
+                     <Icon name={l.icon} size={1.8} />
+                     <span>{l.label}</span>
+                  </button>
+               ))}
             </div>
          </Section>
       </div>

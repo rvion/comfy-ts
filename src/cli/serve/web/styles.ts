@@ -100,8 +100,15 @@ button.link.load-errors { color: var(--red); font-size: 11px; }
 .menu-action { color: var(--dim); font-size: 13px; }
 .menu-action:hover { color: var(--text); }
 .menu-action .kbd-hint { margin-left: auto; }
-/* the current value of a button group, in words, under it */
-.menu-caption { min-height: 0; padding-top: 4px; font-size: 12px; color: var(--dim); }
+/* the preview placements: equal tiles, icon over its word, wrapping when the menu is narrow */
+.layout-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(42px, 1fr)); gap: 4px; padding: 2px 4px; }
+.layout-tile {
+   display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 7px 0 5px; min-width: 0;
+   border: 1px solid var(--border); border-radius: 7px; background: none; color: var(--dim); font-size: 11px; cursor: pointer;
+}
+.layout-tile .icon + * { margin-left: 0; }
+.layout-tile:hover { color: var(--text); background: var(--panel-2); }
+.layout-tile.sel { color: var(--accent); border-color: var(--accent); background: var(--accent-dim); font-weight: 600; }
 .menu-sections { display: flex; flex-direction: column; }
 .menu-section { padding: 10px 10px 12px; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 2px; }
 .menu-title {

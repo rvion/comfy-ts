@@ -61,13 +61,20 @@ export const DEFAULT_LAYOUT: ResultsLayout = 'side'
 export const LAYOUTS: {
    id: ResultsLayout
    icon: 'panel-off' | 'panel-bottom' | 'panel-left' | 'panel-side' | 'panel-corner'
+   /** the word under the icon, where the results go */
+   label: string
    title: string
 }[] = [
-   { id: 'off', icon: 'panel-off', title: 'no preview: the form only' },
-   { id: 'bottom', icon: 'panel-bottom', title: 'results below the form' },
-   { id: 'left', icon: 'panel-left', title: 'results left of the form' },
-   { id: 'side', icon: 'panel-side', title: 'results right of the form' },
-   { id: 'pinned', icon: 'panel-corner', title: 'newest image in the bottom right corner, form scrolls under it' },
+   { id: 'off', icon: 'panel-off', label: 'none', title: 'no preview: the form only' },
+   { id: 'bottom', icon: 'panel-bottom', label: 'below', title: 'results below the form' },
+   { id: 'left', icon: 'panel-left', label: 'left', title: 'results left of the form' },
+   { id: 'side', icon: 'panel-side', label: 'right', title: 'results right of the form' },
+   {
+      id: 'pinned',
+      icon: 'panel-corner',
+      label: 'corner',
+      title: 'newest image in the bottom right corner, form scrolls under it',
+   },
 ]
 
 function isLayout(raw: unknown): raw is ResultsLayout {
