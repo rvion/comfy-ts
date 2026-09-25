@@ -280,6 +280,35 @@ describe('seed continuation with the panel writing back', () => {
       expect(used).toEqual([100, 101, 102, 103, 104])
    })
 
+   it('+ keeps stepping when the write-back lands one run late (queued runs)', async () => {
+      // why we think it is actually a bug, and not just meaning spec should change: '+' promises one more seed per run, and a queue of runs under '+' produced A, B, A, B images because the lagging autosave of an older served seed was read as a human edit
+      const host = comfy.host({ id: `serve-test-host`, host: '127.0.0.1', port: 65500 })
+      const dw = host.defineWorkflow({
+         id: 'wf-seed-lagging',
+         vars: { seed: v.seed(100, { mode: '+' }) },
+         build: () => {},
+      })
+      const app = new ServeApp([{ key: 'wf-seed-lagging', file: '/fake/l.cflow.ts', dw }], {
+         outputRoot: join(root, 'out'),
+         starter: () => Promise.resolve(fakeExecution()),
+      })
+      const used: number[] = []
+      for (let i = 0; i < 6; i++) {
+         // the panel posts the next queued run at once; the autosave of the PREVIOUS run's seed
+         // lands while this one executes
+         const prevSeed = used[used.length - 2]
+         if (prevSeed != null)
+            await app.handle({
+               method: 'PUT',
+               url: '/drafts/wf-seed-lagging/default',
+               body: JSON.stringify({ seed: { mode: '+', value: prevSeed } }),
+            })
+         const run = await app.handle({ method: 'POST', url: '/generate/wf-seed-lagging/default', body: '{}' })
+         used.push((JSON.parse(String(run.body)) as { seeds: { seed: number } }).seeds.seed)
+      }
+      expect(used).toEqual([100, 101, 102, 103, 104, 105])
+   })
+
    it('a HUMAN typing a seed still restarts the chain there', async () => {
       const host = comfy.host({ id: `serve-test-host`, host: '127.0.0.1', port: 65500 })
       const dw = host.defineWorkflow({

@@ -327,10 +327,10 @@ const WEB_SHELL = `<!doctype html>
 export class ServeApp {
    private starter: ServeStarter
    /** last SERVED seed per `module/draft/var` — '+'/'-' modes continue from it.
-    * draftBase remembers which DRAFT value the continuation grew from: when the
-    * draft's seed changes (the web form autosaves a typed value), the typed
-    * value wins and the continuation restarts there */
-   private seedState = new Map<string, { last: number; draftBase: number }>()
+    * draftBase remembers which DRAFT value the continuation grew from, served every seed
+    * the chain handed out: a draft holding one of them is the panel's write-back (it lags a
+    * queued run), anything else is a typed value, which wins and restarts the chain there */
+   private seedState = new Map<string, { last: number; draftBase: number; served: number[] }>()
    /** per-module promise chain: vars are shared mutable state, apply→send is exclusive */
    private chains = new Map<string, Promise<unknown>>()
    /** saving + host overrides are live settings (the web ui flips them). LAZY: a ServeApp can
@@ -1651,17 +1651,19 @@ export class ServeApp {
          const seedVar = varDef as SeedVar
          const stateKey = `${mod.key}/${draft}/${k}`
          const draftValue = draftSeedValues.get(k) ?? seedVar.value
-         if (!(k in payload)) {
-            if (seedVar.mode === '?') seedVar.randomize()
-            else if (seedVar.mode === '+' || seedVar.mode === '-') {
-               const prev = this.seedState.get(stateKey)
-               // the draft holding the value we last SERVED is our own write-back, not the
-               // human edit draftBase watches for
-               const ours = prev != null && (prev.draftBase === draftValue || prev.last === draftValue)
-               if (prev != null && ours) seedVar.set(prev.last + (seedVar.mode === '+' ? 1 : -1))
-            }
-         }
-         this.seedState.set(stateKey, { last: seedVar.value, draftBase: draftValue })
+         const prev = this.seedState.get(stateKey)
+         const continues =
+            !(k in payload) &&
+            (seedVar.mode === '+' || seedVar.mode === '-') &&
+            prev != null &&
+            (prev.draftBase === draftValue || prev.served.includes(draftValue))
+         if (!(k in payload) && seedVar.mode === '?') seedVar.randomize()
+         if (continues) {
+            seedVar.set(prev.last + (seedVar.mode === '+' ? 1 : -1))
+            // bounded: a write-back never lags by more than the queue
+            const served = [...prev.served, seedVar.value].slice(-256)
+            this.seedState.set(stateKey, { last: seedVar.value, draftBase: prev.draftBase, served })
+         } else this.seedState.set(stateKey, { last: seedVar.value, draftBase: draftValue, served: [seedVar.value] })
          seeds[k] = seedVar.value
       }
 
