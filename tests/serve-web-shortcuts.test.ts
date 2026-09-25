@@ -1,6 +1,13 @@
 // ⌘P focuses the first prompt, ⌘O opens the first loras picker, ⌘B folds the menu, ⌘U toggles the blur, ⌘K or ⌘J opens the search
 import { describe, expect, it } from 'bun:test'
-import { enhancerShortcutOf, isOmniboxKey, jumpTargets, shortcutOf } from 'src/cli/serve/web/state/shortcuts.ts'
+import { MOD_KEY } from 'src/cli/serve/web/components/modKey.ts'
+import {
+   enhancerShortcutOf,
+   isOmniboxKey,
+   jumpTargets,
+   shortcutLabel,
+   shortcutOf,
+} from 'src/cli/serve/web/state/shortcuts.ts'
 
 const key = (k: string, mods: Partial<{ metaKey: boolean; ctrlKey: boolean; altKey: boolean; shiftKey: boolean }>) => ({
    key: k,
@@ -18,10 +25,12 @@ describe('panel shortcuts', () => {
       expect(shortcutOf(key('b', { metaKey: true }))).toBe('toggle-menu')
    })
 
-   it('⌘R renames the open draft', () => {
-      expect(shortcutOf(key('r', { metaKey: true }))).toBe('rename-draft')
-      expect(shortcutOf(key('R', { ctrlKey: true }))).toBe('rename-draft')
-      expect(shortcutOf(key('r', { metaKey: true, shiftKey: true }))).toBe(null)
+   it('F2 renames the open draft, and ⌘R is left to the browser: it reloads', () => {
+      expect(shortcutOf(key('F2'))).toBe('rename-draft')
+      expect(shortcutOf(key('F2', { metaKey: true }))).toBe(null)
+      expect(shortcutOf(key('r', { metaKey: true }))).toBe(null)
+      expect(shortcutLabel('rename-draft')).toBe('F2')
+      expect(shortcutLabel('duplicate-draft')).toBe(`${MOD_KEY}D`)
    })
 
    it('⌘D duplicates the open draft, shifted it is nothing', () => {

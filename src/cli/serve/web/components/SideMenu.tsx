@@ -4,7 +4,7 @@ import { observer, useLocalObservable } from 'mobx-react-lite'
 import type { ReactNode } from 'react'
 import { Icon, type IconName } from 'src/cli/serve/web/components/Icon.tsx'
 import { MOD_KEY } from 'src/cli/serve/web/components/modKey.ts'
-import { SHORTCUT_KEYS } from 'src/cli/serve/web/state/shortcuts.ts'
+import { SHORTCUT_KEYS, shortcutLabel } from 'src/cli/serve/web/state/shortcuts.ts'
 import type { PathLabel } from 'src/cli/serve/web/api.ts'
 import type { FormSt } from 'src/cli/serve/web/state/FormSt.ts'
 import { LAYOUTS, type WebSt } from 'src/cli/serve/web/state/WebSt.ts'
@@ -24,7 +24,7 @@ function Section(p: { title: string; actions?: ReactNode; children: ReactNode })
 
 /** the draft section: the picker with delete, then rename, duplicate and new as full rows. New
  * and duplicate are auto-named and open at once; rename asks INLINE in the picker's place
- * (window.prompt is silently suppressed by browsers after a few dialogs), from the row or ⌘R */
+ * (window.prompt is silently suppressed by browsers after a few dialogs), from the row or F2 */
 const DraftSection = observer(function DraftSection(p: { st: WebSt; form: FormSt }) {
    const drafts = p.st.moduleByKey(p.form.moduleKey)?.drafts ?? [p.form.draft]
    const renaming = p.st.renamingDraft
@@ -115,10 +115,7 @@ const DraftSection = observer(function DraftSection(p: { st: WebSt; form: FormSt
          >
             <Icon name="pen" />
             <span>rename</span>
-            <span className="kbd-hint">
-               {MOD_KEY}
-               {SHORTCUT_KEYS['rename-draft']}
-            </span>
+            <span className="kbd-hint">{shortcutLabel('rename-draft')}</span>
          </button>
          <button
             type="button"

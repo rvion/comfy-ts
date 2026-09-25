@@ -941,10 +941,10 @@ export class WebSt {
    }
 
    /** the name being typed for the open draft, null when no rename is in progress. Here, not in
-    * the menu, because ⌘R starts it from any focus */
+    * the menu, because F2 starts it from any focus */
    renamingDraft: string | null = null
 
-   /** ⌘R and the rename row. The phone drawer opens so the input is on screen; a folded desktop
+   /** F2 and the rename row. The phone drawer opens so the input is on screen; a folded desktop
     * menu unfolds (App reacts to renamingDraft) */
    startRename(): void {
       if (this.form == null) return

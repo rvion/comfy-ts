@@ -1,6 +1,8 @@
+import { MOD_KEY } from 'src/cli/serve/web/components/modKey.ts'
+
 /** the panel's jump keys, with ⌘ (ctrl elsewhere) and no other modifier except the ⇧ an entry
- * names. Each one works from ANY focus, a prompt editor included: it is a jump, not an edit.
- * Browser defaults they take over (print, open file) are useless on this page */
+ * names, or a bare function key. Each one works from ANY focus, a prompt editor included: it is
+ * a jump, not an edit. Browser defaults they take over (print, open file) are useless here */
 export type Shortcut =
    | 'focus-prompt'
    | 'open-loras'
@@ -10,19 +12,29 @@ export type Shortcut =
    | 'toggle-menu'
    | 'toggle-blur'
 
-/** the letter as shown after ⌘; a leading ⇧ means shift is part of the chord */
+/** the letter as shown after ⌘; a leading ⇧ means shift is part of the chord. A function key
+ * (F2) is pressed BARE, with no modifier: it is the rename key everywhere, and a free ⌘ letter
+ * that is not already a browser key is hard to find */
 export const SHORTCUT_KEYS: Record<Shortcut, string> = {
    'focus-prompt': 'P',
    'open-loras': 'O',
    // the same letter enhances once the enhancer is open (ENHANCER_KEYS): ⌘E, ⌘E
    'open-enhancer': 'E',
-   // ⌘R: the browser's reload key; the page reloads from its own url and the draft is autosaved
-   'rename-draft': 'R',
+   // F2, as in every editor and the TUI; ⌘R stays the browser's reload
+   'rename-draft': 'F2',
    // ⌘D: the browser's bookmark key, useless here
    'duplicate-draft': 'D',
    // ⌘B is the sidebar key of every editor
    'toggle-menu': 'B',
    'toggle-blur': 'U',
+}
+
+const isFunctionKey = (k: string): boolean => /^F\d{1,2}$/.test(k)
+
+/** the key cap a hint shows: `⌘D`, or a bare `F2` */
+export function shortcutLabel(s: Shortcut): string {
+   const k = SHORTCUT_KEYS[s]
+   return isFunctionKey(k) ? k : `${MOD_KEY}${k}`
 }
 
 /** ⌘K or ⌘J (ctrl elsewhere) opens the search over every workflow and draft */
@@ -48,9 +60,13 @@ export function shortcutOf(e: {
    altKey: boolean
    shiftKey: boolean
 }): Shortcut | null {
+   const bare = !(e.metaKey || e.ctrlKey || e.altKey || e.shiftKey)
+   for (const [s, k] of Object.entries(SHORTCUT_KEYS) as [Shortcut, string][])
+      if (isFunctionKey(k) && bare && e.key === k) return s
    if (!(e.metaKey || e.ctrlKey) || e.altKey) return null
    const key = e.key.toUpperCase()
    for (const [s, k] of Object.entries(SHORTCUT_KEYS) as [Shortcut, string][]) {
+      if (isFunctionKey(k)) continue
       const shifted = k.startsWith('⇧')
       if (shifted === e.shiftKey && k.slice(shifted ? 1 : 0) === key) return s
    }

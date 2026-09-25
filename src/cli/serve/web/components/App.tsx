@@ -276,7 +276,7 @@ const MenuLayout = observer(function MenuLayout(p: { st: WebSt; main: ReactNode 
    const saved = useDefaultLayout({ id: 'comfy-ts-menu', storage: splitStorage })
    const menuRef = usePanelRef()
    const [collapsed, setCollapsed] = useState(false)
-   // a rename (⌘R) types into the menu: a folded menu opens so the input is on screen
+   // a rename (F2) types into the menu: a folded menu opens so the input is on screen
    useEffect(
       () =>
          reaction(
