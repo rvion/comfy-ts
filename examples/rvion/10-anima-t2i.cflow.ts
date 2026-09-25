@@ -161,7 +161,7 @@ export const animaT2i = host.defineWorkflow({
                'only aesthetic and base read it: the distilled models read turbo cfg. The card suggests 4 to 5',
             activeWhen: { model: ['aesthetic', 'base'] },
          }),
-         turboCfg: v.float(1, { min: 1, max: 4, label: 'turbo cfg' }).ui({
+         turboCfg: v.int(1, { min: 1, max: 4, label: 'turbo cfg' }).ui({
             group: 'sampling',
             description:
                'turbo and base+turbo only. 1 is what they were distilled for, and at 1 the negative prompt does nothing. Above 1 the negative takes effect, and each step costs about twice as long',

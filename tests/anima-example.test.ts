@@ -8,12 +8,12 @@ describe('anima cfg', () => {
    // act on turbo; the same seed with and without a negative rendered pixel-identical at cfg 1 and
    // different at cfg 2
    it('the distilled models read turbo cfg, so it can go above 1', () => {
-      expect(animaCfg({ model: 'turbo', cfg: 4, turboCfg: 1.8 })).toBe(1.8)
+      expect(animaCfg({ model: 'turbo', cfg: 4, turboCfg: 2 })).toBe(2)
       expect(animaCfg({ model: 'base+turbo', cfg: 4, turboCfg: 1 })).toBe(1)
    })
 
    it('control: aesthetic and base keep reading cfg', () => {
-      expect(animaCfg({ model: 'base', cfg: 4.5, turboCfg: 1.8 })).toBe(4.5)
+      expect(animaCfg({ model: 'base', cfg: 4.5, turboCfg: 2 })).toBe(4.5)
       expect(animaCfg({ model: 'aesthetic', cfg: 4, turboCfg: 1 })).toBe(4)
    })
 })
