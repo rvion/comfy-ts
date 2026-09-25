@@ -10,6 +10,7 @@ import { LATENT_MODES, type LatentMode } from 'src/cli/serve/web/state/latentMod
 import { Omnibox, useOmniboxShortcut } from 'src/cli/serve/web/components/Omnibox.tsx'
 import { TooltipLayer } from 'src/cli/serve/web/components/TooltipLayer.tsx'
 import { MemoryBudgetButton } from 'src/cli/serve/web/components/MemoryBudget.tsx'
+import { RunError } from 'src/cli/serve/web/components/RunError.tsx'
 import { MOD_KEY } from 'src/cli/serve/web/components/modKey.ts'
 import { SHORTCUT_KEYS, shortcutOf } from 'src/cli/serve/web/state/shortcuts.ts'
 import { reaction } from 'mobx'
@@ -454,13 +455,10 @@ export const App = observer(function App(p: { st: WebSt }) {
          {p.st.generateInResults ? (
             <div className="results-run">
                <GenerateButton st={p.st} />
-               {/* one line, always reserved: an error arriving never pushes the gallery down */}
-               <span className="run-error" data-tip={p.st.run.error ?? undefined}>
-                  {p.st.run.error == null ? '' : `🔴 ${p.st.run.error}`}
-               </span>
             </div>
          ) : null}
          <LivePreviews st={p.st} />
+         <RunError st={p.st} />
          <Gallery st={p.st} compact={layout === 'pinned'} />
       </div>
    )

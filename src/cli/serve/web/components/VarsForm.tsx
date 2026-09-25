@@ -3,6 +3,7 @@
 import { observer } from 'mobx-react-lite'
 import { useEffect, useRef, type ReactNode } from 'react'
 import { MOD_KEY } from 'src/cli/serve/web/components/modKey.ts'
+import { RunError } from 'src/cli/serve/web/components/RunError.tsx'
 import { runChipText } from 'src/cli/serve/web/state/stableSlots.ts'
 import { jumpTargets, SHORTCUT_KEYS, shortcutOf } from 'src/cli/serve/web/state/shortcuts.ts'
 import { isPromptLanes } from 'src/vars/lanes.ts'
@@ -400,17 +401,14 @@ export const VarsForm = observer(function VarsForm(p: { st: WebSt }) {
             {/* the OUTPUT is a knob like the others: a row, not a lone button in the header */}
             <SaveRow st={p.st} module={form.moduleKey} />
          </div>
-         {/* side and pinned put generate INSIDE the results panel, with its error slot; the
-             form keeps both otherwise. The error is one reserved line either way, so a failed
-             run never adds a bar or pushes anything down */}
+         {/* side and pinned put generate INSIDE the results panel; the form keeps it otherwise.
+             The error shows under the prompt preview, in the results panel, unless that is off */}
          {p.st.generateInResults ? null : (
             <div className="runbar">
                <GenerateButton st={p.st} />
-               <span className="run-error" data-tip={p.st.run.error ?? undefined}>
-                  {p.st.run.error == null ? '' : `🔴 ${p.st.run.error}`}
-               </span>
             </div>
          )}
+         {p.st.layout === 'off' ? <RunError st={p.st} /> : null}
       </div>
    )
 })

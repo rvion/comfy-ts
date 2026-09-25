@@ -439,6 +439,12 @@ button.accent:hover { background: var(--accent-dim); color: #fff; }
 button.run-end { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; font-size: 13px; }
 button.run-end:not(:disabled):hover { color: #fff; background: var(--red); border-color: var(--red); }
 button.run-end:disabled { opacity: 0.45; cursor: default; }
+.run-error-block {
+   display: flex; align-items: flex-start; gap: 8px; margin: 8px 0; padding: 8px 10px;
+   border: 1px solid var(--red); border-radius: 8px; color: var(--red); font-size: 12px;
+}
+.run-error-block > .icon { flex-shrink: 0; margin-top: 2px; }
+.run-error-text { flex: 1; min-width: 0; margin: 0; font: inherit; white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; }
 .run-error { flex: 1; min-width: 0; height: 1.4em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--red); font-size: 12px; }
 input[type='range'].setting-range:disabled { opacity: 0.3; }
 .live-preview-error { margin-left: 4px; }

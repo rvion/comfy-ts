@@ -86,6 +86,10 @@ export class RunSt {
       this.queue = this.queue.filter((e) => e.id !== id || e.sent)
    }
 
+   dismissError(): void {
+      this.error = null
+   }
+
    clearQueue(): void {
       this.queue = this.queue.filter((e) => e.sent)
    }
