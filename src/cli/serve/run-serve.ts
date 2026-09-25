@@ -10,6 +10,7 @@ import { findDefinedWorkflow } from 'src/cli/tui/findDefinedWorkflow.ts'
 import { draftKeyForFile } from 'src/cli/tui/state/DraftsSt.ts'
 import { describeVar, renderDescriptorLine } from 'src/cli/serve/describeVar.ts'
 import { ServeApp, type ServeModule } from 'src/cli/serve/ServeApp.ts'
+import { withByteRange } from 'src/cli/serve/byteRange.ts'
 import { renderStartupLines } from 'src/cli/serve/startupPrint.ts'
 import { loadOrBuildWebJs } from 'src/cli/serve/webBundle.ts'
 import { colorsAvailable } from 'src/utils/ansi.ts'
@@ -82,7 +83,9 @@ export function makeRequestListener(app: ServeApp): (req: IncomingMessage, res: 
             accept: req.headers.accept,
             body: Buffer.concat(chunks).toString('utf8'),
          })
-            .then((reply) => {
+            .then((whole) => {
+               const range = req.headers.range
+               const reply = withByteRange(whole, { method: req.method ?? 'GET', range })
                res.writeHead(reply.status, { 'content-type': reply.contentType, ...reply.headers, ...cors })
                res.end(reply.body)
             })
