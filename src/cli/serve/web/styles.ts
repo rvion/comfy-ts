@@ -97,14 +97,18 @@ button.link.load-errors { color: var(--red); font-size: 11px; }
 .tabs-body { flex: 1; min-height: 0; display: flex; }
 .tabs-body > .main { height: 100%; }
 .draft-tabs {
-   display: flex; gap: 2px; padding: 4px 8px 0; overflow-x: auto; flex-shrink: 0;
+   display: flex; gap: 0; padding: 4px 8px 0; overflow-x: auto; flex-shrink: 0;
    background: var(--panel); border-bottom: 1px solid var(--border);
 }
 .draft-tab {
-   display: inline-flex; align-items: center; gap: 4px; max-width: 220px; padding: 4px 6px 4px 12px;
+   display: inline-flex; align-items: center; gap: 3px; max-width: 220px; padding: 3px 4px 3px 9px;
    font-size: 13px; color: var(--dim); cursor: pointer; user-select: none; white-space: nowrap;
-   border: 1px solid transparent; border-bottom: 0; border-radius: 6px 6px 0 0; margin-bottom: -1px;
+   border: 1px solid var(--border); border-bottom: 0; border-radius: 6px 6px 0 0; margin-bottom: -1px;
+   position: relative;
 }
+/* neighbours share one border line, the open tab draws its own on top */
+.draft-tab + .draft-tab { margin-left: -1px; }
+.draft-tab.on { z-index: 1; }
 .draft-tab:hover { color: var(--text); background: var(--panel-2); }
 .draft-tab.on { color: var(--text); background: var(--bg); border-color: var(--border); }
 .draft-tab-name { overflow: hidden; text-overflow: ellipsis; }
