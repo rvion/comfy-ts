@@ -17,6 +17,10 @@ export type WsLike = {
    onerror: ((event: unknown) => void) | null
    send(data: Message): void
    close(): void
+   /** the `ws` package only (a browser answers pings by itself and exposes none of these) */
+   ping?(): void
+   on?(event: 'pong', cb: () => void): void
+   terminate?(): void
 }
 
 /** what both transports deliver with binaryType 'arraybuffer': string or ArrayBuffer in `data` */
@@ -25,7 +29,7 @@ export type WsCloseEvent = { code: number; reason: string }
 
 type WsCtor = new (url: string, opts?: { headers?: Record<string, string> }) => WsLike
 
-type WsTransport = { ctor: WsCtor; supportsHeaders: boolean }
+export type WsTransport = { ctor: WsCtor; supportsHeaders: boolean }
 
 let transportPromise: Promise<WsTransport> | null = null
 
@@ -92,6 +96,14 @@ export class ResilientWebSocketClient {
           * waiter sit for the full connect deadline. No callback = retry as before.
           */
          onFirstConnectFailed?: (error: unknown) => void
+         /** tests only: a fake socket instead of the ws package / browser WebSocket */
+         transport?: WsTransport
+         /** a host that vanishes (power loss, hard reboot) never sends a close frame, so the
+          * socket would look open forever: every `heartbeatMs` it is pinged, and one without a
+          * pong since the last ping is dropped, which starts the reconnect. Default 15s */
+         heartbeatMs?: number
+         /** pause before a reconnect. Default 2s */
+         reconnectMs?: number
       },
    ) {
       this.url = options.url()
@@ -102,12 +114,46 @@ export class ResilientWebSocketClient {
    private hasEverOpened: boolean = false
 
    private reconnectTimeout?: Maybe<ReturnType<typeof setTimeout>>
+   private heartbeat: ReturnType<typeof setInterval> | null = null
    private permanentlyClosed: boolean = false
+
+   private stopHeartbeat(): void {
+      if (this.heartbeat != null) clearInterval(this.heartbeat)
+      this.heartbeat = null
+   }
+
+   /** ping on a timer; no pong since the previous ping = the peer is gone, drop the socket */
+   private startHeartbeat(ws: WsLike): void {
+      this.stopHeartbeat()
+      if (typeof ws.ping !== 'function' || typeof ws.on !== 'function') return
+      let awaitingPong = false
+      ws.on('pong', () => {
+         awaitingPong = false
+      })
+      const ms = this.options.heartbeatMs ?? 15_000
+      this.heartbeat = setInterval(() => {
+         if (ws !== this.currentWS) return this.stopHeartbeat()
+         if (awaitingPong) {
+            this.addError(`no pong within ${ms}ms: the host is gone, dropping the socket to reconnect`)
+            this.stopHeartbeat()
+            if (typeof ws.terminate === 'function') ws.terminate()
+            else ws.close()
+            return
+         }
+         awaitingPong = true
+         try {
+            ws.ping?.()
+         } catch (e) {
+            this.addError(`ping failed: ${extractErrorMessage(e)}`)
+         }
+      }, ms)
+   }
 
    /** close and stop reconnecting (lets a script exit cleanly) */
    disconnectPermanently(): void {
       this.permanentlyClosed = true
       if (this.reconnectTimeout) clearTimeout(this.reconnectTimeout)
+      this.stopHeartbeat()
       this.currentWS?.close()
       this.currentWS = null
       this.isOpen = false
@@ -133,6 +179,7 @@ export class ResilientWebSocketClient {
 
       // cleanup a possible re-connection timeout for an other url
       if (this.reconnectTimeout) clearTimeout(this.reconnectTimeout)
+      this.stopHeartbeat()
 
       this.currentWS = null
       if (prevWS) {
@@ -142,7 +189,7 @@ export class ResilientWebSocketClient {
 
       let ws: WsLike
       try {
-         const transport = await resolveWsTransport()
+         const transport = this.options.transport ?? (await resolveWsTransport())
          if (this.permanentlyClosed) return // closed while the transport resolved
          const headers = this.options.headers?.() ?? {}
          ws = transport.supportsHeaders
@@ -171,11 +218,13 @@ export class ResilientWebSocketClient {
          this.isOpen = true
          this.options.onConnectOrReconnect()
          this.flushMessageBuffer()
+         this.startHeartbeat(ws)
       }
 
       ws.onclose = (event: WsCloseEvent): void => {
          if (ws !== this.currentWS) return
          this.isOpen = false
+         this.stopHeartbeat()
          this.options.onClose()
          if (this.permanentlyClosed) return
          this.addError(`WebSocket closed (reason=${JSON.stringify(event.reason)}, code=${event.code})`)
@@ -187,8 +236,9 @@ export class ResilientWebSocketClient {
             )
             return
          }
-         this.addInfo('⏱️ reconnecting in 2 seconds...')
-         this.reconnectTimeout = setTimeout(() => void this.connect(), 2000)
+         const wait = this.options.reconnectMs ?? 2000
+         this.addInfo(`⏱️ reconnecting in ${wait / 1000} seconds...`)
+         this.reconnectTimeout = setTimeout(() => void this.connect(), wait)
       }
 
       ws.onerror = (event: unknown): void => {
