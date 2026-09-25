@@ -7,6 +7,7 @@
 // normalizeSettings/nextPresetName are PURE and headless-tested.
 import { makeAutoObservable, reaction, runInAction, type IReactionDisposer } from 'mobx'
 import { stringMap } from 'src/utils/stringMap.ts'
+import { copyName } from 'src/utils/copyName.ts'
 import {
    deleteLlmConfig,
    deletePromptEnhancer,
@@ -405,7 +406,14 @@ export class EnhancerSt {
 
    duplicateConfig(): void {
       const c = this.configEntry
-      if (c != null) this.addConfig(`${c.name} copy`, c.config)
+      if (c != null)
+         this.addConfig(
+            copyName(
+               c.name,
+               this.configs.map((x) => x.name),
+            ),
+            c.config,
+         )
    }
 
    /** rename = write the new file, delete the old one (the filename IS the identity) */
@@ -568,7 +576,14 @@ export class EnhancerSt {
 
    duplicatePreset(): void {
       const p = this.preset
-      if (p != null) this.addPreset(`${p.name} copy`, p.text)
+      if (p != null)
+         this.addPreset(
+            copyName(
+               p.name,
+               this.presets.map((x) => x.name),
+            ),
+            p.text,
+         )
    }
 
    /** rename = write the new file, delete the old one (the filename IS the identity) */

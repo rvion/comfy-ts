@@ -14,6 +14,7 @@ import {
 } from 'src/cli/serve/web/components/controls/BasicControls.tsx'
 import { PromptControl } from 'src/cli/serve/web/components/controls/PromptControl.tsx'
 import { Icon } from 'src/cli/serve/web/components/Icon.tsx'
+import { copyName } from 'src/utils/copyName.ts'
 import { VarIcon } from 'src/cli/serve/web/components/VarIcon.tsx'
 import { generateButtonLook } from 'src/cli/serve/web/state/generateButton.ts'
 import { groupPlaces, type GroupPlace } from 'src/cli/serve/web/state/varGroups.ts'
@@ -227,9 +228,9 @@ const DraftBox = observer(function DraftBox(p: { st: WebSt; form: FormSt }) {
       /** null = showing the picker; otherwise the pending name and what it will do */
       mode: null as null | 'duplicate' | 'rename' | 'new',
       name: '',
-      start(mode: 'duplicate' | 'rename' | 'new', from: string) {
+      start(mode: 'duplicate' | 'rename' | 'new', from: string, taken: readonly string[] = []) {
          this.mode = mode
-         this.name = mode === 'duplicate' ? `${from} copy` : from
+         this.name = mode === 'duplicate' ? copyName(from, taken) : from
       },
       set(v: string) {
          this.name = v
@@ -337,7 +338,7 @@ const DraftBox = observer(function DraftBox(p: { st: WebSt; form: FormSt }) {
                   type="button"
                   className="accent"
                   data-tip="save these values as a new draft"
-                  onClick={() => (local.mode != null ? confirm() : local.start('duplicate', p.form.draft))}
+                  onClick={() => (local.mode != null ? confirm() : local.start('duplicate', p.form.draft, drafts))}
                >
                   <Icon name="copy-plus" /> copy
                </button>

@@ -12,6 +12,7 @@ import { makeAutoObservable, reaction } from 'mobx'
 import { dirname, join } from 'pathe'
 import { moduleName } from 'src/cli/tui/treeRows.ts'
 import { extractErrorMessage } from 'src/utils/extractErrorMessage.ts'
+import { copyName } from 'src/utils/copyName.ts'
 import type { TuiMode, TuiSt } from 'src/cli/tui/state/TuiSt.ts'
 import { isDraftRecord, preserveDraftMeta } from 'src/cli/draftMeta.ts'
 
@@ -231,7 +232,7 @@ export class DraftsSt {
    promptDuplicate(name: string, file?: string, returnMode: TuiMode = 'nav'): void {
       this.st.editor.beginCustom({
          title: `duplicate draft '${name}'`,
-         initial: `${name}-copy`,
+         initial: copyName(name, listDraftsInDir(this.dirFor(file))),
          onCommit: (raw) => {
             const ok = this.duplicate(name, raw, file)
             if (ok && returnMode === 'overlay-drafts') this.begin()
