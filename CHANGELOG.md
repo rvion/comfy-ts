@@ -1,5 +1,17 @@
 # comfy-ts
 
+## 2.14.0
+
+- **Recent results survive a reload.** The serve process keeps its last 50 run replies in memory, and the panel shows them again after a reload (`GET /results`, `DELETE /results[/<promptId>]`). Unsaved images and audio keep their bytes under one memory budget, `memoryBudgetMb` in the serve settings (default 100). Past it the oldest bytes go first, and the newest output always stays. A server restart forgets everything.
+- **Ephemeral results say so.** An unsaved image or audio result has an "ephemeral" pill in its corner. A memory button beside blur shows the MB used and lets you pick the budget (25 MB to 2 GB).
+- **A failed run explains itself.** The reply's `error` is one readable line (`<node type> (node <id>): <exception>: <message>`), never an object. The panel shows the full text under the prompt preview, where you can select it or dismiss it.
+- **A shortcuts popup.** A `shortcuts` row in the menu (and a keyboard icon on the folded rail) lists every key the panel binds, grouped by where it works.
+- **Arrow keys in the lightbox.** ↑ ← and ↓ → open the previous or next image of the gallery.
+- **The output row moves like a field.** Drag its label to put it anywhere in the form. The position is remembered per workflow.
+- **A softer theme.** The menu, tab bar and preview side have their own tinted surface, split from the form by thin lines. A picked option is tinted, not a solid block. Tabs are larger. Checkboxes are toggles. Number sliders show a filled track. The prompt selection is a pale blue with black text.
+- **The lora strength slider spans 0 to 1.** The number beside it still takes any value.
+- **Fixed: a tab switch no longer opens the lora picker** or moves the cursor into the prompt after an earlier ⌘O or ⌘P.
+
 ## 2.13.0
 
 - **Audio outputs come back to your code.** `execution.audios` lists every file an audio output node wrote (`SaveAudio`, `SaveAudioMP3`, `SaveAudioOpus`, `PreviewAudio`): filename, mime type, bytes, and the local path when `run({ save })` is on. The bytes stay exactly as the host wrote them. A failed download lands in `execution.audioErrors`.
