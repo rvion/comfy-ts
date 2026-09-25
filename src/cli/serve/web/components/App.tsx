@@ -47,6 +47,34 @@ function useSelectAllInFields(): void {
 /** the workflow's live previews (defineWorkflow({ previews })): text computed from the values
  * on screen, refreshed as you edit. Compact by default, the name inline and every line cut to
  * one; a click opens the full text, remembered. A `- ` line is the negative, as in a prompt */
+/** the whole preview text, negative lines included, as the prompt box takes it back. The
+ * clipboard needs a secure context: localhost is one, LAN http is not, and the button says so */
+function PreviewCopy(p: { text: string }): ReactNode {
+   const [copied, setCopied] = useState(false)
+   const canCopy = typeof navigator !== 'undefined' && navigator.clipboard != null
+   useEffect(() => {
+      if (!copied) return
+      const t = setTimeout(() => setCopied(false), 1500)
+      return () => clearTimeout(t)
+   }, [copied])
+   return (
+      <button
+         type="button"
+         className="live-preview-copy"
+         disabled={!canCopy}
+         data-tip={canCopy ? (copied ? 'copied' : 'copy the full prompt') : 'copy needs localhost or https'}
+         onClick={() => {
+            navigator.clipboard.writeText(p.text).then(
+               () => setCopied(true),
+               (e: unknown) => console.error('[comfy-ts] 🔴 copy failed:', e),
+            )
+         }}
+      >
+         <Icon name={copied ? 'check' : 'copy'} />
+      </button>
+   )
+}
+
 const LivePreviews = observer(function LivePreviews(p: { st: WebSt }) {
    const form = p.st.form
    const names = form == null ? [] : (p.st.moduleByKey(form.moduleKey)?.previews ?? [])
@@ -62,45 +90,47 @@ const LivePreviews = observer(function LivePreviews(p: { st: WebSt }) {
             // gallery; the full text is one click away
             const short = collapsedPreview(text)
             return (
-               <button
-                  key={name}
-                  type="button"
-                  className={expanded ? 'live-preview expanded' : 'live-preview'}
-                  data-tip={expanded ? 'click to show one line each' : 'click for the full text'}
-                  onClick={() => p.st.togglePreviewExpanded(key)}
-               >
-                  <span className="live-preview-name">
-                     {name}
-                     {form.previewError == null ? null : (
-                        <span className="live-preview-error" data-tip={`preview failed: ${form.previewError}`}>
-                           🔴
-                        </span>
-                     )}
-                  </span>
-                  <span className="live-preview-lines">
-                     {!expanded ? (
-                        <>
-                           <span className="live-preview-line">{short.positive}</span>
-                           <span className="live-preview-line negative">
-                              {short.negative === '' ? '' : `− ${short.negative}`}
+               <div key={name} className="live-preview-row">
+                  <button
+                     type="button"
+                     className={expanded ? 'live-preview expanded' : 'live-preview'}
+                     data-tip={expanded ? 'click to show one line each' : 'click for the full text'}
+                     onClick={() => p.st.togglePreviewExpanded(key)}
+                  >
+                     <span className="live-preview-name">
+                        {name}
+                        {form.previewError == null ? null : (
+                           <span className="live-preview-error" data-tip={`preview failed: ${form.previewError}`}>
+                              🔴
                            </span>
-                        </>
-                     ) : null}
-                     {expanded &&
-                        lines.map((line, ix) =>
-                           line.startsWith('- ') ? (
-                              // index keys: a preview's lines have no identity of their own
-                              <span key={ix} className="live-preview-line negative">
-                                 − {line.slice(2)}
-                              </span>
-                           ) : (
-                              <span key={ix} className="live-preview-line">
-                                 {line}
-                              </span>
-                           ),
                         )}
-                  </span>
-               </button>
+                     </span>
+                     <span className="live-preview-lines">
+                        {!expanded ? (
+                           <>
+                              <span className="live-preview-line">{short.positive}</span>
+                              <span className="live-preview-line negative">
+                                 {short.negative === '' ? '' : `− ${short.negative}`}
+                              </span>
+                           </>
+                        ) : null}
+                        {expanded &&
+                           lines.map((line, ix) =>
+                              line.startsWith('- ') ? (
+                                 // index keys: a preview's lines have no identity of their own
+                                 <span key={ix} className="live-preview-line negative">
+                                    − {line.slice(2)}
+                                 </span>
+                              ) : (
+                                 <span key={ix} className="live-preview-line">
+                                    {line}
+                                 </span>
+                              ),
+                           )}
+                     </span>
+                  </button>
+                  <PreviewCopy text={text} />
+               </div>
             )
          })}
       </div>

@@ -503,6 +503,12 @@ input[type='range'].setting-range:disabled { opacity: 0.3; }
    font-size: 11px; line-height: 1.4; cursor: pointer;
 }
 .live-preview:hover { border-color: var(--accent-dim); }
+.live-preview-row { display: flex; gap: 4px; align-items: stretch; min-width: 0; }
+button.live-preview-copy {
+   flex-shrink: 0; display: inline-flex; align-items: center; padding: 0 8px; color: var(--dim);
+   background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+}
+button.live-preview-copy:not(:disabled):hover { color: var(--text); border-color: var(--accent-dim); }
 .live-preview-name { flex-shrink: 0; color: var(--dim); text-transform: uppercase; letter-spacing: 0.06em; font-size: 10px; }
 .live-preview-lines { display: flex; flex-direction: column; min-width: 0; flex: 1; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 .live-preview-line { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
