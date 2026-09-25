@@ -12,7 +12,7 @@ import { TooltipLayer } from 'src/cli/serve/web/components/TooltipLayer.tsx'
 import { MOD_KEY } from 'src/cli/serve/web/components/modKey.ts'
 import { collapsedPreview } from 'src/cli/serve/web/state/stableSlots.ts'
 import { GenerateButton, VarsForm } from 'src/cli/serve/web/components/VarsForm.tsx'
-import { LAYOUTS, type WebSt } from 'src/cli/serve/web/state/WebSt.ts'
+import type { WebSt } from 'src/cli/serve/web/state/WebSt.ts'
 
 /** ⌘A / ctrl+A selects the field you are in. The browser does this on its own until something
  * on the page consumes the event, and this panel has several window-level key handlers plus a
@@ -109,23 +109,8 @@ const LATENT_ICON: Record<LatentMode, IconName> = { full: 'image', corner: 'pane
 const ResultsHead = observer(function ResultsHead(p: { st: WebSt }) {
    return (
       <div className="results-head">
-         {/* a caption over each group: three unlabelled icon strips read as one */}
-         <div className="head-group-labeled">
-            <span className="group-caption">preview</span>
-            <span className="btn-group">
-               {LAYOUTS.map((l) => (
-                  <button
-                     key={l.id}
-                     type="button"
-                     className={p.st.layout === l.id ? 'sel' : ''}
-                     data-tip={l.title}
-                     onClick={() => p.st.setLayout(l.id)}
-                  >
-                     <Icon name={l.icon} />
-                  </button>
-               ))}
-            </span>
-         </div>
+         {/* a caption over each group: unlabelled icon strips read as one. Placement is page
+             layout, so it lives in the menu column */}
          <div className="head-group-labeled">
             <span className="group-caption">while running</span>
             <span className="row-inline head-row">

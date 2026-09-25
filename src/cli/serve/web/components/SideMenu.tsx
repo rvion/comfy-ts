@@ -7,7 +7,7 @@ import { MOD_KEY } from 'src/cli/serve/web/components/modKey.ts'
 import { copyName } from 'src/utils/copyName.ts'
 import type { PathLabel } from 'src/cli/serve/web/api.ts'
 import type { FormSt } from 'src/cli/serve/web/state/FormSt.ts'
-import type { WebSt } from 'src/cli/serve/web/state/WebSt.ts'
+import { LAYOUTS, type WebSt } from 'src/cli/serve/web/state/WebSt.ts'
 
 /** `new`, `new 2`, … the first name no draft of this workflow has */
 function freeDraftName(drafts: readonly string[]): string {
@@ -176,6 +176,30 @@ function PathCard(p: { label: string; icon: IconName; value: PathLabel | null })
    )
 }
 
+/** where the results sit: page layout, so it belongs with the other where-am-I cards */
+const PreviewCard = observer(function PreviewCard(p: { st: WebSt }) {
+   return (
+      <div className="head-box">
+         <span className="head-label">preview</span>
+         <div className="head-line">
+            <span className="btn-group">
+               {LAYOUTS.map((l) => (
+                  <button
+                     key={l.id}
+                     type="button"
+                     className={p.st.layout === l.id ? 'sel' : ''}
+                     data-tip={l.title}
+                     onClick={() => p.st.setLayout(l.id)}
+                  >
+                     <Icon name={l.icon} />
+                  </button>
+               ))}
+            </span>
+         </div>
+      </div>
+   )
+})
+
 export const MenuCards = observer(function MenuCards(p: { st: WebSt }) {
    const form = p.st.form
    return (
@@ -324,6 +348,7 @@ export const MenuCards = observer(function MenuCards(p: { st: WebSt }) {
                </div>
             </>
          )}
+         <PreviewCard st={p.st} />
          {/* a host action that FAILS says so right under the host card */}
          {p.st.hostError != null ? <div className="error">🔴 {p.st.hostError}</div> : null}
       </div>
@@ -338,6 +363,10 @@ export const MenuRail = observer(function MenuRail(p: { st: WebSt; onExpand: () 
       { icon: 'workflow', tip: `workflow: ${p.st.form?.moduleKey ?? 'none'}` },
       { icon: 'draft', tip: `draft: ${p.st.form?.draft ?? 'none'}` },
       { icon: 'server', tip: `host: ${p.st.hostFor(p.st.form?.moduleKey ?? '') || 'none'}` },
+      {
+         icon: LAYOUTS.find((l) => l.id === p.st.layout)?.icon ?? 'panel-side',
+         tip: `preview: ${LAYOUTS.find((l) => l.id === p.st.layout)?.title ?? p.st.layout}`,
+      },
    ]
    return (
       <div className="menu-rail">
