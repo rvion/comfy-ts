@@ -78,7 +78,7 @@ describe('save to disk is a setting, not a hardcode', () => {
       const blob = JSON.parse(readFileSync(comfy.settingsPath, 'utf8')) as Record<string, unknown>
       expect(blob.previewRenderer).toBe('native')
       expect(blob.lastDraft).toEqual({ a: 'b' })
-      expect(blob.serve).toEqual({ saveToDisk: true, hostOverride: {}, savePrefix: {} })
+      expect(blob.serve).toEqual({ saveToDisk: true, hostOverride: {}, savePrefix: {}, memoryBudgetMb: 100 })
    })
 
    it('the save FOLDER is per module, validated, and empty means back to the default', async () => {

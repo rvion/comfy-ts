@@ -55,6 +55,7 @@ export type IconName =
    | 'folder-tree'
    | 'server'
    | 'menu'
+   | 'memory'
 
 /** 24x24 viewBox paths, stroked (fill: none) unless the shape reads better solid */
 const PATHS: Record<IconName, ReactNode> = {
@@ -191,6 +192,7 @@ const PATHS: Record<IconName, ReactNode> = {
       </>
    ),
    menu: <path d="M4 7h16M4 12h16M4 17h16" />,
+   memory: <path d="M6 6h12v12H6zM9 9h6v6H9zM9 3v3M15 3v3M9 18v3M15 18v3M3 9h3M3 15h3M18 9h3M18 15h3" />,
 }
 
 /** `size` is a multiplier of the surrounding font size, so icons scale with their button */

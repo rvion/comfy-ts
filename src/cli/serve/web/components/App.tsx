@@ -9,6 +9,7 @@ import { Icon, type IconName } from 'src/cli/serve/web/components/Icon.tsx'
 import { LATENT_MODES, type LatentMode } from 'src/cli/serve/web/state/latentMode.ts'
 import { Omnibox, useOmniboxShortcut } from 'src/cli/serve/web/components/Omnibox.tsx'
 import { TooltipLayer } from 'src/cli/serve/web/components/TooltipLayer.tsx'
+import { MemoryBudgetButton } from 'src/cli/serve/web/components/MemoryBudget.tsx'
 import { MOD_KEY } from 'src/cli/serve/web/components/modKey.ts'
 import { SHORTCUT_KEYS, shortcutOf } from 'src/cli/serve/web/state/shortcuts.ts'
 import { reaction } from 'mobx'
@@ -217,6 +218,7 @@ const ResultsHead = observer(function ResultsHead(p: { st: WebSt }) {
                   {SHORTCUT_KEYS['toggle-blur']}
                </span>
             </button>
+            <MemoryBudgetButton st={p.st} />
          </span>
       </div>
    )

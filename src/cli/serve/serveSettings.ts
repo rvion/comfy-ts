@@ -7,6 +7,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { stringMap } from 'src/utils/stringMap.ts'
 import { validSavePrefix } from 'src/utils/safeName.ts'
 import { dirname } from 'pathe'
+import { DEFAULT_MEMORY_BUDGET_MB } from 'src/cli/serve/resultHistory.ts'
 
 export type ServeSettings = {
    /** false = generations stay in memory, streamed to the client, nothing written to outputs/ */
@@ -17,9 +18,23 @@ export type ServeSettings = {
    /** module key → subfolder under outputs/ its images land in. Empty/absent = the module key,
     * which is what serve always used before it was choosable */
    savePrefix: Record<string, string>
+   /** byte budget of the unsaved outputs the process keeps for a reload, oldest dropped first */
+   memoryBudgetMb: number
 }
 
-const DEFAULT_SERVE_SETTINGS: ServeSettings = { saveToDisk: true, hostOverride: {}, savePrefix: {} }
+const DEFAULT_SERVE_SETTINGS: ServeSettings = {
+   saveToDisk: true,
+   hostOverride: {},
+   savePrefix: {},
+   memoryBudgetMb: DEFAULT_MEMORY_BUDGET_MB,
+}
+
+/** null = not a budget. A hand-written file goes through the same gate as PUT /settings */
+export function validMemoryBudgetMb(raw: unknown): number | null {
+   if (typeof raw !== 'number' || !Number.isFinite(raw)) return null
+   if (raw < 1 || raw > 100_000) return null
+   return Math.round(raw)
+}
 
 /** null when no comfyts is registered yet: a ServeApp can be constructed before the global
  * exists (tests do), and reading a setting must degrade to defaults, never throw */
@@ -69,6 +84,7 @@ export function readServeSettings(): ServeSettings {
       // hand-written file did not go through that route, and this value becomes an output
       // directory. One gate on one side is not a gate
       savePrefix: cleanValues(stringMap(o.savePrefix), validSavePrefix),
+      memoryBudgetMb: validMemoryBudgetMb(o.memoryBudgetMb) ?? DEFAULT_SERVE_SETTINGS.memoryBudgetMb,
    }
 }
 

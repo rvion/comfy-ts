@@ -28,7 +28,13 @@ import { type TagNode, workflowTags } from 'src/cli/serve/workflowTags.ts'
 import { workspaceLabels } from 'src/cli/serve/workspaceLabels.ts'
 import { driftChanged, summarizeDrift } from 'src/host/schemaDrift.ts'
 import { validSavePrefix, validStoreName } from 'src/utils/safeName.ts'
-import { readServeSettings, writeServeSettings, type ServeSettings } from 'src/cli/serve/serveSettings.ts'
+import {
+   readServeSettings,
+   validMemoryBudgetMb,
+   writeServeSettings,
+   type ServeSettings,
+} from 'src/cli/serve/serveSettings.ts'
+import { ResultHistory, type KeptBlob, type RunRecord } from 'src/cli/serve/resultHistory.ts'
 import { readTabs, SERVE_TABS_FILE, type DraftTab } from 'src/cli/serve/web/state/draftTabs.ts'
 import { assembleLogChunks } from 'src/cli/tui/state/LogsSt.ts'
 import { draftsDirForFile, listDraftsForFile } from 'src/cli/tui/state/DraftsSt.ts'
@@ -173,6 +179,7 @@ const INPUT_DOWNLOAD_TIMEOUT_MS = 60_000
 /** the danbooru list is ~3.5 MB; ten times that is still a tag list, beyond is a wrong url */
 const TAG_LIST_CAP = 40_000_000
 const TAG_LIST_TIMEOUT_MS = 120_000
+const MB = 1024 * 1024
 
 /** read a reply STREAMING, aborting the moment it passes the cap. `arrayBuffer()` buffers the
  * whole body first, so a chunked reply with no content-length could exhaust the process before
@@ -291,13 +298,14 @@ const USAGE = [
    'PUT  /prompt-enhancers/<name> with {"text"} — write one · DELETE /prompt-enhancers/<name> — remove it',
    'GET  /llm-configs — the enhancer LLM configs (.comfy-ts/llm-configs/*.json)',
    'PUT  /llm-configs/<name> with {provider, baseUrl, model, effort, thinkingOnly} · DELETE /llm-configs/<name>',
-   'GET  /settings — { saveToDisk } · PUT /settings with {"saveToDisk"} — write outputs to disk, or keep them in memory',
+   'GET  /settings — { saveToDisk, memoryBudgetMb } · PUT /settings with {"saveToDisk"} — write outputs to disk, or keep them in memory; {"memoryBudgetMb"} caps what memory keeps',
    'GET  /hosts — every host this process knows · PUT /hosts/<module> with {"host"} — run that workflow elsewhere',
    'POST /hosts/<hostId>/<interrupt|clear-queue|restart|refresh-loras|refresh-schema> — act on a ComfyUI host',
    'GET  /hosts/<hostId>/ping — is that host answering right now (restart watch)',
    'GET  /hosts/<hostId>/logs — the last lines of that host console',
    'GET  /images/<promptId>/<ix> — an in-memory output (saving off), while the process lives',
    'GET  /audio/<promptId>/<ix> — the same for an in-memory audio output',
+   'GET  /results — the last runs this process kept, for a reload · DELETE /results[/<promptId>] — forget them, freeing their memory',
    'GET  /outputs/<path> — generated files',
 ]
 
@@ -347,9 +355,13 @@ export class ServeApp {
    private set settings(next: ServeSettings) {
       this.settingsCache = next
    }
-   /** in-memory outputs of runs made with saving OFF: the ONLY copy, so the gallery has
-    * something to show. Capped and FIFO, a long session must not grow without bound */
-   private memoryImages = new Map<string, { bytes: Uint8Array; contentType: string }>()
+   /** the last runs, for a reload, and the bytes of their unsaved outputs: the ONLY copy.
+    * LAZY for the same reason as settings: its budget is a setting */
+   private keptCache: ResultHistory | null = null
+   private get kept(): ResultHistory {
+      this.keptCache ??= new ResultHistory(this.settings.memoryBudgetMb * MB)
+      return this.keptCache
+   }
 
    constructor(
       public modules: ServeModule[],
@@ -430,6 +442,8 @@ export class ServeApp {
                return this.replyMemoryImage(`${segs[1]}/${segs[2]}`)
             if (segs[0] === 'audio' && segs.length === 3 && segs[1] != null && segs[2] != null)
                return this.replyMemoryImage(`audio/${segs[1]}/${segs[2]}`)
+            if (segs[0] === 'results' && segs.length === 1)
+               return json(200, { runs: this.kept.list(), memory: this.kept.usage() })
             if (segs[0] === 'outputs') return this.replyOutput(segs.slice(1))
             return json(404, { error: `no route: GET ${path}`, usage: USAGE })
          }
@@ -446,6 +460,11 @@ export class ServeApp {
          if (req.method === 'DELETE' && segs[0] === 'drafts' && segs.length === 3 && segs[1] != null && segs[2] != null)
             return await this.replyDeleteDraft(segs[1], segs[2])
          if (req.method === 'PUT' && segs[0] === 'settings' && segs.length === 1) return this.replySaveSettings(req)
+         if (req.method === 'DELETE' && segs[0] === 'results' && segs.length <= 2) {
+            if (segs[1] == null) this.kept.clear()
+            else this.kept.remove(segs[1])
+            return json(200, { memory: this.kept.usage() })
+         }
          if (req.method === 'PUT' && segs[0] === 'tabs' && segs.length === 1) return this.replySaveTabs(req)
          if (req.method === 'PUT' && segs[0] === 'hosts' && segs.length === 2 && segs[1] != null)
             return this.replySetHost(segs[1], req)
@@ -1110,25 +1129,16 @@ export class ServeApp {
    }
 
    // #region settings + in-memory outputs --------------------------------------
-   /** the last N in-memory outputs stay reachable; older ones are dropped, because with
-    * saving off these buffers are the only copy and nothing else will free them */
-   private readonly MEMORY_IMAGE_CAP = 60
-
-   private rememberMemoryImage(key: string, bytes: Uint8Array, filename: string): void {
+   private memoryBlob(key: string, bytes: Uint8Array, filename: string): KeptBlob {
       const contentType = CONTENT_TYPES[extname(filename).toLowerCase()] ?? sniffImageContentType(bytes)
-      this.memoryImages.set(key, { bytes, contentType })
-      while (this.memoryImages.size > this.MEMORY_IMAGE_CAP) {
-         const oldest = this.memoryImages.keys().next()
-         if (oldest.done === true) break
-         this.memoryImages.delete(oldest.value)
-      }
+      return { key, bytes, contentType }
    }
 
    private replyMemoryImage(key: string): ServeReply {
-      const hit = this.memoryImages.get(key)
+      const hit = this.kept.blob(key)
       if (hit == null)
          return json(404, {
-            error: `no in-memory output '${key}' — it expired (only the last ${this.MEMORY_IMAGE_CAP} are kept) or the server restarted. Turn saving on to keep outputs.`,
+            error: `no in-memory output '${key}' — it was deleted, dropped past the ${this.settings.memoryBudgetMb} MB memory budget, or the server restarted. Turn saving on to keep outputs.`,
          })
       return { status: 200, contentType: hit.contentType, body: hit.bytes }
    }
@@ -1149,9 +1159,9 @@ export class ServeApp {
       }
       if (parsed == null || typeof parsed !== 'object' || Array.isArray(parsed))
          return json(400, {
-            error: 'body must be { "saveToDisk"?: true | false, "savePrefix"?: { "<module>": "path" } }',
+            error: 'body must be { "saveToDisk"?: true | false, "savePrefix"?: { "<module>": "path" }, "memoryBudgetMb"?: number }',
          })
-      const wanted = parsed as { saveToDisk?: unknown; savePrefix?: unknown }
+      const wanted = parsed as { saveToDisk?: unknown; savePrefix?: unknown; memoryBudgetMb?: unknown }
       let next = this.settings
       if (wanted.saveToDisk != null) {
          if (typeof wanted.saveToDisk !== 'boolean') return json(400, { error: '"saveToDisk" must be true or false' })
@@ -1175,8 +1185,14 @@ export class ServeApp {
          }
          next = { ...next, savePrefix: prefixes }
       }
+      if (wanted.memoryBudgetMb != null) {
+         const mb = validMemoryBudgetMb(wanted.memoryBudgetMb)
+         if (mb == null) return json(400, { error: '"memoryBudgetMb" must be a number of MB, 1 to 100000' })
+         next = { ...next, memoryBudgetMb: mb }
+      }
       const saveToDisk = next.saveToDisk
       this.settings = next
+      this.kept.setBudget(next.memoryBudgetMb * MB)
       try {
          writeServeSettings(this.settings)
       } catch (e) {
@@ -1585,22 +1601,57 @@ export class ServeApp {
 
       // saving off → the buffer is the only copy: keep it addressable so the gallery (and
       // curl) still get an image instead of a null url
-      const memoryKeys = new Map<number, string>()
-      for (const [ix, img] of execution.images.entries()) {
-         if (img.absPath != null || img.buffer == null) continue
+      const blobs: KeptBlob[] = []
+      const imageKeys = execution.images.map((img, ix) => {
+         if (img.absPath != null || img.buffer == null) return null
          const key = `${execution.data.id}/${ix}`
-         this.rememberMemoryImage(key, img.buffer, img.filename)
-         memoryKeys.set(ix, key)
-      }
-
+         blobs.push(this.memoryBlob(key, img.buffer, img.filename))
+         return key
+      })
       // same store as the images, own key space: the audio route adds the `audio/` prefix
-      const audioKeys = new Map<number, string>()
-      for (const [ix, a] of audios.entries()) {
-         if (a.absPath != null) continue
-         const key = `${execution.data.id}/${ix}`
-         this.rememberMemoryImage(`audio/${key}`, a.bytes, a.filename)
-         audioKeys.set(ix, key)
+      const audioKeys = audios.map((a, ix) => {
+         if (a.absPath != null) return null
+         const key = `audio/${execution.data.id}/${ix}`
+         blobs.push(this.memoryBlob(key, a.bytes, a.filename))
+         return key
+      })
+      // the KEY is raw (`<promptId>/<ix>`); the url encodes each segment, and handle() decodes
+      // per segment, so the lookup gets the raw key back
+      const memoryUrl = (route: string, key: string): string =>
+         `/${route}/${key
+            .split('/')
+            .slice(route === 'audio' ? 1 : 0)
+            .map((seg) => encodeURIComponent(seg))
+            .join('/')}`
+      const record: RunRecord = {
+         ok: true,
+         module: mod.key,
+         draft,
+         promptId: execution.data.id,
+         durationMs,
+         finishedAt: Date.now(),
+         seeds,
+         savedToDisk: this.settings.saveToDisk,
+         texts: (execution.texts ?? []).map((t) => ({ nodeKey: t.nodeKey, text: t.text })),
+         images: execution.images.map((img, ix) => {
+            const key = imageKeys[ix]
+            return {
+               filename: img.filename,
+               url: img.absPath != null ? this.outputUrl(img.absPath) : key != null ? memoryUrl('images', key) : null,
+               absPath: img.absPath,
+            }
+         }),
+         audios: audios.map((a, ix) => {
+            const key = audioKeys[ix]
+            return {
+               filename: a.filename,
+               mime: a.mime,
+               url: a.absPath != null ? this.outputUrl(a.absPath) : key != null ? memoryUrl('audio', key) : null,
+               absPath: a.absPath,
+            }
+         }),
       }
+      this.kept.add({ record, imageKeys, audioKeys, blobs })
 
       // Accept: image/* → first image's bytes directly (curl -o, <img src>)
       const first = execution.images[0]
@@ -1609,49 +1660,11 @@ export class ServeApp {
             const contentType = CONTENT_TYPES[extname(first.absPath).toLowerCase()] ?? 'application/octet-stream'
             return { status: 200, contentType, body: new Uint8Array(readFileSync(first.absPath)) }
          }
-         const inMemory = this.memoryImages.get(memoryKeys.get(0) ?? '')
+         const inMemory = this.kept.blob(imageKeys[0] ?? '')
          if (inMemory != null) return { status: 200, contentType: inMemory.contentType, body: inMemory.bytes }
       }
 
-      return json(200, {
-         ok: true,
-         module: mod.key,
-         draft,
-         promptId: execution.data.id,
-         durationMs,
-         seeds,
-         savedToDisk: this.settings.saveToDisk,
-         texts: (execution.texts ?? []).map((t) => ({ nodeKey: t.nodeKey, text: t.text })),
-         images: execution.images.map((img, ix) => ({
-            filename: img.filename,
-            url:
-               img.absPath != null
-                  ? this.outputUrl(img.absPath)
-                  : memoryKeys.has(ix)
-                    ? // the KEY is raw (`<promptId>/<ix>`); the url encodes each segment, and
-                      // handle() decodes per segment, so the lookup gets the raw key back
-                      `/images/${(memoryKeys.get(ix) ?? '')
-                         .split('/')
-                         .map((seg) => encodeURIComponent(seg))
-                         .join('/')}`
-                    : null,
-            absPath: img.absPath,
-         })),
-         audios: audios.map((a, ix) => ({
-            filename: a.filename,
-            mime: a.mime,
-            url:
-               a.absPath != null
-                  ? this.outputUrl(a.absPath)
-                  : audioKeys.has(ix)
-                    ? `/audio/${(audioKeys.get(ix) ?? '')
-                         .split('/')
-                         .map((seg) => encodeURIComponent(seg))
-                         .join('/')}`
-                    : null,
-            absPath: a.absPath,
-         })),
-      })
+      return json(200, record)
    }
 
    /** everything that touches the module's SHARED vars, under the module mutex */

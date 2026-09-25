@@ -3,9 +3,22 @@
 // ever reaches the host: queued prompts must be clearable, singly or
 // all). Progress + latent preview are polled ~700ms while a prompt is in flight
 import { makeAutoObservable, observableShallow, runInAction } from 'mobx'
-import { fetchRunStatus, postGenerate, type GenerateOk } from 'src/cli/serve/web/api.ts'
+import {
+   deleteKeptResults,
+   fetchKeptResults,
+   fetchRunStatus,
+   postGenerate,
+   type GenerateOk,
+   type MemoryUsage,
+} from 'src/cli/serve/web/api.ts'
+import { mergeKept } from 'src/cli/serve/web/state/keptResults.ts'
+import { logWebError } from 'src/cli/serve/web/logWeb.ts'
 
 export type RunResult = GenerateOk & { at: string }
+
+function asRunResult(r: GenerateOk): RunResult {
+   return { ...r, at: new Date(r.finishedAt ?? Date.now()).toLocaleTimeString() }
+}
 
 /** one enqueued prompt. `sent` marks the one on the host — that one is past cancelling */
 export type QueueEntry = {
@@ -24,6 +37,8 @@ export class RunSt {
    queue: QueueEntry[] = []
    error: string | null = null
    results: RunResult[] = []
+   /** the serve process's unsaved outputs against its budget. null = not read yet */
+   memory: MemoryUsage | null = null
    progressPercent: number | null = null
    /** what the host is doing right now, in the node's own unit — `TextGenerate 427/1024`.
     * A text graph has no latent preview and no image, so this is all there is to watch */
@@ -75,12 +90,50 @@ export class RunSt {
       this.queue = this.queue.filter((e) => e.sent)
    }
 
+   /** the server forgets it too: a reload must not bring back what was removed */
    remove(promptId: string): void {
       this.results = this.results.filter((r) => r.promptId !== promptId)
+      void this.forget({ promptId })
    }
 
    clear(): void {
       this.results = []
+      void this.forget({})
+   }
+
+   /** what the serve process kept: the last runs survive a page reload */
+   async loadKept(): Promise<void> {
+      try {
+         const kept = await fetchKeptResults()
+         runInAction(() => {
+            this.results = mergeKept(this.results, kept.runs.map(asRunResult))
+            this.memory = kept.memory
+         })
+      } catch (e) {
+         logWebError('could not read the kept results', e)
+      }
+   }
+
+   async refreshMemory(): Promise<void> {
+      try {
+         const kept = await fetchKeptResults()
+         runInAction(() => {
+            this.memory = kept.memory
+         })
+      } catch (e) {
+         logWebError('could not read the memory usage', e)
+      }
+   }
+
+   private async forget(p: { promptId?: string }): Promise<void> {
+      try {
+         const reply = await deleteKeptResults(p)
+         runInAction(() => {
+            this.memory = reply.memory
+         })
+      } catch (e) {
+         logWebError('could not delete the kept result', e)
+      }
    }
 
    /** one prompt at a time: a queued entry stays cancellable until its turn comes */
@@ -105,9 +158,10 @@ export class RunSt {
             try {
                const result = await postGenerate(next)
                runInAction(() => {
-                  // capped: full-size <img>s per run would eat the tab
-                  this.results = [{ ...result, at: new Date().toLocaleTimeString() }, ...this.results].slice(0, 20)
+                  // capped like the server's list: full-size <img>s per run would eat the tab
+                  this.results = mergeKept([asRunResult(result)], this.results)
                })
+               void this.refreshMemory()
                // named, because the panel may be on another draft by the time this resolves
                this.onSeeds?.({ module: next.module, draft: next.draft, seeds: result.seeds })
             } catch (e) {

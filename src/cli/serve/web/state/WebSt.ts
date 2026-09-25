@@ -35,6 +35,7 @@ import { logWebError } from 'src/cli/serve/web/logWeb.ts'
 import { asSeedForm } from 'src/cli/serve/web/state/payload.ts'
 import { readUrlSelection, resolveSelection, writeUrlSelection } from 'src/cli/serve/web/state/urlSelection.ts'
 import { RunSt } from 'src/cli/serve/web/state/RunSt.ts'
+import { DEFAULT_MEMORY_BUDGET_MB } from 'src/cli/serve/resultHistory.ts'
 import { asLoraSort, type LoraSort } from 'src/cli/serve/web/state/loraSort.ts'
 import {
    coerceHostValue,
@@ -227,7 +228,13 @@ export class WebSt {
    omnibox: OmniboxSt
    /** SERVER settings, not browser ones: they decide whether a generation writes files at all
     * and where, so they are shared by every client and read back from GET /settings */
-   settings: ServeSettings = { saveToDisk: true, hostOverride: {}, savePrefix: {}, effectivePrefix: {} }
+   settings: ServeSettings = {
+      saveToDisk: true,
+      hostOverride: {},
+      savePrefix: {},
+      memoryBudgetMb: DEFAULT_MEMORY_BUDGET_MB,
+      effectivePrefix: {},
+   }
    savingError: string | null = null
    /** what you are typing in a prefix field, before the debounced write lands */
    private prefixEdits: Record<string, string> = {}
@@ -521,6 +528,7 @@ export class WebSt {
          })
          void this.loadSettings()
          void this.loadHosts()
+         void this.run.loadKept()
          const stored = readStoredSelection()
          // the URL wins over the stored selection: a link someone sent is an instruction, the
          // stored one is only a memory of this browser's last visit
@@ -1198,7 +1206,16 @@ export class WebSt {
       )
    }
 
-   private async pushSettings(patch: { saveToDisk?: boolean; savePrefix?: Record<string, string> }): Promise<boolean> {
+   /** the server evicts at once on a smaller budget, so the usage is re-read after */
+   async setMemoryBudget(mb: number): Promise<void> {
+      if (await this.pushSettings({ memoryBudgetMb: mb })) await this.run.refreshMemory()
+   }
+
+   private async pushSettings(patch: {
+      saveToDisk?: boolean
+      savePrefix?: Record<string, string>
+      memoryBudgetMb?: number
+   }): Promise<boolean> {
       try {
          const next = await saveSettings(patch)
          runInAction(() => {

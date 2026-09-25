@@ -4,7 +4,8 @@
 // the button hides where the clipboard api is absent
 import { Icon } from 'src/cli/serve/web/components/Icon.tsx'
 import { observer, useLocalObservable } from 'mobx-react-lite'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
+import { isEphemeral } from 'src/cli/serve/web/state/keptResults.ts'
 import { runPreviewSrc } from 'src/cli/serve/web/api.ts'
 import { asSizeForm } from 'src/cli/serve/web/state/payload.ts'
 import { lightboxView, type LightboxTarget } from 'src/cli/serve/web/state/lightbox.ts'
@@ -12,6 +13,19 @@ import { copyImageToClipboard } from 'src/cli/serve/web/clipboard.ts'
 import type { WebSt } from 'src/cli/serve/web/state/WebSt.ts'
 import { MOD_KEY } from 'src/cli/serve/web/components/modKey.ts'
 import { SHORTCUT_KEYS } from 'src/cli/serve/web/state/shortcuts.ts'
+
+/** on an output only the serve process holds: a restart, or the memory budget, loses it */
+function EphemeralPill(p: { out: { url: string | null; absPath: string | null } }): ReactNode {
+   if (!isEphemeral(p.out)) return null
+   return (
+      <span
+         className="ephemeral-pill"
+         data-tip="not saved: kept in the server memory only, lost on a restart or past the memory budget"
+      >
+         <Icon name="warn" /> ephemeral
+      </span>
+   )
+}
 
 /** the unblur shortcut, said ON a blurred image: the place you look when you want it gone */
 const BlurHint = observer(function BlurHint(p: { st: WebSt }) {
@@ -481,8 +495,9 @@ export const Gallery = observer(function Gallery(p: { st: WebSt; compact?: boole
                                     })
                               }}
                            >
-                              <img src={img.url} alt={img.filename} />
+                              <img src={img.url} alt={img.filename} loading="lazy" />
                               <BlurHint st={p.st} />
+                              <EphemeralPill out={img} />
                            </button>
                            {/* the EMBEDDING page's buttons (host protocol): what it does with the
                                image is its business — send it somewhere, keep it as something */}
@@ -520,7 +535,7 @@ export const Gallery = observer(function Gallery(p: { st: WebSt; compact?: boole
                         </div>
                      ) : (
                         <div key={img.filename} className="noimg">
-                           {img.filename} (not saved locally — no preview)
+                           {img.filename} (not saved, and no longer in memory)
                         </div>
                      ),
                   )}
@@ -531,10 +546,11 @@ export const Gallery = observer(function Gallery(p: { st: WebSt; compact?: boole
                            <a className="hint" href={a.url} download={a.filename}>
                               {a.filename}
                            </a>
+                           <EphemeralPill out={a} />
                         </div>
                      ) : (
                         <div key={`${r.promptId}-audio-${ix}`} className="noimg">
-                           {a.filename} (not kept — no preview)
+                           {a.filename} (not saved, and no longer in memory)
                         </div>
                      ),
                   )}

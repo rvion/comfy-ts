@@ -39,6 +39,8 @@ export type GenerateOk = {
    promptId: string
    durationMs: number
    seeds: Record<string, number>
+   /** epoch ms, stamped by the server */
+   finishedAt?: number
    images: GeneratedImage[]
    texts?: GeneratedText[]
    audios?: GeneratedAudio[]
@@ -69,6 +71,20 @@ export function postGenerate(p: {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(p.payload),
    })
+}
+
+/** the unsaved outputs the serve process holds, against its byte budget */
+export type MemoryUsage = { usedBytes: number; budgetBytes: number; outputs: number; runs: number }
+
+/** the last runs the serve process kept: a reload shows them again */
+export function fetchKeptResults(): Promise<{ runs: GenerateOk[]; memory: MemoryUsage }> {
+   return jsonFetch('/results')
+}
+
+/** no promptId = every kept run */
+export function deleteKeptResults(p: { promptId?: string } = {}): Promise<{ memory: MemoryUsage }> {
+   const url = p.promptId == null ? '/results' : `/results/${encodeURIComponent(p.promptId)}`
+   return jsonFetch(url, { method: 'DELETE' })
 }
 
 /** the workflow's previews for these values: nothing runs, nothing is written */
@@ -181,6 +197,7 @@ export type ServeSettings = {
    saveToDisk: boolean
    hostOverride: Record<string, string>
    savePrefix: Record<string, string>
+   memoryBudgetMb: number
    effectivePrefix: Record<string, string>
 }
 
@@ -188,7 +205,11 @@ export function fetchSettings(): Promise<ServeSettings> {
    return jsonFetch('/settings')
 }
 
-export function saveSettings(p: { saveToDisk?: boolean; savePrefix?: Record<string, string> }): Promise<ServeSettings> {
+export function saveSettings(p: {
+   saveToDisk?: boolean
+   savePrefix?: Record<string, string>
+   memoryBudgetMb?: number
+}): Promise<ServeSettings> {
    return jsonFetch('/settings', {
       method: 'PUT',
       headers: { 'content-type': 'application/json' },

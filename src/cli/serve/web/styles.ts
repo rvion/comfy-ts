@@ -857,6 +857,17 @@ button.enh-big { font-size: 14px; padding: 8px 18px; }
    font-size: 13px; padding: 2px 8px; color: #fff; opacity: 0.85; background: rgba(0, 0, 0, 0.35);
 }
 .img-button:hover .blur-hint { display: none; }
+/* an unsaved output: only the serve process holds it, so it says so where the eye lands */
+.gallery .img-button, .audio-cell { position: relative; }
+.ephemeral-pill {
+   position: absolute; left: 6px; bottom: 6px; pointer-events: auto; display: inline-flex; align-items: center; gap: 4px;
+   font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 999px;
+   color: #1a1400; background: var(--amber); opacity: 0.92;
+}
+.audio-cell .ephemeral-pill { position: static; align-self: flex-start; }
+.memory-menu { max-width: 300px; }
+.memory-note { margin: 0; padding: 2px 4px; font-size: 12px; line-height: 1.4; }
+.memory-note.error { color: var(--red); }
 /* bigger control buttons: the preview head and the menu column, one size with the form rows */
 .results-head .btn-group > button, .menu-section .btn-group > button, .menu-panel button.head-icon, .drawer button.head-icon {
    height: 28px; min-width: 28px; font-size: 13px;
