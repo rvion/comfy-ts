@@ -24,6 +24,7 @@ import { ENHANCE_KEY, isDraftMetaKey } from 'src/cli/draftMeta.ts'
 import { managerOnlyLoraOptions } from 'src/cli/serve/managerOnlyLoras.ts'
 import { resolveTagSource, TagSources } from 'src/cli/serve/tagSource.ts'
 import { FAVICON_DATA_URI } from 'src/cli/serve/favicon.ts'
+import { type TagNode, workflowTags } from 'src/cli/serve/workflowTags.ts'
 import { driftChanged, summarizeDrift } from 'src/host/schemaDrift.ts'
 import { validSavePrefix, validStoreName } from 'src/utils/safeName.ts'
 import { readServeSettings, writeServeSettings, type ServeSettings } from 'src/cli/serve/serveSettings.ts'
@@ -393,7 +394,7 @@ export class ServeApp {
                      headers: NO_STORE,
                   }
             }
-            if (segs.length === 0 || (segs[0] === 'drafts' && segs.length === 1)) return this.replyIndex()
+            if (segs.length === 0 || (segs[0] === 'drafts' && segs.length === 1)) return await this.replyIndex()
             if (segs[0] === 'web' && segs[1] === 'app.js' && segs.length === 2) return await this.replyWebJs()
             if (segs[0] === 'drafts' && segs.length === 3 && segs[1] != null && segs[2] != null)
                return this.replyDraft(segs[1], segs[2])
@@ -609,10 +610,41 @@ export class ServeApp {
          vars,
          // the names of the workflow's live previews: the panel asks POST /preview/<module>
          previews: Object.keys(mod.dw.spec.previews ?? {}),
+         tags: this.tagsByModule.get(mod.key) ?? mod.dw.spec.tags ?? [],
       }
    }
 
-   private replyIndex(): ServeReply {
+   /** per module, read once from a dry build: the omnibox searches and shows them */
+   private tagsByModule = new Map<string, string[]>()
+
+   private async tagsFor(mod: ServeModule): Promise<string[]> {
+      const known = this.tagsByModule.get(mod.key)
+      if (known != null) return known
+      const extra = mod.dw.spec.tags ?? []
+      const varKinds = mod.dw.entries().map(([, varDef]) => varDef.kind)
+      let tags: string[]
+      try {
+         const wf = await mod.dw.build({ dry: true })
+         const nodes: TagNode[] = wf.nodes.map((n) => ({
+            id: n.uid,
+            classType: n.json.class_type,
+            outputNode: n.$schema.raw.output_node,
+            outputTypes: n.$schema.outputs.map((o) => o.typeName),
+            links: Object.values(n.json.inputs).flatMap((v): [string, number][] =>
+               Array.isArray(v) && v.length === 2 && typeof v[1] === 'number' ? [[String(v[0]), v[1]]] : [],
+            ),
+         }))
+         tags = workflowTags({ nodes, varKinds, extra })
+      } catch (e) {
+         console.error(`[serve] 🔴 tags for ${mod.key}: dry build failed, spec tags only: ${extractErrorMessage(e)}`)
+         tags = workflowTags({ nodes: [], varKinds, extra })
+      }
+      this.tagsByModule.set(mod.key, tags)
+      return tags
+   }
+
+   private async replyIndex(): Promise<ServeReply> {
+      for (const m of this.modules) await this.tagsFor(m)
       return json(200, {
          server: 'comfy-ts serve',
          usage: USAGE,

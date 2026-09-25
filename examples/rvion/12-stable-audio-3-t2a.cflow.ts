@@ -13,6 +13,7 @@ await host.loadSchemaFromCache() // offline import; run() connects lazily
 
 export const stableAudio3T2a = host.defineWorkflow({
    id: 'stable-audio-3-t2a',
+   tags: ['music', 'sfx'],
    vars: {
       prompt: v.prompt(
          'Tropical house track with marimba, steel drums, soft synths, smooth bass, layered percussion, and light piano riffs for sunny chill dance vibes',

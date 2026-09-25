@@ -56,6 +56,7 @@ const KEYS = [
 
 export const aceStep15XlT2a = host.defineWorkflow({
    id: 'ace-step-15-xl-t2a',
+   tags: ['song', 'lyrics'],
    vars: {
       // FIRST line = the caption (genre, instruments, vocals, production), remaining lines = the lyrics
       // with [Verse] [Chorus] [Bridge] [Outro] tags (`//` lines are comments)

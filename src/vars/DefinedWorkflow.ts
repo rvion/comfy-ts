@@ -37,6 +37,9 @@ export type DefineWorkflowSpec<ID extends string, V extends VarsSpec> = {
     * live while the vars are edited (the serve panel: a foldable block under generate). Use the
     * function build uses, so a preview is what the run sends, never a paraphrase of it */
    previews?: Record<string, (vars: VarValues<V>) => string>
+   /** free search tags for the serve omnibox, added to the ones read from the graph
+    * (`image`, `audio`, `video`, `text`, `llm`, `edit`) */
+   tags?: string[]
 }
 
 /** type predicate (not a cast): a VarsSpec is a plain record, never callable */
@@ -121,13 +124,16 @@ export class DefinedWorkflow<ID extends string = string, V extends VarsSpec = Va
     * build() for copy/export never advances). `p.host` substitutes the host
     * the graph is built against (TUI host override): node/model availability
     * there surfaces as workflow.problems / server validation, by design.
+    * `p.dry` builds a graph only to read it: nothing is uploaded, lastWorkflow is left alone.
     */
-   async build(p: { advance?: boolean; host?: ComfyHost<ID> } = {}): Promise<ComfyWorkflow<ID>> {
+   async build(p: { advance?: boolean; host?: ComfyHost<ID>; dry?: boolean } = {}): Promise<ComfyWorkflow<ID>> {
       const host = p.host ?? this.host
       const wf = host.workflow({ id: this.spec.id })
+      wf.dry = p.dry === true
       const values = varValues(this.vars)
       if (p.advance) for (const varDef of Object.values(this.vars)) varDef.afterRun()
       await this.spec.build(wf.builder, values, wf)
+      if (wf.dry) return wf
       this.lastWorkflow = wf
       return wf
    }

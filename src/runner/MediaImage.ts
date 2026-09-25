@@ -118,7 +118,7 @@ export class MediaImage {
    loadInWorkflow_viaLoadImageNode = async <WID extends string>(
       workflow: ComfyWorkflow<WID>,
    ): Promise<NodeOf<WID, 'LoadImage'>> => {
-      const enumName = await this.uploadAndReturnEnumName(workflow.host)
+      const enumName = workflow.dry ? this.enumName : await this.uploadAndReturnEnumName(workflow.host)
       const img = bang(workflow.builderBase.LoadImage, 'host has no LoadImage node')({ image: enumName })
       // sanctioned cast: uploaded names are runtime-known; the node itself is the host's LoadImage
       return img as NodeOf<WID, 'LoadImage'>
@@ -131,7 +131,7 @@ export class MediaImage {
       /** workflow to load image as mask into */
       workflow: ComfyWorkflow<WID>,
    ): Promise<NodeOf<WID, 'LoadImageMask'>> => {
-      const enumName = await this.uploadAndReturnEnumName(workflow.host)
+      const enumName = workflow.dry ? this.enumName : await this.uploadAndReturnEnumName(workflow.host)
       const mask = bang(
          workflow.builderBase.LoadImageMask,
          'host has no LoadImageMask node',

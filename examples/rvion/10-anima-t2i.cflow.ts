@@ -85,6 +85,7 @@ function animaPrompts(p: {
 
 export const animaT2i = host.defineWorkflow({
    id: 'anima-t2i',
+   tags: ['anime'],
    vars: (v) => {
       // every lora inside an `anima/` folder (never WanAnimate and friends), except the turbo one: the model choice owns it
       const loras = v.loras(/^(?!.*anima-turbo-lora)(?:.*[\\/])?anima[\\/]/i)

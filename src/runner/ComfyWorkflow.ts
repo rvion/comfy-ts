@@ -96,6 +96,10 @@ export class ComfyWorkflow<ID extends string = string> {
       this.outputFolder = join(comfyts.outputPath, `workflow-${this.id}`)
    }
 
+   /** a dry build: media loads name the local file by its hash and upload nothing, so a graph
+    * can be built only to be read (serve derives workflow tags this way) */
+   dry = false
+
    /** nodes, in creation order */
    nodes: ComfyNode[] = []
 

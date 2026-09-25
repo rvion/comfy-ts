@@ -12,6 +12,7 @@ await host.loadSchemaFromCache() // offline import; run() connects lazily
 
 export const yue2T2a = host.defineWorkflow({
    id: 'yue2-t2a',
+   tags: ['song', 'lyrics'],
    vars: {
       // FIRST line = the style (language, genre, vocal, tempo, instruments), remaining lines = the
       // lyrics with [Verse] [Chorus] [Bridge] [Outro] tags, only the words to be sung (`//` lines are comments)

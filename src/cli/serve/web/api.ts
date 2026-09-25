@@ -10,6 +10,8 @@ export type ModuleDescription = {
    vars: Record<string, VarDescriptor>
    /** names of the workflow's live previews (POST /preview/<module>) */
    previews?: string[]
+   /** search tags: what the graph outputs (image, audio, video, text), llm, edit, then free tags */
+   tags?: string[]
 }
 
 export type IndexPayload = {
