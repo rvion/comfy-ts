@@ -8,7 +8,7 @@ import { useEffect, useRef, type ReactNode } from 'react'
 import { isEphemeral } from 'src/cli/serve/web/state/keptResults.ts'
 import { runPreviewSrc } from 'src/cli/serve/web/api.ts'
 import { asSizeForm } from 'src/cli/serve/web/state/payload.ts'
-import { lightboxView, type LightboxTarget } from 'src/cli/serve/web/state/lightbox.ts'
+import { lightboxStep, lightboxView, type LightboxTarget } from 'src/cli/serve/web/state/lightbox.ts'
 import { copyImageToClipboard } from 'src/cli/serve/web/clipboard.ts'
 import type { WebSt } from 'src/cli/serve/web/state/WebSt.ts'
 import { MOD_KEY } from 'src/cli/serve/web/components/modKey.ts'
@@ -111,14 +111,23 @@ const Lightbox = observer(function Lightbox(p: { st: WebSt; local: GalleryLocal 
               previewTick: p.st.run.previewTick,
               results: p.st.run.results,
            })
+   // ↑ / ↓ step from what is SHOWN: a latent that became its image steps from that image
+   const url = box?.url
    useEffect(() => {
       if (target == null) return
       const onKey = (e: KeyboardEvent): void => {
-         if (e.key === 'Escape') p.local.closeLightbox()
+         if (e.key === 'Escape') return p.local.closeLightbox()
+         const dir =
+            e.key === 'ArrowDown' || e.key === 'ArrowRight' ? 1 : e.key === 'ArrowUp' || e.key === 'ArrowLeft' ? -1 : 0
+         if (dir === 0) return
+         if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey || url == null) return
+         e.preventDefault()
+         const next = lightboxStep({ results: p.st.run.results, url, dir })
+         if (next != null) p.local.openLightbox(next)
       }
       window.addEventListener('keydown', onKey)
       return () => window.removeEventListener('keydown', onKey)
-   }, [target, p.local])
+   }, [target, url, p.local, p.st])
    // wheel is registered BY HAND, non-passive. React attaches wheel at the root as passive, so
    // its onWheel cannot preventDefault: zooming also scrolled the results column behind the
    // lightbox, and every tick logged a console error
@@ -184,7 +193,7 @@ const Lightbox = observer(function Lightbox(p: { st: WebSt; local: GalleryLocal 
                      {p.local.zoom.toFixed(1)}× · fit
                   </button>
                ) : (
-                  <span className="hint">scroll to zoom</span>
+                  <span className="hint">scroll to zoom, ↑ ↓ for the other images</span>
                )}
                {canCopy ? (
                   <button type="button" onClick={copy}>

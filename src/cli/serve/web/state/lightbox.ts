@@ -42,3 +42,20 @@ export function lightboxView(p: {
       return { url: image.url, title: image.filename, promptId: finished?.promptId ?? null }
    return { url: runPreviewSrc({ module, tick: p.previewTick }), title: 'latent preview', promptId: null }
 }
+
+/** ↑ / ↓ in the lightbox: the image before or after the open one, in the gallery's order
+ * (newest first, then each run's own image order). Stops at both ends. Null = no move */
+export function lightboxStep(p: {
+   /** newest first */
+   results: readonly LightboxRun[]
+   url: string
+   dir: 1 | -1
+}): Extract<LightboxTarget, { kind: 'image' }> | null {
+   const all = p.results.flatMap((r) =>
+      r.images.flatMap((i) => (i.url == null ? [] : [{ url: i.url, title: i.filename, promptId: r.promptId }])),
+   )
+   const ix = all.findIndex((x) => x.url === p.url)
+   if (ix < 0) return null
+   const next = all[ix + p.dir]
+   return next == null ? null : { kind: 'image', ...next }
+}

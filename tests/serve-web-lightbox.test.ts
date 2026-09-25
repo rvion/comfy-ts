@@ -2,7 +2,7 @@
 // the frame tick, so opening one big froze it on that frame: later frames never showed, and
 // the finished image never replaced it.
 import { describe, expect, it } from 'bun:test'
-import { lightboxView, type LightboxRun } from 'src/cli/serve/web/state/lightbox.ts'
+import { lightboxStep, lightboxView, type LightboxRun } from 'src/cli/serve/web/state/lightbox.ts'
 
 const RESULT: LightboxRun = {
    module: 'wf',
@@ -71,5 +71,33 @@ describe('lightbox target', () => {
          results: [RESULT],
       })
       expect(view).toEqual({ url: '/outputs/old.png', title: 'old.png', promptId: 'p0' })
+   })
+})
+
+describe('lightbox ↑ / ↓', () => {
+   const runs: LightboxRun[] = [
+      {
+         module: 'wf',
+         promptId: 'new',
+         images: [
+            { url: '/a.png', filename: 'a.png' },
+            { url: '/b.png', filename: 'b.png' },
+         ],
+      },
+      { module: 'wf', promptId: 'mid', images: [{ url: null, filename: 'lost.png' }] },
+      { module: 'other', promptId: 'old', images: [{ url: '/c.png', filename: 'c.png' }] },
+   ]
+   it('↓ walks the gallery order, across runs, skipping images with no url', () => {
+      expect(lightboxStep({ results: runs, url: '/a.png', dir: 1 })?.url).toBe('/b.png')
+      const c = lightboxStep({ results: runs, url: '/b.png', dir: 1 })
+      expect(c).toEqual({ kind: 'image', url: '/c.png', title: 'c.png', promptId: 'old' })
+   })
+   it('↑ goes back, and both ends stop', () => {
+      expect(lightboxStep({ results: runs, url: '/c.png', dir: -1 })?.url).toBe('/b.png')
+      expect(lightboxStep({ results: runs, url: '/a.png', dir: -1 })).toBeNull()
+      expect(lightboxStep({ results: runs, url: '/c.png', dir: 1 })).toBeNull()
+   })
+   it('an image no longer in the results does not move', () => {
+      expect(lightboxStep({ results: runs, url: '/gone.png', dir: 1 })).toBeNull()
    })
 })
