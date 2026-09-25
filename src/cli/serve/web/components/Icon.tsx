@@ -15,6 +15,7 @@ export type IconName =
    | 'sparkle'
    | 'play'
    | 'pause'
+   | 'stop'
    | 'save'
    | 'ghost'
    | 'panel-off'
@@ -86,6 +87,7 @@ const PATHS: Record<IconName, ReactNode> = {
    ),
    play: <path d="M7 4l13 8-13 8z" fill="currentColor" stroke="none" />,
    pause: <path d="M8 5v14M16 5v14" />,
+   stop: <rect x="6" y="6" width="12" height="12" rx="1.5" fill="currentColor" stroke="none" />,
    save: <path d="M5 4h11l3 3v13H5zM8 4v6h7V4M8 20v-6h8v6" />,
    ghost: <path d="M5 20V10a7 7 0 0114 0v10l-2.3-2-2.4 2-2.3-2-2.4 2zM9.5 10h.01M14.5 10h.01" />,
    'panel-off': (

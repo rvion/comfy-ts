@@ -211,59 +211,51 @@ function LabelResizer(p: { st: WebSt }): ReactNode {
    )
 }
 
-/** a count, read-only: the action on it is the button under it */
-function RunCount(p: { kind: 'queue' | 'results'; count: number; tip: string }): ReactNode {
-   const t = runChipText({ kind: p.kind, count: p.count })
-   return (
-      <span className={p.count > 0 ? 'run-count' : 'run-count empty'} data-tip={p.tip}>
-         {p.kind === 'queue' ? 'queue' : 'images'}: <b>{t.count}</b>
-      </span>
-   )
-}
-
-/** everything about running in two rows. Top: Run and what it has queued and produced. Bottom,
- * one button under each: stop, clear the queue, erase the images, the same size and style, so
- * the three things that END something sit together. Every part is always there (disabled when
- * it has nothing to act on), so neither row ever shifts */
+/** everything about running on ONE row: Run with its stop square beside it (red while a run is
+ * in progress, grey otherwise), then the two buttons that clear something, each carrying the
+ * count it acts on. Every part is always there (disabled when it has nothing to act on), and
+ * the counts have tabular digits, so the row never shifts */
 export const GenerateButton = observer(function GenerateButton(p: { st: WebSt }) {
    const run = p.st.run
    // the text never changes, so the button never changes size: the progress is a fill sweeping
    // across it, the exact percent is on the running card
    const look = generateButtonLook({ isRunning: run.isRunning, percent: run.progressPercent })
+   const pending = runChipText({ kind: 'queue', count: run.pendingCount }).count
+   const images = runChipText({ kind: 'results', count: run.results.length }).count
    return (
-      <span className="run-grid">
-         <button
-            type="button"
-            className={look.running ? 'primary running' : 'primary'}
-            data-tip={
-               look.running
-                  ? `running ${look.fill ?? 0}%: click again to queue another (⌘⏎ / ctrl+⏎)`
-                  : '⌘⏎ / ctrl+⏎: click again to queue another'
-            }
-            style={
-               look.fill == null
-                  ? undefined
-                  : {
-                       background: `linear-gradient(90deg, var(--accent) ${look.fill}%, var(--accent-dim) ${look.fill}%)`,
-                    }
-            }
-            onClick={() => p.st.generate()}
-         >
-            <Icon name="play" size={0.85} /> {look.label}
-            {/* the shortcut is SAID, not only tooltipped: nobody hovers a button they can click */}
-            <span className="kbd-hint">{MOD_KEY}⏎</span>
-         </button>
-         <RunCount kind="queue" count={run.queue.length} tip="prompts waiting behind the one running" />
-         <RunCount kind="results" count={run.results.length} tip="runs kept in this page" />
-         <button
-            type="button"
-            className="run-end"
-            disabled={!run.isRunning}
-            data-tip="stop the run in progress (the queue behind it stays)"
-            onClick={() => void p.st.hostAction('interrupt')}
-         >
-            <Icon name="pause" /> stop
-         </button>
+      <span className="run-bar">
+         <span className="btn-group run-split">
+            <button
+               type="button"
+               className={look.running ? 'primary running' : 'primary'}
+               data-tip={
+                  look.running
+                     ? `running ${look.fill ?? 0}%: click again to queue another (⌘⏎ / ctrl+⏎)`
+                     : '⌘⏎ / ctrl+⏎: click again to queue another'
+               }
+               style={
+                  look.fill == null
+                     ? undefined
+                     : {
+                          background: `linear-gradient(90deg, var(--accent) ${look.fill}%, var(--accent-dim) ${look.fill}%)`,
+                       }
+               }
+               onClick={() => p.st.generate()}
+            >
+               <Icon name="play" size={0.85} /> {look.label}
+               {/* the shortcut is SAID, not only tooltipped: nobody hovers a button they can click */}
+               <span className="kbd-hint">{MOD_KEY}⏎</span>
+            </button>
+            <button
+               type="button"
+               className={run.isRunning ? 'run-stop live' : 'run-stop'}
+               disabled={!run.isRunning}
+               data-tip="stop the run in progress (the queue behind it stays)"
+               onClick={() => void p.st.hostAction('interrupt')}
+            >
+               <Icon name="stop" />
+            </button>
+         </span>
          <button
             type="button"
             className="run-end"
@@ -271,7 +263,7 @@ export const GenerateButton = observer(function GenerateButton(p: { st: WebSt })
             data-tip={`drop the ${run.pendingCount} prompt(s) not yet sent to the host`}
             onClick={() => run.clearQueue()}
          >
-            <Icon name="close" /> clear queue
+            <Icon name="close" /> Clear <b className="run-num">{pending}</b> queue
          </button>
          <button
             type="button"
@@ -280,7 +272,7 @@ export const GenerateButton = observer(function GenerateButton(p: { st: WebSt })
             data-tip="forget every image shown here (saved files stay on disk)"
             onClick={() => run.clear()}
          >
-            <Icon name="trash" /> erase all
+            <Icon name="trash" /> Erase <b className="run-num">{images}</b> img
          </button>
       </span>
    )

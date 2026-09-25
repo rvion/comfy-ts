@@ -366,12 +366,20 @@ button.accent:hover { background: var(--accent-dim); color: #fff; }
 
 /* two rows, three columns: Run / queue / images on top, the three buttons that end something
    underneath, one per column, all the same size */
-.run-grid { display: inline-grid; grid-template-columns: repeat(3, minmax(110px, 1fr)); gap: 6px 8px; align-items: center; flex-shrink: 0; }
-.run-grid > button { width: 100%; justify-content: center; }
-.run-grid > button.primary { padding: 5px 12px; font-size: 13px; }
-.run-count { text-align: center; font-size: 13px; color: var(--dim); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.run-count b { color: var(--text); font-weight: 600; }
-.run-count.empty { opacity: 0.6; }
+.run-bar { display: inline-flex; align-items: stretch; gap: 8px; flex-shrink: 0; flex-wrap: nowrap; }
+/* inside the group, .btn-group's segment colors come later and would repaint Run: restate it */
+.run-split button.primary, .run-split button.primary:hover {
+   padding: 5px 14px; font-size: 13px; background: var(--accent); border-color: var(--accent); color: #0d1117;
+}
+.run-split button.primary.running { color: #fff; }
+.run-split button.primary + button { border-left-color: var(--accent); }
+/* the stop square: grey and inert when nothing runs, red while a run can be stopped */
+.run-split button.run-stop { padding: 5px 9px; color: var(--dim); display: inline-flex; align-items: center; }
+.run-split button.run-stop:disabled { opacity: 0.45; }
+.run-split button.run-stop.live { color: var(--red); }
+.run-split button.run-stop.live:hover { color: #fff; background: var(--red); border-color: var(--red); }
+/* the count a clear button acts on: tabular and at a fixed width, so 9 → 10 never moves the row */
+.run-num { display: inline-block; min-width: 2ch; text-align: center; font-variant-numeric: tabular-nums; font-weight: 600; }
 button.run-end { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; font-size: 13px; }
 button.run-end:not(:disabled):hover { color: #fff; background: var(--red); border-color: var(--red); }
 button.run-end:disabled { opacity: 0.45; cursor: default; }

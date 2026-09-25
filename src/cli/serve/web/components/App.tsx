@@ -168,29 +168,24 @@ const ResultsHead = observer(function ResultsHead(p: { st: WebSt }) {
                />
             </span>
          </div>
-         <div className="head-group-labeled">
-            <span className="group-caption">
-               blur{' '}
+         <span className="btn-group">
+            <button
+               type="button"
+               className={p.st.blurResults ? 'sel' : ''}
+               data-tip={
+                  p.st.blurResults
+                     ? 'blurred until you hover: click for always clear'
+                     : 'always clear: click to blur until you hover'
+               }
+               onClick={() => p.st.toggleBlur()}
+            >
+               <Icon name={p.st.blurResults ? 'eye-off' : 'eye'} /> blur
                <span className="kbd-hint">
                   {MOD_KEY}
                   {SHORTCUT_KEYS['toggle-blur']}
                </span>
-            </span>
-            <span className="btn-group">
-               <button
-                  type="button"
-                  className={p.st.blurResults ? 'sel' : ''}
-                  data-tip={
-                     p.st.blurResults
-                        ? `blurred until you hover: click (or ${MOD_KEY}${SHORTCUT_KEYS['toggle-blur']}) for always clear`
-                        : `always clear: click (or ${MOD_KEY}${SHORTCUT_KEYS['toggle-blur']}) to blur until you hover`
-                  }
-                  onClick={() => p.st.toggleBlur()}
-               >
-                  <Icon name={p.st.blurResults ? 'eye-off' : 'eye'} />
-               </button>
-            </span>
-         </div>
+            </button>
+         </span>
       </div>
    )
 })
