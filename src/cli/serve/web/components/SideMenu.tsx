@@ -131,7 +131,7 @@ const DraftSection = observer(function DraftSection(p: { st: WebSt; form: FormSt
             onClick={() => void p.st.duplicateCurrentDraft()}
          >
             <Icon name="copy-plus" />
-            <span>duplicate this draft</span>
+            <span>duplicate</span>
             <span className="kbd-hint">
                {MOD_KEY}
                {SHORTCUT_KEYS['duplicate-draft']}
