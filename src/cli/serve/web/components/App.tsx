@@ -1,7 +1,7 @@
 // layout root: the menu column (SideMenu.tsx), then the form and results columns placed by
 // the preview panel's own buttons. At 760px and below the menu is a drawer behind ☰
 import { observer } from 'mobx-react-lite'
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { Group, Panel, Separator, useDefaultLayout, usePanelRef } from 'react-resizable-panels'
 import { MenuCards, MenuHead, MenuRail } from 'src/cli/serve/web/components/SideMenu.tsx'
 import { Gallery } from 'src/cli/serve/web/components/Gallery.tsx'
@@ -47,6 +47,29 @@ function useSelectAllInFields(): void {
 /** the workflow's live previews (defineWorkflow({ previews })): text computed from the values
  * on screen, refreshed as you edit. Compact by default, the name inline and every line cut to
  * one; a click opens the full text, remembered. A `- ` line is the negative, as in a prompt */
+/** the console opens at its last line, and follows new ones while you are at the bottom, so a
+ * run's progress stays in view. Scrolled up to read, it stays where you put it */
+function ConsoleLines(p: { text: string }): ReactNode {
+   const ref = useRef<HTMLPreElement>(null)
+   // measured on scroll, before the next lines land: after they land it is always false
+   const atBottom = useRef(true)
+   useLayoutEffect(() => {
+      const el = ref.current
+      if (el != null && atBottom.current) el.scrollTop = el.scrollHeight
+   }, [p.text])
+   return (
+      <pre
+         ref={ref}
+         onScroll={(e) => {
+            const el = e.currentTarget
+            atBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 8
+         }}
+      >
+         {p.text}
+      </pre>
+   )
+}
+
 /** the whole preview text, negative lines included, as the prompt box takes it back. The
  * clipboard needs a secure context: localhost is one, LAN http is not, and the button says so */
 function PreviewCopy(p: { text: string }): ReactNode {
@@ -418,7 +441,7 @@ export const App = observer(function App(p: { st: WebSt }) {
                   </button>
                </div>
                {p.st.logsError != null ? <div className="error">🔴 {p.st.logsError}</div> : null}
-               <pre>{p.st.logLines.join('\n')}</pre>
+               <ConsoleLines text={p.st.logLines.join('\n')} />
             </div>
          ) : null}
       </div>
