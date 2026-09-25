@@ -45,21 +45,24 @@ const DraftSection = observer(function DraftSection(p: { st: WebSt; form: FormSt
       local.stop()
       if (name !== '' && name !== p.form.draft) void p.st.renameDraft(name)
    }
-   const saveNote =
-      p.form.saveState === 'saving'
-         ? 'saving…'
-         : p.form.saveState === 'saved'
-           ? 'saved'
-           : p.form.saveState === 'error'
-             ? 'NOT SAVED'
-             : null
+   const n = p.form.dirtyCount
    return (
       <Section
          title="draft"
          actions={
-            saveNote == null ? null : (
-               <span className={p.form.saveState === 'error' ? 'menu-note error' : 'menu-note'}>{saveNote}</span>
-            )
+            <>
+               {n > 0 ? (
+                  <button
+                     type="button"
+                     className="head-icon dirty"
+                     data-tip={`revert ${n} change${n > 1 ? 's' : ''}: put back the values this draft loaded with`}
+                     onClick={() => p.form.revertAll()}
+                  >
+                     <Icon name="broom" />
+                  </button>
+               ) : null}
+               <SaveMark form={p.form} />
+            </>
          }
       >
          {local.renaming != null ? (
@@ -144,22 +147,31 @@ const DraftSection = observer(function DraftSection(p: { st: WebSt; form: FormSt
             onClick={() => void p.st.newDraftFromDefaults()}
          >
             <Icon name="plus" />
-            <span>new draft from defaults</span>
+            <span>new default</span>
          </button>
-         {p.form.dirtyCount > 0 ? (
-            <button
-               type="button"
-               className="menu-row menu-action dirty"
-               data-tip="put back the values this draft loaded with"
-               onClick={() => p.form.revertAll()}
-            >
-               <Icon name="broom" />
-               <span>
-                  revert {p.form.dirtyCount} change{p.form.dirtyCount > 1 ? 's' : ''}
-               </span>
-            </button>
-         ) : null}
       </Section>
+   )
+})
+
+/** where the draft file stands: a tiny spinner while the values on screen are not on disk yet,
+ * a grey check once they are, the error in words when a write failed */
+const SaveMark = observer(function SaveMark(p: { form: FormSt }) {
+   if (p.form.saveState === 'error')
+      return (
+         <span className="menu-note error" data-tip={p.form.saveError ?? 'the last write failed'}>
+            NOT SAVED
+         </span>
+      )
+   if (p.form.unsaved)
+      return (
+         <span className="save-mark" data-tip="saving…">
+            <span className="spinner" />
+         </span>
+      )
+   return (
+      <span className="save-mark" data-tip="saved">
+         <Icon name="check" />
+      </span>
    )
 })
 

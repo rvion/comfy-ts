@@ -91,7 +91,7 @@ export class FormSt {
    private disposers: IReactionDisposer[] = []
    /** saves are chained so two PUTs can never land out of order */
    private saveChain: Promise<boolean> = Promise.resolve(true)
-   /** the values json the server last CONFIRMED — what is really on disk */
+   /** the values json the server last CONFIRMED — what is really on disk. Observable: `unsaved` reads it */
    private lastSaved: string
    /** the values json last HANDED to the chain, confirmed or still in flight. save() no-ops
     * against this one, never against lastSaved: while a PUT is open the disk does not hold
@@ -135,7 +135,7 @@ export class FormSt {
             host: false,
             disposers: false,
             saveChain: false,
-            lastSaved: false,
+            lastSaved: true,
             lastQueued: false,
             queueSeq: false,
             onSettled: false,
@@ -361,6 +361,11 @@ export class FormSt {
       const found = this.keywordSource(promptVar)
       if (found == null) return
       found.source.set(updateLora(found.value, lora, withLora(loraSetting(found.value, lora), { mute })))
+   }
+
+   /** the values on screen are not on disk yet: inside the autosave debounce, or a PUT still open */
+   get unsaved(): boolean {
+      return JSON.stringify(this.valuesJSON()) !== this.lastSaved
    }
 
    get dirtyCount(): number {

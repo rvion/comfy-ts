@@ -96,11 +96,10 @@ button.link.load-errors { color: var(--red); font-size: 11px; }
 .menu-head { display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 10px; border-bottom: 1px solid var(--border); }
 .menu-brand { font-weight: 700; letter-spacing: 0.01em; }
 .menu-head-key { margin-left: auto; }
-/* a full-row action (duplicate, new, revert): reads as an entry of the list, its key at the end */
+/* a full-row action (duplicate, new): reads as an entry of the list, its key at the end */
 .menu-action { color: var(--dim); font-size: 13px; }
 .menu-action:hover { color: var(--text); }
 .menu-action .kbd-hint { margin-left: auto; }
-.menu-action.dirty, .menu-action.dirty > .icon { color: var(--amber); }
 /* the current value of a button group, in words, under it */
 .menu-caption { min-height: 0; padding-top: 4px; font-size: 12px; color: var(--dim); }
 .menu-sections { display: flex; flex-direction: column; }
@@ -139,6 +138,14 @@ button.menu-row:hover { background: var(--panel-2); }
 .menu-buttons > button:hover { color: var(--text); background: var(--panel-2); border-color: var(--border); }
 .menu-buttons > button.sel { color: var(--accent); background: var(--accent-dim); }
 .menu-buttons > button.quiet-danger:hover { color: var(--red); border-color: var(--red); }
+/* the draft file state in the draft title: a grey check, or a small ring turning while unsaved */
+.save-mark { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; color: var(--dim); }
+.save-mark .spinner {
+   width: 10px; height: 10px; border-radius: 50%; border: 1.5px solid var(--dim); border-top-color: transparent;
+   animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.menu-title-actions .head-icon.dirty { color: var(--amber); }
 .menu-note { margin-left: auto; font-size: 11px; color: var(--dim); }
 .menu-note.error { color: var(--red); font-weight: 600; }
 .menu-error { font-size: 12px; padding: 4px; }

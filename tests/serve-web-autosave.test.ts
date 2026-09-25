@@ -160,3 +160,20 @@ describe('draft autosave', () => {
       form.dispose({ flush: false })
    })
 })
+
+describe('the unsaved mark', () => {
+   it('is on from the edit until the server confirms the write', async () => {
+      const net = heldFetch()
+      const form = new FormSt('wf', 'default', MOD, { prompt: 'V1' }, { autosaveMs: 1, previewMs: 1 })
+      expect(form.unsaved).toBe(false)
+      form.vars[0]?.set('V2')
+      expect(form.unsaved).toBe(true)
+      void form.save()
+      await tick()
+      expect(form.unsaved).toBe(true)
+      net.release()
+      await tick()
+      expect(form.unsaved).toBe(false)
+      form.dispose({ flush: false })
+   })
+})
