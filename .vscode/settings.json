@@ -20,8 +20,34 @@
    // oxc lints + formats in-editor; formatter owns formatting, not tsserver
    "oxc.enable": true,
    "eslint.enable": false,
-    "workbench.colorCustomizations": {
-      "sideBar.background":"#241c01",
+   "workbench.colorCustomizations": {
+      "activityBar.activeBackground": "#55477b",
+      "activityBar.activeBorder": "#e7e7e7",
+      "activityBar.background": "#55477b",
+      "activityBar.foreground": "#e7e7e7",
+      "activityBar.inactiveForeground": "#e7e7e799",
+      "activityBarBadge.background": "#281c17",
+      "activityBarBadge.foreground": "#e7e7e7",
+      "activityBarTop.activeBackground": "#55477b",
+      "activityBarTop.activeBorder": "#e7e7e7",
+      "activityBarTop.background": "#55477b",
+      "activityBarTop.foreground": "#e7e7e7",
+      "activityBarTop.inactiveForeground": "#e7e7e799",
+      "commandCenter.border": "#e7e7e799",
+      "commandCenter.foreground": "#e7e7e7",
+      "sash.hoverBorder": "#55477b",
+      "statusBar.background": "#3f345b",
+      "statusBar.debuggingBackground": "#3f345b",
+      "statusBar.debuggingForeground": "#e7e7e7",
+      "statusBar.foreground": "#e7e7e7",
+      "statusBarItem.hoverBackground": "#55477b",
+      "statusBarItem.remoteBackground": "#8e6251",
+      "statusBarItem.remoteForeground": "#e7e7e7",
+      "titleBar.activeBackground": "#3f345b",
+      "titleBar.activeForeground": "#e7e7e7",
+      "titleBar.inactiveBackground": "#3f345b99",
+      "titleBar.inactiveForeground": "#e7e7e799"
    },
+   "peacock.color": "#3f345b",
 
 }
