@@ -1,4 +1,4 @@
-// ⌘P focuses the first prompt, ⌘O opens the first loras picker, ⌘B toggles the blur
+// ⌘P focuses the first prompt, ⌘O opens the first loras picker, ⌘B folds the menu, ⇧⌘B toggles the blur
 import { describe, expect, it } from 'bun:test'
 import { enhancerShortcutOf, jumpTargets, shortcutOf } from 'src/cli/serve/web/state/shortcuts.ts'
 
@@ -15,7 +15,13 @@ describe('panel shortcuts', () => {
    it('maps ⌘ or ctrl plus the letter, either case', () => {
       expect(shortcutOf(key('p', { metaKey: true }))).toBe('focus-prompt')
       expect(shortcutOf(key('O', { ctrlKey: true }))).toBe('open-loras')
-      expect(shortcutOf(key('b', { metaKey: true }))).toBe('toggle-blur')
+      expect(shortcutOf(key('b', { metaKey: true }))).toBe('toggle-menu')
+   })
+
+   it('shift picks the shifted entry only: ⇧⌘B blurs, ⌘B folds the menu', () => {
+      expect(shortcutOf(key('B', { metaKey: true, shiftKey: true }))).toBe('toggle-blur')
+      expect(shortcutOf(key('b', { ctrlKey: true, shiftKey: true }))).toBe('toggle-blur')
+      expect(shortcutOf(key('b', { metaKey: true }))).toBe('toggle-menu')
    })
 
    it('⌘E opens the enhancer on the first prompt, the same letter enhances once it is open', () => {

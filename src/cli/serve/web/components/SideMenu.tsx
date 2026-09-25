@@ -1,4 +1,4 @@
-// the menu column: where you are, widest scope first (workspace, root, workflow, draft, host).
+// the menu column: where you are, widest scope first (workspace, workflow, host, preview).
 // a left Panel above 760px (collapsible to an icon rail), a drawer behind ☰ below
 import { observer, useLocalObservable } from 'mobx-react-lite'
 import type { ReactNode } from 'react'
@@ -17,7 +17,7 @@ function freeDraftName(drafts: readonly string[]): string {
    return `new ${n}`
 }
 
-/** the draft box: name, autosave state as its legend, and the actions that own this draft.
+/** the draft rows: the picker with rename and delete, then new, copy and the autosave state.
  * new and duplicate ask for the name INLINE, window.prompt is silently suppressed by browsers
  * after a few dialogs, which reads exactly like a dead button */
 const DraftBox = observer(function DraftBox(p: { st: WebSt; form: FormSt }) {
@@ -46,56 +46,51 @@ const DraftBox = observer(function DraftBox(p: { st: WebSt; form: FormSt }) {
       else if (mode === 'new') void p.st.newDraft(name)
       else void p.st.renameDraft(name)
    }
+   const saveNote =
+      p.form.saveState === 'saving'
+         ? 'saving…'
+         : p.form.saveState === 'saved'
+           ? 'saved'
+           : p.form.saveState === 'error'
+             ? 'NOT SAVED'
+             : ''
    return (
-      <div className="head-box">
-         <span className="head-label">
-            draft
-            <span className={p.form.saveState === 'error' ? 'save-state error' : 'save-state'}>
-               {p.form.saveState === 'saving' ? '· saving' : null}
-               {p.form.saveState === 'saved' ? '· saved' : null}
-               {p.form.saveState === 'error' ? '· NOT SAVED' : null}
-            </span>
-         </span>
+      <>
          {local.mode != null ? (
-            <input
-               type="text"
-               autoFocus
-               className="head-input"
-               value={local.name}
-               // enter is the ONLY commit now, so it has to be said
-               placeholder={
-                  local.mode === 'rename'
-                     ? 'new name, then enter'
-                     : local.mode === 'new'
-                       ? 'name of the new draft (workflow defaults), then enter'
-                       : 'new draft name, then enter'
-               }
-               onFocus={(e) => e.currentTarget.select()}
-               onChange={(e) => local.set(e.target.value)}
-               onKeyDown={(e) => {
-                  if (e.key === 'Enter') confirm()
-                  if (e.key === 'Escape') local.stop()
-               }}
-               // blur CANCELS, it does not commit: picking another draft blurs this input, and a
-               // rename committed on blur raced that selection, renameDraft bails when the form
-               // has already moved on, leaving a duplicate instead of a rename, silently. enter
-               // commits, which is the only unambiguous signal
-               onBlur={() => local.stop()}
-            />
+            <div className="menu-row">
+               <Icon name="draft" />
+               <input
+                  type="text"
+                  autoFocus
+                  className="head-input"
+                  value={local.name}
+                  // enter is the ONLY commit now, so it has to be said
+                  placeholder={
+                     local.mode === 'rename'
+                        ? 'new name, then enter'
+                        : local.mode === 'new'
+                          ? 'new draft name, then enter'
+                          : 'copy name, then enter'
+                  }
+                  onFocus={(e) => e.currentTarget.select()}
+                  onChange={(e) => local.set(e.target.value)}
+                  onKeyDown={(e) => {
+                     if (e.key === 'Enter') confirm()
+                     if (e.key === 'Escape') local.stop()
+                  }}
+                  // blur CANCELS, it does not commit: picking another draft blurs this input, and a
+                  // rename committed on blur raced that selection, renameDraft bails when the form
+                  // has already moved on, leaving a duplicate instead of a rename, silently. enter
+                  // commits, which is the only unambiguous signal
+                  onBlur={() => local.stop()}
+               />
+            </div>
          ) : (
-            /* the name IS the picker: every draft of this workflow, switching selects it. Rename
-               sits before it and delete after it: the two actions ON this name, around it */
-            <span className="head-line draft-line">
-               <button
-                  type="button"
-                  className="head-icon"
-                  data-tip="rename this draft (the file is renamed)"
-                  onClick={() => local.start('rename', p.form.draft)}
-               >
-                  <Icon name="pen" />
-               </button>
+            /* the name IS the picker; rename and delete act ON it, so they sit at its end */
+            <div className="menu-row">
+               <Icon name="draft" />
                <select
-                  className="head-select draft"
+                  className="menu-select draft"
                   value={p.form.draft}
                   data-tip="switch draft"
                   onChange={(e) => void p.st.select({ module: p.form.moduleKey, draft: e.target.value })}
@@ -106,179 +101,201 @@ const DraftBox = observer(function DraftBox(p: { st: WebSt; form: FormSt }) {
                      </option>
                   ))}
                </select>
-               <button
-                  type="button"
-                  className="head-icon danger"
-                  data-tip="delete this draft's file (default resets to the workflow's own values)"
-                  onClick={() => {
-                     if (window.confirm(`delete draft '${p.form.draft}' of ${p.form.moduleKey}? the file is removed.`))
-                        void p.st.deleteDraft({ module: p.form.moduleKey, draft: p.form.draft })
-                  }}
-               >
-                  <Icon name="trash" />
-               </button>
-            </span>
+               <span className="menu-row-actions">
+                  <button
+                     type="button"
+                     className="head-icon"
+                     data-tip="rename this draft (the file is renamed)"
+                     onClick={() => local.start('rename', p.form.draft)}
+                  >
+                     <Icon name="pen" />
+                  </button>
+                  <button
+                     type="button"
+                     className="head-icon danger"
+                     data-tip="delete this draft's file (default resets to the workflow's own values)"
+                     onClick={() => {
+                        if (
+                           window.confirm(`delete draft '${p.form.draft}' of ${p.form.moduleKey}? the file is removed.`)
+                        )
+                           void p.st.deleteDraft({ module: p.form.moduleKey, draft: p.form.draft })
+                     }}
+                  >
+                     <Icon name="trash" />
+                  </button>
+               </span>
+            </div>
          )}
-         <span className="head-line">
-            {/* the two ways to MAKE a draft, side by side: from the workflow's defaults, or from
-                what is on screen */}
-            <span className="btn-group">
-               <button
-                  type="button"
-                  className="accent"
-                  data-tip="new draft with the workflow's own default values"
-                  onClick={() => (local.mode != null ? confirm() : local.start('new', freeDraftName(drafts)))}
-               >
-                  <Icon name="plus" /> new
-               </button>
-               <button
-                  type="button"
-                  className="accent"
-                  data-tip="save these values as a new draft"
-                  onClick={() => (local.mode != null ? confirm() : local.start('duplicate', p.form.draft, drafts))}
-               >
-                  <Icon name="copy-plus" /> copy
-               </button>
-            </span>
-            {/* FAR RIGHT of the same line, outside the group: inside it, the broom appeared and
-                vanished with the dirty count and shoved the other buttons sideways */}
+         <div className="menu-row menu-buttons">
+            {/* the two ways to MAKE a draft: from the workflow's defaults, or from what is on screen */}
+            <button
+               type="button"
+               data-tip="new draft with the workflow's own default values"
+               onClick={() => (local.mode != null ? confirm() : local.start('new', freeDraftName(drafts)))}
+            >
+               <Icon name="plus" /> new
+            </button>
+            <button
+               type="button"
+               data-tip="save these values as a new draft"
+               onClick={() => (local.mode != null ? confirm() : local.start('duplicate', p.form.draft, drafts))}
+            >
+               <Icon name="copy-plus" /> copy
+            </button>
             {p.form.dirtyCount > 0 ? (
                <button
                   type="button"
-                  className="dirty head-right"
+                  className="dirty"
                   data-tip={`${p.form.dirtyCount} var${p.form.dirtyCount > 1 ? 's' : ''} changed this session — revert to the values this draft loaded with`}
                   onClick={() => p.form.revertAll()}
                >
                   <Icon name="broom" />
                </button>
             ) : null}
-         </span>
-      </div>
+            <span className={p.form.saveState === 'error' ? 'menu-note error' : 'menu-note'}>{saveNote}</span>
+         </div>
+      </>
    )
 })
 
-/** read-only for now: the label fits the card, a click copies the full path */
-function PathCard(p: { label: string; icon: IconName; value: PathLabel | null }): ReactNode {
+/** a titled block of rows; `actions` sit at the right end of the title */
+function Section(p: { title: string; actions?: ReactNode; children: ReactNode }): ReactNode {
+   return (
+      <section className="menu-section">
+         <div className="menu-title">
+            <span>{p.title}</span>
+            {p.actions == null ? null : <span className="menu-title-actions">{p.actions}</span>}
+         </div>
+         {p.children}
+      </section>
+   )
+}
+
+/** read-only for now: the label fits the row, a click copies the full path */
+function PathRow(p: { what: string; icon: IconName; value: PathLabel | null }): ReactNode {
    if (p.value == null) return null
    const value = p.value
    return (
-      <div className="head-box">
-         <span className="head-label">{p.label}</span>
-         <button
-            type="button"
-            className="head-value path-value as-link"
-            data-tip={`${value.path} (click to copy)`}
-            onClick={() => void navigator.clipboard.writeText(value.path)}
-         >
-            <Icon name={p.icon} />{' '}
-            {/* rtl cuts a long path at its START; the bdi keeps the path itself left to right, or rtl
-                reorders the neutral `~` and `/` and `~/dev/x` reads `dev/x/~` */}
-            <span className="path-text">
-               <bdi>{value.label}</bdi>
-            </span>
+      <button
+         type="button"
+         className="menu-row path-row"
+         data-tip={`${p.what}: ${value.path} (click to copy)`}
+         onClick={() => void navigator.clipboard.writeText(value.path)}
+      >
+         <Icon name={p.icon} />
+         {/* rtl cuts a long path at its START; the bdi keeps the path itself left to right, or rtl
+             reorders the neutral `~` and `/` and `~/dev/x` reads `dev/x/~` */}
+         <span className="path-text">
+            <bdi>{value.label}</bdi>
+         </span>
+      </button>
+   )
+}
+
+/** ☰ + the name. ☰ folds the column (⌘B), in the drawer it closes it */
+export function MenuHead(p: { onBurger: () => void; tip: string }): ReactNode {
+   return (
+      <div className="menu-head">
+         <button type="button" className="head-icon" data-tip={p.tip} aria-label="menu" onClick={p.onBurger}>
+            <Icon name="menu" />
          </button>
+         <span className="menu-brand">comfy-ts</span>
       </div>
    )
 }
 
-/** where the results sit: page layout, so it belongs with the other where-am-I cards */
-const PreviewCard = observer(function PreviewCard(p: { st: WebSt }) {
-   return (
-      <div className="head-box">
-         <span className="head-label">preview</span>
-         <div className="head-line">
-            <span className="btn-group">
-               {LAYOUTS.map((l) => (
-                  <button
-                     key={l.id}
-                     type="button"
-                     className={p.st.layout === l.id ? 'sel' : ''}
-                     data-tip={l.title}
-                     onClick={() => p.st.setLayout(l.id)}
-                  >
-                     <Icon name={l.icon} />
-                  </button>
-               ))}
-            </span>
-         </div>
-      </div>
-   )
-})
-
 export const MenuCards = observer(function MenuCards(p: { st: WebSt }) {
    const form = p.st.form
+   const failed = Object.keys(p.st.loadErrors).length
    return (
-      <div className="menu-cards">
-         <PathCard label="workspace" icon="folder" value={p.st.workspace} />
-         <PathCard label="root" icon="folder-tree" value={p.st.root} />
+      <div className="menu-sections">
+         <Section title="workspace">
+            <PathRow what="workspace (where .comfy-ts/ lives)" icon="folder" value={p.st.workspace} />
+            <PathRow what="root (the folder serve scans)" icon="folder-tree" value={p.st.root} />
+         </Section>
          {form == null ? null : (
             <>
-               {/* the workflow name IS the way into the omnibox, and so is ⌘K / ⌘J */}
-               <div className="head-box">
-                  <span className="head-label">workflow</span>
-                  <div className="head-line">
-                     <button
-                        type="button"
-                        className="head-value app as-link"
-                        data-tip="search every workflow and draft (⌘K or ⌘J)"
-                        onClick={() => p.st.omnibox.open()}
-                     >
-                        {form.moduleKey}
-                     </button>
-                  </div>
-                  <div className="head-line">
-                     <span className="btn-group">
+               <Section
+                  title="workflow"
+                  actions={
+                     <>
+                        {failed > 0 ? (
+                           <button
+                              type="button"
+                              className="link load-errors"
+                              data-tip="some workflows failed to load: the list is at the bottom of the search"
+                              onClick={() => p.st.omnibox.open()}
+                           >
+                              <Icon name="warn" /> {failed}
+                           </button>
+                        ) : null}
                         <button
                            type="button"
-                           data-tip="search every workflow and draft (⌘K or ⌘J)"
+                           className="head-icon"
+                           data-tip={`search every workflow and draft (${MOD_KEY}K or ${MOD_KEY}J)`}
                            onClick={() => p.st.omnibox.open()}
                         >
-                           <Icon name="search" /> search <span className="kbd-hint">{MOD_KEY}K</span>
+                           <Icon name="search" /> <span className="kbd-hint">{MOD_KEY}K</span>
                         </button>
-                     </span>
-                     {Object.keys(p.st.loadErrors).length > 0 ? (
+                     </>
+                  }
+               >
+                  {/* the workflow name IS the way into the omnibox, and so is ⌘K / ⌘J */}
+                  <button
+                     type="button"
+                     className="menu-row workflow-row"
+                     data-tip={`search every workflow and draft (${MOD_KEY}K)`}
+                     onClick={() => p.st.omnibox.open()}
+                  >
+                     <Icon name="workflow" />
+                     <span className="menu-value">{form.moduleKey}</span>
+                  </button>
+                  <DraftBox st={p.st} form={form} />
+               </Section>
+               <Section
+                  title={
+                     p.st.hostWatch === 'down'
+                        ? 'host · restarting…'
+                        : p.st.hostWatch === 'back'
+                          ? 'host · back up'
+                          : 'host'
+                  }
+                  actions={
+                     <>
+                        {/* the ONE refresh: models, nodes and the lora list. It also runs by itself
+                            when the host changes, pulsing while it works */}
                         <button
                            type="button"
-                           className="link load-errors"
-                           data-tip="some workflows failed to load: the list is at the bottom of the search"
-                           onClick={() => p.st.omnibox.open()}
+                           className={p.st.refreshing ? 'head-icon pulse' : 'head-icon'}
+                           data-tip={
+                              p.st.refreshing
+                                 ? 'refreshing what the host has…'
+                                 : 'refresh what the host has (models, nodes, loras). It also refreshes by itself when something new appears'
+                           }
+                           onClick={() => void p.st.refreshHost()}
                         >
-                           <Icon name="warn" /> {Object.keys(p.st.loadErrors).length} failed
+                           <Icon name="refresh" />
                         </button>
-                     ) : null}
-                  </div>
-               </div>
-               {/* duplicate and delete act on THIS draft, so they live in the draft box */}
-               <DraftBox st={p.st} form={form} />
-               <div className="head-box">
-                  {/* a restart shows HERE, as the card's legend like the draft's `· saving`: a line
-                      under the cards moved the whole form and read as unrelated to the host */}
-                  <span className="head-label">
-                     host
-                     {p.st.hostWatch === 'down' ? <span className="save-state pulse">· restarting…</span> : null}
-                     {p.st.hostWatch === 'back' ? <span className="save-state">· back up</span> : null}
-                  </span>
-                  {/* the box itself, like the draft: its name, with the two actions ON the box
-                      around it. The ones on the RUNNING work sit on the line below, in words */}
-                  <div className="head-line draft-line">
-                     {/* the ONE refresh: models, nodes and the lora list. It also runs by itself when
-                         the host changes, pulsing while it works */}
-                     <button
-                        type="button"
-                        className={p.st.refreshing ? 'head-icon pulse' : 'head-icon'}
-                        data-tip={
-                           p.st.refreshing
-                              ? 'refreshing what the host has…'
-                              : 'refresh what the host has (models, nodes, loras). It also refreshes by itself when something new appears'
-                        }
-                        onClick={() => void p.st.refreshHost()}
-                     >
-                        <Icon name="refresh" />
-                     </button>
+                        <button
+                           type="button"
+                           className="head-icon danger"
+                           data-tip="restart ComfyUI on that host (manager reboot) — it reconnects when back"
+                           onClick={() => {
+                              if (window.confirm(`restart ComfyUI on '${p.st.hostFor(form.moduleKey)}'?`))
+                                 void p.st.hostAction('restart')
+                           }}
+                        >
+                           <Icon name="power" />
+                        </button>
+                     </>
+                  }
+               >
+                  <div className="menu-row">
+                     <Icon name="server" />
                      {/* pick where this workflow RUNS (the TUI's host override), remembered per module */}
                      {p.st.hosts.hosts.length > 1 ? (
                         <select
-                           className="head-select"
+                           className="menu-select host"
                            value={p.st.hostFor(form.moduleKey)}
                            data-tip="run this workflow on another host"
                            onChange={(e) => void p.st.setModuleHost({ module: form.moduleKey, host: e.target.value })}
@@ -290,77 +307,76 @@ export const MenuCards = observer(function MenuCards(p: { st: WebSt }) {
                            ))}
                         </select>
                      ) : (
-                        <span className="head-value host">{p.st.hostFor(form.moduleKey) || form.host}</span>
+                        <span className="menu-value host">{p.st.hostFor(form.moduleKey) || form.host}</span>
                      )}
-                     <button
-                        type="button"
-                        className="head-icon danger"
-                        data-tip="restart ComfyUI on that host (manager reboot) — it reconnects when back"
-                        onClick={() => {
-                           if (window.confirm(`restart ComfyUI on '${p.st.hostFor(form.moduleKey)}'?`))
-                              void p.st.hostAction('restart')
-                        }}
-                     >
-                        <Icon name="power" />
-                     </button>
-                  </div>
-                  <div className="head-line">
-                     {/* two separate buttons: stopping the run and emptying the queue are different
-                         decisions, and the destructive one wears its warning color */}
-                     <span className="btn-group">
-                        <button
-                           type="button"
-                           data-tip="interrupt the prompt running now"
-                           onClick={() => void p.st.hostAction('interrupt')}
-                        >
-                           <Icon name="pause" /> stop
-                        </button>
-                     </span>
-                     <span className="btn-group">
-                        <button
-                           type="button"
-                           className="quiet-danger"
-                           data-tip="drop everything still pending in the host queue"
-                           onClick={() => void p.st.hostAction('clear-queue')}
-                        >
-                           <Icon name="trash" /> clear queue
-                        </button>
-                     </span>
-                     {/* the console is the HOST's output, so it opens from the host box */}
-                     <span className="btn-group">
-                        <button
-                           type="button"
-                           className={p.st.showLogs ? 'sel' : ''}
-                           data-tip={
-                              p.st.showLogs ? 'hide the ComfyUI console' : 'show the ComfyUI console of this host'
-                           }
-                           onClick={() => p.st.toggleLogs()}
-                        >
-                           <Icon name="terminal" /> console
-                        </button>
-                     </span>
                      {p.st.isHostOverridden(form.moduleKey) ? (
-                        <button
-                           type="button"
-                           className="link"
-                           data-tip={`runs on an override — back to ${p.st.hosts.defaults[form.moduleKey] ?? 'its own host'}`}
-                           onClick={() => void p.st.setModuleHost({ module: form.moduleKey, host: null })}
-                        >
-                           <Icon name="swap" /> reset
-                        </button>
+                        <span className="menu-row-actions">
+                           <button
+                              type="button"
+                              className="head-icon"
+                              data-tip={`runs on an override — back to ${p.st.hosts.defaults[form.moduleKey] ?? 'its own host'}`}
+                              onClick={() => void p.st.setModuleHost({ module: form.moduleKey, host: null })}
+                           >
+                              <Icon name="swap" />
+                           </button>
+                        </span>
                      ) : null}
                   </div>
-               </div>
+                  {/* stopping the run and emptying the queue are different decisions, and the
+                      destructive one wears its warning color */}
+                  <div className="menu-row menu-buttons">
+                     <button
+                        type="button"
+                        data-tip="interrupt the prompt running now"
+                        onClick={() => void p.st.hostAction('interrupt')}
+                     >
+                        <Icon name="pause" /> stop
+                     </button>
+                     <button
+                        type="button"
+                        className="quiet-danger"
+                        data-tip="drop everything still pending in the host queue"
+                        onClick={() => void p.st.hostAction('clear-queue')}
+                     >
+                        <Icon name="trash" /> clear
+                     </button>
+                     {/* the console is the HOST's output, so it opens from here */}
+                     <button
+                        type="button"
+                        className={p.st.showLogs ? 'sel' : ''}
+                        data-tip={p.st.showLogs ? 'hide the ComfyUI console' : 'show the ComfyUI console of this host'}
+                        onClick={() => p.st.toggleLogs()}
+                     >
+                        <Icon name="terminal" /> console
+                     </button>
+                  </div>
+                  {p.st.hostError != null ? <div className="error menu-error">🔴 {p.st.hostError}</div> : null}
+               </Section>
             </>
          )}
-         <PreviewCard st={p.st} />
-         {/* a host action that FAILS says so right under the host card */}
-         {p.st.hostError != null ? <div className="error">🔴 {p.st.hostError}</div> : null}
+         {/* where the results sit: page layout, so it is here rather than in the preview head */}
+         <Section title="preview">
+            <div className="menu-row">
+               <span className="btn-group">
+                  {LAYOUTS.map((l) => (
+                     <button
+                        key={l.id}
+                        type="button"
+                        className={p.st.layout === l.id ? 'sel' : ''}
+                        data-tip={l.title}
+                        onClick={() => p.st.setLayout(l.id)}
+                     >
+                        <Icon name={l.icon} />
+                     </button>
+                  ))}
+               </span>
+            </div>
+         </Section>
       </div>
    )
 })
 
-/** the collapsed rail: one icon per card, a click expands the column */
+/** the folded rail: ☰, search, then one icon per row, a click unfolds the column */
 export const MenuRail = observer(function MenuRail(p: { st: WebSt; onExpand: () => void }) {
    const items: { icon: IconName; tip: string }[] = [
       { icon: 'folder', tip: `workspace: ${p.st.workspace?.label ?? '?'}` },
@@ -375,6 +391,15 @@ export const MenuRail = observer(function MenuRail(p: { st: WebSt; onExpand: () 
    ]
    return (
       <div className="menu-rail">
+         <button
+            type="button"
+            className="head-icon"
+            data-tip={`unfold the menu (${MOD_KEY}B)`}
+            aria-label="menu"
+            onClick={p.onExpand}
+         >
+            <Icon name="menu" />
+         </button>
          <button
             type="button"
             className="head-icon"

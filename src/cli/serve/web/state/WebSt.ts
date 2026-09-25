@@ -891,6 +891,13 @@ export class WebSt {
       this.menuOpen = open
    }
 
+   /** bumped by ⌘B and the ☰: the desktop menu Panel folds or unfolds on each bump */
+   menuFoldTick = 0
+
+   requestMenuFold(): void {
+      this.menuFoldTick++
+   }
+
    toggleLogs(): void {
       this.showLogs = !this.showLogs
       this.persist()

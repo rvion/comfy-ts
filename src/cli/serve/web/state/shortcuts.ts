@@ -1,14 +1,17 @@
-/** the panel's jump keys, with ⌘ (ctrl elsewhere) and no other modifier. Each one works from ANY
- * focus, a prompt editor included: it is a jump, not an edit. Browser defaults they take over
- * (print, open file) are useless on this page */
-export type Shortcut = 'focus-prompt' | 'open-loras' | 'open-enhancer' | 'toggle-blur'
+/** the panel's jump keys, with ⌘ (ctrl elsewhere) and no other modifier except the ⇧ an entry
+ * names. Each one works from ANY focus, a prompt editor included: it is a jump, not an edit.
+ * Browser defaults they take over (print, open file) are useless on this page */
+export type Shortcut = 'focus-prompt' | 'open-loras' | 'open-enhancer' | 'toggle-menu' | 'toggle-blur'
 
+/** the letter as shown after ⌘; a leading ⇧ means shift is part of the chord */
 export const SHORTCUT_KEYS: Record<Shortcut, string> = {
    'focus-prompt': 'P',
    'open-loras': 'O',
    // the same letter enhances once the enhancer is open (ENHANCER_KEYS): ⌘E, ⌘E
    'open-enhancer': 'E',
-   'toggle-blur': 'B',
+   // ⌘B is the sidebar key of every editor; the blur takes its shifted form
+   'toggle-menu': 'B',
+   'toggle-blur': '⇧B',
 }
 
 export function shortcutOf(e: {
@@ -18,9 +21,12 @@ export function shortcutOf(e: {
    altKey: boolean
    shiftKey: boolean
 }): Shortcut | null {
-   if (!(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey) return null
+   if (!(e.metaKey || e.ctrlKey) || e.altKey) return null
    const key = e.key.toUpperCase()
-   for (const [s, k] of Object.entries(SHORTCUT_KEYS) as [Shortcut, string][]) if (k === key) return s
+   for (const [s, k] of Object.entries(SHORTCUT_KEYS) as [Shortcut, string][]) {
+      const shifted = k.startsWith('⇧')
+      if (shifted === e.shiftKey && k.slice(shifted ? 1 : 0) === key) return s
+   }
    return null
 }
 

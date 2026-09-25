@@ -3,13 +3,15 @@
 import { observer } from 'mobx-react-lite'
 import { useEffect, useState, type ReactNode } from 'react'
 import { Group, Panel, Separator, useDefaultLayout, usePanelRef } from 'react-resizable-panels'
-import { MenuCards, MenuRail } from 'src/cli/serve/web/components/SideMenu.tsx'
+import { MenuCards, MenuHead, MenuRail } from 'src/cli/serve/web/components/SideMenu.tsx'
 import { Gallery } from 'src/cli/serve/web/components/Gallery.tsx'
 import { Icon, type IconName } from 'src/cli/serve/web/components/Icon.tsx'
 import { LATENT_MODES, type LatentMode } from 'src/cli/serve/web/state/latentMode.ts'
 import { Omnibox, useOmniboxShortcut } from 'src/cli/serve/web/components/Omnibox.tsx'
 import { TooltipLayer } from 'src/cli/serve/web/components/TooltipLayer.tsx'
 import { MOD_KEY } from 'src/cli/serve/web/components/modKey.ts'
+import { SHORTCUT_KEYS, shortcutOf } from 'src/cli/serve/web/state/shortcuts.ts'
+import { reaction } from 'mobx'
 import { collapsedPreview } from 'src/cli/serve/web/state/stableSlots.ts'
 import { GenerateButton, VarsForm } from 'src/cli/serve/web/components/VarsForm.tsx'
 import type { WebSt } from 'src/cli/serve/web/state/WebSt.ts'
@@ -168,7 +170,11 @@ const ResultsHead = observer(function ResultsHead(p: { st: WebSt }) {
          </div>
          <div className="head-group-labeled">
             <span className="group-caption">
-               blur <span className="kbd-hint">{MOD_KEY}B</span>
+               blur{' '}
+               <span className="kbd-hint">
+                  {MOD_KEY}
+                  {SHORTCUT_KEYS['toggle-blur']}
+               </span>
             </span>
             <span className="btn-group">
                <button
@@ -176,8 +182,8 @@ const ResultsHead = observer(function ResultsHead(p: { st: WebSt }) {
                   className={p.st.blurResults ? 'sel' : ''}
                   data-tip={
                      p.st.blurResults
-                        ? `blurred until you hover: click (or ${MOD_KEY}B) for always clear`
-                        : `always clear: click (or ${MOD_KEY}B) to blur until you hover`
+                        ? `blurred until you hover: click (or ${MOD_KEY}${SHORTCUT_KEYS['toggle-blur']}) for always clear`
+                        : `always clear: click (or ${MOD_KEY}${SHORTCUT_KEYS['toggle-blur']}) to blur until you hover`
                   }
                   onClick={() => p.st.toggleBlur()}
                >
@@ -266,6 +272,20 @@ const MenuLayout = observer(function MenuLayout(p: { st: WebSt; main: ReactNode 
    const saved = useDefaultLayout({ id: 'comfy-ts-menu', storage: splitStorage })
    const menuRef = usePanelRef()
    const [collapsed, setCollapsed] = useState(false)
+   // ⌘B and ☰ bump the tick; folding is the Panel's own state, so it is remembered with its size
+   useEffect(
+      () =>
+         reaction(
+            () => p.st.menuFoldTick,
+            () => {
+               const panel = menuRef.current
+               if (panel == null) return
+               if (panel.isCollapsed()) panel.expand()
+               else panel.collapse()
+            },
+         ),
+      [p.st, menuRef],
+   )
    return (
       <Group
          id="comfy-ts-menu"
@@ -290,16 +310,10 @@ const MenuLayout = observer(function MenuLayout(p: { st: WebSt; main: ReactNode 
                <MenuRail st={p.st} onExpand={() => menuRef.current?.expand()} />
             ) : (
                <div className="menu-col">
-                  <div className="menu-top">
-                     <button
-                        type="button"
-                        className="head-icon"
-                        data-tip="fold the menu to icons (it stays folded in this browser)"
-                        onClick={() => menuRef.current?.collapse()}
-                     >
-                        <Icon name="panel-left" />
-                     </button>
-                  </div>
+                  <MenuHead
+                     tip={`fold the menu to icons (${MOD_KEY}B), it stays folded in this browser`}
+                     onBurger={() => menuRef.current?.collapse()}
+                  />
                   <MenuCards st={p.st} />
                </div>
             )}
@@ -321,7 +335,7 @@ const MobileBar = observer(function MobileBar(p: { st: WebSt }) {
             <Icon name="menu" />
          </button>
          <button type="button" className="mobile-where" onClick={() => p.st.omnibox.open()}>
-            <span className="head-value app">{form?.moduleKey ?? 'no workflow'}</span>
+            <span className="menu-value mobile-workflow">{form?.moduleKey ?? 'no workflow'}</span>
             {form == null ? null : <span className="mobile-draft"> · {form.draft}</span>}
          </button>
       </div>
@@ -333,19 +347,30 @@ const MenuDrawer = observer(function MenuDrawer(p: { st: WebSt }) {
    return (
       <div className="drawer-overlay" onClick={() => p.st.setMenuOpen(false)}>
          <div className="drawer" onClick={(e) => e.stopPropagation()}>
-            <div className="menu-top">
-               <button type="button" className="head-icon" aria-label="close" onClick={() => p.st.setMenuOpen(false)}>
-                  <Icon name="close" />
-               </button>
-            </div>
+            <MenuHead tip="close the menu" onBurger={() => p.st.setMenuOpen(false)} />
             <MenuCards st={p.st} />
          </div>
       </div>
    )
 })
 
+/** ⌘B (ctrl elsewhere) folds the menu column, or opens and closes the drawer on a phone */
+function useMenuShortcut(st: WebSt, narrow: boolean): void {
+   useEffect(() => {
+      const onKey = (e: KeyboardEvent): void => {
+         if (shortcutOf(e) !== 'toggle-menu') return
+         e.preventDefault()
+         if (narrow) st.setMenuOpen(!st.menuOpen)
+         else st.requestMenuFold()
+      }
+      window.addEventListener('keydown', onKey)
+      return () => window.removeEventListener('keydown', onKey)
+   }, [st, narrow])
+}
+
 export const App = observer(function App(p: { st: WebSt }) {
    const narrow = useNarrow()
+   useMenuShortcut(p.st, narrow)
    useSelectAllInFields()
    useOmniboxShortcut(p.st)
    if (p.st.phase === 'loading') return <div className="center">loading…</div>

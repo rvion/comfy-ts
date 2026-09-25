@@ -91,16 +91,53 @@ button.link.load-errors { color: var(--red); font-size: 11px; }
 .menu-panel { height: 100%; overflow-y: auto; overscroll-behavior: contain; background: var(--panel); border-right: 1px solid var(--border); }
 .menu-main { height: 100%; display: flex; min-width: 0; }
 .menu-main > .main { height: 100%; }
-.menu-col { padding: 8px 10px 14px; }
-.menu-top { display: flex; justify-content: flex-end; margin-bottom: 6px; }
-.menu-cards { display: flex; flex-direction: column; gap: 14px; }
-.menu-cards .head-box { background: var(--bg); }
-.menu-cards .head-label { background: var(--bg); }
-.menu-cards .head-line { flex-wrap: wrap; }
-.menu-cards .head-select { max-width: 100%; min-width: 0; }
-.menu-rail { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 0; }
-.path-value { color: var(--text) !important; font-weight: 500 !important; max-width: 100%; }
-.path-value .icon { color: var(--dim); flex-shrink: 0; }
+.menu-col { padding: 0 0 14px; }
+/* ☰ + the name: the same height as the rail's first icon, so folding never moves it */
+.menu-head { display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 10px; border-bottom: 1px solid var(--border); }
+.menu-brand { font-weight: 700; letter-spacing: 0.01em; }
+.menu-sections { display: flex; flex-direction: column; }
+.menu-section { padding: 10px 10px 12px; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 2px; }
+.menu-title {
+   display: flex; align-items: center; justify-content: space-between; min-height: 24px; padding: 0 4px;
+   color: var(--dim); font-size: 10.5px; letter-spacing: 0.07em; text-transform: uppercase;
+}
+.menu-title-actions { display: flex; align-items: center; gap: 2px; text-transform: none; letter-spacing: 0; }
+.menu-title-actions .kbd-hint { font-size: 10px; }
+/* a row is a line of the list: icon, value, and its own actions at the end */
+.menu-row {
+   display: flex; align-items: center; gap: 8px; min-height: 30px; padding: 2px 4px; border-radius: 6px;
+   width: 100%; border: 0; background: none; color: var(--text); font: inherit; text-align: left; min-width: 0;
+}
+.menu-row > .icon { color: var(--dim); flex-shrink: 0; }
+button.menu-row { cursor: pointer; }
+button.menu-row:hover { background: var(--panel-2); }
+.menu-value { font-weight: 600; min-width: 0; overflow-wrap: anywhere; }
+.workflow-row .menu-value { color: var(--amber); }
+.menu-value.host { color: var(--green); }
+.menu-select {
+   flex: 1; min-width: 0; padding: 2px 4px; font: inherit; font-weight: 600;
+   background: transparent; border: 1px solid transparent; border-radius: 5px;
+}
+.menu-select:hover, .menu-select:focus { border-color: var(--border); background: var(--bg); }
+.menu-select.draft { color: var(--accent); }
+.menu-select.host { color: var(--green); }
+.menu-row-actions { margin-left: auto; display: flex; gap: 2px; flex-shrink: 0; }
+/* quiet word buttons under a row: borderless until hovered */
+.menu-buttons { flex-wrap: wrap; gap: 2px; padding-left: 26px; }
+.menu-buttons > button {
+   display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 8px;
+   border: 1px solid transparent; border-radius: 6px; background: none; color: var(--dim); font-size: 12.5px; cursor: pointer;
+}
+.menu-buttons > button:hover { color: var(--text); background: var(--panel-2); border-color: var(--border); }
+.menu-buttons > button.sel { color: var(--accent); background: var(--accent-dim); }
+.menu-buttons > button.quiet-danger:hover { color: var(--red); border-color: var(--red); }
+.menu-buttons > button.dirty { color: var(--amber); }
+.menu-note { margin-left: auto; font-size: 11px; color: var(--dim); }
+.menu-note.error { color: var(--red); font-weight: 600; }
+.menu-error { font-size: 12px; padding: 4px; }
+.path-row .path-text { color: var(--text); }
+.menu-rail { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 0 0 10px; }
+.menu-rail > button:first-child { height: 44px; }
 .path-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; text-align: left; }
 /* phones: the menu is a drawer, a slim bar names where you are */
 .mobile-bar {
@@ -109,31 +146,12 @@ button.link.load-errors { color: var(--red); font-size: 11px; }
 }
 .mobile-where { border: 0; background: none; font: inherit; color: var(--text); padding: 0; min-width: 0; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mobile-draft { color: var(--accent); }
+.mobile-workflow { color: var(--amber); }
 .drawer-overlay { position: fixed; inset: 0; z-index: 50; background: rgb(0 0 0 / 0.5); }
 .drawer {
    position: absolute; top: 0; bottom: 0; left: 0; width: min(320px, 86vw); overflow-y: auto;
-   background: var(--panel); border-right: 1px solid var(--border); padding: 8px 12px 16px;
+   background: var(--panel); border-right: 1px solid var(--border); padding: 0 0 16px;
 }
-.head-box {
-   position: relative; border: 1px solid var(--border); border-radius: 8px;
-   padding: 5px 9px; background: var(--panel); min-width: 0;
-}
-.head-label {
-   position: absolute; top: -7px; left: 9px; padding: 0 5px; background: var(--bg);
-   color: var(--dim); font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase;
-}
-.head-value { font-weight: 600; overflow-wrap: anywhere; }
-.head-value.app { color: var(--amber); }
-.head-value.draft { color: var(--accent); }
-.head-value.host { color: var(--green); }
-.head-select { padding: 2px 6px; font-size: 13px; font-weight: 600; color: var(--green); max-width: 220px; }
-.head-select.draft { color: var(--accent); }
-/* a head value that acts: reads like the text beside it, behaves like a button */
-.head-value.as-link {
-   border: 0; background: none; padding: 0; font: inherit; font-weight: 600; cursor: pointer;
-   color: var(--amber); display: inline-flex; align-items: center; gap: 5px;
-}
-.head-value.as-link:hover { color: var(--accent); text-decoration: underline; }
 button.danger { color: var(--dim); }
 /* a button that asks to be pressed: the host changed under the panel */
 button.attention { color: var(--accent); border-color: var(--accent); background: var(--accent-dim); font-size: 11px; white-space: nowrap; }
@@ -368,9 +386,6 @@ input[type='range'].setting-range:disabled { opacity: 0.3; }
 }
 /* the changed-vars broom: FAR RIGHT of the draft box line and outside the button group, so
    appearing and disappearing with the dirty count never shifts the buttons beside it */
-.head-box .head-right { margin-left: auto; padding: 2px 5px; }
-.head-box button.dirty { color: var(--amber); }
-.head-box button.dirty:hover { color: var(--red); border-color: var(--red); }
 .runbar .error { color: var(--red); font-size: 12px; white-space: pre-wrap; }
 .pulse { animation: pulse 1.2s ease-in-out infinite; }
 @keyframes pulse { 50% { opacity: 0.45; } }
@@ -761,9 +776,8 @@ button.enh-big { font-size: 14px; padding: 8px 18px; }
 /* blur mode: every result, the latent frame included, stays blurred until the pointer is on it */
 .gallery.blur img { filter: blur(22px); transition: filter 0.12s; }
 .gallery.blur img:hover, .gallery.blur .img-cell:hover img, .gallery.blur button:hover img { filter: none; }
-/* bigger control buttons: the preview head and the three cards at the top, one size with the
-   rows below them */
-.results-head .btn-group > button, .head-box .btn-group > button, .head-box button.head-icon {
+/* bigger control buttons: the preview head and the menu column, one size with the form rows */
+.results-head .btn-group > button, .menu-section .btn-group > button, .menu-panel button.head-icon, .drawer button.head-icon {
    height: 28px; min-width: 28px; font-size: 13px;
    display: inline-flex; align-items: center; justify-content: center; gap: 4px;
 }
@@ -887,18 +901,10 @@ button.enh-big { font-size: 14px; padding: 8px 18px; }
 .field-height button { display: inline-flex; align-items: center; justify-content: center; }
 /* a one-character mode button still needs a target: = + ? are narrow glyphs */
 .btn-group.field-height button { min-width: 28px; }
-/* the draft line: rename, the name, delete, on one line around the name they act on */
-.draft-line { display: flex; gap: 4px; align-items: center; min-width: 0; }
-.draft-line select { flex: 1; min-width: 0; }
 button.head-icon { padding: 2px 5px; background: none; border-color: transparent; color: var(--dim); }
 button.head-icon:hover { border-color: var(--border); color: var(--text); }
 button.head-icon.danger:hover { color: var(--red); border-color: var(--red); }
-.head-input { padding: 2px 6px; font-size: 13px; font-weight: 600; color: var(--accent); max-width: 180px; }
-.head-label .save-state { color: var(--dim); font-weight: 400; margin-left: 4px; }
-.head-label .save-state.error { color: var(--red); }
-/* every head box is two lines: what you are on, then what you can do to it */
-.head-box { display: flex; flex-direction: column; gap: 5px; }
-.head-line { display: flex; gap: 8px; align-items: center; min-height: 24px; }
+.head-input { flex: 1; min-width: 0; padding: 2px 6px; font-size: 13px; font-weight: 600; color: var(--accent); }
 
 /* the lora controls sit above the palette, left aligned */
 .lora-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }

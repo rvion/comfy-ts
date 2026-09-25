@@ -340,7 +340,8 @@ export const VarsForm = observer(function VarsForm(p: { st: WebSt }) {
             return
          }
          const s = shortcutOf(e)
-         if (s == null) return
+         // the menu is page layout: App owns that key
+         if (s == null || s === 'toggle-menu') return
          // the jumps land in the form, which the enhancer covers: only the blur still makes sense
          if (p.st.enhancer.isOpen && s !== 'toggle-blur') return
          e.preventDefault()
