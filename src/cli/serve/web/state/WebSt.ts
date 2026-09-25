@@ -23,6 +23,7 @@ import {
 } from 'src/cli/serve/web/api.ts'
 import { EnhancerSt } from 'src/cli/serve/web/state/EnhancerSt.ts'
 import { OmniboxSt } from 'src/cli/serve/web/state/OmniboxSt.ts'
+import { duplicateDraftName, freeDraftName } from 'src/cli/serve/web/state/draftNames.ts'
 import { asLatentMode, type LatentMode } from 'src/cli/serve/web/state/latentMode.ts'
 import { pushHistory, type HistoryEntry } from 'src/cli/serve/web/state/history.ts'
 import { isPromptInput, promptLanesToText, type PromptInput } from 'src/vars/lanes.ts'
@@ -1262,6 +1263,21 @@ export class WebSt {
       const form = this.form
       if (form == null) return
       await this.createDraft(rawName, form.valuesJSON())
+   }
+
+   /** ⌘D and the duplicate row: a copy of what is on screen, auto-named, opened */
+   duplicateCurrentDraft(): Promise<void> {
+      const form = this.form
+      if (form == null) return Promise.resolve()
+      const drafts = this.moduleByKey(form.moduleKey)?.drafts ?? [form.draft]
+      return this.duplicateDraft(duplicateDraftName(form.draft, drafts))
+   }
+
+   /** the new draft row: the workflow's own values, auto-named, opened */
+   newDraftFromDefaults(): Promise<void> {
+      const form = this.form
+      if (form == null) return Promise.resolve()
+      return this.newDraft(freeDraftName(this.moduleByKey(form.moduleKey)?.drafts ?? []))
    }
 
    /** a new draft from the workflow's OWN values (the ones in its code), not the open draft's */

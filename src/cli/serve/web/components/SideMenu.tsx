@@ -1,50 +1,49 @@
-// the menu column: where you are, widest scope first (workspace, workflow, host, preview).
+// the menu column: where you are, widest scope first (workspace, workflow, draft, host, preview).
 // a left Panel above 760px (collapsible to an icon rail), a drawer behind ☰ below
 import { observer, useLocalObservable } from 'mobx-react-lite'
 import type { ReactNode } from 'react'
 import { Icon, type IconName } from 'src/cli/serve/web/components/Icon.tsx'
 import { MOD_KEY } from 'src/cli/serve/web/components/modKey.ts'
-import { copyName } from 'src/utils/copyName.ts'
+import { SHORTCUT_KEYS } from 'src/cli/serve/web/state/shortcuts.ts'
 import type { PathLabel } from 'src/cli/serve/web/api.ts'
 import type { FormSt } from 'src/cli/serve/web/state/FormSt.ts'
 import { LAYOUTS, type WebSt } from 'src/cli/serve/web/state/WebSt.ts'
 
-/** `new`, `new 2`, … the first name no draft of this workflow has */
-function freeDraftName(drafts: readonly string[]): string {
-   if (!drafts.includes('new')) return 'new'
-   let n = 2
-   while (drafts.includes(`new ${n}`)) n++
-   return `new ${n}`
+/** a titled block of rows; `actions` sit at the right end of the title */
+function Section(p: { title: string; actions?: ReactNode; children: ReactNode }): ReactNode {
+   return (
+      <section className="menu-section">
+         <div className="menu-title">
+            <span>{p.title}</span>
+            {p.actions == null ? null : <span className="menu-title-actions">{p.actions}</span>}
+         </div>
+         {p.children}
+      </section>
+   )
 }
 
-/** the draft rows: the picker with rename and delete, then new, copy and the autosave state.
- * new and duplicate ask for the name INLINE, window.prompt is silently suppressed by browsers
- * after a few dialogs, which reads exactly like a dead button */
-const DraftBox = observer(function DraftBox(p: { st: WebSt; form: FormSt }) {
+/** the draft section: the picker with rename and delete, then the two ways to make a draft as
+ * full rows. New and duplicate are auto-named and open at once (rename is one click away);
+ * rename asks INLINE, window.prompt is silently suppressed by browsers after a few dialogs */
+const DraftSection = observer(function DraftSection(p: { st: WebSt; form: FormSt }) {
    const local = useLocalObservable(() => ({
-      /** null = showing the picker; otherwise the pending name and what it will do */
-      mode: null as null | 'duplicate' | 'rename' | 'new',
-      name: '',
-      start(mode: 'duplicate' | 'rename' | 'new', from: string, taken: readonly string[] = []) {
-         this.mode = mode
-         this.name = mode === 'duplicate' ? copyName(from, taken) : from
+      /** null = showing the picker; otherwise the name being typed */
+      renaming: null as null | string,
+      start(from: string) {
+         this.renaming = from
       },
       set(v: string) {
-         this.name = v
+         this.renaming = v
       },
       stop() {
-         this.mode = null
+         this.renaming = null
       },
    }))
    const drafts = p.st.moduleByKey(p.form.moduleKey)?.drafts ?? [p.form.draft]
    const confirm = (): void => {
-      const name = local.name.trim()
-      const mode = local.mode
+      const name = (local.renaming ?? '').trim()
       local.stop()
-      if (name === '' || mode == null) return
-      if (mode === 'duplicate') void p.st.duplicateDraft(name)
-      else if (mode === 'new') void p.st.newDraft(name)
-      else void p.st.renameDraft(name)
+      if (name !== '' && name !== p.form.draft) void p.st.renameDraft(name)
    }
    const saveNote =
       p.form.saveState === 'saving'
@@ -53,25 +52,26 @@ const DraftBox = observer(function DraftBox(p: { st: WebSt; form: FormSt }) {
            ? 'saved'
            : p.form.saveState === 'error'
              ? 'NOT SAVED'
-             : ''
+             : null
    return (
-      <>
-         {local.mode != null ? (
+      <Section
+         title="draft"
+         actions={
+            saveNote == null ? null : (
+               <span className={p.form.saveState === 'error' ? 'menu-note error' : 'menu-note'}>{saveNote}</span>
+            )
+         }
+      >
+         {local.renaming != null ? (
             <div className="menu-row">
-               <Icon name="draft" />
+               <Icon name="pen" />
                <input
                   type="text"
                   autoFocus
                   className="head-input"
-                  value={local.name}
-                  // enter is the ONLY commit now, so it has to be said
-                  placeholder={
-                     local.mode === 'rename'
-                        ? 'new name, then enter'
-                        : local.mode === 'new'
-                          ? 'new draft name, then enter'
-                          : 'copy name, then enter'
-                  }
+                  value={local.renaming}
+                  // enter is the ONLY commit, so it has to be said
+                  placeholder="new name, then enter"
                   onFocus={(e) => e.currentTarget.select()}
                   onChange={(e) => local.set(e.target.value)}
                   onKeyDown={(e) => {
@@ -80,15 +80,13 @@ const DraftBox = observer(function DraftBox(p: { st: WebSt; form: FormSt }) {
                   }}
                   // blur CANCELS, it does not commit: picking another draft blurs this input, and a
                   // rename committed on blur raced that selection, renameDraft bails when the form
-                  // has already moved on, leaving a duplicate instead of a rename, silently. enter
-                  // commits, which is the only unambiguous signal
+                  // has already moved on, leaving a duplicate instead of a rename, silently
                   onBlur={() => local.stop()}
                />
             </div>
          ) : (
             /* the name IS the picker; rename and delete act ON it, so they sit at its end */
             <div className="menu-row">
-               <Icon name="draft" />
                <select
                   className="menu-select draft"
                   value={p.form.draft}
@@ -106,7 +104,7 @@ const DraftBox = observer(function DraftBox(p: { st: WebSt; form: FormSt }) {
                      type="button"
                      className="head-icon"
                      data-tip="rename this draft (the file is renamed)"
-                     onClick={() => local.start('rename', p.form.draft)}
+                     onClick={() => local.start(p.form.draft)}
                   >
                      <Icon name="pen" />
                   </button>
@@ -126,50 +124,44 @@ const DraftBox = observer(function DraftBox(p: { st: WebSt; form: FormSt }) {
                </span>
             </div>
          )}
-         <div className="menu-row menu-buttons">
-            {/* the two ways to MAKE a draft: from the workflow's defaults, or from what is on screen */}
+         <button
+            type="button"
+            className="menu-row menu-action"
+            data-tip="a copy of the values on screen, as a new draft (renamed from ✎)"
+            onClick={() => void p.st.duplicateCurrentDraft()}
+         >
+            <Icon name="copy-plus" />
+            <span>duplicate this draft</span>
+            <span className="kbd-hint">
+               {MOD_KEY}
+               {SHORTCUT_KEYS['duplicate-draft']}
+            </span>
+         </button>
+         <button
+            type="button"
+            className="menu-row menu-action"
+            data-tip="a new draft with the workflow's own default values"
+            onClick={() => void p.st.newDraftFromDefaults()}
+         >
+            <Icon name="plus" />
+            <span>new draft from defaults</span>
+         </button>
+         {p.form.dirtyCount > 0 ? (
             <button
                type="button"
-               data-tip="new draft with the workflow's own default values"
-               onClick={() => (local.mode != null ? confirm() : local.start('new', freeDraftName(drafts)))}
+               className="menu-row menu-action dirty"
+               data-tip="put back the values this draft loaded with"
+               onClick={() => p.form.revertAll()}
             >
-               <Icon name="plus" /> new
+               <Icon name="broom" />
+               <span>
+                  revert {p.form.dirtyCount} change{p.form.dirtyCount > 1 ? 's' : ''}
+               </span>
             </button>
-            <button
-               type="button"
-               data-tip="save these values as a new draft"
-               onClick={() => (local.mode != null ? confirm() : local.start('duplicate', p.form.draft, drafts))}
-            >
-               <Icon name="copy-plus" /> copy
-            </button>
-            {p.form.dirtyCount > 0 ? (
-               <button
-                  type="button"
-                  className="dirty"
-                  data-tip={`${p.form.dirtyCount} var${p.form.dirtyCount > 1 ? 's' : ''} changed this session — revert to the values this draft loaded with`}
-                  onClick={() => p.form.revertAll()}
-               >
-                  <Icon name="broom" />
-               </button>
-            ) : null}
-            <span className={p.form.saveState === 'error' ? 'menu-note error' : 'menu-note'}>{saveNote}</span>
-         </div>
-      </>
+         ) : null}
+      </Section>
    )
 })
-
-/** a titled block of rows; `actions` sit at the right end of the title */
-function Section(p: { title: string; actions?: ReactNode; children: ReactNode }): ReactNode {
-   return (
-      <section className="menu-section">
-         <div className="menu-title">
-            <span>{p.title}</span>
-            {p.actions == null ? null : <span className="menu-title-actions">{p.actions}</span>}
-         </div>
-         {p.children}
-      </section>
-   )
-}
 
 /** read-only for now: the label fits the row, a click copies the full path */
 function PathRow(p: { what: string; icon: IconName; value: PathLabel | null }): ReactNode {
@@ -193,13 +185,14 @@ function PathRow(p: { what: string; icon: IconName; value: PathLabel | null }): 
 }
 
 /** ☰ + the name. ☰ folds the column (⌘B), in the drawer it closes it */
-export function MenuHead(p: { onBurger: () => void; tip: string }): ReactNode {
+export function MenuHead(p: { onBurger: () => void; tip: string; keyHint?: string }): ReactNode {
    return (
       <div className="menu-head">
          <button type="button" className="head-icon" data-tip={p.tip} aria-label="menu" onClick={p.onBurger}>
             <Icon name="menu" />
          </button>
          <span className="menu-brand">comfy-ts</span>
+         {p.keyHint == null ? null : <span className="kbd-hint menu-head-key">{p.keyHint}</span>}
       </div>
    )
 }
@@ -250,8 +243,8 @@ export const MenuCards = observer(function MenuCards(p: { st: WebSt }) {
                      <Icon name="workflow" />
                      <span className="menu-value">{form.moduleKey}</span>
                   </button>
-                  <DraftBox st={p.st} form={form} />
                </Section>
+               <DraftSection st={p.st} form={form} />
                <Section
                   title={
                      p.st.hostWatch === 'down'
@@ -291,7 +284,6 @@ export const MenuCards = observer(function MenuCards(p: { st: WebSt }) {
                   }
                >
                   <div className="menu-row">
-                     <Icon name="server" />
                      {/* pick where this workflow RUNS (the TUI's host override), remembered per module */}
                      {p.st.hosts.hosts.length > 1 ? (
                         <select
@@ -370,6 +362,9 @@ export const MenuCards = observer(function MenuCards(p: { st: WebSt }) {
                      </button>
                   ))}
                </span>
+            </div>
+            <div className="menu-row menu-caption">
+               {LAYOUTS.find((l) => l.id === p.st.layout)?.title ?? p.st.layout}
             </div>
          </Section>
       </div>

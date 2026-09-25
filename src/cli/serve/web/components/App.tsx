@@ -307,6 +307,7 @@ const MenuLayout = observer(function MenuLayout(p: { st: WebSt; main: ReactNode 
                <div className="menu-col">
                   <MenuHead
                      tip={`fold the menu to icons (${MOD_KEY}B), it stays folded in this browser`}
+                     keyHint={`${MOD_KEY}${SHORTCUT_KEYS['toggle-menu']}`}
                      onBurger={() => menuRef.current?.collapse()}
                   />
                   <MenuCards st={p.st} />
@@ -342,7 +343,11 @@ const MenuDrawer = observer(function MenuDrawer(p: { st: WebSt }) {
    return (
       <div className="drawer-overlay" onClick={() => p.st.setMenuOpen(false)}>
          <div className="drawer" onClick={(e) => e.stopPropagation()}>
-            <MenuHead tip="close the menu" onBurger={() => p.st.setMenuOpen(false)} />
+            <MenuHead
+               tip="close the menu"
+               keyHint={`${MOD_KEY}${SHORTCUT_KEYS['toggle-menu']}`}
+               onBurger={() => p.st.setMenuOpen(false)}
+            />
             <MenuCards st={p.st} />
          </div>
       </div>

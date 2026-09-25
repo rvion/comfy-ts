@@ -18,6 +18,11 @@ describe('panel shortcuts', () => {
       expect(shortcutOf(key('b', { metaKey: true }))).toBe('toggle-menu')
    })
 
+   it('⌘D duplicates the open draft, shifted it is nothing', () => {
+      expect(shortcutOf(key('d', { metaKey: true }))).toBe('duplicate-draft')
+      expect(shortcutOf(key('D', { metaKey: true, shiftKey: true }))).toBe(null)
+   })
+
    it('⌘U blurs, ⌘B folds the menu, ⌘K and ⌘J open the search', () => {
       expect(shortcutOf(key('u', { metaKey: true }))).toBe('toggle-blur')
       expect(shortcutOf(key('U', { ctrlKey: true }))).toBe('toggle-blur')

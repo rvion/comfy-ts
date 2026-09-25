@@ -95,6 +95,14 @@ button.link.load-errors { color: var(--red); font-size: 11px; }
 /* ☰ + the name: the same height as the rail's first icon, so folding never moves it */
 .menu-head { display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 10px; border-bottom: 1px solid var(--border); }
 .menu-brand { font-weight: 700; letter-spacing: 0.01em; }
+.menu-head-key { margin-left: auto; }
+/* a full-row action (duplicate, new, revert): reads as an entry of the list, its key at the end */
+.menu-action { color: var(--dim); font-size: 13px; }
+.menu-action:hover { color: var(--text); }
+.menu-action .kbd-hint { margin-left: auto; }
+.menu-action.dirty, .menu-action.dirty > .icon { color: var(--amber); }
+/* the current value of a button group, in words, under it */
+.menu-caption { min-height: 0; padding-top: 4px; font-size: 12px; color: var(--dim); }
 .menu-sections { display: flex; flex-direction: column; }
 .menu-section { padding: 10px 10px 12px; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 2px; }
 .menu-title {
@@ -131,7 +139,6 @@ button.menu-row:hover { background: var(--panel-2); }
 .menu-buttons > button:hover { color: var(--text); background: var(--panel-2); border-color: var(--border); }
 .menu-buttons > button.sel { color: var(--accent); background: var(--accent-dim); }
 .menu-buttons > button.quiet-danger:hover { color: var(--red); border-color: var(--red); }
-.menu-buttons > button.dirty { color: var(--amber); }
 .menu-note { margin-left: auto; font-size: 11px; color: var(--dim); }
 .menu-note.error { color: var(--red); font-weight: 600; }
 .menu-error { font-size: 12px; padding: 4px; }
@@ -782,8 +789,18 @@ button.enh-big { font-size: 14px; padding: 8px 18px; }
 .corner-run-meta { display: flex; justify-content: space-between; gap: 6px; font-size: 11px; color: var(--dim); white-space: nowrap; }
 .corner-run-meta .run-meta-text { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 /* blur mode: every result, the latent frame included, stays blurred until the pointer is on it */
-.gallery.blur img { filter: blur(22px); transition: filter 0.12s; }
+.gallery.blur img { filter: blur(22px); transition: filter 0.12s, transform 0.12s; }
 .gallery.blur img:hover, .gallery.blur .img-cell:hover img, .gallery.blur button:hover img { filter: none; }
+/* the blur stays inside the image: clipped by its button, and the image scaled up a little while
+   blurred, else the clip shows the blur fading to transparent along every edge */
+.gallery.blur .img-button { position: relative; overflow: hidden; border-radius: 6px; }
+.gallery.blur .img-button img { transform: scale(1.12); }
+.gallery.blur .img-button:hover img { transform: none; }
+.blur-hint {
+   position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); pointer-events: none;
+   font-size: 13px; padding: 2px 8px; color: #fff; opacity: 0.85; background: rgba(0, 0, 0, 0.35);
+}
+.img-button:hover .blur-hint { display: none; }
 /* bigger control buttons: the preview head and the menu column, one size with the form rows */
 .results-head .btn-group > button, .menu-section .btn-group > button, .menu-panel button.head-icon, .drawer button.head-icon {
    height: 28px; min-width: 28px; font-size: 13px;

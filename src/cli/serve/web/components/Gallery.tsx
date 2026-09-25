@@ -10,6 +10,19 @@ import { asSizeForm } from 'src/cli/serve/web/state/payload.ts'
 import { lightboxView, type LightboxTarget } from 'src/cli/serve/web/state/lightbox.ts'
 import { copyImageToClipboard } from 'src/cli/serve/web/clipboard.ts'
 import type { WebSt } from 'src/cli/serve/web/state/WebSt.ts'
+import { MOD_KEY } from 'src/cli/serve/web/components/modKey.ts'
+import { SHORTCUT_KEYS } from 'src/cli/serve/web/state/shortcuts.ts'
+
+/** the unblur shortcut, said ON a blurred image: the place you look when you want it gone */
+const BlurHint = observer(function BlurHint(p: { st: WebSt }) {
+   if (!p.st.blurResults) return null
+   return (
+      <span className="blur-hint kbd-hint">
+         {MOD_KEY}
+         {SHORTCUT_KEYS['toggle-blur']}
+      </span>
+   )
+})
 
 const canCopy = typeof navigator !== 'undefined' && navigator.clipboard != null
 
@@ -322,6 +335,7 @@ const CornerRun = observer(function CornerRun(p: { st: WebSt; local: GalleryLoca
                   }
                >
                   <img src={runPreviewSrc({ module: p.module, tick: p.st.run.previewTick })} alt="latent preview" />
+                  <BlurHint st={p.st} />
                </button>
             ) : null}
             <div className="corner-run-meta">
@@ -398,6 +412,7 @@ const RunningCard = observer(function RunningCard(p: { st: WebSt; local: Gallery
                      }
                   >
                      <img src={previewUrl} alt="latent preview" />
+                     <BlurHint st={p.st} />
                   </button>
                ) : null}
                <div className="progress-track over">
@@ -472,6 +487,7 @@ export const Gallery = observer(function Gallery(p: { st: WebSt; compact?: boole
                                        : undefined
                                  }
                               />
+                              <BlurHint st={p.st} />
                            </button>
                            {/* the EMBEDDING page's buttons (host protocol): what it does with the
                                image is its business — send it somewhere, keep it as something */}

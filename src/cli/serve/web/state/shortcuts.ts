@@ -1,7 +1,13 @@
 /** the panel's jump keys, with ⌘ (ctrl elsewhere) and no other modifier except the ⇧ an entry
  * names. Each one works from ANY focus, a prompt editor included: it is a jump, not an edit.
  * Browser defaults they take over (print, open file) are useless on this page */
-export type Shortcut = 'focus-prompt' | 'open-loras' | 'open-enhancer' | 'toggle-menu' | 'toggle-blur'
+export type Shortcut =
+   | 'focus-prompt'
+   | 'open-loras'
+   | 'open-enhancer'
+   | 'duplicate-draft'
+   | 'toggle-menu'
+   | 'toggle-blur'
 
 /** the letter as shown after ⌘; a leading ⇧ means shift is part of the chord */
 export const SHORTCUT_KEYS: Record<Shortcut, string> = {
@@ -9,6 +15,8 @@ export const SHORTCUT_KEYS: Record<Shortcut, string> = {
    'open-loras': 'O',
    // the same letter enhances once the enhancer is open (ENHANCER_KEYS): ⌘E, ⌘E
    'open-enhancer': 'E',
+   // ⌘D: the browser's bookmark key, useless here
+   'duplicate-draft': 'D',
    // ⌘B is the sidebar key of every editor
    'toggle-menu': 'B',
    'toggle-blur': 'U',
