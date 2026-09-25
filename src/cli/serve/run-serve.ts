@@ -4,7 +4,7 @@ import { statSync } from 'node:fs'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { networkInterfaces } from 'node:os'
 import { pathToFileURL } from 'node:url'
-import { resolve } from 'pathe'
+import { dirname, resolve } from 'pathe'
 import { scanCflowFiles } from 'src/cli/tui/discoverWorkflows.ts'
 import { findDefinedWorkflow } from 'src/cli/tui/findDefinedWorkflow.ts'
 import { draftKeyForFile } from 'src/cli/tui/state/DraftsSt.ts'
@@ -138,7 +138,13 @@ export async function runServe(args: string[]): Promise<number> {
       return 1
    }
 
-   const app = new ServeApp(modules, { loadErrors, webJs: loadOrBuildWebJs })
+   const app = new ServeApp(modules, {
+      loadErrors,
+      webJs: loadOrBuildWebJs,
+      // the modules registered comfyts on import: its root holds `.comfy-ts/`
+      workspace: typeof comfyts === 'undefined' ? process.cwd() : comfyts.rootPath,
+      root: statSync(target).isDirectory() ? target : dirname(target),
+   })
    printStartup(app, parsed.bind, parsed.port)
 
    const server = createServer(makeRequestListener(app))

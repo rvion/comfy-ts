@@ -49,6 +49,10 @@ export type IconName =
    | 'video'
    | 'workflow'
    | 'draft'
+   | 'folder'
+   | 'folder-tree'
+   | 'server'
+   | 'menu'
 
 /** 24x24 viewBox paths, stroked (fill: none) unless the shape reads better solid */
 const PATHS: Record<IconName, ReactNode> = {
@@ -171,6 +175,18 @@ const PATHS: Record<IconName, ReactNode> = {
       </>
    ),
    draft: <path d="M6 3h8l4 4v14H6zM14 3v4h4M9 12h6M9 16h4" />,
+   folder: (
+      <path d="M3 6.5A1.5 1.5 0 014.5 5H9l2 2h8.5A1.5 1.5 0 0121 8.5v9a1.5 1.5 0 01-1.5 1.5h-15A1.5 1.5 0 013 17.5z" />
+   ),
+   'folder-tree': <path d="M4 4v14a2 2 0 002 2h2M4 10h4M10 7h3l1 1.5h6V12H10zM10 16h3l1 1.5h6V21H10z" />,
+   server: (
+      <>
+         <rect x="3" y="4" width="18" height="7" rx="1.5" />
+         <rect x="3" y="13" width="18" height="7" rx="1.5" />
+         <path d="M7 7.5h.01M7 16.5h.01M11 7.5h6M11 16.5h6" />
+      </>
+   ),
+   menu: <path d="M4 7h16M4 12h16M4 17h16" />,
 }
 
 /** `size` is a multiplier of the surrounding font size, so icons scale with their button */

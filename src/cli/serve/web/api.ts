@@ -14,8 +14,13 @@ export type ModuleDescription = {
    tags?: string[]
 }
 
+export type PathLabel = { path: string; label: string }
+
 export type IndexPayload = {
    workflows: ModuleDescription[]
+   /** where `.comfy-ts/` lives, and the folder serve scanned */
+   workspace?: PathLabel
+   root?: PathLabel
    loadErrors?: Record<string, string>
 }
 

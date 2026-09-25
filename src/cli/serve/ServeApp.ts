@@ -25,6 +25,7 @@ import { managerOnlyLoraOptions } from 'src/cli/serve/managerOnlyLoras.ts'
 import { resolveTagSource, TagSources } from 'src/cli/serve/tagSource.ts'
 import { FAVICON_DATA_URI } from 'src/cli/serve/favicon.ts'
 import { type TagNode, workflowTags } from 'src/cli/serve/workflowTags.ts'
+import { workspaceLabels } from 'src/cli/serve/workspaceLabels.ts'
 import { driftChanged, summarizeDrift } from 'src/host/schemaDrift.ts'
 import { validSavePrefix, validStoreName } from 'src/utils/safeName.ts'
 import { readServeSettings, writeServeSettings, type ServeSettings } from 'src/cli/serve/serveSettings.ts'
@@ -355,6 +356,10 @@ export class ServeApp {
          starter?: ServeStarter
          outputRoot?: string
          loadErrors?: Record<string, string>
+         /** where `.comfy-ts/` lives and the folder serve scanned: the menu's read-only cards.
+          * absent = the index leaves both out */
+         workspace?: string
+         root?: string
          /** web ui bundle provider (run-serve wires loadOrBuildWebJs), called on every page load
           * and owning its own cache; absent = api only */
          webJs?: () => Promise<string | null>
@@ -649,6 +654,13 @@ export class ServeApp {
          server: 'comfy-ts serve',
          usage: USAGE,
          workflows: this.modules.map((m) => this.describeModule(m)),
+         ...(this.opts.workspace == null
+            ? {}
+            : workspaceLabels({
+                 workspace: this.opts.workspace,
+                 root: this.opts.root ?? this.opts.workspace,
+                 home: process.env.HOME ?? '',
+              })),
          ...(this.opts.loadErrors != null && Object.keys(this.opts.loadErrors).length > 0
             ? { loadErrors: this.opts.loadErrors }
             : {}),

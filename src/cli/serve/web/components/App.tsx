@@ -1,8 +1,9 @@
-// layout root: form column + results column, placed by the preview panel's own buttons.
-// NO title bar and no menu: ⌘K / ⌘J or the workflow head box opens the omnibox
+// layout root: the menu column (SideMenu.tsx), then the form and results columns placed by
+// the preview panel's own buttons. At 760px and below the menu is a drawer behind ☰
 import { observer } from 'mobx-react-lite'
 import { useEffect, useState, type ReactNode } from 'react'
-import { Group, Panel, Separator, useDefaultLayout } from 'react-resizable-panels'
+import { Group, Panel, Separator, useDefaultLayout, usePanelRef } from 'react-resizable-panels'
+import { MenuCards, MenuRail } from 'src/cli/serve/web/components/SideMenu.tsx'
 import { Gallery } from 'src/cli/serve/web/components/Gallery.tsx'
 import { Icon, type IconName } from 'src/cli/serve/web/components/Icon.tsx'
 import { LATENT_MODES, type LatentMode } from 'src/cli/serve/web/state/latentMode.ts'
@@ -270,6 +271,94 @@ const SplitWork = observer(function SplitWork(p: { st: WebSt; left: boolean; for
    )
 })
 
+/** px: the rail is one icon wide, and a column dragged below MENU_MIN snaps to it */
+const MENU_RAIL = 48
+const MENU_MIN = 180
+
+/** the menu as a resizable left Panel: its size and its collapsed state are kept in this
+ * browser, like the form and results split */
+const MenuLayout = observer(function MenuLayout(p: { st: WebSt; main: ReactNode }) {
+   const saved = useDefaultLayout({ id: 'comfy-ts-menu', storage: splitStorage })
+   const menuRef = usePanelRef()
+   const [collapsed, setCollapsed] = useState(false)
+   return (
+      <Group
+         id="comfy-ts-menu"
+         orientation="horizontal"
+         className="menu-layout"
+         defaultLayout={saved.defaultLayout}
+         onLayoutChanged={saved.onLayoutChanged}
+      >
+         <Panel
+            id="menu"
+            panelRef={menuRef}
+            defaultSize={220}
+            minSize={MENU_MIN}
+            maxSize={420}
+            collapsible
+            collapsedSize={MENU_RAIL}
+            groupResizeBehavior="preserve-pixel-size"
+            onResize={(size) => setCollapsed(size.inPixels < MENU_MIN - 1)}
+            className="menu-panel"
+         >
+            {collapsed ? (
+               <MenuRail st={p.st} onExpand={() => menuRef.current?.expand()} />
+            ) : (
+               <div className="menu-col">
+                  <div className="menu-top">
+                     <button
+                        type="button"
+                        className="head-icon"
+                        data-tip="fold the menu to icons (it stays folded in this browser)"
+                        onClick={() => menuRef.current?.collapse()}
+                     >
+                        <Icon name="panel-left" />
+                     </button>
+                  </div>
+                  <MenuCards st={p.st} />
+               </div>
+            )}
+         </Panel>
+         <Separator className="split-handle" />
+         <Panel id="main" minSize="40%" className="menu-main">
+            {p.main}
+         </Panel>
+      </Group>
+   )
+})
+
+/** phones: a slim bar naming where you are, the whole menu one tap away */
+const MobileBar = observer(function MobileBar(p: { st: WebSt }) {
+   const form = p.st.form
+   return (
+      <div className="mobile-bar">
+         <button type="button" className="head-icon" aria-label="menu" onClick={() => p.st.setMenuOpen(true)}>
+            <Icon name="menu" />
+         </button>
+         <button type="button" className="mobile-where" onClick={() => p.st.omnibox.open()}>
+            <span className="head-value app">{form?.moduleKey ?? 'no workflow'}</span>
+            {form == null ? null : <span className="mobile-draft"> · {form.draft}</span>}
+         </button>
+      </div>
+   )
+})
+
+const MenuDrawer = observer(function MenuDrawer(p: { st: WebSt }) {
+   if (!p.st.menuOpen) return null
+   return (
+      <div className="drawer-overlay" onClick={() => p.st.setMenuOpen(false)}>
+         <div className="drawer" onClick={(e) => e.stopPropagation()}>
+            <div className="menu-top">
+               <button type="button" className="head-icon" aria-label="close" onClick={() => p.st.setMenuOpen(false)}>
+                  <Icon name="close" />
+               </button>
+            </div>
+            <MenuCards st={p.st} />
+         </div>
+      </div>
+   )
+})
+
 export const App = observer(function App(p: { st: WebSt }) {
    const narrow = useNarrow()
    useSelectAllInFields()
@@ -328,45 +417,46 @@ export const App = observer(function App(p: { st: WebSt }) {
    // left / right on a screen wide enough: two FULL-HEIGHT panels, each scrolling on its own,
    // split by a handle you drag. Everything else is one scrolling page
    const split = (layout === 'side' || layout === 'left') && !narrow
-   return (
-      <div className="app">
-         <div className="cols">
-            {split ? (
-               <SplitWork
-                  st={p.st}
-                  left={layout === 'left'}
-                  form={
-                     <>
-                        {notices}
-                        {formCol}
-                     </>
-                  }
-                  results={resultsCol}
-               />
-            ) : (
-               <div className="main">
-                  {notices}
-                  {/* the layout buttons drive ONE class, and it is the whole truth: the selected
+   const body = split ? (
+      <SplitWork
+         st={p.st}
+         left={layout === 'left'}
+         form={
+            <>
+               {notices}
+               {formCol}
+            </>
+         }
+         results={resultsCol}
+      />
+   ) : (
+      <div className="main">
+         {notices}
+         {/* the layout buttons drive ONE class, and it is the whole truth: the selected
                       button always names where the panel is */}
-                  <div className={`work layout-${layout}`}>
-                     {formCol}
-                     {layout === 'off' ? (
-                        // the panel took its buttons with it: this is the way back
-                        <button
-                           type="button"
-                           className="show-preview"
-                           data-tip="show the preview panel again"
-                           onClick={() => p.st.showPreview()}
-                        >
-                           <Icon name="panel-side" /> preview
-                        </button>
-                     ) : (
-                        resultsCol
-                     )}
-                  </div>
-               </div>
+         <div className={`work layout-${layout}`}>
+            {formCol}
+            {layout === 'off' ? (
+               // the panel took its buttons with it: this is the way back
+               <button
+                  type="button"
+                  className="show-preview"
+                  data-tip="show the preview panel again"
+                  onClick={() => p.st.showPreview()}
+               >
+                  <Icon name="panel-side" /> preview
+               </button>
+            ) : (
+               resultsCol
             )}
          </div>
+      </div>
+   )
+   return (
+      <div className="app">
+         {narrow ? <MobileBar st={p.st} /> : null}
+         <div className="cols">{narrow ? body : <MenuLayout st={p.st} main={body} />}</div>
+         {narrow ? <MenuDrawer st={p.st} /> : null}
          <Omnibox st={p.st} />
          <TooltipLayer />
       </div>

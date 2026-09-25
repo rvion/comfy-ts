@@ -18,6 +18,7 @@ import {
    type HostAction,
    type HostsPayload,
    type ModuleDescription,
+   type PathLabel,
    type ServeSettings,
 } from 'src/cli/serve/web/api.ts'
 import { EnhancerSt } from 'src/cli/serve/web/state/EnhancerSt.ts'
@@ -178,6 +179,11 @@ export class WebSt {
    bootError = ''
    modules: ModuleDescription[] = []
    loadErrors: Record<string, string> = {}
+   /** the menu's read-only cards: where `.comfy-ts/` lives, and the folder serve scanned */
+   workspace: PathLabel | null = null
+   root: PathLabel | null = null
+   /** the phone drawer (the menu column at 760px and below) */
+   menuOpen = false
    form: FormSt | null = null
    formLoading = false
    formError: string | null = null
@@ -457,6 +463,8 @@ export class WebSt {
          runInAction(() => {
             this.modules = index.workflows
             this.loadErrors = index.loadErrors ?? {}
+            this.workspace = index.workspace ?? null
+            this.root = index.root ?? null
             this.phase = 'ready'
          })
          void this.loadSettings()
@@ -505,6 +513,8 @@ export class WebSt {
 
    /** `mirror: false` when a host request will answer with its own `state` right after */
    select(p: { module: string; draft: string }, o: { mirror?: boolean } = {}): Promise<void> {
+      // the phone drawer is a way to a draft: arriving there closes it
+      this.menuOpen = false
       return this.trackSwitch(this.selectNow(p, o.mirror ?? true))
    }
 
@@ -875,6 +885,10 @@ export class WebSt {
    toggleBlur(): void {
       this.blurResults = !this.blurResults
       this.persist()
+   }
+
+   setMenuOpen(open: boolean): void {
+      this.menuOpen = open
    }
 
    toggleLogs(): void {

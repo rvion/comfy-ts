@@ -39,7 +39,7 @@ body {
 .omni-row.sel { background: var(--accent-dim); color: #fff; }
 .omni-row.workflow { margin-top: 6px; padding-top: 7px; padding-bottom: 7px; }
 .omni-row.workflow:first-child { margin-top: 0; }
-.omni-row.draft { padding-left: 38px; color: var(--dim); font-size: 13px; }
+.omni-row.draft { padding-left: 38px; color: var(--dim); }
 .omni-row.draft .icon { opacity: 0.6; flex-shrink: 0; }
 .omni-row.draft.sel, .omni-row.draft:hover { color: var(--text); }
 .omni-row.draft.open .omni-draft { color: var(--text); font-weight: 600; }
@@ -83,20 +83,33 @@ button.link.load-errors { color: var(--red); font-size: 11px; }
 .main h2 { font-size: 14px; margin: 0; color: var(--dim); font-weight: 500; }
 .main h2 b { color: var(--text); }
 
-/* the TUI header on the web: one labelled box per thing you are editing, actions below */
-/* the boxes measure the FORM COLUMN, not the window: a results panel on the side halves the
-   space they have while the viewport is unchanged, so a media query would answer the wrong
-   question. Two variants, and EVEN ones: three boxes in a row or stacked. Two columns would
-   leave one box alone on the second line, which reads as a bug rather than as a layout */
-.head-shell { container-type: inline-size; }
-.head-boxes { display: grid; grid-template-columns: 1fr; gap: 10px; margin: 4px 0 0; align-items: stretch; }
-@container (min-width: 540px) {
-   .head-boxes { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+/* the menu column: the TUI header on the web, one labelled card per scope, stacked */
+.menu-layout { flex: 1; min-width: 0; height: 100%; }
+.menu-panel { height: 100%; overflow-y: auto; overscroll-behavior: contain; background: var(--panel); border-right: 1px solid var(--border); }
+.menu-main { height: 100%; display: flex; min-width: 0; }
+.menu-main > .main { height: 100%; }
+.menu-col { padding: 8px 10px 14px; }
+.menu-top { display: flex; justify-content: flex-end; margin-bottom: 6px; }
+.menu-cards { display: flex; flex-direction: column; gap: 14px; }
+.menu-cards .head-box { background: var(--bg); }
+.menu-cards .head-label { background: var(--bg); }
+.menu-cards .head-line { flex-wrap: wrap; }
+.menu-cards .head-select { max-width: 100%; min-width: 0; }
+.menu-rail { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 0; }
+.path-value { color: var(--text) !important; font-weight: 500 !important; max-width: 100%; }
+.path-value .icon { color: var(--dim); flex-shrink: 0; }
+.path-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; text-align: left; }
+/* phones: the menu is a drawer, a slim bar names where you are */
+.mobile-bar {
+   display: flex; align-items: center; gap: 8px; padding: 6px 10px;
+   border-bottom: 1px solid var(--border); background: var(--panel);
 }
-/* no container-query support: fall back to the old wrapping row rather than a stack of three */
-@supports not (container-type: inline-size) {
-   .head-boxes { display: flex; flex-wrap: wrap; }
-   .head-boxes > .head-box { flex: 1 1 auto; min-width: 150px; }
+.mobile-where { border: 0; background: none; font: inherit; color: var(--text); padding: 0; min-width: 0; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mobile-draft { color: var(--accent); }
+.drawer-overlay { position: fixed; inset: 0; z-index: 50; background: rgb(0 0 0 / 0.5); }
+.drawer {
+   position: absolute; top: 0; bottom: 0; left: 0; width: min(320px, 86vw); overflow-y: auto;
+   background: var(--panel); border-right: 1px solid var(--border); padding: 8px 12px 16px;
 }
 .head-box {
    position: relative; border: 1px solid var(--border); border-radius: 8px;
