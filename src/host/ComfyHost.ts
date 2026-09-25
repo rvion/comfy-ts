@@ -628,9 +628,24 @@ export class ComfyHost<ID extends string = string> {
       return this.postJSON_('/queue', { clear: true })
    }
 
-   /** interrupt the CURRENTLY RUNNING prompt */
+   /** a repeat interrupt for the same running prompt inside this window reuses the first request */
+   interruptCoalesceMs = 3000
+   private _lastInterrupt: { promptID: PromptID | null; at: number; req: Promise<void> } | null = null
+
+   /** interrupt the CURRENTLY RUNNING prompt. A burst of /interrupt posts can make the ComfyUI
+    * python process quit, so repeats for the same prompt are coalesced into one request */
    interrupt = (): Promise<void> => {
-      return this.postJSON_('/interrupt', {})
+      const now = Date.now()
+      const last = this._lastInterrupt
+      if (last != null && last.promptID === this.activePromptID && now - last.at < this.interruptCoalesceMs)
+         return last.req
+      const req = this.postJSON_('/interrupt', {})
+      this._lastInterrupt = { promptID: this.activePromptID, at: now, req }
+      // a failed request must not swallow the retry
+      req.catch(() => {
+         if (this._lastInterrupt?.req === req) this._lastInterrupt = null
+      })
+      return req
    }
 
    // HISTORY SCRUB (architecture.md item 14) -------------------------------------------
