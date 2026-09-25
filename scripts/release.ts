@@ -119,13 +119,14 @@ async function main(): Promise<void> {
          run({ cmd: ['bun', 'publish'], env: { NPM_CONFIG_TOKEN: token } })
          const listed = await waitForVersion({
             version,
-            tries: 20,
-            wait: () => Bun.sleep(3000),
+            // npm took about 7 minutes to list 2.13.0 and 2.14.0 after a publish it had accepted
+            tries: 60,
+            wait: () => Bun.sleep(10_000),
             versions: () => registryVersions(pkg.name),
          })
          if (!listed)
             throw new Error(
-               `[release] 🔴 bun publish exited 0 but npm does not list ${pkg.name}@${version} after a minute. Nothing was tagged. Read bun publish's output above, fix, and rerun`,
+               `[release] 🔴 bun publish exited 0 but npm does not list ${pkg.name}@${version} after 10 minutes. Nothing was tagged. A publish npm accepted can still be pending: rerun later, it resumes once the version is listed (a 409 on a second bun publish means npm has it)`,
             )
       }
 
