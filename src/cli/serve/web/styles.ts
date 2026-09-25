@@ -793,7 +793,8 @@ button.enh-big { font-size: 14px; padding: 8px 18px; }
    results never read as one page. Placement rules below refine it (the corner card is tighter) */
 .results-col { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 8px 10px 10px; }
 .results-col .gallery { margin-top: 0; }
-.results-col .run-card { background: var(--bg); }
+/* on the preview surface a result is its image, title and buttons, with no frame of its own */
+.results-col .run-card { background: none; border: 0; border-radius: 0; padding: 0; }
 .work.layout-bottom .results-col { margin-top: 16px; }
 /* the panel's own controls sit on top of it */
 .head-group-labeled { display: flex; flex-direction: column; gap: 2px; }
