@@ -5,6 +5,7 @@ import { observer } from 'mobx-react-lite'
 import { useEffect, useRef } from 'react'
 import { Icon, type IconName } from 'src/cli/serve/web/components/Icon.tsx'
 import { entryKey, type OmniboxEntry } from 'src/cli/serve/web/state/omnibox.ts'
+import { isOmniboxKey } from 'src/cli/serve/web/state/shortcuts.ts'
 import type { WebSt } from 'src/cli/serve/web/state/WebSt.ts'
 
 /** the first media tag picks the icon: what the workflow makes */
@@ -61,8 +62,7 @@ function OmniRow(p: { entry: OmniboxEntry; sel: boolean; open: boolean; words: s
 export function useOmniboxShortcut(st: WebSt): void {
    useEffect(() => {
       const onKey = (e: KeyboardEvent): void => {
-         if (!(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey) return
-         if (e.key !== 'k' && e.key !== 'K' && e.key !== 'j' && e.key !== 'J') return
+         if (!isOmniboxKey(e)) return
          e.preventDefault()
          st.omnibox.toggle()
       }

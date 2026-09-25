@@ -9,9 +9,25 @@ export const SHORTCUT_KEYS: Record<Shortcut, string> = {
    'open-loras': 'O',
    // the same letter enhances once the enhancer is open (ENHANCER_KEYS): ⌘E, ⌘E
    'open-enhancer': 'E',
-   // ⌘B is the sidebar key of every editor; the blur takes its shifted form
+   // ⌘B is the sidebar key of every editor
    'toggle-menu': 'B',
-   'toggle-blur': '⇧B',
+   'toggle-blur': 'U',
+}
+
+/** ⌘K or ⌘J (ctrl elsewhere) opens the search over every workflow and draft */
+export function isOmniboxKey(e: {
+   key: string
+   metaKey: boolean
+   ctrlKey: boolean
+   altKey: boolean
+   shiftKey: boolean
+}): boolean {
+   return (
+      (e.metaKey || e.ctrlKey) &&
+      !e.altKey &&
+      !e.shiftKey &&
+      (e.key.toUpperCase() === 'K' || e.key.toUpperCase() === 'J')
+   )
 }
 
 export function shortcutOf(e: {

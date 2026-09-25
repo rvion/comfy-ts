@@ -1,6 +1,6 @@
-// ⌘P focuses the first prompt, ⌘O opens the first loras picker, ⌘B folds the menu, ⇧⌘B toggles the blur
+// ⌘P focuses the first prompt, ⌘O opens the first loras picker, ⌘B folds the menu, ⌘U toggles the blur, ⌘K or ⌘J opens the search
 import { describe, expect, it } from 'bun:test'
-import { enhancerShortcutOf, jumpTargets, shortcutOf } from 'src/cli/serve/web/state/shortcuts.ts'
+import { enhancerShortcutOf, isOmniboxKey, jumpTargets, shortcutOf } from 'src/cli/serve/web/state/shortcuts.ts'
 
 const key = (k: string, mods: Partial<{ metaKey: boolean; ctrlKey: boolean; altKey: boolean; shiftKey: boolean }>) => ({
    key: k,
@@ -18,10 +18,15 @@ describe('panel shortcuts', () => {
       expect(shortcutOf(key('b', { metaKey: true }))).toBe('toggle-menu')
    })
 
-   it('shift picks the shifted entry only: ⇧⌘B blurs, ⌘B folds the menu', () => {
-      expect(shortcutOf(key('B', { metaKey: true, shiftKey: true }))).toBe('toggle-blur')
-      expect(shortcutOf(key('b', { ctrlKey: true, shiftKey: true }))).toBe('toggle-blur')
+   it('⌘U blurs, ⌘B folds the menu, ⌘K and ⌘J open the search', () => {
+      expect(shortcutOf(key('u', { metaKey: true }))).toBe('toggle-blur')
+      expect(shortcutOf(key('U', { ctrlKey: true }))).toBe('toggle-blur')
       expect(shortcutOf(key('b', { metaKey: true }))).toBe('toggle-menu')
+      expect(shortcutOf(key('B', { metaKey: true, shiftKey: true }))).toBe(null)
+      expect(isOmniboxKey(key('k', { metaKey: true }))).toBe(true)
+      expect(isOmniboxKey(key('j', { metaKey: true }))).toBe(true)
+      expect(shortcutOf(key('j', { metaKey: true }))).toBe(null)
+      expect(isOmniboxKey(key('u', { metaKey: true }))).toBe(false)
    })
 
    it('⌘E opens the enhancer on the first prompt, the same letter enhances once it is open', () => {
