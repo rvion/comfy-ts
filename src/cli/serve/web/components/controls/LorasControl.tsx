@@ -459,11 +459,12 @@ export const LorasControl = observer(function LorasControl(p: {
       filterRef.current?.select()
    }
 
-   // ONE size factor for every lora image (the slider): the palette card, its image, and the
-   // popup's grid all follow it. 168/130 and 120/110 are the base card and image sizes
-   const scale = p.st.loraScale
-   const cardWidth = Math.round(168 * scale)
-   const gridMin = Math.round(120 * scale)
+   // two size factors, each with its own slider: the form's cards follow formScale, the
+   // popup's grid follows popupScale. 168/130 and 120/110 are the base card and image sizes
+   const formScale = p.st.loraFormScale
+   const popupScale = p.st.loraPopupScale
+   const cardWidth = Math.round(168 * formScale)
+   const gridMin = Math.round(120 * popupScale)
    const thumb = (name: string, height?: number): ReactNode => {
       if (!showImages) return null
       const style = height == null ? undefined : { height }
@@ -491,19 +492,20 @@ export const LorasControl = observer(function LorasControl(p: {
       </span>
    )
 
-   /** the image size, a small slider: only while images are shown */
-   const sizeSlider = showImages ? (
-      <input
-         type="range"
-         className="setting-range"
-         min={0.6}
-         max={2}
-         step={0.05}
-         value={scale}
-         data-tip={`lora image size ×${scale.toFixed(2)}`}
-         onChange={(e) => p.st.setLoraScale(parseFloat(e.target.value))}
-      />
-   ) : null
+   /** an image size, a small slider: only while images are shown */
+   const sizeSlider = (where: string, scale: number, set: (v: number) => void): ReactNode =>
+      showImages ? (
+         <input
+            type="range"
+            className="setting-range"
+            min={0.6}
+            max={2}
+            step={0.05}
+            value={scale}
+            data-tip={`lora image size in the ${where} ×${scale.toFixed(2)}`}
+            onChange={(e) => set(parseFloat(e.target.value))}
+         />
+      ) : null
 
    const visibilityToggles = (
       <>
@@ -577,7 +579,7 @@ export const LorasControl = observer(function LorasControl(p: {
                         <label className="menu-item menu-range">
                            <span className="menu-check" />
                            size
-                           {sizeSlider}
+                           {sizeSlider('form', formScale, (v) => p.st.setLoraFormScale(v))}
                         </label>
                      ) : null}
                      <div className="menu-sep" />
@@ -735,7 +737,7 @@ export const LorasControl = observer(function LorasControl(p: {
                                        data-tip={`${name}\nclick to ${isOn(sec, name) ? 'pause' : 'resume'}, click the title for details`}
                                        onClick={() => toggleOn(sec, name, !isOn(sec, name))}
                                     >
-                                       {thumb(name, Math.round(130 * scale))}
+                                       {thumb(name, Math.round(130 * formScale))}
                                        {showImages && !isOn(sec, name) ? pausedMark : null}
                                     </button>
                                     <button
@@ -836,7 +838,7 @@ export const LorasControl = observer(function LorasControl(p: {
                   {/* the display toggles first, the search in the middle, close alone at the end */}
                   <div className="modal-head">
                      <span className="btn-group">{visibilityToggles}</span>
-                     {sizeSlider}
+                     {sizeSlider('popup', popupScale, (v) => p.st.setLoraPopupScale(v))}
                      <input
                         ref={filterRef}
                         type="text"
@@ -961,7 +963,7 @@ export const LorasControl = observer(function LorasControl(p: {
                                              }}
                                           >
                                              <span className="thumb-box">
-                                                {thumb(name, Math.round(110 * scale))}
+                                                {thumb(name, Math.round(110 * popupScale))}
                                                 {showImages && picked && !on ? pausedMark : null}
                                              </span>
                                              <div className="lora-label">

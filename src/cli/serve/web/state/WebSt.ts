@@ -81,8 +81,12 @@ type StoredSelection = {
    loraFill?: boolean
    /** trigger words under the lora cards */
    loraTriggers?: boolean
-   /** lora image size factor */
+   /** the single lora image size, before the form and the popup got one each: seeds both */
    loraScale?: number
+   /** lora image size factor in the form's lora rows */
+   loraFormScale?: number
+   /** lora image size factor in the lora popup */
+   loraPopupScale?: number
    /** the label column width, px */
    labelWidth?: number
    loraSort?: string
@@ -121,6 +125,15 @@ const LEGACY_LORA_CAP = 60
 export function clampLoraScale(raw: unknown): number {
    const n = typeof raw === 'number' && Number.isFinite(raw) ? raw : 1
    return Math.min(2, Math.max(0.6, Math.round(n * 20) / 20))
+}
+
+/** the form and the popup each keep their own size: the popup is for browsing, so it is
+ * usually drawn bigger than the rows under a var */
+export function readLoraScales(stored: StoredSelection): { form: number; popup: number } {
+   return {
+      form: clampLoraScale(stored.loraFormScale ?? stored.loraScale),
+      popup: clampLoraScale(stored.loraPopupScale ?? stored.loraScale),
+   }
 }
 
 export const DEFAULT_RESULTS_SIZE = 320
@@ -175,8 +188,10 @@ export class WebSt {
    loraFill: boolean
    /** trigger words under each lora card: off by default, the words are reference, not a control */
    showLoraTriggers: boolean
-   /** how big every lora image is drawn, 1 = the base card size */
-   loraScale: number
+   /** how big lora images are drawn in the form's rows, 1 = the base card size */
+   loraFormScale: number
+   /** how big lora images are drawn in the lora popup, 1 = the base card size */
+   loraPopupScale: number
    loraSort: LoraSort
    /** how many lora cards the popup draws. A cap exists because each card is an image
     * request; how many is a MACHINE question (your box, your collection), so it is yours */
@@ -261,7 +276,9 @@ export class WebSt {
       this.showLoraTitles = stored.loraTitles ?? true
       this.loraFill = stored.loraFill ?? true
       this.showLoraTriggers = stored.loraTriggers ?? false
-      this.loraScale = clampLoraScale(stored.loraScale)
+      const loraScales = readLoraScales(stored)
+      this.loraFormScale = loraScales.form
+      this.loraPopupScale = loraScales.popup
       this.loraSort = asLoraSort(stored.loraSort)
       // marked in the blob, so the bump happens once and a deliberate 60 sticks after it
       this.loraCap = clampLoraCap(
@@ -314,8 +331,13 @@ export class WebSt {
       this.persist()
    }
 
-   setLoraScale(v: number): void {
-      this.loraScale = clampLoraScale(v)
+   setLoraFormScale(v: number): void {
+      this.loraFormScale = clampLoraScale(v)
+      this.persist()
+   }
+
+   setLoraPopupScale(v: number): void {
+      this.loraPopupScale = clampLoraScale(v)
       this.persist()
    }
 
@@ -403,7 +425,8 @@ export class WebSt {
                loraTitles: this.showLoraTitles,
                loraFill: this.loraFill,
                loraTriggers: this.showLoraTriggers,
-               loraScale: this.loraScale,
+               loraFormScale: this.loraFormScale,
+               loraPopupScale: this.loraPopupScale,
                loraSort: this.loraSort,
                loraCap: this.loraCap,
                loraCapMigrated: true,
