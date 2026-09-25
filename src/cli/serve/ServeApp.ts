@@ -34,6 +34,7 @@ import {
    writeServeSettings,
    type ServeSettings,
 } from 'src/cli/serve/serveSettings.ts'
+import { describeRunError } from 'src/cli/serve/runError.ts'
 import { ResultHistory, type KeptBlob, type RunRecord } from 'src/cli/serve/resultHistory.ts'
 import { readTabs, SERVE_TABS_FILE, type DraftTab } from 'src/cli/serve/web/state/draftTabs.ts'
 import { assembleLogChunks } from 'src/cli/tui/state/LogsSt.ts'
@@ -1582,15 +1583,9 @@ export class ServeApp {
       const durationMs = Date.now() - t0
 
       if (execution.status === 'Failure') {
-         console.error(`[serve] 🔴 ${mod.key}/${draft} failed after ${durationMs}ms`)
-         return json(500, {
-            ok: false,
-            module: mod.key,
-            draft,
-            promptId: execution.data.id,
-            durationMs,
-            error: execution.data.error ?? 'execution failed',
-         })
+         const error = describeRunError(execution.data.error)
+         console.error(`[serve] 🔴 ${mod.key}/${draft} failed after ${durationMs}ms: ${error}`)
+         return json(500, { ok: false, module: mod.key, draft, promptId: execution.data.id, durationMs, error })
       }
 
       const produced = [`${execution.images.length} image(s)`]

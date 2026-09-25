@@ -49,7 +49,13 @@ export type GenerateOk = {
 async function jsonFetch<T>(url: string, init?: RequestInit): Promise<T> {
    const res = await fetch(url, init)
    const body = (await res.json().catch(() => null)) as (T & { error?: string }) | null
-   if (!res.ok || body == null) throw new Error(body?.error ?? `http ${res.status} on ${url}`)
+   if (!res.ok || body == null) {
+      // a non-string error would print as "[object Object]"
+      const error: unknown = body?.error
+      throw new Error(
+         typeof error === 'string' ? error : error != null ? JSON.stringify(error) : `http ${res.status} on ${url}`,
+      )
+   }
    return body
 }
 

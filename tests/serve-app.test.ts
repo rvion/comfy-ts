@@ -202,7 +202,7 @@ describe('ServeApp generate', () => {
       expect(seen.map((s) => s.prompt).sort()).toEqual(['first', 'second'])
    })
 
-   it('execution Failure → 500 with the error payload', async () => {
+   it('execution Failure → 500 with the error as text', async () => {
       const mod = makeModule('wf-fail')
       const app = new ServeApp([mod], {
          starter: () => Promise.resolve(fakeExecution({ status: 'Failure', error: { node: '3', reason: 'OOM' } })),
@@ -210,7 +210,7 @@ describe('ServeApp generate', () => {
       })
       const reply = await post(app, '/generate/wf-fail/default')
       expect(reply.status).toBe(500)
-      expect(parse(reply).error).toMatchObject({ reason: 'OOM' })
+      expect(parse(reply).error).toBe('{"node":"3","reason":"OOM"}')
    })
 
    it('images map to /outputs urls; Accept: image/* returns the raw bytes', async () => {
