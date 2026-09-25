@@ -339,6 +339,7 @@ export const VarsForm = observer(function VarsForm(p: { st: WebSt }) {
          e.preventDefault()
          if (s === 'toggle-blur') return p.st.toggleBlur()
          if (s === 'duplicate-draft') return void p.st.duplicateCurrentDraft()
+         if (s === 'rename-draft') return p.st.startRename()
          if (s === 'open-enhancer') {
             const f = p.st.form
             const v = f?.vars.find((x) => x.name === targetsRef.current.prompt)

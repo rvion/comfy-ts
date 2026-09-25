@@ -569,6 +569,7 @@ export class WebSt {
    select(p: { module: string; draft: string }, o: { mirror?: boolean } = {}): Promise<void> {
       // the phone drawer is a way to a draft: arriving there closes it
       this.menuOpen = false
+      this.renamingDraft = null
       return this.trackSwitch(this.selectNow(p, o.mirror ?? true))
    }
 
@@ -937,6 +938,26 @@ export class WebSt {
 
    setMenuOpen(open: boolean): void {
       this.menuOpen = open
+   }
+
+   /** the name being typed for the open draft, null when no rename is in progress. Here, not in
+    * the menu, because ⌘R starts it from any focus */
+   renamingDraft: string | null = null
+
+   /** ⌘R and the rename row. The phone drawer opens so the input is on screen; a folded desktop
+    * menu unfolds (App reacts to renamingDraft) */
+   startRename(): void {
+      if (this.form == null) return
+      this.renamingDraft = this.form.draft
+      this.menuOpen = true
+   }
+
+   setRenaming(v: string): void {
+      this.renamingDraft = v
+   }
+
+   stopRename(): void {
+      this.renamingDraft = null
    }
 
    /** bumped by ⌘B and the ☰: the desktop menu Panel folds or unfolds on each bump */

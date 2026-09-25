@@ -18,6 +18,12 @@ describe('panel shortcuts', () => {
       expect(shortcutOf(key('b', { metaKey: true }))).toBe('toggle-menu')
    })
 
+   it('⌘R renames the open draft', () => {
+      expect(shortcutOf(key('r', { metaKey: true }))).toBe('rename-draft')
+      expect(shortcutOf(key('R', { ctrlKey: true }))).toBe('rename-draft')
+      expect(shortcutOf(key('r', { metaKey: true, shiftKey: true }))).toBe(null)
+   })
+
    it('⌘D duplicates the open draft, shifted it is nothing', () => {
       expect(shortcutOf(key('d', { metaKey: true }))).toBe('duplicate-draft')
       expect(shortcutOf(key('D', { metaKey: true, shiftKey: true }))).toBe(null)

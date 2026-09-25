@@ -22,27 +22,15 @@ function Section(p: { title: string; actions?: ReactNode; children: ReactNode })
    )
 }
 
-/** the draft section: the picker with rename and delete, then the two ways to make a draft as
- * full rows. New and duplicate are auto-named and open at once (rename is one click away);
- * rename asks INLINE, window.prompt is silently suppressed by browsers after a few dialogs */
+/** the draft section: the picker with delete, then rename, duplicate and new as full rows. New
+ * and duplicate are auto-named and open at once; rename asks INLINE in the picker's place
+ * (window.prompt is silently suppressed by browsers after a few dialogs), from the row or ⌘R */
 const DraftSection = observer(function DraftSection(p: { st: WebSt; form: FormSt }) {
-   const local = useLocalObservable(() => ({
-      /** null = showing the picker; otherwise the name being typed */
-      renaming: null as null | string,
-      start(from: string) {
-         this.renaming = from
-      },
-      set(v: string) {
-         this.renaming = v
-      },
-      stop() {
-         this.renaming = null
-      },
-   }))
    const drafts = p.st.moduleByKey(p.form.moduleKey)?.drafts ?? [p.form.draft]
+   const renaming = p.st.renamingDraft
    const confirm = (): void => {
-      const name = (local.renaming ?? '').trim()
-      local.stop()
+      const name = (renaming ?? '').trim()
+      p.st.stopRename()
       if (name !== '' && name !== p.form.draft) void p.st.renameDraft(name)
    }
    const n = p.form.dirtyCount
@@ -65,30 +53,30 @@ const DraftSection = observer(function DraftSection(p: { st: WebSt; form: FormSt
             </>
          }
       >
-         {local.renaming != null ? (
+         {renaming != null ? (
             <div className="menu-row">
                <Icon name="pen" />
                <input
                   type="text"
                   autoFocus
                   className="head-input"
-                  value={local.renaming}
+                  value={renaming}
                   // enter is the ONLY commit, so it has to be said
                   placeholder="new name, then enter"
                   onFocus={(e) => e.currentTarget.select()}
-                  onChange={(e) => local.set(e.target.value)}
+                  onChange={(e) => p.st.setRenaming(e.target.value)}
                   onKeyDown={(e) => {
                      if (e.key === 'Enter') confirm()
-                     if (e.key === 'Escape') local.stop()
+                     if (e.key === 'Escape') p.st.stopRename()
                   }}
                   // blur CANCELS, it does not commit: picking another draft blurs this input, and a
                   // rename committed on blur raced that selection, renameDraft bails when the form
                   // has already moved on, leaving a duplicate instead of a rename, silently
-                  onBlur={() => local.stop()}
+                  onBlur={() => p.st.stopRename()}
                />
             </div>
          ) : (
-            /* the name IS the picker; rename and delete act ON it, so they sit at its end */
+            /* the name IS the picker; delete acts ON it, so it sits at its end */
             <div className="menu-row">
                <select
                   className="menu-select draft"
@@ -103,14 +91,6 @@ const DraftSection = observer(function DraftSection(p: { st: WebSt; form: FormSt
                   ))}
                </select>
                <span className="menu-row-actions">
-                  <button
-                     type="button"
-                     className="head-icon"
-                     data-tip="rename this draft (the file is renamed)"
-                     onClick={() => local.start(p.form.draft)}
-                  >
-                     <Icon name="pen" />
-                  </button>
                   <button
                      type="button"
                      className="head-icon danger"
@@ -130,7 +110,20 @@ const DraftSection = observer(function DraftSection(p: { st: WebSt; form: FormSt
          <button
             type="button"
             className="menu-row menu-action"
-            data-tip="a copy of the values on screen, as a new draft (renamed from ✎)"
+            data-tip="rename this draft (the file is renamed)"
+            onClick={() => p.st.startRename()}
+         >
+            <Icon name="pen" />
+            <span>rename</span>
+            <span className="kbd-hint">
+               {MOD_KEY}
+               {SHORTCUT_KEYS['rename-draft']}
+            </span>
+         </button>
+         <button
+            type="button"
+            className="menu-row menu-action"
+            data-tip="a copy of the values on screen, as a new draft"
             onClick={() => void p.st.duplicateCurrentDraft()}
          >
             <Icon name="copy-plus" />

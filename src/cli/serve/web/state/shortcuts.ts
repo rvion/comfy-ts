@@ -5,6 +5,7 @@ export type Shortcut =
    | 'focus-prompt'
    | 'open-loras'
    | 'open-enhancer'
+   | 'rename-draft'
    | 'duplicate-draft'
    | 'toggle-menu'
    | 'toggle-blur'
@@ -15,6 +16,8 @@ export const SHORTCUT_KEYS: Record<Shortcut, string> = {
    'open-loras': 'O',
    // the same letter enhances once the enhancer is open (ENHANCER_KEYS): ⌘E, ⌘E
    'open-enhancer': 'E',
+   // ⌘R: the browser's reload key; the page reloads from its own url and the draft is autosaved
+   'rename-draft': 'R',
    // ⌘D: the browser's bookmark key, useless here
    'duplicate-draft': 'D',
    // ⌘B is the sidebar key of every editor
