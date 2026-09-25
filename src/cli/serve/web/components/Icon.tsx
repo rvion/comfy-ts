@@ -45,6 +45,10 @@ export type IconName =
    | 'more'
    | 'text'
    | 'dot'
+   | 'audio'
+   | 'video'
+   | 'workflow'
+   | 'draft'
 
 /** 24x24 viewBox paths, stroked (fill: none) unless the shape reads better solid */
 const PATHS: Record<IconName, ReactNode> = {
@@ -151,6 +155,22 @@ const PATHS: Record<IconName, ReactNode> = {
    search: <path d="M10.5 4a6.5 6.5 0 110 13 6.5 6.5 0 010-13zM15.5 15.5L20 20" />,
    history: <path d="M4 12a8 8 0 102.3-5.6M4 4v4h4M12 8v4l3 2" />,
    dot: <circle cx="12" cy="12" r="5" fill="currentColor" stroke="none" />,
+   audio: <path d="M3 12h2M7 8v8M11 4v16M15 7v10M19 10v4M21 12h0" />,
+   video: (
+      <>
+         <rect x="3" y="6" width="13" height="12" rx="2" />
+         <path d="M16 10l5-3v10l-5-3z" />
+      </>
+   ),
+   workflow: (
+      <>
+         <rect x="3" y="4" width="6" height="5" rx="1.2" />
+         <rect x="15" y="4" width="6" height="5" rx="1.2" />
+         <rect x="9" y="15" width="6" height="5" rx="1.2" />
+         <path d="M6 9v2.5a1.5 1.5 0 001.5 1.5h9a1.5 1.5 0 001.5-1.5V9M12 13v2" />
+      </>
+   ),
+   draft: <path d="M6 3h8l4 4v14H6zM14 3v4h4M9 12h6M9 16h4" />,
 }
 
 /** `size` is a multiplier of the surrounding font size, so icons scale with their button */

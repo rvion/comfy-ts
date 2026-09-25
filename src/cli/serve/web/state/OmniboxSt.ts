@@ -25,7 +25,9 @@ export class OmniboxSt {
       const ix =
          current == null
             ? -1
-            : this.results.findIndex((e) => e.module === current.moduleKey && e.draft === current.draft)
+            : this.results.findIndex(
+                 (e) => e.kind === 'draft' && e.module === current.moduleKey && e.draft === current.draft,
+              )
       this.cursor = Math.max(0, ix)
    }
 

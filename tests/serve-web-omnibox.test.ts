@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { fuzzyScore, omniboxEntries, searchOmnibox } from 'src/cli/serve/web/state/omnibox.ts'
+import { fuzzyScore, omniboxEntries, searchOmnibox, type OmniboxEntry } from 'src/cli/serve/web/state/omnibox.ts'
 
 const MODULES = [
    {
@@ -7,31 +7,69 @@ const MODULES = [
       file: '/r/examples/rvion/04-krea2-turbo-t2i.cflow.ts',
       host: 'windows-1',
       drafts: ['default', 'jester', 'mouse at dawn'],
+      tags: ['image'],
    },
    {
       module: '07-local-llm-text-gen',
       file: '/r/examples/rvion/07-local-llm-text-gen.cflow.ts',
       host: 'windows-1',
       drafts: [],
+      tags: ['text', 'llm'],
    },
    {
       module: 'anima-t2i',
       file: '/r/examples/comfy-cloud/anima-t2i.cflow.ts',
       host: 'comfy-cloud',
       drafts: ['default'],
+      tags: ['image'],
+   },
+   {
+      module: '13-ace-step-15-xl-t2a',
+      file: '/r/examples/rvion/13-ace-step-15-xl-t2a.cflow.ts',
+      host: 'windows-1',
+      drafts: ['default', 'neo soul'],
+      tags: ['audio', 'song'],
    },
 ]
 
+const rows = (list: OmniboxEntry[]): string[] =>
+   list.map((e) => (e.kind === 'workflow' ? `# ${e.folder}/${e.module}` : `  ${e.draft}`))
+
 describe('omnibox entries', () => {
-   it('one entry per draft, labelled folder/workflow/draft', () => {
-      const labels = omniboxEntries(MODULES).map((e) => e.label)
-      expect(labels).toContain('examples/rvion/04-krea2-turbo-t2i/jester')
-      expect(labels).toContain('examples/comfy-cloud/anima-t2i/default')
+   it('one workflow row, then its drafts indented under it', () => {
+      const krea = rows(omniboxEntries(MODULES).filter((e) => e.module === '04-krea2-turbo-t2i'))
+      expect(krea).toEqual(['# examples/rvion/04-krea2-turbo-t2i', '  default', '  jester', '  mouse at dawn'])
    })
 
    it('a workflow with no saved draft is listed with default, so every workflow is reachable', () => {
       const llm = omniboxEntries(MODULES).filter((e) => e.module === '07-local-llm-text-gen')
-      expect(llm.map((e) => e.draft)).toEqual(['default'])
+      expect(llm.map((e) => `${e.kind} ${e.draft}`)).toEqual(['workflow default', 'draft default'])
+   })
+
+   it('a workflow row opens its first draft and carries the tags', () => {
+      const head = omniboxEntries(MODULES).find((e) => e.kind === 'workflow' && e.module === '13-ace-step-15-xl-t2a')
+      expect(head?.draft).toBe('default')
+      expect(head?.tags).toEqual(['audio', 'song'])
+   })
+})
+
+describe('tag search', () => {
+   it('a word that is a tag keeps every workflow carrying it, all drafts shown', () => {
+      expect(rows(searchOmnibox(omniboxEntries(MODULES), 'audio'))).toEqual([
+         '# examples/rvion/13-ace-step-15-xl-t2a',
+         '  default',
+         '  neo soul',
+      ])
+   })
+
+   it('a tag word plus a name narrows inside the tagged workflows', () => {
+      const hits = rows(searchOmnibox(omniboxEntries(MODULES), 'image anima'))
+      expect(hits).toEqual(['# examples/comfy-cloud/anima-t2i', '  default'])
+   })
+
+   it('a partial tag still matches through fuzzy search', () => {
+      expect(rows(searchOmnibox(omniboxEntries(MODULES), 'llm'))[0]).toBe('# examples/rvion/07-local-llm-text-gen')
+      expect(rows(searchOmnibox(omniboxEntries(MODULES), 'aud'))[0]).toBe('# examples/rvion/13-ace-step-15-xl-t2a')
    })
 })
 
@@ -46,14 +84,14 @@ describe('fuzzy matching', () => {
    })
 
    it('word starts and consecutive letters rank above scattered hits', () => {
-      const hits = searchOmnibox(omniboxEntries(MODULES), 'anima').map((e) => e.label)
-      expect(hits[0]).toBe('examples/comfy-cloud/anima-t2i/default')
+      expect(rows(searchOmnibox(omniboxEntries(MODULES), 'anima'))[0]).toBe('# examples/comfy-cloud/anima-t2i')
    })
 
-   it('the draft name alone finds its draft first', () => {
-      expect(searchOmnibox(omniboxEntries(MODULES), 'mouse')[0]?.label).toBe(
-         'examples/rvion/04-krea2-turbo-t2i/mouse at dawn',
-      )
+   it('a draft name keeps only the matching drafts, under their workflow row', () => {
+      expect(rows(searchOmnibox(omniboxEntries(MODULES), 'mouse'))).toEqual([
+         '# examples/rvion/04-krea2-turbo-t2i',
+         '  mouse at dawn',
+      ])
    })
 
    it('an empty query lists everything in folder order', () => {

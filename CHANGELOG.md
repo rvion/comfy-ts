@@ -7,6 +7,8 @@
 - **New example: YuE2 text to music** (`examples/rvion/11-yue2-t2a.cflow.ts`). The first prompt line is the style and the rest is the lyrics. ABC planning is a choice (full, melody, off), and the plan shows as a text result next to the song.
 - **New example: Stable Audio 3 Medium** (`examples/rvion/12-stable-audio-3-t2a.cflow.ts`): music, instruments, sound effects or one-shots from one description. With `reprompt` on, a local Qwen3.5 2B first rewrites the description with the official template's instructions for the chosen category.
 - **New example: ACE-Step 1.5 XL** (`examples/rvion/13-ace-step-15-xl-t2a.cflow.ts`): a song with vocals from a caption and lyrics, with the turbo, sft or base model, and bpm, key, beats per bar and language as settings.
+- **A grouped ⌘K omnibox with tags.** Each workflow is one row, with an icon for what it makes, its folder muted, and tag chips at the line end. Its drafts are indented under it. Type a tag (`audio`, `image`, `video`, `text`, `llm`, `edit`) to list every workflow that carries it, and add more words to narrow the list. The panel reads the tags from the graph (what the output nodes receive), and `defineWorkflow({ tags })` adds your own. The index reply carries `tags` per workflow.
+- **`build({ dry: true })`** builds a graph only to read it: image loads use the local file hash and upload nothing, and `lastWorkflow` does not change.
 - **Quiet connect to ComfyUI 0.37.** A current host sends `null` for some node display names, tooltips and `output_is_list` entries, and object defaults for curve, trim and crop widgets. These now validate, so a connect no longer prints about 1300 schema warnings. Generated sdk comments show the node name when the display name is null.
 
 ## 2.12.0
