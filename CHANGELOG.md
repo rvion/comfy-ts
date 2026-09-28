@@ -1,9 +1,11 @@
 # comfy-ts
 
-## Unreleased
+## 2.16.0
 
 - **Model vars.** `v.model('UNETLoader.unet_name', { default, filter })` inside a `vars: (v) => …` lambda is a choice over the host's own file list for that loader input. The slot name autocompletes, and the value is typed as that slot's union, so it feeds the loader with no cast. `default: null` means "the workflow decides". In `comfy-ts serve`, the refresh-schema action lists a file the host just got without a restart, and a picked file the host no longer has stays picked and is reported.
 - **The krea2 and anima examples take a checkpoint.** `04-krea2-turbo-t2i` lists every krea file on the box (default: the turbo model), and `10-anima-t2i` lists every anima file (default: none, the model choice decides). A finetune you download is picked in your draft and never has to be written into the workflow file.
+- **New example: text to speech in a cloned voice** (`examples/rvion/15-tts-voice-clone.cflow.ts`). It drives the TTS-Audio-Suite node pack: pick an engine (Chatterbox Multilingual v3 by default, Qwen3-TTS, Fish Audio S2 Pro, CosyVoice3, OmniVoice) and a language, give a voice clip and its transcript, and the text comes back in `execution.audios`. A short synthetic English voice ships in `examples/media/`, so it runs out of the box.
+- **Fixed: esc no longer beeps in a native window.** Closing a popup with esc in an app window built on WKWebView (such as a desktop wrapper) also played the system "invalid action" sound, because the panel left the key unhandled. Every esc handler of the web panel now claims the key.
 
 ## 2.15.0
 
