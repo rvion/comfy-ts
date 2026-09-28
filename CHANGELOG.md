@@ -1,5 +1,14 @@
 # comfy-ts
 
+## Unreleased
+
+- **Audio and video inputs.** `v.audio(path)` and `v.video(path)` join `v.image(path)`: the same plain path value, the same TUI picker (filtered to that medium), the same serve file gate. `await someVar.loadInWorkflow(wf)` uploads the file and returns its loader node: `LoadImage`, `LoadAudio` or `LoadVideo`. The file is named by its hash, so a rerun does not upload it again. An empty var throws `MediaVarEmptyError` (`ImageVarEmptyError` is the same class).
+- **Video outputs come back to your code.** `execution.videos` lists every video an output node wrote (`SaveVideo`, `SaveWEBM`, VideoHelperSuite's `VHS_VideoCombine`), with the same shape as `execution.audios`. An animated webp or gif stays an image. Before, a saved mp4 landed in `execution.images`.
+- **Drop media on a var in the web panel.** An image, audio or video var takes a file dropped from the desktop, or a result dragged from the gallery. Every result also carries one `→ <var>` button per var of its medium in the open workflow. An unsaved result is uploaded first, so the var always holds a local path. A drop of the wrong medium is refused with the reason on the row.
+- **The web panel plays video results** in a player, blurred like images when blur is on. The run reply carries `videos: [{ filename, mime, url, absPath }]`, and with saving off `GET /video/<promptId>/<ix>` serves the file from memory.
+- **`POST /upload` takes files up to about 200 MB**, so a video fits. The other routes keep their 10 MB cap.
+- **New example: a new soundtrack on a video** (`examples/rvion/14-video-soundtrack.cflow.ts`): the frames of one file, the audio of another, muxed back at the fps you pick. `exampleMediaPath()` resolves the bundled sample video and audio it defaults to.
+
 ## 2.14.0
 
 - **Recent results survive a reload.** The serve process keeps its last 50 run replies in memory, and the panel shows them again after a reload (`GET /results`, `DELETE /results[/<promptId>]`). Unsaved images and audio keep their bytes under one memory budget, `memoryBudgetMb` in the serve settings (default 100). Past it the oldest bytes go first, and the newest output always stays. A server restart forgets everything.

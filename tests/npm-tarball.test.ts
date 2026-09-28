@@ -79,5 +79,8 @@ describe('npm tarball', () => {
       expect(paths).toContain('examples/rvion/01-txt2img.cflow.ts')
       // bundled input images: i2i/i2v examples default to these, they must ship
       expect(paths).toContain('examples/images/dog_512x512.jpg')
+      // bundled audio + video inputs: the media-var examples default to these
+      expect(paths).toContain('examples/media/sine_440hz_3s.flac')
+      expect(paths).toContain('examples/media/testsrc_256x256_3s.mp4')
    })
 })

@@ -71,11 +71,12 @@ if (import.meta.main) {
 }
 ```
 
-Var kinds: `v.text`, `v.int`, `v.float`, `v.seed`, `v.toggle`, `v.choice`, `v.size`, `v.loras`, `v.prompt`, `v.image`. Notes:
+Var kinds: `v.text`, `v.int`, `v.float`, `v.seed`, `v.toggle`, `v.choice`, `v.size`, `v.loras`, `v.prompt`, `v.image`, `v.audio`, `v.video`. Notes:
 
 - `v.loras(/regex/)` resolves against the host's real lora list; `activeLoras(vars.loras)` returns `{ lora_name, strength_model, strength_clip }[]` for a standard `LoraLoader` chain.
 - `v.prompt` is structured: `//` lines are comments (stripped), `- ` lines go to the negative prompt, `{ loraKeywordsFrom: lorasVar }` prefixes lora trigger keywords. The value is `{ positive, negative }`.
 - `v.image` holds a local image path as a plain string; an empty value throws at build time instead of running a silent placeholder. Capture the var in a const and call `image.absPath()` in `build`. Default it to a bundled sample with `exampleImagePath('bear_1024x1024.jpg')` (ships in the package). In the TUI it opens an image picker (browse, favorite folders, recents, preview).
+- `v.audio` and `v.video` work the same way for audio and video files. In `build`, `await myVar.loadInWorkflow(wf)` uploads the file and returns the loader node (`LoadImage`, `LoadAudio`, `LoadVideo`). Default them with `exampleMediaPath('sine_440hz_3s.flac')` or `exampleMediaPath('testsrc_256x256_3s.mp4')`. Video results land in `execution.videos`.
 - `vars` may be a lambda `(v) => ({ ... })` so vars can reference each other.
 - `build` may be async, for uploads: the third param `wf` feeds `MediaImage` helpers (`new MediaImage({ path }).loadInWorkflow_viaLoadImageNode(wf)`). Uploads are hash-named and deduped, nothing is re-sent.
 

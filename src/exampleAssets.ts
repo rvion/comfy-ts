@@ -44,13 +44,23 @@ export function bundledExamplesDir(moduleUrl: string = import.meta.url): string 
  * or the package's examples/ folder was pruned.
  */
 export function exampleImagePath(name: string): string {
+   return bundledExampleFile('images', name)
+}
+
+/** the same for a bundled `examples/media/` audio or video file, e.g.
+ * `exampleMediaPath('sine_440hz_3s.flac')` — the default of audio and video example vars */
+export function exampleMediaPath(name: string): string {
+   return bundledExampleFile('media', name)
+}
+
+function bundledExampleFile(folder: 'images' | 'media', name: string): string {
    const examples = bundledExamplesDir()
    if (examples == null) {
       throw new Error(
-         `[comfy-ts] cannot resolve bundled example image '${name}': the package's examples/ folder is not on disk`,
+         `[comfy-ts] cannot resolve bundled example file '${name}': the package's examples/ folder is not on disk`,
       )
    }
-   const abs = join(examples, 'images', name)
-   if (!existsSync(abs)) throw new Error(`[comfy-ts] bundled example image not found: ${abs}`)
+   const abs = join(examples, folder, name)
+   if (!existsSync(abs)) throw new Error(`[comfy-ts] bundled example file not found: ${abs}`)
    return abs
 }

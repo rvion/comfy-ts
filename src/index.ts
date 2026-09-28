@@ -12,7 +12,7 @@ setDefaultComfyStorage(createNodeStorage())
 export * from 'src/coreExports.ts'
 
 // node-only surface: fs-backed example assets + the TUI env contract
-export { exampleImagePath } from 'src/exampleAssets.ts'
+export { exampleImagePath, exampleMediaPath } from 'src/exampleAssets.ts'
 // the prompt-enhancer library on disk, offered as var presets (fs, so never in the web entry)
 export { promptEnhancerPresets, readPromptEnhancers, type PromptEnhancer } from 'src/promptEnhancers.ts'
 export { isTuiActive } from 'src/cli/tui-env.ts'

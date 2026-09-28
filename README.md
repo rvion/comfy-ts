@@ -214,6 +214,7 @@ await txt2img.run({ log: true }) // fresh graph, fresh image
 | `v.prompt`              | structured text: `//` comments stripped, `- ` lines become the negative prompt     |
 | `v.loras`               | RegExp resolved against the host's REAL lora list, fully typed, multi-select       |
 | `v.image`               | local image path, TUI picker attached; `exampleImagePath('bear_1024x1024.jpg')` defaults to a bundled sample |
+| `v.audio` `v.video`     | local audio or video path, same picker; `await myVar.loadInWorkflow(wf)` uploads it and returns the `LoadAudio` / `LoadVideo` node |
 | `v.text` `v.int` `v.float` `v.toggle` `v.choice` `v.size` | the everyday knobs, ranges included          |
 | `presets` on `v.text` / `v.prompt` | named starting texts (`{ 'terse tags': '…' }`): a presets button in the web panel, `P` in the TUI. Picking one replaces the field. `promptEnhancerPresets()` offers your `.comfy-ts/prompt-enhancers/*.md` library as presets too |
 
