@@ -1,6 +1,6 @@
 # comfy-ts
 
-## Unreleased
+## 2.15.0
 
 - **Audio and video inputs.** `v.audio(path)` and `v.video(path)` join `v.image(path)`: the same plain path value, the same TUI picker (filtered to that medium), the same serve file gate. `await someVar.loadInWorkflow(wf)` uploads the file and returns its loader node: `LoadImage`, `LoadAudio` or `LoadVideo`. The file is named by its hash, so a rerun does not upload it again. An empty var throws `MediaVarEmptyError` (`ImageVarEmptyError` is the same class).
 - **Video outputs come back to your code.** `execution.videos` lists every video an output node wrote (`SaveVideo`, `SaveWEBM`, VideoHelperSuite's `VHS_VideoCombine`), with the same shape as `execution.audios`. An animated webp or gif stays an image. Before, a saved mp4 landed in `execution.images`.
