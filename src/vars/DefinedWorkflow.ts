@@ -3,7 +3,17 @@ import type { ComfyExecution } from 'src/runner/ComfyExecution.ts'
 import type { ComfyWorkflow, RunSettings } from 'src/runner/ComfyWorkflow.ts'
 import type { SdkForHost } from 'src/types/comfy-sdk.ts'
 import type { LorasInput } from 'src/vars/lanes.ts'
-import { type AnyVar, type LorasVar, v, type VarsSpec, type VarValues, varValues } from 'src/vars/ComfyVars.ts'
+import {
+   type AnyVar,
+   type ChoiceVar,
+   type LorasVar,
+   type ModelVarOpts,
+   type OptionalChoiceVar,
+   v,
+   type VarsSpec,
+   type VarValues,
+   varValues,
+} from 'src/vars/ComfyVars.ts'
 
 /** the host's generated lora-name union (plain string when no sdk is generated) */
 export type LoraNameOf<ID extends string> = 'E_LoraName' extends keyof SdkForHost<ID>['Union']
@@ -14,10 +24,33 @@ export type LoraNameOf<ID extends string> = 'E_LoraName' extends keyof SdkForHos
  * the `v` handed to a vars LAMBDA: the global factory, host-typed —
  * `v.loras(regex)` yields the host's lora-name union (resolved via bindHost)
  */
-export type BoundVars<ID extends string> = Omit<typeof v, 'loras'> & {
+export type BoundVars<ID extends string> = Omit<typeof v, 'loras' | 'model'> & {
    loras(options: RegExp, initial?: LorasInput<LoraNameOf<ID>>, label?: string): LorasVar<LoraNameOf<ID>>
    loras<T extends string>(options: readonly T[], initial?: LorasInput<T>, label?: string): LorasVar<T>
+   /** the host's file list for one loader input: the slot autocompletes, the value is its union */
+   model: ModelFactory<SdkForHost<ID>['Slots']>
 }
+
+/** `v.model` typed by a host's slot table S (`Slots`): its own interface, so the host id's
+ * variance stays measurable (inlined into BoundVars, ComfyHost<ID> stopped being a ComfyHost<string>) */
+export interface ModelFactory<S> {
+   <K extends keyof S & string>(
+      slot: K,
+      opts: ModelVarOpts<S[K] & string> & { default: S[K] & string },
+   ): ChoiceVar<S[K] & string>
+   <K extends keyof S & string>(
+      slot: K,
+      opts: ModelVarOpts<S[K] & string> & { default: null },
+   ): OptionalChoiceVar<S[K] & string>
+}
+
+/** every `Node.input` slot of the host's generated sdk (any string without one) */
+export type SlotNameOf<ID extends string> = keyof SdkForHost<ID>['Slots'] & string
+
+/** the value union of one slot, strings only (a loader file list) */
+export type SlotValueOf<ID extends string, K extends string> = K extends keyof SdkForHost<ID>['Slots']
+   ? SdkForHost<ID>['Slots'][K] & string
+   : string
 
 export type DefineWorkflowSpec<ID extends string, V extends VarsSpec> = {
    /** short id; also names the workflow instances */

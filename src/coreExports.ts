@@ -122,6 +122,8 @@ export type {
    SizeValue,
    SizePreset,
    MediaVarOpts,
+   ModelVarOpts,
+   HostSlotSource,
    ImageVarOpts,
    AudioVarOpts,
    VideoVarOpts,
@@ -140,7 +142,14 @@ export type {
    LoraRecord,
 } from 'src/vars/lanes.ts'
 export type { LoraEntry } from 'src/vars/loraEntry.ts'
-export { DefinedWorkflow, type DefineWorkflowSpec, type BoundVars, type LoraNameOf } from 'src/vars/DefinedWorkflow.ts'
+export {
+   DefinedWorkflow,
+   type DefineWorkflowSpec,
+   type BoundVars,
+   type LoraNameOf,
+   type SlotNameOf,
+   type SlotValueOf,
+} from 'src/vars/DefinedWorkflow.ts'
 export {
    clearLoraKeywordOverride,
    getLoraKeyword,

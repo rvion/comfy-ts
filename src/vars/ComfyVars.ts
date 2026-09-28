@@ -24,6 +24,7 @@ import { COMMENT_LINE_RE, NEGATIVE_LINE_RE, parsePromptText } from 'src/vars/pro
 import { toPresetList, type VarPreset, type VarPresetSpec } from 'src/vars/presets.ts'
 import { DEFAULT_MEDIA_EXTENSIONS, extensionOf, mediaMime, type MediaKind } from 'src/runner/mediaKinds.ts'
 import { hashArrayBuffer } from 'src/utils/hashArrayBuffer.ts'
+import { statelessRegex } from 'src/utils/matchesRegex.ts'
 import type { ComfyWorkflow } from 'src/runner/ComfyWorkflow.ts'
 import type { NodeOf } from 'src/types/comfy-sdk.ts'
 
@@ -410,15 +411,53 @@ export class ToggleVar extends ComfyVar<boolean> {
 /** how many options a choice holds: exactly one (the default), one or none, or any number */
 export type ChoiceSelect = 'one' | 'zero-or-one' | 'many'
 
+/** where a host-bound choice reads its options: one loader input of the host's live schema,
+ * optionally narrowed (`v.model`) */
+export type HostSlotSource = { slot: string; filter?: RegExp }
+
+/** a fixed list, or the host's list for one slot once bindHost ran */
+class ChoiceList<T extends string> {
+   private resolved: readonly T[] | null = null
+   constructor(readonly source: readonly T[] | HostSlotSource) {}
+   get slot(): HostSlotSource | null {
+      return isChoiceList(this.source) ? null : this.source
+   }
+   get choices(): readonly T[] {
+      if (isChoiceList(this.source)) return this.source
+      if (this.resolved == null)
+         throw new Error(
+            `v.model('${this.source.slot}') is host-bound — it only works inside defineWorkflow({ vars }) (pass a name list to v.choice otherwise)`,
+         )
+      return this.resolved
+   }
+   /** cast: whitelist family 1 (agent/coding.md) — stringValues() returns the runtime values of
+    * the SAME object_info enum the generated slot union comes from */
+   bind(host: LorasHost): void {
+      const src = this.slot
+      if (src == null) return
+      const all = host.schema.stringValues(src.slot)
+      const filter = src.filter == null ? null : statelessRegex(src.filter)
+      this.resolved = (filter == null ? all : all.filter((n) => filter.test(n))) as T[]
+   }
+}
+
 export class ChoiceVar<T extends string> extends ComfyVar<T> {
    readonly kind = 'choice' as const
    readonly select = 'one' as const
-   constructor(
-      public readonly choices: readonly T[],
-      defaultValue: T,
-      label?: string,
-   ) {
+   private list: ChoiceList<T>
+   constructor(choices: readonly T[] | HostSlotSource, defaultValue: T, label?: string) {
       super(defaultValue, label)
+      this.list = new ChoiceList(choices)
+   }
+   get choices(): readonly T[] {
+      return this.list.choices
+   }
+   /** set for `v.model`: the loader input this choice lists */
+   get hostSlot(): HostSlotSource | null {
+      return this.list.slot
+   }
+   bindHost(host: LorasHost): void {
+      this.list.bind(host)
    }
    next(delta: number = 1): this {
       const ix = this.choices.indexOf(this.value)
@@ -437,12 +476,19 @@ export class ChoiceVar<T extends string> extends ComfyVar<T> {
 export class OptionalChoiceVar<T extends string> extends ComfyVar<T | null> {
    readonly kind = 'choice' as const
    readonly select = 'zero-or-one' as const
-   constructor(
-      public readonly choices: readonly T[],
-      defaultValue: T | null,
-      label?: string,
-   ) {
+   private list: ChoiceList<T>
+   constructor(choices: readonly T[] | HostSlotSource, defaultValue: T | null, label?: string) {
       super(defaultValue, label)
+      this.list = new ChoiceList(choices)
+   }
+   get choices(): readonly T[] {
+      return this.list.choices
+   }
+   get hostSlot(): HostSlotSource | null {
+      return this.list.slot
+   }
+   bindHost(host: LorasHost): void {
+      this.list.bind(host)
    }
    /** pick `c`, or clear it when it is already the one picked */
    toggle(c: T): this {
@@ -518,7 +564,7 @@ export type AnyChoiceVar<T extends string = string> = ChoiceVar<T> | OptionalCho
 type ChoiceOpts<S extends ChoiceSelect> = { label?: string; select: S }
 
 /** Array.isArray does not narrow a READONLY array out of a union, this does */
-function isChoiceList<T extends string>(v: T | null | readonly T[]): v is readonly T[] {
+function isChoiceList<T extends string>(v: T | null | readonly T[] | HostSlotSource): v is readonly T[] {
    return Array.isArray(v)
 }
 
@@ -555,6 +601,25 @@ function choice<const T extends string>(
    return new ChoiceVar(choices, defaultValue, o.label)
 }
 
+export type ModelVarOpts<T extends string> = {
+   /** narrows the host's list: `/krea/i` */
+   filter?: RegExp
+   label?: string
+   /** a file name, or null for "the workflow decides" (the build then reads null) */
+   default: T | null
+}
+
+/** a choice over the host's LIVE file list for one loader input (`'UNETLoader.unet_name'`),
+ * resolved at define time and rebound by serve's refresh-schema: a downloaded model is picked
+ * in the draft, never written into the workflow file */
+function model<T extends string>(slot: string, opts: ModelVarOpts<T> & { default: T }): ChoiceVar<T>
+function model<T extends string>(slot: string, opts: ModelVarOpts<T> & { default: null }): OptionalChoiceVar<T>
+function model<T extends string>(slot: string, opts: ModelVarOpts<T>): ChoiceVar<T> | OptionalChoiceVar<T> {
+   const source: HostSlotSource = { slot, filter: opts.filter }
+   if (opts.default == null) return new OptionalChoiceVar<T>(source, null, opts.label)
+   return new ChoiceVar<T>(source, opts.default, opts.label)
+}
+
 /** per-lora setting, every spelling documented in src/vars/loraEntry.ts */
 export type { LoraStrength } from 'src/vars/loraEntry.ts'
 
@@ -573,7 +638,10 @@ export function activeLoras<T extends string>(loras: LorasInput<T>): ActiveLora<
 }
 
 /** what LorasVar.bindHost needs — structural, so ComfyVars never imports ComfyHost */
-export type LorasHost = { data?: { id?: string }; schema: { getLoras(filter?: RegExp): string[] } }
+export type LorasHost = {
+   data?: { id?: string }
+   schema: { getLoras(filter?: RegExp): string[]; stringValues(slot: string): string[] }
+}
 
 /**
  * multi-select lora stack over a DYNAMIC options list — a RegExp resolves
@@ -975,7 +1043,7 @@ export class VideoVar extends MediaVar {
    }
 }
 
-/** the var constructors: v.text / v.prompt / v.int / v.float / v.seed / v.toggle / v.choice / v.loras / v.size / v.image / v.audio / v.video */
+/** the var constructors: v.text / v.prompt / v.int / v.float / v.seed / v.toggle / v.choice / v.model / v.loras / v.size / v.image / v.audio / v.video */
 export const v = {
    // the old `v.text(x, 'label')` form still works: a bare string IS the label
    text: (defaultValue: string, opts: TextVarOpts | string = {}): TextVar =>
@@ -1008,6 +1076,8 @@ export const v = {
       opts: { presets?: SizePreset[]; starred?: readonly string[]; label?: string; image?: ImageVar } = {},
    ): SizeVar =>
       new SizeVar(defaultValue, opts.presets ?? sizePresetsFor(defaultValue), opts.label, opts.image, opts.starred),
+   /** host-bound: only inside defineWorkflow({ vars: (v) => … }), typed per slot there */
+   model,
    image: (defaultValue: string, opts: MediaVarOpts = {}): ImageVar => new ImageVar(defaultValue, opts),
    audio: (defaultValue: string, opts: MediaVarOpts = {}): AudioVar => new AudioVar(defaultValue, opts),
    video: (defaultValue: string, opts: MediaVarOpts = {}): VideoVar => new VideoVar(defaultValue, opts),

@@ -1,5 +1,10 @@
 # comfy-ts
 
+## Unreleased
+
+- **Model vars.** `v.model('UNETLoader.unet_name', { default, filter })` inside a `vars: (v) => …` lambda is a choice over the host's own file list for that loader input. The slot name autocompletes, and the value is typed as that slot's union, so it feeds the loader with no cast. `default: null` means "the workflow decides". In `comfy-ts serve`, the refresh-schema action lists a file the host just got without a restart, and a picked file the host no longer has stays picked and is reported.
+- **The krea2 and anima examples take a checkpoint.** `04-krea2-turbo-t2i` lists every krea file on the box (default: the turbo model), and `10-anima-t2i` lists every anima file (default: none, the model choice decides). A finetune you download is picked in your draft and never has to be written into the workflow file.
+
 ## 2.15.0
 
 - **Audio and video inputs.** `v.audio(path)` and `v.video(path)` join `v.image(path)`: the same plain path value, the same TUI picker (filtered to that medium), the same serve file gate. `await someVar.loadInWorkflow(wf)` uploads the file and returns its loader node: `LoadImage`, `LoadAudio` or `LoadVideo`. The file is named by its hash, so a rerun does not upload it again. An empty var throws `MediaVarEmptyError` (`ImageVarEmptyError` is the same class).

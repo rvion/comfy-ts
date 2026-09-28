@@ -74,7 +74,7 @@ import {
 import { getLoraKeyword } from 'src/vars/loraKeywords.ts'
 import type { ComfyHost } from 'src/host/ComfyHost.ts'
 import { DEFAULT_MEDIA_EXTENSIONS, MEDIA_KINDS, type MediaKind } from 'src/runner/mediaKinds.ts'
-import type { LorasVar, MediaVar, PromptVar, SeedVar } from 'src/vars/ComfyVars.ts'
+import type { ChoiceVar, LorasVar, MediaVar, OptionalChoiceVar, PromptVar, SeedVar } from 'src/vars/ComfyVars.ts'
 import type { DefinedWorkflow } from 'src/vars/DefinedWorkflow.ts'
 import { bang } from 'src/utils/bang.ts'
 import { extractErrorMessage } from 'src/utils/extractErrorMessage.ts'
@@ -950,13 +950,13 @@ export class ServeApp {
             const dropped =
                rebound.stale.length === 0
                   ? ''
-                  : `. dropped ${rebound.stale.length} selection(s) this host no longer lists`
+                  : `. ${rebound.stale.length} selection(s) this host no longer lists (a lora is dropped, a model stays picked)`
             return json(200, {
                ok: true,
                host: hostId,
                action,
                stale: rebound.stale,
-               note: `schema refetched: ${nodes} node types, ${loras} loras, ${rebound.widened} lora var(s) changed${dropped}${lorasNote}`,
+               note: `schema refetched: ${nodes} node types, ${loras} loras, ${rebound.widened} lora or model var(s) changed${dropped}${lorasNote}`,
             })
          }
          if (action === 'restart') {
@@ -993,6 +993,18 @@ export class ServeApp {
          if (mod.dw.host.data.id !== hostId) continue
          await this.exclusive(mod.key, () => {
             for (const [name, varDef] of mod.dw.entries()) {
+               if (varDef.kind === 'choice') {
+                  const choice = varDef as ChoiceVar<string> | OptionalChoiceVar<string>
+                  if (choice.hostSlot == null) continue
+                  const before = choice.choices.length
+                  choice.bindHost(host)
+                  if (choice.choices.length !== before) widened++
+                  // a model the box no longer lists stays picked: the run then fails on the host,
+                  // naming the file, instead of silently running another model
+                  if (choice.value != null && !choice.choices.includes(choice.value))
+                     stale.push(`${mod.key}/${name}: ${choice.value}`)
+                  continue
+               }
                if (varDef.kind !== 'loras') continue
                const lorasVar = varDef as LorasVar<string>
                if (lorasVar.optionsFilter == null) continue // a plain array never re-resolves

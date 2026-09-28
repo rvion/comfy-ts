@@ -45,6 +45,14 @@ export const t2i = host.defineWorkflow({
          // number still says exactly which one you are on
          seed: v.seed(517, { mode: '+' }),
          steps: v.int(8, { min: 1, max: 40 }),
+         // the base model: every krea file the box has, read live from the host (serve's
+         // "refresh schema" picks up a new download). A finetune is chosen in the draft,
+         // so its file name never has to be written here
+         checkpoint: v.model('UNETLoader.unet_name', {
+            filter: /krea/i,
+            default: 'krea2_turbo_fp8_scaled.safetensors',
+            label: 'checkpoint',
+         }),
          size: v.size({ width: 1024, height: 1024 }),
          removeBg: v.toggle(true, 'remove bg'),
          loras,
@@ -52,7 +60,7 @@ export const t2i = host.defineWorkflow({
    },
    build: (b, vars) => {
       // models
-      const unet = b.UNETLoader({ unet_name: 'krea2_turbo_fp8_scaled.safetensors', weight_dtype: 'default' })
+      const unet = b.UNETLoader({ unet_name: vars.checkpoint, weight_dtype: 'default' })
       const clipLoader = b.CLIPLoader({
          clip_name: 'qwen3vl_4b_fp8_scaled.safetensors',
          type: 'krea2',

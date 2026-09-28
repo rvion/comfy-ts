@@ -151,6 +151,13 @@ export const animaT2i = host.defineWorkflow({
             groupColor: 'rgba(122, 162, 247, 0.08)',
             description: 'turbo and base+turbo: 8 steps at turbo cfg. aesthetic and base: the steps and cfg below',
          }),
+         // a finetune in place of the model's own file, read live from the host. The model
+         // choice above still decides the sampling (turbo or not), so pick the one it matches
+         checkpoint: v.model('UNETLoader.unet_name', { filter: /anima/i, default: null, label: 'checkpoint' }).ui({
+            group: 'sampling',
+            description:
+               "none = the model choice's own file. Any other file replaces it and keeps that choice's sampling",
+         }),
          // auto = er_sde on aesthetic and base, euler on the distilled ones
          sampler: v.choice(['auto', 'er_sde', 'euler', 'euler_ancestral'], 'auto', 'sampler').ui({ group: 'sampling' }),
          // the distilled models ignore these: 8 steps at cfg 1 is what they were distilled for
@@ -187,7 +194,7 @@ export const animaT2i = host.defineWorkflow({
          device: 'default',
       })
       const spec = MODELS[vars.model]
-      let model = b.UNETLoader({ unet_name: spec.unet, weight_dtype: 'default' })._MODEL
+      let model = b.UNETLoader({ unet_name: vars.checkpoint ?? spec.unet, weight_dtype: 'default' })._MODEL
       let clip = clipLoader._CLIP
       if (spec.turboLora) model = b.LoraLoaderModelOnly({ model, lora_name: TURBO_LORA, strength_model: 1 })._MODEL
       for (const l of activeLoras(vars.loras)) {

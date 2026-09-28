@@ -54,6 +54,7 @@ Types for every KNOWN custom node / plugin / model in the ecosystem (`src/manage
 - ✅ gen / outline / loras / tui (tui look & feel not yet signed off by a human playtest)
 - ✅ serve (drafts over HTTP)
 - 🔶 serve web UI — built, pending a browser playtest
+- 🔶 model vars: `v.model(slot, { default, filter })`, a choice over the host's live file list for one loader input, rebound by refresh-schema (krea2 and anima examples pick their diffusion model with it) — built, pending a playtest
 - 🔶 media inputs: `v.image` / `v.audio` / `v.video` vars (`loadInWorkflow(wf)` → LoadImage / LoadAudio / LoadVideo), video outputs in `execution.videos`, and in the web panel a drop zone per media var fed by desktop files or gallery outputs (drag, or the `→ <var>` button) — built, pending a browser playtest
 
 ## G8 — runs in the browser
