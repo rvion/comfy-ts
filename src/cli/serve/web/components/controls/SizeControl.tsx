@@ -7,6 +7,7 @@ import type { VarSt } from 'src/cli/serve/web/state/FormSt.ts'
 import { asSizeForm } from 'src/cli/serve/web/state/payload.ts'
 import { aspectBox, starredPresets, toggleStar } from 'src/cli/serve/web/state/sizeStars.ts'
 import type { WebSt } from 'src/cli/serve/web/state/WebSt.ts'
+import { onEscape } from 'src/cli/serve/web/state/escape.ts'
 
 /** a tiny rectangle in the preset's own ratio, centred in a fixed square so a row lines up */
 function AspectIcon(p: { width: number; height: number; box?: number }): ReactNode {
@@ -66,7 +67,7 @@ export const SizeControl = observer(function SizeControl(p: { v: VarSt; st: WebS
                ))}
             </span>
          ) : null}
-         <div className="preset-box" onKeyDown={(e) => (e.key === 'Escape' ? setOpen(false) : undefined)}>
+         <div className="preset-box" onKeyDown={(e) => onEscape(e, () => setOpen(false))}>
             <button type="button" className="preset-btn size-pick" aria-expanded={open} onClick={() => setOpen(!open)}>
                <AspectIcon width={size.width} height={size.height} /> {current?.label ?? 'custom'} ▾
             </button>

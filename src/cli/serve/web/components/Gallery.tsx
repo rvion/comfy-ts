@@ -14,6 +14,7 @@ import { copyImageToClipboard } from 'src/cli/serve/web/clipboard.ts'
 import type { WebSt } from 'src/cli/serve/web/state/WebSt.ts'
 import { MOD_KEY } from 'src/cli/serve/web/components/modKey.ts'
 import { SHORTCUT_KEYS } from 'src/cli/serve/web/state/shortcuts.ts'
+import { onEscape } from 'src/cli/serve/web/state/escape.ts'
 
 /** on an output only the serve process holds: a restart, or the memory budget, loses it */
 function EphemeralPill(p: { out: { url: string | null; absPath: string | null } }): ReactNode {
@@ -149,7 +150,7 @@ const Lightbox = observer(function Lightbox(p: { st: WebSt; local: GalleryLocal 
    useEffect(() => {
       if (target == null) return
       const onKey = (e: KeyboardEvent): void => {
-         if (e.key === 'Escape') return p.local.closeLightbox()
+         if (onEscape(e, () => p.local.closeLightbox())) return
          const dir =
             e.key === 'ArrowDown' || e.key === 'ArrowRight' ? 1 : e.key === 'ArrowUp' || e.key === 'ArrowLeft' ? -1 : 0
          if (dir === 0) return

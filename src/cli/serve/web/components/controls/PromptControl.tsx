@@ -19,6 +19,7 @@ import {
    toPromptLanes,
    type PromptLane,
 } from 'src/vars/lanes.ts'
+import { onEscape } from 'src/cli/serve/web/state/escape.ts'
 
 /** the words each active lora adds in front of the prompt. One line per lora, cut with an
  * ellipsis; clicking opens the full list with a checkbox per word and all / none */
@@ -143,7 +144,7 @@ const LaneBox = observer(function LaneBox(p: {
                         write(patchLane(p.lanes, p.ix, { name: e.currentTarget.value.trim() || lane.name }))
                         setRenaming(false)
                      }
-                     if (e.key === 'Escape') setRenaming(false)
+                     onEscape(e, () => setRenaming(false))
                   }}
                   onBlur={() => setRenaming(false)}
                />

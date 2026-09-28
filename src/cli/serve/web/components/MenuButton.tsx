@@ -3,6 +3,7 @@
 // click, no document listener to leak
 import { useState, type ReactNode } from 'react'
 import { Icon } from 'src/cli/serve/web/components/Icon.tsx'
+import { onEscape } from 'src/cli/serve/web/state/escape.ts'
 
 export function MenuButton(p: {
    tip: string
@@ -13,10 +14,7 @@ export function MenuButton(p: {
    const [open, setOpen] = useState(false)
    const close = (): void => setOpen(false)
    return (
-      <span
-         className={`preset-box menu-box ${p.className ?? ''}`}
-         onKeyDown={(e) => (e.key === 'Escape' ? close() : undefined)}
-      >
+      <span className={`preset-box menu-box ${p.className ?? ''}`} onKeyDown={(e) => onEscape(e, close)}>
          <button
             type="button"
             className="menu-btn"

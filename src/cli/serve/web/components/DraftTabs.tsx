@@ -18,6 +18,7 @@ import { MOD_KEY } from 'src/cli/serve/web/components/modKey.ts'
 import { tabForKey, tabStepForKey, type DraftTab } from 'src/cli/serve/web/state/draftTabs.ts'
 import { shortcutLabel } from 'src/cli/serve/web/state/shortcuts.ts'
 import type { WebSt } from 'src/cli/serve/web/state/WebSt.ts'
+import { onEscape } from 'src/cli/serve/web/state/escape.ts'
 
 export function useTabShortcuts(st: WebSt): void {
    useEffect(() => {
@@ -128,7 +129,7 @@ const TabMenu = observer(function TabMenu(p: { st: WebSt; tab: DraftTab; anchor:
                onChange={(e) => setName(e.target.value)}
                onKeyDown={(e) => {
                   if (e.key === 'Enter') rename()
-                  if (e.key === 'Escape') p.onClose()
+                  onEscape(e, () => p.onClose())
                }}
             />
             <button

@@ -7,6 +7,7 @@ import { Icon, type IconName } from 'src/cli/serve/web/components/Icon.tsx'
 import { entryKey, type OmniboxEntry } from 'src/cli/serve/web/state/omnibox.ts'
 import { isOmniboxKey } from 'src/cli/serve/web/state/shortcuts.ts'
 import type { WebSt } from 'src/cli/serve/web/state/WebSt.ts'
+import { onEscape } from 'src/cli/serve/web/state/escape.ts'
 
 /** the first media tag picks the icon: what the workflow makes */
 const ICON_BY_TAG: Record<string, IconName> = { image: 'image', audio: 'audio', video: 'video', text: 'text' }
@@ -94,10 +95,10 @@ export const Omnibox = observer(function Omnibox(p: { st: WebSt }) {
                   value={o.query}
                   onChange={(e) => o.setQuery(e.target.value)}
                   onKeyDown={(e) => {
+                     if (onEscape(e, () => o.close())) return
                      if (e.key === 'ArrowDown') o.move(1)
                      else if (e.key === 'ArrowUp') o.move(-1)
                      else if (e.key === 'Enter') o.pick()
-                     else if (e.key === 'Escape') o.close()
                      else return
                      e.preventDefault()
                   }}

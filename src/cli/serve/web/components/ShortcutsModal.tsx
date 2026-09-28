@@ -4,13 +4,14 @@ import { useEffect } from 'react'
 import { Icon } from 'src/cli/serve/web/components/Icon.tsx'
 import { shortcutCatalog } from 'src/cli/serve/web/state/shortcutCatalog.ts'
 import type { WebSt } from 'src/cli/serve/web/state/WebSt.ts'
+import { onEscape } from 'src/cli/serve/web/state/escape.ts'
 
 export const ShortcutsModal = observer(function ShortcutsModal(p: { st: WebSt }) {
    const open = p.st.showShortcuts
    useEffect(() => {
       if (!open) return
       const onKey = (e: KeyboardEvent): void => {
-         if (e.key === 'Escape') p.st.setShowShortcuts(false)
+         onEscape(e, () => p.st.setShowShortcuts(false))
       }
       window.addEventListener('keydown', onKey)
       return () => window.removeEventListener('keydown', onKey)

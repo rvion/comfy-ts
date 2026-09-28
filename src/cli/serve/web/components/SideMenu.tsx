@@ -8,6 +8,7 @@ import { SHORTCUT_KEYS, shortcutLabel } from 'src/cli/serve/web/state/shortcuts.
 import type { PathLabel } from 'src/cli/serve/web/api.ts'
 import type { FormSt } from 'src/cli/serve/web/state/FormSt.ts'
 import { LAYOUTS, type WebSt } from 'src/cli/serve/web/state/WebSt.ts'
+import { onEscape } from 'src/cli/serve/web/state/escape.ts'
 
 /** a titled block of rows; `actions` sit at the right end of the title */
 function Section(p: { title: string; actions?: ReactNode; children: ReactNode }): ReactNode {
@@ -67,7 +68,7 @@ const DraftSection = observer(function DraftSection(p: { st: WebSt; form: FormSt
                   onChange={(e) => p.st.setRenaming(e.target.value)}
                   onKeyDown={(e) => {
                      if (e.key === 'Enter') confirm()
-                     if (e.key === 'Escape') p.st.stopRename()
+                     onEscape(e, () => p.st.stopRename())
                   }}
                   // blur CANCELS, it does not commit: picking another draft blurs this input, and a
                   // rename committed on blur raced that selection, renameDraft bails when the form

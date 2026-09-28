@@ -4,6 +4,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Icon } from 'src/cli/serve/web/components/Icon.tsx'
 import { searchHistory, timeAgo, type HistoryEntry } from 'src/cli/serve/web/state/history.ts'
+import { onEscape } from 'src/cli/serve/web/state/escape.ts'
 
 /** the button that opens it: always there, disabled while nothing was submitted yet. Plain (not
  * an observer) to stay generic: the observer parent reads the list and passes it down */
@@ -67,9 +68,10 @@ function HistoryPicker<V>(p: {
    // listener runs first and stops the event there
    useEffect(() => {
       const onKey = (e: KeyboardEvent): void => {
-         if (e.key !== 'Escape') return
-         e.stopImmediatePropagation()
-         p.onClose()
+         onEscape(e, () => {
+            e.stopImmediatePropagation()
+            p.onClose()
+         })
       }
       window.addEventListener('keydown', onKey, true)
       return () => window.removeEventListener('keydown', onKey, true)

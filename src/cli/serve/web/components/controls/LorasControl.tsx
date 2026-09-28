@@ -46,6 +46,7 @@ import {
    type LoraRecord,
    type LorasInput,
 } from 'src/vars/lanes.ts'
+import { onEscape } from 'src/cli/serve/web/state/escape.ts'
 
 /** one editable list of loras: the whole var, or one of its lanes (ix -1 = no lanes) */
 type Section = { ix: number; record: LoraRecord; lane: LoraLane | null }
@@ -125,7 +126,7 @@ const LoraLaneBar = observer(function LoraLaneBar(p: {
                      write(patchLane(p.lanes, p.ix, { name: e.currentTarget.value.trim() || lane.name }))
                      setRenaming(false)
                   }
-                  if (e.key === 'Escape') setRenaming(false)
+                  onEscape(e, () => setRenaming(false))
                }}
                onBlur={() => setRenaming(false)}
             />
@@ -404,7 +405,7 @@ export const LorasControl = observer(function LorasControl(p: {
    useEffect(() => {
       if (!open) return
       const onKey = (e: KeyboardEvent): void => {
-         if (e.key === 'Escape') local.setOpen(false)
+         onEscape(e, () => local.setOpen(false))
       }
       window.addEventListener('keydown', onKey)
       return () => window.removeEventListener('keydown', onKey)
@@ -1095,7 +1096,7 @@ const LoraDetails = observer(function LoraDetails(p: {
    }, [host, name, local])
    useEffect(() => {
       const onKey = (e: KeyboardEvent): void => {
-         if (e.key === 'Escape') p.onClose()
+         onEscape(e, () => p.onClose())
       }
       window.addEventListener('keydown', onKey)
       return () => window.removeEventListener('keydown', onKey)

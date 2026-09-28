@@ -5,6 +5,7 @@ import { useState } from 'react'
 import { Icon } from 'src/cli/serve/web/components/Icon.tsx'
 import type { VarSt } from 'src/cli/serve/web/state/FormSt.ts'
 import { activePresetLabel } from 'src/vars/presets.ts'
+import { onEscape } from 'src/cli/serve/web/state/escape.ts'
 
 /** one line of a preset's text, enough to tell two of them apart in the menu */
 function firstLine(text: string): string {
@@ -19,7 +20,7 @@ export const PresetPicker = observer(function PresetPicker(p: { v: VarSt }) {
    const value = typeof p.v.value === 'string' ? p.v.value : ''
    const active = activePresetLabel(presets, value)
    return (
-      <div className="preset-box" onKeyDown={(e) => (e.key === 'Escape' ? setOpen(false) : undefined)}>
+      <div className="preset-box" onKeyDown={(e) => onEscape(e, () => setOpen(false))}>
          <button
             type="button"
             className="preset-btn mini"

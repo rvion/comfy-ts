@@ -16,6 +16,7 @@ import {
    SHORTCUT_KEYS,
    type EnhancerShortcut,
 } from 'src/cli/serve/web/state/shortcuts.ts'
+import { onEscape } from 'src/cli/serve/web/state/escape.ts'
 
 const EFFORTS: ReasoningEffort[] = ['off', 'low', 'medium', 'high']
 
@@ -473,11 +474,11 @@ const Modal = observer(function Modal(p: { e: EnhancerSt; st: WebSt }) {
    useEffect(() => {
       const onKey = (ev: KeyboardEvent): void => {
          // esc closes the editor first, the modal only when nothing is open over the job
-         if (ev.key === 'Escape') {
+         const closed = onEscape(ev, () => {
             if (e.editing != null) e.setEditing(null)
             else e.close()
-            return
-         }
+         })
+         if (closed) return
          const s = enhancerShortcutOf(ev)
          if (s == null) return
          ev.preventDefault()
