@@ -83,6 +83,21 @@ describe('a desktop file medium', () => {
 })
 
 describe('valueForOutput', () => {
+   // why we think it is actually a bug, and not just meaning spec should change: any page can put
+   // this drag type on a drag; a url or a relative path in absPath landed in the var and the draft,
+   // breaking "the var always ends on a local path"
+   it('a foreign drag with a non local path or an off-origin url is not ours', () => {
+      const drag = (o: object): string => JSON.stringify({ kind: 'audio', filename: 'a.mp3', ...o })
+      expect(decodeDraggedOutput(drag({ absPath: 'https://evil.example/a.mp3', url: null }))).toBe(null)
+      expect(decodeDraggedOutput(drag({ absPath: '../../etc/x.mp3', url: null }))).toBe(null)
+      expect(decodeDraggedOutput(drag({ absPath: null, url: 'https://evil.example/a.mp3' }))).toBe(null)
+      expect(decodeDraggedOutput(drag({ absPath: null, url: '//evil.example/a.mp3' }))).toBe(null)
+      // control: our own shapes still decode
+      expect(decodeDraggedOutput(drag({ absPath: '/out/a.mp3', url: '/outputs/a.mp3' }))).not.toBe(null)
+      expect(decodeDraggedOutput(drag({ absPath: 'C:\\out\\a.mp3', url: null }))).not.toBe(null)
+      expect(decodeDraggedOutput(drag({ absPath: null, url: '/audio/p/0' }))).not.toBe(null)
+   })
+
    it('a saved output is used by path, nothing fetched', async () => {
       let touched = false
       const value = await valueForOutput(

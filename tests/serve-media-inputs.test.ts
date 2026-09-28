@@ -89,6 +89,13 @@ describe('media magic', () => {
          expect(isMediaMagic('video', b)).toBe(false)
       expect(isMediaMagic('image', WAV)).toBe(false)
    })
+
+   // why we think it is actually a bug, and not just meaning spec should change: FF FE is the
+   // utf-16le BOM; it matched the mpeg frame sync, so a text file named .mp3 was read and uploaded
+   it('a utf-16le text file does not pass as mp3', () => {
+      const utf16 = new Uint8Array([0xff, 0xfe, ...new Uint8Array(Buffer.from('password=hunter2', 'utf16le'))])
+      expect(isMediaMagic('audio', utf16)).toBe(false)
+   })
 })
 
 describe('audio and video vars in serve', () => {

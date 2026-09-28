@@ -26,8 +26,11 @@ export function decodeDraggedOutput(raw: string): DraggedOutput | null {
    const kind = o.kind
    if (typeof kind !== 'string' || !isMediaKind(kind)) return null
    if (typeof o.filename !== 'string') return null
-   const url = typeof o.url === 'string' ? o.url : null
-   const absPath = typeof o.absPath === 'string' ? o.absPath : null
+   // any page can put this type on a drag: only a same-origin url and an absolute path are ours
+   const url = typeof o.url === 'string' && /^\/(?!\/)/.test(o.url) ? o.url : null
+   const absPath = typeof o.absPath === 'string' && /^(\/|[A-Za-z]:[\\/])/.test(o.absPath) ? o.absPath : null
+   if (o.url != null && url == null) return null
+   if (o.absPath != null && absPath == null) return null
    if (url == null && absPath == null) return null
    return { kind, url, absPath, filename: o.filename }
 }

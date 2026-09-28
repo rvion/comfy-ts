@@ -291,10 +291,24 @@ export function isMediaMagic(kind: MediaKind, b: Uint8Array): boolean {
       if (at(0, 0x66, 0x4c, 0x61, 0x43)) return true // flac
       if (at(0, 0x4f, 0x67, 0x67, 0x53)) return true // ogg (vorbis, opus)
       if (at(0, 0x49, 0x44, 0x33)) return true // mp3 with an id3 tag
-      // an mpeg or adts frame sync: 11 set bits, then a layer that is not the reserved 00
+      // an mpeg frame sync: 11 set bits, a version and a layer that are not reserved, then a
+      // bitrate and a sample rate that are not the invalid 1111 and 11. FF FE is refused whole:
+      // it is the utf-16le BOM, and a layer I header is never what a real file starts with
       const b0 = b[0]
       const b1 = b[1]
-      if (b0 === 0xff && b1 != null && (b1 & 0xe0) === 0xe0 && (b1 & 0x06) !== 0) return true
+      const b2 = b[2]
+      if (
+         b0 === 0xff &&
+         b1 != null &&
+         b1 !== 0xfe &&
+         b2 != null &&
+         (b1 & 0xe0) === 0xe0 &&
+         (b1 & 0x18) !== 0x08 &&
+         (b1 & 0x06) !== 0 &&
+         b2 >> 4 !== 0xf &&
+         ((b2 >> 2) & 3) !== 3
+      )
+         return true
       if (b0 === 0xff && b1 != null && (b1 & 0xf6) === 0xf0) return true // aac adts
       return isobmff // m4a
    }
