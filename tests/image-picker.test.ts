@@ -319,6 +319,54 @@ describe('ImagePickerSt (overlay state machine)', () => {
    })
 })
 
+describe('the picker on audio and video vars', () => {
+   it('an audio var opens the same picker, lists only audio files, recents filtered, nothing painted', async () => {
+      const { v } = await import('src/vars/ComfyVars.ts')
+      const { TuiSt } = await import('src/cli/tui/state/TuiSt.ts')
+      const soundDir = join(root, 'sounds')
+      mkdirSync(soundDir, { recursive: true })
+      writeFileSync(join(soundDir, 'voice.wav'), 'stub')
+      writeFileSync(join(soundDir, 'take.mp4'), 'stub')
+      writeFileSync(join(soundDir, 'cover.png'), 'stub')
+      const wf = host.defineWorkflow({
+         id: 'picker-audio-test',
+         // a value opens the picker at its folder (open order: dirname(value) first)
+         vars: {
+            voice: v.audio(join(soundDir, 'voice.wav')),
+            clip: v.video(join(soundDir, 'take.mp4')),
+         },
+         build: () => {},
+      })
+      const st = new TuiSt(wf)
+      const ip = st.imagePicker
+      pickerPrefs().recordPick(join(imagesDir, 'a.png'))
+
+      st.selIx = 0
+      st.activate()
+      expect(st.mode).toBe('overlay-image')
+      expect(ip.rows.map((r) => r.name)).toEqual(['voice.wav'])
+      expect(ip.highlightedImage).toBe(null)
+      // an image picked for another var is not offered to an audio var
+      ip.cyclePane()
+      ip.cyclePane()
+      expect(ip.pane).toBe('recents')
+      expect(ip.rows.map((r) => r.path)).not.toContain(join(imagesDir, 'a.png'))
+      ip.cyclePane()
+      ip.commit()
+      expect(st.mode).toBe('nav')
+      expect(wf.vars.voice.value).toBe(join(soundDir, 'voice.wav'))
+
+      // the video var lists only the video
+      st.selIx = 1
+      st.activate()
+      expect(ip.rows.map((r) => r.name)).toEqual(['take.mp4'])
+      ip.cancel()
+      // the tests below open at lastFolder: put back the one this test moved
+      pickerPrefs().recordPick(join(imagesDir, 'a.png'))
+      st.dispose()
+   })
+})
+
 describe('size overlay linked to an image var', () => {
    it('leads with the image-size row, preselects the active preset below it, ⏎ copies the dims', async () => {
       const { v } = await import('src/vars/ComfyVars.ts')

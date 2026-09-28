@@ -73,8 +73,8 @@ import {
 } from 'src/host/loraManagerApi.ts'
 import { getLoraKeyword } from 'src/vars/loraKeywords.ts'
 import type { ComfyHost } from 'src/host/ComfyHost.ts'
-import { DEFAULT_IMAGE_EXTENSIONS } from 'src/vars/ComfyVars.ts'
-import type { ImageVar, LorasVar, PromptVar, SeedVar } from 'src/vars/ComfyVars.ts'
+import { DEFAULT_MEDIA_EXTENSIONS, MEDIA_KINDS, type MediaKind } from 'src/runner/mediaKinds.ts'
+import type { LorasVar, MediaVar, PromptVar, SeedVar } from 'src/vars/ComfyVars.ts'
 import type { DefinedWorkflow } from 'src/vars/DefinedWorkflow.ts'
 import { bang } from 'src/utils/bang.ts'
 import { extractErrorMessage } from 'src/utils/extractErrorMessage.ts'
@@ -94,6 +94,8 @@ export type ServeExecution = {
    texts?: { nodeId: string; nodeKey: string | null; text: string }[]
    /** audio files (SaveAudio*, PreviewAudio). absPath null = saving off, bytes the only copy */
    audios?: { absPath: string | null; filename: string; mime: string; bytes: Uint8Array }[]
+   /** video files (SaveVideo, SaveWEBM, VHS_VideoCombine), same shape as audios */
+   videos?: { absPath: string | null; filename: string; mime: string; bytes: Uint8Array }[]
    data: { id: string; error?: unknown }
    /** live global progress (ComfyExecution has it; fakes may omit) — the /run/<module> poll reads it */
    progressGlobal?: { percent: number }
@@ -121,28 +123,26 @@ export type ServeReply = {
    headers?: Record<string, string>
 }
 
-/** what serve will read off the disk and upload. Wider than the picker default: ComfyUI's
- * LoadImage takes bmp and tiff too, and a var declaring one of those must not be refused */
-const SERVE_IMAGE_FLOOR = new Set([
-   ...DEFAULT_IMAGE_EXTENSIONS.map((e) => e.toLowerCase()),
-   'bmp',
-   'tif',
-   'tiff',
-   'avif',
-])
+/** what serve will read off the disk and upload, per medium. Wider than the picker defaults:
+ * ComfyUI's LoadImage takes bmp and tiff too, and a var declaring one of those must not be refused */
+const SERVE_MEDIA_FLOOR: Record<MediaKind, Set<string>> = {
+   image: new Set([...DEFAULT_MEDIA_EXTENSIONS.image, 'bmp', 'tif', 'tiff', 'avif']),
+   audio: new Set([...DEFAULT_MEDIA_EXTENSIONS.audio, 'aac']),
+   video: new Set([...DEFAULT_MEDIA_EXTENSIONS.video, 'avi']),
+}
 
 /** the first bytes say what a file IS; the name only says what it claims. Cheap, and it stops
  * a .png that holds a key or a script from being read and uploaded to the host.
  * HONEST LIMIT: this is checked before the run, and the file is read again when the graph
  * builds, so a local writer who can swap the path in between still wins. Closing that needs
  * the upload to hold an fd, which is a bigger change than this gate. */
-function looksLikeImage(path: string): boolean {
+function looksLikeMedia(kind: MediaKind, path: string): boolean {
    let fd: number | null = null
    try {
       fd = openSync(path, 'r')
       const head = new Uint8Array(16)
       const n = readSync(fd, head, 0, 16, 0)
-      return isImageMagic(head.subarray(0, n))
+      return isMediaMagic(kind, head.subarray(0, n))
    } catch {
       return false
    } finally {
@@ -155,14 +155,15 @@ function looksLikeImage(path: string): boolean {
  * the gate: a workflow author narrowing (or emptying) it for listing reasons must not be able
  * to widen what an unauthenticated request can make the server read. The var may narrow this
  * floor, never leave it. */
-function serveAcceptsImageExt(declared: readonly string[], ext: string): boolean {
+function serveAcceptsMediaExt(kind: MediaKind, declared: readonly string[], ext: string): boolean {
+   const floor = SERVE_MEDIA_FLOOR[kind]
    if (ext === '') return false
-   if (!SERVE_IMAGE_FLOOR.has(ext)) return false
+   if (!floor.has(ext)) return false
    // a declared list NARROWS the floor by its intersection. When that intersection is empty
    // the declaration says nothing this bridge can honour (a picker filter for a format serve
    // does not read), so the floor stands: narrowing to NOTHING would refuse every image,
    // including the ones the var was declared for
-   const narrowed = declared.map((e) => e.toLowerCase().replace(/^\./, '')).filter((e) => SERVE_IMAGE_FLOOR.has(e))
+   const narrowed = declared.map((e) => e.toLowerCase().replace(/^\./, '')).filter((e) => floor.has(e))
    return narrowed.length === 0 || narrowed.includes(ext)
 }
 
@@ -241,6 +242,11 @@ const CONTENT_TYPES: Record<string, string> = {
    '.gif': 'image/gif',
    '.mp4': 'video/mp4',
    '.webm': 'video/webm',
+   '.m4v': 'video/mp4',
+   '.mov': 'video/quicktime',
+   '.mkv': 'video/x-matroska',
+   '.avi': 'video/x-msvideo',
+   '.aac': 'audio/aac',
    '.flac': 'audio/flac',
    '.mp3': 'audio/mpeg',
    '.opus': 'audio/ogg',
@@ -274,6 +280,33 @@ export function isImageMagic(b: Uint8Array): boolean {
    return false
 }
 
+/** the same full-signature sniff for every medium: a var of one kind never reads a file of
+ * another. mp4, mov and m4a share the isobmff `ftyp` box, the extension floor tells them apart */
+export function isMediaMagic(kind: MediaKind, b: Uint8Array): boolean {
+   const at = (i: number, ...want: number[]): boolean => want.every((w, k) => b[i + k] === w)
+   const isobmff = at(4, 0x66, 0x74, 0x79, 0x70)
+   if (kind === 'image') return isImageMagic(b)
+   if (kind === 'audio') {
+      if (at(0, 0x52, 0x49, 0x46, 0x46) && at(8, 0x57, 0x41, 0x56, 0x45)) return true // riff....wave
+      if (at(0, 0x66, 0x4c, 0x61, 0x43)) return true // flac
+      if (at(0, 0x4f, 0x67, 0x67, 0x53)) return true // ogg (vorbis, opus)
+      if (at(0, 0x49, 0x44, 0x33)) return true // mp3 with an id3 tag
+      // an mpeg or adts frame sync: 11 set bits, then a layer that is not the reserved 00
+      const b0 = b[0]
+      const b1 = b[1]
+      if (b0 === 0xff && b1 != null && (b1 & 0xe0) === 0xe0 && (b1 & 0x06) !== 0) return true
+      if (b0 === 0xff && b1 != null && (b1 & 0xf6) === 0xf0) return true // aac adts
+      return isobmff // m4a
+   }
+   if (at(0, 0x1a, 0x45, 0xdf, 0xa3)) return true // ebml: webm, mkv
+   if (at(0, 0x52, 0x49, 0x46, 0x46) && at(8, 0x41, 0x56, 0x49, 0x20)) return true // riff....avi
+   return isobmff // mp4, mov, m4v
+}
+
+function isMediaKind(kind: string): kind is MediaKind {
+   return (MEDIA_KINDS as readonly string[]).includes(kind)
+}
+
 function json(status: number, payload: unknown): ServeReply {
    return { status, contentType: 'application/json', body: JSON.stringify(payload, null, 2) }
 }
@@ -288,7 +321,8 @@ const USAGE = [
    'PUT  /drafts/<module>/<draft> with { ...vars } — save (or duplicate to a new name) a draft',
    'DELETE /drafts/<module>/<draft> — delete that draft file',
    'GET  /run/<module> — live run status · /run/<module>/preview — latent preview bytes',
-   'POST /upload with {"name","dataBase64"} — store a browser file for an image var',
+   'POST /upload with {"name","dataBase64"} — store a browser file for an image, audio or video var',
+   'GET  /images|audio|video/<promptId>/<ix> — an output kept in memory (saving off)',
    'GET  /tags/<module>/<var>?q=<text>&limit=<n> — tag completion from the list a prompt var declares (`tags`)',
    'GET  /hosts/<hostId>/drift[?full=1] — what changed on the host since the schema was loaded (model files; node types with full=1)',
    'GET  /lora-info/<hostId>/<lora> — display name + trigger words (local mirror)',
@@ -443,6 +477,8 @@ export class ServeApp {
                return this.replyMemoryImage(`${segs[1]}/${segs[2]}`)
             if (segs[0] === 'audio' && segs.length === 3 && segs[1] != null && segs[2] != null)
                return this.replyMemoryImage(`audio/${segs[1]}/${segs[2]}`)
+            if (segs[0] === 'video' && segs.length === 3 && segs[1] != null && segs[2] != null)
+               return this.replyMemoryImage(`video/${segs[1]}/${segs[2]}`)
             if (segs[0] === 'results' && segs.length === 1)
                return json(200, { runs: this.kept.list(), memory: this.kept.usage() })
             if (segs[0] === 'outputs') return this.replyOutput(segs.slice(1))
@@ -756,7 +792,7 @@ export class ServeApp {
       return { status: 200, contentType: 'text/javascript; charset=utf-8', body: js, headers: NO_STORE }
    }
 
-   /** browser file → local file an image var can point at (downloadInput family) */
+   /** browser file → local file a media var can point at (downloadInput family) */
    private replyUpload(req: ServeRequest): ServeReply {
       let parsed: unknown
       try {
@@ -1591,6 +1627,8 @@ export class ServeApp {
       const produced = [`${execution.images.length} image(s)`]
       const audios = execution.audios ?? []
       if (audios.length > 0) produced.push(`${audios.length} audio(s)`)
+      const videos = execution.videos ?? []
+      if (videos.length > 0) produced.push(`${videos.length} video(s)`)
       if ((execution.texts ?? []).length > 0) produced.push(`${(execution.texts ?? []).length} text(s)`)
       console.log(`[serve] 🟢 ${mod.key}/${draft} done in ${(durationMs / 1000).toFixed(1)}s · ${produced.join(' · ')}`)
 
@@ -1610,12 +1648,18 @@ export class ServeApp {
          blobs.push(this.memoryBlob(key, a.bytes, a.filename))
          return key
       })
+      const videoKeys = videos.map((a, ix) => {
+         if (a.absPath != null) return null
+         const key = `video/${execution.data.id}/${ix}`
+         blobs.push(this.memoryBlob(key, a.bytes, a.filename))
+         return key
+      })
       // the KEY is raw (`<promptId>/<ix>`); the url encodes each segment, and handle() decodes
       // per segment, so the lookup gets the raw key back
       const memoryUrl = (route: string, key: string): string =>
          `/${route}/${key
             .split('/')
-            .slice(route === 'audio' ? 1 : 0)
+            .slice(route === 'images' ? 0 : 1)
             .map((seg) => encodeURIComponent(seg))
             .join('/')}`
       const record: RunRecord = {
@@ -1645,8 +1689,17 @@ export class ServeApp {
                absPath: a.absPath,
             }
          }),
+         videos: videos.map((a, ix) => {
+            const key = videoKeys[ix]
+            return {
+               filename: a.filename,
+               mime: a.mime,
+               url: a.absPath != null ? this.outputUrl(a.absPath) : key != null ? memoryUrl('video', key) : null,
+               absPath: a.absPath,
+            }
+         }),
       }
-      this.kept.add({ record, imageKeys, audioKeys, blobs })
+      this.kept.add({ record, imageKeys, audioKeys, videoKeys, blobs })
 
       // Accept: image/* → first image's bytes directly (curl -o, <img src>)
       const first = execution.images[0]
@@ -1697,7 +1750,7 @@ export class ServeApp {
          let value = rawValue
          // kind, never instanceof: consumer and cli hold different class copies (VarKind
          // owns the WHY); casts are the kind-narrowing family, agent/coding.md whitelist 6
-         if (varDef.kind === 'image' && typeof rawValue === 'string' && /^https?:\/\//.test(rawValue)) {
+         if (isMediaKind(varDef.kind) && typeof rawValue === 'string' && /^https?:\/\//.test(rawValue)) {
             try {
                value = await this.downloadInput(rawValue)
             } catch (e) {
@@ -1723,18 +1776,19 @@ export class ServeApp {
          if (err != null) return { status: 400, error: err }
       }
 
-      // 3. image vars must point at a real FILE of a declared type BEFORE anything is queued.
+      // 3. media vars must point at a real FILE of a declared type BEFORE anything is queued.
       // the path a request hands us is read off this box and uploaded to the ComfyUI host, so
       // the extension list the descriptor advertises is enforced here, not merely advertised:
       // a var that accepts .png must not be talked into reading a key or a config file
       for (const [k, varDef] of varMap) {
-         if (varDef.kind !== 'image') continue
-         const img = varDef as ImageVar
-         if (!img.isSet()) continue
-         const abs = img.absPath()
+         const kind = varDef.kind
+         if (!isMediaKind(kind)) continue
+         const media = varDef as MediaVar
+         if (!media.isSet()) continue
+         const abs = media.absPath()
          // ONE message for every rejection below: distinct ones told an unauthenticated caller
          // whether any path exists, is a file, and what type it is
-         const refuse = { status: 400, error: `image var '${k}': not a usable image file` }
+         const refuse = { status: 400, error: `${kind} var '${k}': not a usable ${kind} file` }
          if (!existsSync(abs)) return refuse
          // the REAL path: statSync follows symlinks, so `pic.png -> id_rsa` passed a check made
          // on the link's name. Resolving first means the gate judges the file being read
@@ -1749,8 +1803,9 @@ export class ServeApp {
          } catch {
             return refuse
          }
-         if (!serveAcceptsImageExt(img.extensions, extname(real).toLowerCase().replace(/^\./, ''))) return refuse
-         if (!looksLikeImage(real)) return refuse
+         if (!serveAcceptsMediaExt(kind, media.extensions, extname(real).toLowerCase().replace(/^\./, '')))
+            return refuse
+         if (!looksLikeMedia(kind, real)) return refuse
       }
 
       // 4. seed policy (architecture item 12): payload wins; '?' rerolls;
@@ -1795,7 +1850,9 @@ export class ServeApp {
          }
       } catch (e) {
          // name, not instanceof: same two-copies problem as the var classes
-         if (e instanceof Error && e.name === 'ImageVarEmptyError') return { status: 400, error: e.message }
+         // both names: a project on an older comfy-ts still throws the image-only one
+         if (e instanceof Error && (e.name === 'MediaVarEmptyError' || e.name === 'ImageVarEmptyError'))
+            return { status: 400, error: e.message }
          // the ComfyUI host is upstream of this bridge: 502, not "serve crashed".
          // The connect deadline (ConnectOptions.timeoutMs) is what makes this
          // this runs inside the module mutex: a url that never answers would hold it

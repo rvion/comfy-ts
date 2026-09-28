@@ -6,7 +6,7 @@ import type {
    AnyChoiceVar,
    ChoiceSelect,
    FloatVar,
-   ImageVar,
+   MediaVar,
    IntVar,
    LorasVar,
    PromptVar,
@@ -162,8 +162,10 @@ export function describeVar(varDef: AnyVar): VarDescriptor {
             starredPresets: [...v.starred],
          }
       }
-      case 'image': {
-         const v = varDef as ImageVar
+      case 'image':
+      case 'audio':
+      case 'video': {
+         const v = varDef as MediaVar
          return { ...base, payload: 'local file path or http(s) url', extensions: v.extensions }
       }
       default: {

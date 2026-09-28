@@ -19,7 +19,7 @@ import { Icon } from 'src/cli/serve/web/components/Icon.tsx'
 import { VarIcon } from 'src/cli/serve/web/components/VarIcon.tsx'
 import { generateButtonLook } from 'src/cli/serve/web/state/generateButton.ts'
 import { groupPlaces, type GroupPlace } from 'src/cli/serve/web/state/varGroups.ts'
-import { ImageControl } from 'src/cli/serve/web/components/controls/ImageControl.tsx'
+import { MediaControl } from 'src/cli/serve/web/components/controls/MediaControl.tsx'
 import { LorasControl } from 'src/cli/serve/web/components/controls/LorasControl.tsx'
 import { SeedControl } from 'src/cli/serve/web/components/controls/SeedControl.tsx'
 import { SizeControl } from 'src/cli/serve/web/components/controls/SizeControl.tsx'
@@ -63,7 +63,9 @@ const VarControl = observer(function VarControl(p: {
       case 'size':
          return <SizeControl v={p.v} st={p.st} module={p.module} />
       case 'image':
-         return <ImageControl v={p.v} />
+      case 'audio':
+      case 'video':
+         return <MediaControl v={p.v} kind={p.v.desc.kind} />
       default:
          // a newer server may describe a kind this bundle predates: stay usable
          return <div className="hint">unsupported var kind '{p.v.desc.kind}' — use the json api</div>
@@ -78,7 +80,7 @@ function rowDrag(p: { st: WebSt; module: string; names: readonly string[]; index
    return {
       row: {
          onDragOver: (e) => {
-            // only a row drag: a file dropped on an image var must still reach its own handler
+            // only a row drag: a file or an output dropped on a media var reaches its own handler
             if (e.dataTransfer.types.includes('application/x-comfy-var')) e.preventDefault()
          },
          onDrop: (e) => {

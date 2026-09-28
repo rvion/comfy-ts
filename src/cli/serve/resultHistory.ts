@@ -19,6 +19,8 @@ export type RunRecord = {
    texts: { nodeKey: string | null; text: string }[]
    images: RunOutput[]
    audios: RunAudioOutput[]
+   /** absent on a record from an older server */
+   videos?: RunAudioOutput[]
 }
 
 export type MemoryUsage = { usedBytes: number; budgetBytes: number; outputs: number; runs: number }
@@ -32,7 +34,12 @@ export const KEPT_RUNS = 50
 export const DEFAULT_MEMORY_BUDGET_MB = 100
 
 /** a run and the memory key of each output (null = saved on disk, or never had bytes) */
-type Kept = { record: RunRecord; imageKeys: (string | null)[]; audioKeys: (string | null)[] }
+type Kept = {
+   record: RunRecord
+   imageKeys: (string | null)[]
+   audioKeys: (string | null)[]
+   videoKeys: (string | null)[]
+}
 
 export class ResultHistory {
    /** newest first */
@@ -43,13 +50,20 @@ export class ResultHistory {
 
    constructor(private budgetBytes: number) {}
 
-   add(p: { record: RunRecord; imageKeys: (string | null)[]; audioKeys: (string | null)[]; blobs: KeptBlob[] }): void {
+   add(p: {
+      record: RunRecord
+      imageKeys: (string | null)[]
+      audioKeys: (string | null)[]
+      videoKeys?: (string | null)[]
+      blobs: KeptBlob[]
+   }): void {
       this.remove(p.record.promptId)
       for (const b of p.blobs) {
          this.blobs.set(b.key, { bytes: b.bytes, contentType: b.contentType })
          this.used += b.bytes.byteLength
       }
-      this.runs = [{ record: p.record, imageKeys: p.imageKeys, audioKeys: p.audioKeys }, ...this.runs]
+      const kept = { record: p.record, imageKeys: p.imageKeys, audioKeys: p.audioKeys, videoKeys: p.videoKeys ?? [] }
+      this.runs = [kept, ...this.runs]
       for (const dropped of this.runs.slice(KEPT_RUNS)) this.freeRun(dropped)
       this.runs = this.runs.slice(0, KEPT_RUNS)
       this.evict()
@@ -65,6 +79,7 @@ export class ResultHistory {
          ...k.record,
          images: k.record.images.map((img, ix) => this.withLiveUrl(img, k.imageKeys[ix])),
          audios: k.record.audios.map((a, ix) => this.withLiveUrl(a, k.audioKeys[ix])),
+         videos: (k.record.videos ?? []).map((a, ix) => this.withLiveUrl(a, k.videoKeys[ix])),
       }))
    }
 
@@ -96,7 +111,7 @@ export class ResultHistory {
    }
 
    private freeRun(k: Kept): void {
-      for (const key of [...k.imageKeys, ...k.audioKeys]) {
+      for (const key of [...k.imageKeys, ...k.audioKeys, ...k.videoKeys]) {
          if (key == null) continue
          const b = this.blobs.get(key)
          if (b == null) continue
@@ -118,8 +133,9 @@ export class ResultHistory {
       this.runs = this.runs.filter((k) => {
          const live = (keys: (string | null)[]): boolean => keys.some((key) => key == null || this.blobs.has(key))
          const hasText = k.record.texts.length > 0
-         const hasNothing = k.record.images.length === 0 && k.record.audios.length === 0
-         return hasText || hasNothing || live(k.imageKeys) || live(k.audioKeys)
+         const hasNothing =
+            k.record.images.length === 0 && k.record.audios.length === 0 && (k.record.videos ?? []).length === 0
+         return hasText || hasNothing || live(k.imageKeys) || live(k.audioKeys) || live(k.videoKeys)
       })
    }
 }

@@ -21,7 +21,11 @@ export const ComfyUploadImageResult_ark = type({
 export class ComfyUploader {
    constructor(public host: ComfyHost) {}
 
-   /** upload a blob */
+   /** names this process already uploaded to this host: a LoadAudio or LoadVideo list is not
+    * reloaded after an upload, so without it every run re-sent the same file */
+   private uploaded = new Set<string>()
+
+   /** upload an image (hash-named, deduped against the host's LoadImage list) */
    uploadImage = async (
       //
       img: MediaImage,
@@ -31,46 +35,49 @@ export class ComfyUploader {
          subfolder?: string
       },
    ): Promise<ComfyImageName> => {
-      const uniqFileName = img.enumName as ComfyImageName
-      // console.warn(`[🌁] UPLOAD: ${img.relPath} required as "${uniqFileName}"...`)
+      const name = await this.uploadInput({ blob: img.getAsBlob(), name: img.enumName, ...p, slot: 'LoadImage.image' })
+      return name as ComfyImageName
+   }
 
-      const expectedFinalName = p.subfolder //
-         ? `${p.subfolder}/${uniqFileName}`
-         : uniqFileName
-      // 2. if image already exists, return it
-      if (this.host.schema.hasImage(expectedFinalName)) {
-         console.log(`[🌁] UPLOAD: 🩶 "${img.absPath}" already exists on current ComfyUI instance`)
-         return expectedFinalName as ComfyImageName
+   /**
+    * THE upload path: any file a loader node reads from the host's input folder. ComfyUI routes
+    * audio and video through `/upload/image` too. `slot` is the loader input whose value list
+    * says the file is already there (`LoadImage.image`, `LoadAudio.audio`, `LoadVideo.file`)
+    */
+   uploadInput = async (p: {
+      blob: Blob
+      /** the name the file should get on the host, hash-derived by callers so reruns dedupe */
+      name: string
+      slot: string
+      type?: Maybe<'input' | 'temp' | 'output'>
+      override?: Maybe<boolean>
+      subfolder?: string
+   }): Promise<string> => {
+      const expectedFinalName = p.subfolder ? `${p.subfolder}/${p.name}` : p.name
+      if (this.uploaded.has(expectedFinalName) || this.host.schema.stringValues(p.slot).includes(expectedFinalName)) {
+         console.log(`[🌁] UPLOAD: 🩶 "${expectedFinalName}" already exists on current ComfyUI instance`)
+         return expectedFinalName
       }
 
-      // 3. upload
       const form = new FormData()
-      form.set('image', img.getAsBlob(), uniqFileName)
+      form.set('image', p.blob, p.name)
       if (p.type) form.set('type', p.type)
       if (p.override ?? true) form.set('override', 'true')
-      // const subfolder = p.subfolder ?? 'comfyts-upload'
       if (p.subfolder) form.set('subfolder', p.subfolder)
       const resp = await this.host.fetch('/upload/image', { method: 'POST', body: form })
       const result: ComfyUploadImageResult = softValidate(ComfyUploadImageResult_ark, await resp.json())
 
-      // 4. check upload is successfull
       console.log('[🌁] UPLOAD: ✅ got', result)
-      if (result.name == null) throw new Error('upload failed')
+      if (result.name == null) throw new Error(`upload of '${p.name}' failed: the host answered no name`)
 
-      const finalName = result.subfolder //
-         ? (`${result.subfolder}/${result.name}` as ComfyImageName)
-         : result.name
-
-      if (finalName !== expectedFinalName) {
+      const finalName = result.subfolder ? `${result.subfolder}/${result.name}` : result.name
+      if (finalName !== expectedFinalName)
          console.warn(`[🌁] UPLOAD: ⚠️ expected "${expectedFinalName}" but got "${finalName}"`)
-      } else {
-         console.log(`[🌁] UPLOAD: ✅ finalName is "${finalName}"`)
-      }
 
-      // 5. patch the local ComfyUI schema locally
-      this.host.schema.unsafely_addImageInSchemaWithoutReloading(finalName)
-
-      // 6. return the image
+      // the image list IS a known union: patch it so the next LoadImage typechecks against it
+      if (p.slot === 'LoadImage.image')
+         this.host.schema.unsafely_addImageInSchemaWithoutReloading(finalName as ComfyImageName)
+      this.uploaded.add(finalName)
       return finalName
    }
 

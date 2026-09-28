@@ -317,7 +317,7 @@ export class TuiSt {
       else if (sel.kind === 'choice') this.picker.beginChoice()
       else if (sel.kind === 'size') this.picker.beginSize()
       else if (sel.kind === 'loras') this.loras.begin()
-      else if (sel.kind === 'image') this.imagePicker.begin()
+      else if (sel.kind === 'image' || sel.kind === 'audio' || sel.kind === 'video') this.imagePicker.begin()
       else this.editor.beginInline() // int / float / seed: type the number
    }
 

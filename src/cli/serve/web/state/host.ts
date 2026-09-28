@@ -95,6 +95,8 @@ export function coerceHostValue(desc: VarDescriptor, raw: unknown, current: unkn
       case 'prompt':
       case 'text':
       case 'image':
+      case 'audio':
+      case 'video':
          return typeof raw === 'string' ? { ok: true, value: raw } : REJECT
       case 'int':
          return isFiniteNumber(raw) ? { ok: true, value: Math.trunc(raw) } : REJECT

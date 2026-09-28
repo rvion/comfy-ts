@@ -21,12 +21,14 @@ examples/
       11-yue2-t2a.cflow.ts            YuE2 text to music on windows-1 (audio_yue2_text2music): first prompt line = style, the rest = lyrics; ABC planning as a choice (full, melody, off); PreviewAudio (server temp/ only), the song plays in the serve panel
       12-stable-audio-3-t2a.cflow.ts  Stable Audio 3 Medium on windows-1 (audio_stable_audio_3_medium): one description, a category (Music, Instrument, SFX, One-shot), a length; `reprompt` rewrites it first with a local qwen3.5 2b and the template's per-category system prompt (verbatim in `stableAudio3Prompts.ts`, plain .ts so no driver lists it), the rewrite shows as a text output
       13-ace-step-15-xl-t2a.cflow.ts  ACE-Step 1.5 XL on windows-1 (audio_ace_step1_5_xl_{turbo,sft,base}): a model choice with each template's sampling (turbo 8 steps cfg 1, sft 50 cfg 7, base 50 cfg 6); first prompt line = caption, the rest = lyrics; bpm, key, beats per bar, language
+      14-video-soundtrack.cflow.ts    core nodes only on windows-1: `v.video` frames (GetVideoComponents) + `v.audio` soundtrack muxed by CreateVideo at a picked fps, SaveVideo; the media-var showcase (both default to `examples/media/`, the result lands in `execution.videos`)
    comfy-cloud/
       sdk.d.ts                   committed cloud catalog (gen:sdk:cloud)
       cloudHost.ts               shared host helper — NOT .cflow, invisible to the TUI
       <family>-<mode>.cflow.ts   the zoo, flat, family-prefixed
    images/                       bundled input images (committed, ship in the tarball)
       <subject>_<W>x<H>.jpg      exact size in the filename, see below
+   media/                        bundled audio + video inputs (synthetic ffmpeg test sources, ship in the tarball; `exampleMediaPath(name)`, recipes in media/README.md)
    README.md                     consumer-facing quick start
 ```
 

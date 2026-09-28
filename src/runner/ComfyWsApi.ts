@@ -66,6 +66,9 @@ const tempScope = scope({
          'images?': 'ComfyImageInfo[]',
          // SaveAudio*, PreviewAudio: same file triple as an image
          'audio?': 'ComfyImageInfo[]',
+         // VideoHelperSuite's VHS_VideoCombine, and savers that name their list `video`
+         'video?': 'ComfyImageInfo[]',
+         'gifs?': 'ComfyImageInfo[]',
          // ui payload of a text output node (PreviewAny, and how TextGenerate
          // results reach the client); entries are soft, non-strings are dropped
          'text?': 'unknown[]',

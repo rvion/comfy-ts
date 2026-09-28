@@ -32,6 +32,9 @@ export type GeneratedText = { nodeKey: string | null; text: string }
 /** an audio file (SaveAudio*, PreviewAudio): the panel plays it in an <audio> player */
 export type GeneratedAudio = { filename: string; mime: string; url: string | null; absPath: string | null }
 
+/** a video file (SaveVideo, SaveWEBM, VHS_VideoCombine): the panel plays it in a <video> player */
+export type GeneratedVideo = GeneratedAudio
+
 export type GenerateOk = {
    ok: true
    module: string
@@ -44,6 +47,7 @@ export type GenerateOk = {
    images: GeneratedImage[]
    texts?: GeneratedText[]
    audios?: GeneratedAudio[]
+   videos?: GeneratedVideo[]
 }
 
 async function jsonFetch<T>(url: string, init?: RequestInit): Promise<T> {

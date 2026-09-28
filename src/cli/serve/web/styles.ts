@@ -528,6 +528,17 @@ input[type='range'].setting-range:disabled { opacity: 0.3; }
 .run-card .noimg { color: var(--dim); font-style: italic; }
 .audio-cell { display: flex; flex-direction: column; gap: 4px; width: min(100%, 480px); }
 .audio-cell audio { width: 100%; }
+.video-cell { display: flex; flex-direction: column; gap: 4px; width: min(100%, 480px); }
+.gallery.by-cols .video-cell { width: 100%; }
+.video-cell video { width: 100%; max-height: 480px; border-radius: 6px; background: #000; }
+.img-cell[draggable='true'], .audio-cell[draggable='true'], .video-cell[draggable='true'] { cursor: grab; }
+.use-as { display: flex; flex-wrap: wrap; gap: 4px; }
+/* a media var takes desktop files and gallery outputs: the zone lights while one hovers it */
+.media-drop { border: 1px dashed var(--border); border-radius: 6px; padding: 6px; }
+.media-drop.over { border-color: var(--accent); background: var(--accent-dim); }
+.media-drop .error { color: var(--red); font-size: 12px; margin-top: 4px; white-space: pre-wrap; }
+.media-preview-audio audio { width: min(100%, 360px); }
+.media-preview-video video { max-width: 320px; max-height: 220px; border-radius: 6px; border: 1px solid var(--border); background: #000; }
 .run-card.running { border-color: var(--accent-dim); }
 /* what the host is on, in the node's own unit — the live signal of a text run, which has
    neither a latent frame nor an image to show */
@@ -907,6 +918,9 @@ button.enh-big { font-size: 14px; padding: 8px 18px; }
 /* blur mode: every result, the latent frame included, stays blurred until the pointer is on it */
 .gallery.blur img { filter: blur(22px); transition: filter 0.12s, transform 0.12s; }
 .gallery.blur img:hover, .gallery.blur .img-cell:hover img, .gallery.blur button:hover img { filter: none; }
+/* a video is a picture too: the same privacy blur, lifted while you hover it */
+.gallery.blur .video-cell video { filter: blur(22px); transition: filter 0.12s; }
+.gallery.blur .video-cell:hover video { filter: none; }
 /* the blur stays inside the image: clipped by its button, and the image scaled up a little while
    blurred, else the clip shows the blur fading to transparent along every edge */
 .gallery.blur .img-button { position: relative; overflow: hidden; border-radius: 6px; }
@@ -918,13 +932,13 @@ button.enh-big { font-size: 14px; padding: 8px 18px; }
 }
 .img-button:hover .blur-hint { display: none; }
 /* an unsaved output: only the serve process holds it, so it says so where the eye lands */
-.gallery .img-button, .audio-cell { position: relative; }
+.gallery .img-button, .audio-cell, .video-cell { position: relative; }
 .ephemeral-pill {
    position: absolute; left: 6px; bottom: 6px; pointer-events: auto; display: inline-flex; align-items: center; gap: 4px;
    font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 999px;
    color: #1a1400; background: var(--amber); opacity: 0.92;
 }
-.audio-cell .ephemeral-pill { position: static; align-self: flex-start; }
+.audio-cell .ephemeral-pill, .video-cell .ephemeral-pill { position: static; align-self: flex-start; }
 .memory-menu { max-width: 300px; }
 .memory-note { margin: 0; padding: 2px 4px; font-size: 12px; line-height: 1.4; }
 .memory-note.error { color: var(--red); }

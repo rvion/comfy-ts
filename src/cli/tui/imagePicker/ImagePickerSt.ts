@@ -8,7 +8,8 @@ import { extractErrorMessage } from 'src/utils/extractErrorMessage.ts'
 import { fuzzyMatch } from 'src/utils/fuzzyMatch.ts'
 import { imageBufferToAnsi } from 'src/utils/ansiImage.ts'
 import { protocolReadyBytes } from 'src/cli/tui/protocolImage.ts'
-import type { ImageVar } from 'src/vars/ComfyVars.ts'
+import type { MediaVar } from 'src/vars/ComfyVars.ts'
+import { extensionOf } from 'src/runner/mediaKinds.ts'
 import type { TuiSt } from 'src/cli/tui/state/TuiSt.ts'
 
 export type PickerPane = 'browse' | 'favorites' | 'recents'
@@ -50,9 +51,9 @@ export class ImagePickerSt {
    filter: string = ''
 
    /** kind-narrowing cast sanctioned (agent/coding.md), `kind` is the tag */
-   get selectedVar(): ImageVar | null {
+   get selectedVar(): MediaVar | null {
       const sel = this.st.selected?.[1]
-      return sel?.kind === 'image' ? (sel as ImageVar) : null
+      return sel?.kind === 'image' || sel?.kind === 'audio' || sel?.kind === 'video' ? (sel as MediaVar) : null
    }
 
    get folderDisplay(): string {
@@ -60,7 +61,7 @@ export class ImagePickerSt {
    }
 
    /** begin() open order: dirname(value) → persisted lastFolder → opts.folder → cwd */
-   private initialFolder(iv: ImageVar): string {
+   private initialFolder(iv: MediaVar): string {
       const candidates: (string | null)[] = [
          iv.isSet() ? dirname(iv.absPath()) : null,
          pickerPrefs().lastFolder,
@@ -104,7 +105,8 @@ export class ImagePickerSt {
          }
       if (this.pane === 'recents')
          return {
-            rows: pickerPrefs().recents.map((img) => ({
+            // one recents list for every medium: an audio var lists only what it could take
+            rows: this.recentsForVar().map((img) => ({
                kind: 'image',
                name: contractHome(img),
                path: img,
@@ -130,6 +132,11 @@ export class ImagePickerSt {
       }
    }
 
+   private recentsForVar(): string[] {
+      const exts = this.selectedVar?.extensions ?? []
+      return pickerPrefs().recents.filter((f) => exts.includes(extensionOf(f)))
+   }
+
    get listingError(): string | null {
       return this.paneListing.error
    }
@@ -145,8 +152,10 @@ export class ImagePickerSt {
       return this.rows[this.ix] ?? null
    }
 
-   /** feeds the preview reaction: only a real, present image highlights */
+   /** feeds the preview reaction: only a real, present image highlights (an audio or video
+    * row has nothing to paint) */
    get highlightedImage(): string | null {
+      if (this.selectedVar?.kind !== 'image') return null
       const row = this.current
       return row?.kind === 'image' && !row.missing ? row.path : null
    }

@@ -4,7 +4,8 @@
 // the button hides where the clipboard api is absent
 import { Icon } from 'src/cli/serve/web/components/Icon.tsx'
 import { observer, useLocalObservable } from 'mobx-react-lite'
-import { useEffect, useRef, type ReactNode } from 'react'
+import { useEffect, useRef, type DragEvent, type ReactNode } from 'react'
+import { encodeDraggedOutput, OUTPUT_DRAG_MIME, type DraggedOutput } from 'src/cli/serve/web/state/mediaDrop.ts'
 import { isEphemeral } from 'src/cli/serve/web/state/keptResults.ts'
 import { runPreviewSrc } from 'src/cli/serve/web/api.ts'
 import { asSizeForm } from 'src/cli/serve/web/state/payload.ts'
@@ -35,6 +36,38 @@ const BlurHint = observer(function BlurHint(p: { st: WebSt }) {
          {MOD_KEY}
          {SHORTCUT_KEYS['toggle-blur']}
       </span>
+   )
+})
+
+/** one output's drag + its `→ var` buttons: every media var of the SAME kind in the open form */
+function outputDrag(o: DraggedOutput): { draggable: true; onDragStart: (e: DragEvent) => void } {
+   return {
+      draggable: true,
+      onDragStart: (e) => {
+         e.dataTransfer.effectAllowed = 'copy'
+         e.dataTransfer.setData(OUTPUT_DRAG_MIME, encodeDraggedOutput(o))
+      },
+   }
+}
+
+const UseAs = observer(function UseAs(p: { st: WebSt; out: DraggedOutput }) {
+   const targets = (p.st.form?.vars ?? []).filter((v) => v.mediaKind === p.out.kind)
+   if (targets.length === 0 || (p.out.url == null && p.out.absPath == null)) return null
+   return (
+      <div className="use-as">
+         {targets.map((v) => (
+            <button
+               key={v.name}
+               type="button"
+               className="host-action"
+               disabled={v.mediaBusy}
+               data-tip={`use this ${p.out.kind} as the '${v.name}' input of the open workflow`}
+               onClick={() => void v.takeOutput(p.out)}
+            >
+               → {v.name}
+            </button>
+         ))}
+      </div>
    )
 })
 
@@ -489,7 +522,16 @@ export const Gallery = observer(function Gallery(p: { st: WebSt; compact?: boole
                <div className="imgs">
                   {r.images.map((img, ix) =>
                      img.url != null ? (
-                        <div key={img.filename} className="img-cell">
+                        <div
+                           key={img.filename}
+                           className="img-cell"
+                           {...outputDrag({
+                              kind: 'image',
+                              url: img.url,
+                              absPath: img.absPath,
+                              filename: img.filename,
+                           })}
+                        >
                            <button
                               type="button"
                               className="img-button"
@@ -508,6 +550,10 @@ export const Gallery = observer(function Gallery(p: { st: WebSt; compact?: boole
                               <BlurHint st={p.st} />
                               <EphemeralPill out={img} />
                            </button>
+                           <UseAs
+                              st={p.st}
+                              out={{ kind: 'image', url: img.url, absPath: img.absPath, filename: img.filename }}
+                           />
                            {/* the EMBEDDING page's buttons (host protocol): what it does with the
                                image is its business — send it somewhere, keep it as something */}
                            {p.st.hostActions.length > 0 ? (
@@ -550,12 +596,20 @@ export const Gallery = observer(function Gallery(p: { st: WebSt; compact?: boole
                   )}
                   {(r.audios ?? []).map((a, ix) =>
                      a.url != null ? (
-                        <div key={`${r.promptId}-audio-${ix}`} className="audio-cell">
+                        <div
+                           key={`${r.promptId}-audio-${ix}`}
+                           className="audio-cell"
+                           {...outputDrag({ kind: 'audio', url: a.url, absPath: a.absPath, filename: a.filename })}
+                        >
                            <audio controls preload="metadata" src={a.url} />
                            <a className="hint" href={a.url} download={a.filename}>
                               {a.filename}
                            </a>
                            <EphemeralPill out={a} />
+                           <UseAs
+                              st={p.st}
+                              out={{ kind: 'audio', url: a.url, absPath: a.absPath, filename: a.filename }}
+                           />
                         </div>
                      ) : (
                         <div key={`${r.promptId}-audio-${ix}`} className="noimg">
@@ -563,7 +617,33 @@ export const Gallery = observer(function Gallery(p: { st: WebSt; compact?: boole
                         </div>
                      ),
                   )}
-                  {r.images.length === 0 && (r.texts ?? []).length === 0 && (r.audios ?? []).length === 0 ? (
+                  {(r.videos ?? []).map((a, ix) =>
+                     a.url != null ? (
+                        <div
+                           key={`${r.promptId}-video-${ix}`}
+                           className="video-cell"
+                           {...outputDrag({ kind: 'video', url: a.url, absPath: a.absPath, filename: a.filename })}
+                        >
+                           <video controls muted loop preload="metadata" src={a.url} />
+                           <a className="hint" href={a.url} download={a.filename}>
+                              {a.filename}
+                           </a>
+                           <EphemeralPill out={a} />
+                           <UseAs
+                              st={p.st}
+                              out={{ kind: 'video', url: a.url, absPath: a.absPath, filename: a.filename }}
+                           />
+                        </div>
+                     ) : (
+                        <div key={`${r.promptId}-video-${ix}`} className="noimg">
+                           {a.filename} (not saved, and no longer in memory)
+                        </div>
+                     ),
+                  )}
+                  {r.images.length === 0 &&
+                  (r.texts ?? []).length === 0 &&
+                  (r.audios ?? []).length === 0 &&
+                  (r.videos ?? []).length === 0 ? (
                      <div className="noimg">no outputs</div>
                   ) : null}
                </div>

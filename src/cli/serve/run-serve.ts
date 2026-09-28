@@ -18,6 +18,8 @@ import { extractErrorMessage } from 'src/utils/extractErrorMessage.ts'
 
 const DEFAULT_PORT = 8288
 const BODY_CAP = 10_000_000
+/** a video dropped on a media var rides POST /upload as base64 json: ~200 MB of file */
+export const UPLOAD_BODY_CAP = 280_000_000
 
 export function parseArgs(args: string[]): { target?: string; port: number; bind: string } | { error: string } {
    let target: string | undefined
@@ -56,6 +58,7 @@ export function makeRequestListener(app: ServeApp): (req: IncomingMessage, res: 
       'access-control-allow-headers': 'content-type, accept',
    }
    return (req, res) => {
+      const cap = req.method === 'POST' && (req.url ?? '').split('?')[0] === '/upload' ? UPLOAD_BODY_CAP : BODY_CAP
       const chunks: Buffer[] = []
       let size = 0
       let overflow = false
@@ -63,7 +66,7 @@ export function makeRequestListener(app: ServeApp): (req: IncomingMessage, res: 
       req.on('data', (c: Buffer) => {
          if (overflow) return
          size += c.length
-         if (size > BODY_CAP) {
+         if (size > cap) {
             // answer NOW: a destroyed request never emits 'end'
             overflow = true
             res.writeHead(413, { 'content-type': 'application/json', ...cors })

@@ -3,7 +3,16 @@
 // reaction is owned here). DRAFTS ARE LIVE (the TUI model): edits autosave
 // through PUT /drafts, generate posts {} — the draft is the one source of truth
 import { makeAutoObservable, observableRef, reaction, runInAction, type IReactionDisposer } from 'mobx'
-import { fetchPreviews, saveDraft, type ModuleDescription } from 'src/cli/serve/web/api.ts'
+import { fetchPreviews, saveDraft, uploadFile, type ModuleDescription } from 'src/cli/serve/web/api.ts'
+import {
+   isMediaKind,
+   mediaKindOfFile,
+   refuseDrop,
+   valueForOutput,
+   type DraggedOutput,
+} from 'src/cli/serve/web/state/mediaDrop.ts'
+import type { MediaKind } from 'src/runner/mediaKinds.ts'
+import { logWebError } from 'src/cli/serve/web/logWeb.ts'
 import type { VarDescriptor } from 'src/cli/serve/describeVar.ts'
 import { normalizeInitial, payloadSnapshot } from 'src/cli/serve/web/state/payload.ts'
 import {
@@ -23,8 +32,12 @@ export class VarSt {
    value: unknown
    /** changed since the draft loaded — drives the revert affordance, not the payload */
    dirty = false
-   /** image vars only: a browser-visible url for the current value (upload response or http value) */
+   /** media vars only: a browser-visible url for the current value (upload response or http value) */
    uploadedUrl: string | null = null
+   /** media vars only: why the last drop or upload did not land, shown on the row */
+   mediaError: string | null = null
+   /** media vars only: an upload is on its way */
+   mediaBusy = false
 
    constructor(
       public readonly name: string,
@@ -52,6 +65,60 @@ export class VarSt {
       this.uploadedUrl = url
    }
 
+   /** the medium this row takes, null for a non-media var */
+   get mediaKind(): MediaKind | null {
+      return isMediaKind(this.desc.kind) ? this.desc.kind : null
+   }
+
+   setMediaError(message: string | null): void {
+      this.mediaError = message
+   }
+
+   /** a desktop file (picked or dropped): uploaded, the var points at the local copy */
+   async takeFile(file: File): Promise<void> {
+      const kind = this.mediaKind
+      if (kind == null) return
+      const refused = refuseDrop(kind, mediaKindOfFile(file), file.name)
+      if (refused != null) return this.setMediaError(refused)
+      await this.landMedia(file.name, () => uploadFile({ file }))
+   }
+
+   /** a gallery output (dragged, or its `→ var` button) */
+   async takeOutput(o: DraggedOutput): Promise<void> {
+      const kind = this.mediaKind
+      if (kind == null) return
+      const refused = refuseDrop(kind, o.kind, o.filename)
+      if (refused != null) return this.setMediaError(refused)
+      await this.landMedia(o.filename, () =>
+         valueForOutput(o, {
+            fetchBlob: async (url) => {
+               const res = await fetch(url)
+               if (!res.ok) throw new Error(`http ${res.status} on ${url}`)
+               return res.blob()
+            },
+            upload: (file) => uploadFile({ file }),
+         }),
+      )
+   }
+
+   private async landMedia(what: string, get: () => Promise<{ path: string; url: string | null }>): Promise<void> {
+      this.mediaBusy = true
+      this.mediaError = null
+      try {
+         const value = await get()
+         runInAction(() => {
+            this.set(value.path)
+            this.uploadedUrl = value.url
+         })
+      } catch (e) {
+         const message = `${what}: ${e instanceof Error ? e.message : String(e)}`
+         logWebError('media input did not land', e)
+         runInAction(() => (this.mediaError = message))
+      } finally {
+         runInAction(() => (this.mediaBusy = false))
+      }
+   }
+
    /** the workflow's declared default, in the shape the controls hold */
    get defaultValue(): unknown {
       return normalizeInitial(this.desc, this.desc.default)
@@ -71,6 +138,7 @@ export class VarSt {
       this.value = this.initial
       this.dirty = false
       this.uploadedUrl = null
+      this.mediaError = null
    }
 
    snapshot(): { name: string; value: unknown } {

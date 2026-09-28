@@ -22,6 +22,10 @@ import { keptKeyword, loraIsOn, loraMuted, loraStrengths, withLora, type LoraStr
 import { logError } from 'src/utils/log.ts'
 import { COMMENT_LINE_RE, NEGATIVE_LINE_RE, parsePromptText } from 'src/vars/promptSyntax.ts'
 import { toPresetList, type VarPreset, type VarPresetSpec } from 'src/vars/presets.ts'
+import { DEFAULT_MEDIA_EXTENSIONS, extensionOf, mediaMime, type MediaKind } from 'src/runner/mediaKinds.ts'
+import { hashArrayBuffer } from 'src/utils/hashArrayBuffer.ts'
+import type { ComfyWorkflow } from 'src/runner/ComfyWorkflow.ts'
+import type { NodeOf } from 'src/types/comfy-sdk.ts'
 
 /**
  * the var's CLASS, and the only safe way to discriminate one: `instanceof` compares class
@@ -31,7 +35,7 @@ import { toPresetList, type VarPreset, type VarPresetSpec } from 'src/vars/prese
  * in a consumer app: "var 'prompt' has unsupported kind 'text'", for EVERY kind). A string tag
  * crosses bundles; a class identity does not.
  */
-export type VarKind = 'text' | 'prompt' | 'int' | 'float' | 'seed' | 'toggle' | 'choice' | 'loras' | 'size' | 'image'
+export type VarKind = 'text' | 'prompt' | 'int' | 'float' | 'seed' | 'toggle' | 'choice' | 'loras' | 'size' | MediaKind
 
 /**
  * full base: T is what's STORED/edited, Out what the GRAPH consumes at build
@@ -825,52 +829,70 @@ export class SizeVar extends ComfyVar<SizeValue> {
    }
 }
 
-export type ImageVarOpts = {
+export type MediaVarOpts = {
    /** where the TUI picker starts browsing AND what relative values resolve against (absPath) */
    folder?: string
    /** picker listing filter, lowercase without dots; never affects the value. NOT a security
-    * boundary: `comfy-ts serve` keeps its own floor of image types it will read off the disk
+    * boundary: `comfy-ts serve` keeps its own floor of media types it will read off the disk
     * and upload, which this list may NARROW but never widen (emptying it changes the picker,
     * not what the api accepts) */
    extensions?: readonly string[]
    label?: string
 }
+export type ImageVarOpts = MediaVarOpts
+export type AudioVarOpts = MediaVarOpts
+export type VideoVarOpts = MediaVarOpts
 
-export const DEFAULT_IMAGE_EXTENSIONS: readonly string[] = ['png', 'jpg', 'jpeg', 'webp', 'gif']
+export const DEFAULT_IMAGE_EXTENSIONS: readonly string[] = DEFAULT_MEDIA_EXTENSIONS.image
+export const DEFAULT_AUDIO_EXTENSIONS: readonly string[] = DEFAULT_MEDIA_EXTENSIONS.audio
+export const DEFAULT_VIDEO_EXTENSIONS: readonly string[] = DEFAULT_MEDIA_EXTENSIONS.video
 
-/** empty image var consumed at build time — typed so drivers surface it apart from real crashes */
-export class ImageVarEmptyError extends Error {
+/** empty media var consumed at build time — typed so drivers surface it apart from real crashes */
+export class MediaVarEmptyError extends Error {
    /** name, not instanceof: the cli bundle and dist/index.js each define this class */
-   override readonly name = 'ImageVarEmptyError'
-   constructor(public readonly varName: string) {
-      super(`image var '${varName}' is empty — pick a file (TUI: activate the var; script: .set('/path/to/image.png'))`)
+   override readonly name: string = 'MediaVarEmptyError'
+   constructor(
+      public readonly varName: string,
+      public readonly media: MediaKind = 'image',
+   ) {
+      super(`${media} var '${varName}' is empty — pick a file (TUI: activate the var; script: .set('/path/to/file'))`)
    }
 }
+/** the image-only name this error had first; the same class */
+export const ImageVarEmptyError = MediaVarEmptyError
+export type ImageVarEmptyError = MediaVarEmptyError
 
-/** trim + expand a leading `~/` — every ImageVar write funnels through this */
+/** trim + expand a leading `~/` — every media var write funnels through this */
 function expandUserPath(raw: string): string {
    const trimmed = raw.trim()
    return trimmed.startsWith('~/') ? join(getComfyStorage().homedir(), trimmed.slice(2)) : trimmed
 }
 
+/** the loader node each medium goes through, and its file input */
+const MEDIA_LOADERS: Record<MediaKind, { node: string; input: string }> = {
+   image: { node: 'LoadImage', input: 'image' },
+   audio: { node: 'LoadAudio', input: 'audio' },
+   video: { node: 'LoadVideo', input: 'file' },
+}
+
 /**
- * a local image path. The VALUE is a PLAIN PATH STRING — text-encodable,
+ * a local media file path. The VALUE is a PLAIN PATH STRING — text-encodable,
  * drafts persist it verbatim (toJSON = the string), hand-editable in the
- * draft json. Empty = unset: outValue()/absPath() throw ImageVarEmptyError,
- * so a build never runs on a silent placeholder. The TUI opens the image
- * picker overlay for kind 'image'.
+ * draft json. Empty = unset: outValue()/absPath() throw MediaVarEmptyError,
+ * so a build never runs on a silent placeholder. The TUI opens the file
+ * picker overlay for every media kind.
  */
-export class ImageVar extends ComfyVar<string> {
-   readonly kind = 'image' as const
+export abstract class MediaVar extends ComfyVar<string> {
+   abstract override readonly kind: MediaKind
    constructor(
       defaultValue: string,
-      public opts: ImageVarOpts = {},
+      public opts: MediaVarOpts = {},
    ) {
       super(expandUserPath(defaultValue), opts.label)
    }
    /** what the picker lists (lowercase, no dots) */
    get extensions(): readonly string[] {
-      return this.opts.extensions ?? DEFAULT_IMAGE_EXTENSIONS
+      return this.opts.extensions ?? DEFAULT_MEDIA_EXTENSIONS[this.kind]
    }
    override set(value: string): this {
       return super.set(expandUserPath(value))
@@ -882,8 +904,8 @@ export class ImageVar extends ComfyVar<string> {
    isSet(): boolean {
       return this.value !== ''
    }
-   private emptyError(): ImageVarEmptyError {
-      return new ImageVarEmptyError(this.name ?? this.label ?? 'image')
+   private emptyError(): MediaVarEmptyError {
+      return new MediaVarEmptyError(this.name ?? this.label ?? this.kind, this.kind)
    }
    /** the ONE resolution helper: absolute kept as-is, relative resolved against opts.folder, else cwd */
    absPath(): string {
@@ -901,9 +923,59 @@ export class ImageVar extends ComfyVar<string> {
       const home = getComfyStorage().homedir()
       return this.value.startsWith(`${home}/`) ? `~${this.value.slice(home.length)}` : this.value
    }
+   /** upload the file hash-named (reruns dedupe) and add this medium's loader node. A dry
+    * build names the file by its hash and uploads nothing */
+   protected async loadVia(wf: ComfyWorkflow<string>): Promise<unknown> {
+      const loader = MEDIA_LOADERS[this.kind]
+      const factory = wf.builderBase[loader.node]
+      if (factory == null)
+         throw new Error(
+            `host '${wf.host.data.id}' has no ${loader.node} node: ${this.kind} var '${this.name ?? '?'}' cannot load`,
+         )
+      const abs = this.absPath()
+      const bytes = getComfyStorage().readBytes(abs)
+      const ext = extensionOf(abs)
+      const name = `${hashArrayBuffer(bytes)}${ext === '' ? '' : `.${ext}`}`
+      const onHost = wf.dry
+         ? name
+         : await wf.host.uploader.uploadInput({
+              blob: new Blob([bytes as Uint8Array<ArrayBuffer>], { type: mediaMime(abs) }),
+              name,
+              slot: `${loader.node}.${loader.input}`,
+              type: 'input',
+           })
+      return factory({ [loader.input]: onHost })
+   }
 }
 
-/** the var constructors: v.text / v.prompt / v.int / v.float / v.seed / v.toggle / v.choice / v.loras / v.size / v.image */
+/** a local image path, loaded through LoadImage */
+export class ImageVar extends MediaVar {
+   readonly kind = 'image' as const
+   async loadInWorkflow<WID extends string>(wf: ComfyWorkflow<WID>): Promise<NodeOf<WID, 'LoadImage'>> {
+      // sanctioned cast (family 1): the node is the host's own LoadImage, built from object_info
+      return (await this.loadVia(wf)) as NodeOf<WID, 'LoadImage'>
+   }
+}
+
+/** a local audio path, loaded through LoadAudio */
+export class AudioVar extends MediaVar {
+   readonly kind = 'audio' as const
+   async loadInWorkflow<WID extends string>(wf: ComfyWorkflow<WID>): Promise<NodeOf<WID, 'LoadAudio'>> {
+      // sanctioned cast (family 1): same as ImageVar
+      return (await this.loadVia(wf)) as NodeOf<WID, 'LoadAudio'>
+   }
+}
+
+/** a local video path, loaded through LoadVideo */
+export class VideoVar extends MediaVar {
+   readonly kind = 'video' as const
+   async loadInWorkflow<WID extends string>(wf: ComfyWorkflow<WID>): Promise<NodeOf<WID, 'LoadVideo'>> {
+      // sanctioned cast (family 1): same as ImageVar
+      return (await this.loadVia(wf)) as NodeOf<WID, 'LoadVideo'>
+   }
+}
+
+/** the var constructors: v.text / v.prompt / v.int / v.float / v.seed / v.toggle / v.choice / v.loras / v.size / v.image / v.audio / v.video */
 export const v = {
    // the old `v.text(x, 'label')` form still works: a bare string IS the label
    text: (defaultValue: string, opts: TextVarOpts | string = {}): TextVar =>
@@ -936,7 +1008,9 @@ export const v = {
       opts: { presets?: SizePreset[]; starred?: readonly string[]; label?: string; image?: ImageVar } = {},
    ): SizeVar =>
       new SizeVar(defaultValue, opts.presets ?? sizePresetsFor(defaultValue), opts.label, opts.image, opts.starred),
-   image: (defaultValue: string, opts: ImageVarOpts = {}): ImageVar => new ImageVar(defaultValue, opts),
+   image: (defaultValue: string, opts: MediaVarOpts = {}): ImageVar => new ImageVar(defaultValue, opts),
+   audio: (defaultValue: string, opts: MediaVarOpts = {}): AudioVar => new AudioVar(defaultValue, opts),
+   video: (defaultValue: string, opts: MediaVarOpts = {}): VideoVar => new VideoVar(defaultValue, opts),
 }
 
 /**

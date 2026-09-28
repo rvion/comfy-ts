@@ -64,7 +64,10 @@ export const ImagePickerOverlay = observer((p: { st: TuiSt }) => {
          })}
          footer={
             rows.length === 0 ? (
-               <Text color="red">{ip.listingError ?? (ip.filter !== '' ? 'no match' : 'no images here')}</Text>
+               <Text color="red">
+                  {ip.listingError ??
+                     (ip.filter !== '' ? 'no match' : `no ${ip.selectedVar?.kind ?? 'image'} files here`)}
+               </Text>
             ) : undefined
          }
       />

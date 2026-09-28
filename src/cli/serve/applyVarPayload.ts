@@ -11,7 +11,7 @@ import type {
    AnyVar,
    AnyChoiceVar,
    FloatVar,
-   ImageVar,
+   MediaVar,
    IntVar,
    LorasVar,
    PromptVar,
@@ -158,9 +158,11 @@ export function applyVarPayload(
          return `var '${name}' expects {"width":W,"height":H}, "WxH", or a preset label`
       }
 
-      case 'image': {
+      case 'image':
+      case 'audio':
+      case 'video': {
          if (typeof raw !== 'string') return `var '${name}' expects a file path or http(s) url string`
-         ;(varDef as ImageVar).set(raw)
+         ;(varDef as MediaVar).set(raw)
          return null
       }
 
