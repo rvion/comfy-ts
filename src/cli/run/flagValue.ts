@@ -29,7 +29,8 @@ export function flagValue(p: {
       case 'float':
          return { value: raw }
       case 'seed': {
-         if (raw === '?' || raw === '+' || raw === '-' || raw === '=') return { value: { mode: raw } }
+         // a random seed as a number: serve rerolls a '?' mode only when the payload leaves the seed out
+         if (raw === '?') return { value: Math.floor(Math.random() * 2 ** 32) }
          const n = Number(raw)
          return Number.isFinite(n) ? { value: n } : { error: `--${p.name} is a seed: a number, or ? for a random one` }
       }

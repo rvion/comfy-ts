@@ -44,10 +44,15 @@ describe('comfy-ts run: a flag string as the value serve takes', () => {
       select?: 'one' | 'zero-or-one' | 'many',
    ) => flagValue({ name: 'x', spec: { kind, select }, raw, cwd: '/here' })
 
-   it('numbers stay strings for int and float, a seed is a number or a mode', () => {
+   it('numbers stay strings for int and float, a seed is a number, ? a random one', () => {
       expect(f('int', '30')).toEqual({ value: '30' })
       expect(f('seed', '7')).toEqual({ value: 7 })
-      expect(f('seed', '?')).toEqual({ value: { mode: '?' } })
+      // why we think it is actually a bug, and not just meaning spec should change: `--seed ?` is documented as a new variation, and serve rerolls a '?' mode only when the payload leaves the seed out, so the run repeated the draft's seed
+      const fresh = f('seed', '?')
+      expect('value' in fresh && typeof fresh.value).toBe('number')
+      // control: two rolls differ, a typed seed stays that seed
+      expect(f('seed', '?')).not.toEqual(fresh)
+      expect(f('seed', '12')).toEqual({ value: 12 })
       expect('error' in f('seed', 'seven')).toBe(true)
    })
 
