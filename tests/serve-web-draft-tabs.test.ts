@@ -5,6 +5,7 @@ import {
    readTabs,
    renameTab,
    tabForKey,
+   tabToCloseForKey,
    tabStepForKey,
    type DraftTab,
 } from 'src/cli/serve/web/state/draftTabs.ts'
@@ -67,6 +68,19 @@ describe('draft tabs', () => {
       expect(tabForKey(tabs, key('5', { metaKey: true }))).toBe(null)
       expect(tabForKey(tabs, key('1'))).toBe(null)
       expect(tabForKey(tabs, key('1', { metaKey: true, shiftKey: true }))).toBe(null)
+   })
+
+   it('⌘W closes the open tab while another is left, and leaves the last one to the window', () => {
+      const tabs = [t('wf', 'a'), t('wf', 'b')]
+      expect(tabToCloseForKey(tabs, t('wf', 'b'), key('w', { metaKey: true }))).toEqual(t('wf', 'b'))
+      expect(tabToCloseForKey(tabs, t('wf', 'a'), key('W', { ctrlKey: true }))).toEqual(t('wf', 'a'))
+      // the last tab: not claimed, so sk gui's File > Close Window gets the key
+      expect(tabToCloseForKey([t('wf', 'a')], t('wf', 'a'), key('w', { metaKey: true }))).toBe(null)
+      // control: a bare w is typing, ⇧⌘W and ⌥⌘W are other keys, an open draft outside the tabs closes nothing
+      expect(tabToCloseForKey(tabs, t('wf', 'a'), key('w'))).toBe(null)
+      expect(tabToCloseForKey(tabs, t('wf', 'a'), key('w', { metaKey: true, shiftKey: true }))).toBe(null)
+      expect(tabToCloseForKey(tabs, t('wf', 'a'), key('w', { metaKey: true, altKey: true }))).toBe(null)
+      expect(tabToCloseForKey(tabs, t('wf', 'z'), key('w', { metaKey: true }))).toBe(null)
    })
 
    it('⌘PageUp and ⌘PageDown step to the previous and next tab, wrapping at the ends', () => {

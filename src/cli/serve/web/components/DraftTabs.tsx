@@ -1,6 +1,6 @@
 // the open drafts as tabs over the work area: a click opens one (a click on the open one shows
 // its actions), × or a middle click closes it, ⌘1 to ⌘8 pick one, ⌘9 the last, ⌘PageUp and
-// ⌘PageDown step (ctrl elsewhere), from any focus
+// ⌘PageDown step, ⌘W closes the open one unless it is the last (ctrl elsewhere), from any focus
 import {
    autoUpdate,
    flip,
@@ -15,7 +15,7 @@ import { observer } from 'mobx-react-lite'
 import { useEffect, useState } from 'react'
 import { Icon } from 'src/cli/serve/web/components/Icon.tsx'
 import { MOD_KEY } from 'src/cli/serve/web/components/modKey.ts'
-import { tabForKey, tabStepForKey, type DraftTab } from 'src/cli/serve/web/state/draftTabs.ts'
+import { tabForKey, tabStepForKey, tabToCloseForKey, type DraftTab } from 'src/cli/serve/web/state/draftTabs.ts'
 import { shortcutLabel } from 'src/cli/serve/web/state/shortcuts.ts'
 import type { WebSt } from 'src/cli/serve/web/state/WebSt.ts'
 import { onEscape } from 'src/cli/serve/web/state/escape.ts'
@@ -23,6 +23,12 @@ import { onEscape } from 'src/cli/serve/web/state/escape.ts'
 export function useTabShortcuts(st: WebSt): void {
    useEffect(() => {
       const onKey = (e: KeyboardEvent): void => {
+         const closing = tabToCloseForKey(st.tabs, st.activeTab, e)
+         if (closing != null) {
+            e.preventDefault()
+            st.closeTab(closing)
+            return
+         }
          const t = tabForKey(st.tabs, e) ?? tabStepForKey(st.tabs, st.activeTab, e)
          if (t == null) return
          e.preventDefault()

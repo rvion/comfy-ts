@@ -1,5 +1,9 @@
 # comfy-ts
 
+## Unreleased
+
+- **⌘W closes the open draft tab** in the web panel while another tab is left. On the last tab it closes the window, in a desktop app window (WKWebView). A browser keeps ⌘W for itself, so there it always closes the browser tab.
+
 ## 2.16.0
 
 - **Model vars.** `v.model('UNETLoader.unet_name', { default, filter })` inside a `vars: (v) => …` lambda is a choice over the host's own file list for that loader input. The slot name autocompletes, and the value is typed as that slot's union, so it feeds the loader with no cast. `default: null` means "the workflow decides". In `comfy-ts serve`, the refresh-schema action lists a file the host just got without a restart, and a picked file the host no longer has stays picked and is reported.

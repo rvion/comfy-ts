@@ -48,6 +48,7 @@ export function shortcutCatalog(mod: string = MOD_KEY): ShortcutGroup[] {
             { keys: [`${mod}1 … ${mod}8`], what: 'open tab 1 to 8' },
             { keys: [`${mod}9`], what: 'open the last tab' },
             { keys: [`${mod}PageUp`, `${mod}PageDown`], what: 'previous or next tab, wrapping' },
+            { keys: [`${mod}W`], what: 'close the tab; on the last one, close the window (desktop app)' },
             ...jumps,
             { keys: [`${mod}A`], what: 'select all in the field you are in' },
             { keys: ['Esc'], what: 'close the popup on top' },

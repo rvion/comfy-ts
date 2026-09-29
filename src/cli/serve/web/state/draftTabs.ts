@@ -59,6 +59,18 @@ export function tabStepForKey(
    return tabs[(ix + dir + tabs.length) % tabs.length] ?? null
 }
 
+/** ⌘W (ctrl elsewhere): the open tab, while another one is left. On the last tab it is null, so
+ * the key goes through and the desktop shell closes its window */
+export function tabToCloseForKey(
+   tabs: readonly DraftTab[],
+   active: DraftTab | null,
+   e: { key: string; metaKey: boolean; ctrlKey: boolean; altKey: boolean; shiftKey: boolean },
+): DraftTab | null {
+   if (!(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey) return null
+   if (e.key.toLowerCase() !== 'w' || active == null || tabs.length < 2) return null
+   return tabs.find((x) => same(x, active)) ?? null
+}
+
 /** a stored list, shape-checked, keeping only drafts that still exist */
 export function readTabs(raw: unknown, modules: readonly { module: string; drafts: readonly string[] }[]): DraftTab[] {
    if (!Array.isArray(raw)) return []
