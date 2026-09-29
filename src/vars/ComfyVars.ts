@@ -906,6 +906,9 @@ export type MediaVarOpts = {
     * not what the api accepts) */
    extensions?: readonly string[]
    label?: string
+   /** the text var a file's `<name>.txt` sidecar fills, when a driver sets this var from a file
+    * and leaves that one unset: a voice clip's transcript (`comfy-ts run`) */
+   sidecarText?: TextVar
 }
 export type ImageVarOpts = MediaVarOpts
 export type AudioVarOpts = MediaVarOpts

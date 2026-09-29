@@ -27,8 +27,13 @@ const LANGUAGES = [
    'Chinese',
 ] as const
 
-// bundled default (examples/media/, ships in the tarball)
-const voice = v.audio(exampleMediaPath('voice_en_6s.flac'))
+const transcript = v.text(
+   'This is a short sample of my voice. Clone it, and I can read any text you give me, in many languages.',
+   { label: 'transcript of the voice clip' },
+)
+// bundled default (examples/media/, ships in the tarball). A clip's `<clip>.txt` is its
+// transcript when `comfy-ts run` sets the clip and leaves the transcript alone
+const voice = v.audio(exampleMediaPath('voice_en_6s.flac'), { sidecarText: transcript })
 
 export const ttsVoiceClone = host.defineWorkflow({
    id: 'tts-voice-clone',
@@ -41,12 +46,7 @@ export const ttsVoiceClone = host.defineWorkflow({
       engine: v.choice(ENGINES, 'chatterbox', 'engine'),
       language: v.choice(LANGUAGES, 'English', 'language'),
       voice,
-      transcript: v.text(
-         'This is a short sample of my voice. Clone it, and I can read any text you give me, in many languages.',
-         {
-            label: 'transcript of the voice clip',
-         },
-      ),
+      transcript,
    },
    // async build: the voice clip is uploaded (hash-named, deduped) per run
    build: async (b, vars, wf) => {

@@ -10,6 +10,7 @@ import type { DefinedWorkflow } from 'src/vars/DefinedWorkflow.ts'
 import { flagValue, type FlagSpec } from 'src/cli/run/flagValue.ts'
 import { outputPaths, sidecarPath } from 'src/cli/run/outputPaths.ts'
 import { pickModule } from 'src/cli/run/pickModule.ts'
+import { sidecarFills } from 'src/cli/run/sidecar.ts'
 import { parseRunArgs } from 'src/cli/run/runArgs.ts'
 import { describeVar, renderDescriptorLine } from 'src/cli/serve/describeVar.ts'
 import { ServeApp, type ServeExecution, type ServeStarter } from 'src/cli/serve/ServeApp.ts'
@@ -139,19 +140,10 @@ export async function runRun(argv: string[]): Promise<number> {
       }
       payload[name] = shaped.value
    }
-   // a voice clip's transcript sits beside it as <clip>.txt: the pair a voice design writes
-   const transcript = vars.get('transcript')
-   if (transcript != null && transcript.kind === 'text' && !('transcript' in payload)) {
-      for (const [k, v] of vars) {
-         const p = payload[k]
-         if (v.kind !== 'audio' || typeof p !== 'string' || /^https?:\/\//.test(p)) continue
-         const side = sidecarPath(p)
-         if (existsSync(side)) {
-            payload.transcript = readFileSync(side, 'utf8').trim()
-            if (!args.json) log(`   transcript from ${side}`)
-            break
-         }
-      }
+   // a media file's <file>.txt fills the text var its declaration links (a clip's transcript)
+   for (const fill of sidecarFills([...vars], payload, existsSync)) {
+      payload[fill.name] = readFileSync(fill.from, 'utf8').trim()
+      if (!args.json) log(`   ${fill.name} from ${fill.from}`)
    }
 
    let execution: ServeExecution | null = null

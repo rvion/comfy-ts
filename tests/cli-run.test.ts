@@ -7,6 +7,8 @@ import { flagValue } from 'src/cli/run/flagValue.ts'
 import { outputPaths, sidecarPath } from 'src/cli/run/outputPaths.ts'
 import { pickModule } from 'src/cli/run/pickModule.ts'
 import { parseRunArgs } from 'src/cli/run/runArgs.ts'
+import { sidecarFills } from 'src/cli/run/sidecar.ts'
+import { v } from 'src/vars/ComfyVars.ts'
 
 const FILES = [
    '/w/examples/rvion/10-anima-t2i.cflow.ts',
@@ -152,5 +154,30 @@ describe('comfy-ts run: discovery on disk', () => {
       expect(workspaceOf(join(root, 'flows/a.cflow.ts'))).toBeNull()
       mkdirSync(join(root, '.comfy-ts'))
       expect(workspaceOf(join(root, 'flows/a.cflow.ts'))).toBe(root)
+   })
+})
+
+describe('comfy-ts run: a media file brings its text along', () => {
+   it('only through the link its declaration makes, never through a var name', () => {
+      const transcript = v.text('')
+      const linked = [
+         ['voice', v.audio('', { sidecarText: transcript })],
+         ['transcript', transcript],
+         ['prompt', v.prompt('')],
+      ] as const
+      const exists = (p: string): boolean => p === '/v/sailor.txt'
+      expect(sidecarFills(linked, { voice: '/v/sailor.flac' }, exists)).toEqual([
+         { name: 'transcript', from: '/v/sailor.txt' },
+      ])
+      // a flag that sets the text wins, a url brings nothing, no sidecar on disk brings nothing
+      expect(sidecarFills(linked, { voice: '/v/sailor.flac', transcript: 'typed' }, exists)).toEqual([])
+      expect(sidecarFills(linked, { voice: 'https://x.dev/sailor.flac' }, exists)).toEqual([])
+      expect(sidecarFills(linked, { voice: '/v/other.flac' }, exists)).toEqual([])
+      // control: the same var names with no link declared fill nothing
+      const unlinked = [
+         ['voice', v.audio('')],
+         ['transcript', v.text('')],
+      ] as const
+      expect(sidecarFills(unlinked, { voice: '/v/sailor.flac' }, exists)).toEqual([])
    })
 })
