@@ -22,6 +22,8 @@ tmp/
 # machine-local agent context, imported by CLAUDE.md when present and simply
 # absent for everyone else
 CLAUDE.local.md
+# the house's global contribution: local only until it is cleared for the public tree
+agent/global-contribution.md
 
 # EVERYTHING under .comfy-ts/ is local machine state and never this repo's
 # business: host dumps (that machine's whole model inventory and its paths,

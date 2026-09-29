@@ -56,6 +56,8 @@ Types for every KNOWN custom node / plugin / model in the ecosystem (`src/manage
 - 🔶 serve web UI — built, pending a browser playtest
 - 🔶 model vars: `v.model(slot, { default, filter })`, a choice over the host's live file list for one loader input, rebound by refresh-schema (krea2 and anima examples pick their diffusion model with it) — built, pending a playtest
 - 🔶 media inputs: `v.image` / `v.audio` / `v.video` vars (`loadInWorkflow(wf)` → LoadImage / LoadAudio / LoadVideo), video outputs in `execution.videos`, and in the web panel a drop zone per media var fed by desktop files or gallery outputs (drag, or the `→ <var>` button) — built, pending a browser playtest
+- ❌ `comfy-ts run <module|file> [draft] [--<var> <value>…]`: planned, not built. One headless run of a draft with the same var overrides `serve` takes (a media var as a file path), no panel and no TUI: it prints each output path saved to disk and exits non-zero on a failed run. Today a draft runs from the command line only through its own `import.meta.main` block (positional args, so a media var such as `voice` cannot be set) or through `serve`'s HTTP API.
+- ❌ voice design example, `examples/rvion/16-tts-voice-design.cflow.ts`: planned, not built. A written description of a voice, plus one sample line, gives a new voice clip and its transcript saved to disk (TTS-Audio-Suite `UnifiedVoiceDesignerNode`, then `SaveCharacterVoiceNode`), ready to pass as `voice` and `transcript` to `15-tts-voice-clone` for every later line in that voice. With `run` above, the whole flow is two commands: design the voice once, then one call per line.
 
 ## G8 — runs in the browser
 
