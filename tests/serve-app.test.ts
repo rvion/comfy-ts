@@ -576,6 +576,28 @@ describe('ServeApp draft save (PUT) + live run state', () => {
       const unknown = await app.handle({ method: 'GET', url: '/run/nope' })
       expect(unknown.status).toBe(404)
    })
+
+   it("/run/<module>/preview serves the frames the run's own onPreview received, per module", async () => {
+      const a = makeModule('wf-live-a')
+      const b = makeModule('wf-live-b')
+      const png = Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 5])
+      const starter: ServeStarter = (mod, opts) => {
+         if (mod.key === 'wf-live-a') opts.onPreview?.({ bytes: png, mime: 'image/png' })
+         return Promise.resolve(fakeExecution())
+      }
+      const app = new ServeApp([a, b], { outputRoot: join(root, 'out'), starter })
+      await app.handle({ method: 'POST', url: '/generate/wf-live-a/default', body: '{}' })
+      await app.handle({ method: 'POST', url: '/generate/wf-live-b/default', body: '{}' })
+
+      const previewA = await app.handle({ method: 'GET', url: '/run/wf-live-a/preview' })
+      expect(previewA.status).toBe(200)
+      expect(previewA.contentType).toBe('image/png')
+      expect(previewA.body).toEqual(png)
+      const statusA = parse(await app.handle({ method: 'GET', url: '/run/wf-live-a' }))
+      expect(statusA.hasPreview).toBe(true)
+      const previewB = await app.handle({ method: 'GET', url: '/run/wf-live-b/preview' })
+      expect(previewB.status).toBe(404)
+   })
 })
 
 describe('seed continuation vs an edited draft value (live-draft model)', () => {

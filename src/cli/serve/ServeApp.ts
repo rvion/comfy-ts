@@ -111,7 +111,13 @@ export type ServeExecution = {
 
 export type ServeStarter = (
    mod: ServeModule,
-   opts: { saveToDisk: boolean; savePrefix: string; host?: ComfyHost },
+   opts: {
+      saveToDisk: boolean
+      savePrefix: string
+      host?: ComfyHost
+      /** the run's live preview frames, feeding the /run/<module>/preview poll */
+      onPreview?: (p: { bytes: Uint8Array; mime: string }) => void
+   },
 ) => Promise<ServeExecution>
 
 export type ServeRequest = { method: string; url: string; accept?: string; body?: string }
@@ -231,7 +237,7 @@ const realStarter: ServeStarter = async (mod, opts) => {
    const wf = await mod.dw.build({ advance: true, host })
    // saving is a SETTING now (GET/PUT /settings): off keeps outputs in memory and the
    // reply points at /images/<promptId>/<ix> instead of a file url
-   return await wf.start({ save: opts.saveToDisk ? { prefix: opts.savePrefix } : false })
+   return await wf.start({ save: opts.saveToDisk ? { prefix: opts.savePrefix } : false, onPreview: opts.onPreview })
 }
 
 const CONTENT_TYPES: Record<string, string> = {
@@ -1447,31 +1453,6 @@ export class ServeApp {
    /** seq counts frames so the poller refetches only on a NEW one, not every tick */
    private latentPreviews = new Map<string, { bytes: Uint8Array; mime: string; seq: number }>()
    private latentSeq = 0
-   /** promptId → module: `onLatentPreview` is ONE slot per host and two modules can share a
-    * host, so frames are routed by the prompt they belong to, never by "the last run started" */
-   private promptOwner = new Map<string, string>()
-   private latentHosts = new Set<ComfyHost>()
-
-   private runningModules(): string[] {
-      return [...this.liveRuns.entries()]
-         .filter(([, e]) => e.status !== 'Success' && e.status !== 'Failure')
-         .map(([key]) => key)
-   }
-
-   /** one dispatcher per host, installed once and left in place (idempotent) */
-   private wireLatents(host: ComfyHost): void {
-      if (this.latentHosts.has(host)) return
-      this.latentHosts.add(host)
-      host.onLatentPreview = (p) => {
-         const owner = p.promptID != null ? this.promptOwner.get(p.promptID) : undefined
-         // an unattributable frame (no promptID yet, e.g. before start() returned) is only
-         // safe to show when exactly ONE run is live; otherwise drop it rather than lie
-         const running = this.runningModules()
-         const key = owner ?? (running.length === 1 ? running[0] : undefined)
-         if (key == null) return
-         this.latentPreviews.set(key, { bytes: p.bytes, mime: p.mime, seq: ++this.latentSeq })
-      }
-   }
 
    private replyRunStatus(modKey: string): ServeReply {
       const mod = this.moduleByKey(modKey)
@@ -1635,13 +1616,8 @@ export class ServeApp {
 
       const execution = started.execution
       this.liveRuns.set(mod.key, execution)
-      this.promptOwner.set(execution.data.id, mod.key)
       console.log(`[serve] → ${mod.key}/${draft} (prompt ${execution.data.id})`)
-      try {
-         await execution.done
-      } finally {
-         this.promptOwner.delete(execution.data.id)
-      }
+      await execution.done
       const durationMs = Date.now() - t0
 
       if (execution.status === 'Failure') {
@@ -1858,20 +1834,18 @@ export class ServeApp {
       }
 
       // 5. send (build + POST /prompt); the wait for outputs happens OUTSIDE the mutex.
-      // latent frames feed the web ui's /run/<module>/preview poll (ExecSt's pattern);
-      // the previous run's preview must not linger over the new one
+      // the run's own preview frames feed the web ui's /run/<module>/preview poll; the
+      // previous run's preview must not linger over the new one
       this.latentPreviews.delete(mod.key)
-      // the host the run ACTUALLY goes to: onLatentPreview is one slot per ComfyHost, so
-      // wiring the defining host while running on an override left the override host with no
-      // dispatcher, the panel simply never saw a frame, with nothing to say why
       const runHost = this.runHostFor(mod)
-      this.wireLatents(runHost ?? mod.dw.host)
       try {
          return {
             execution: await this.starter(mod, {
                saveToDisk: this.settings.saveToDisk,
                savePrefix: this.savePrefixFor(mod.key),
                host: runHost ?? undefined,
+               onPreview: (p) =>
+                  this.latentPreviews.set(mod.key, { bytes: p.bytes, mime: p.mime, seq: ++this.latentSeq }),
             }),
          }
       } catch (e) {

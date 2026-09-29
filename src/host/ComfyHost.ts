@@ -6,7 +6,14 @@ import type { ComfyManagerPluginInfo } from 'src/manager/types/ComfyManagerPlugi
 import type { ComfyExecution } from 'src/runner/ComfyExecution.ts'
 import type { ComfyApiJson } from 'src/sdk-generator/comfy-api-json.ts'
 import { parseWorkflowJson } from 'src/litegraph/normalizeWorkflow.ts'
-import { parseBinaryWsFrame } from 'src/runner/wsBinaryFrame.ts'
+import { type PreviewMethod, previewMethodFromSystemStats } from 'src/host/previewMethod.ts'
+import {
+   binaryFrameType,
+   isPreviewFrameType,
+   type ParsedPreviewFrame,
+   parseBinaryWsFrame,
+   parsePreviewFrame,
+} from 'src/runner/wsBinaryFrame.ts'
 import { convertLiteGraphToPrompt } from 'src/sdk-generator/litegraphToApiRequestPayload.ts'
 import { asComfyWorkflowID, ComfyWorkflow } from 'src/runner/ComfyWorkflow.ts'
 import {
@@ -115,6 +122,8 @@ export class ComfyHostAuthError extends Error {
       this.name = 'ComfyHostAuthError'
    }
 }
+
+type LatentPreview = { promptID: Maybe<PromptID>; receivedAt: number_Timestamp; blob: Blob; url: string }
 
 export class ComfyHost<ID extends string = string> {
    // ----- misc paths where we'll store host-related files -----
@@ -665,6 +674,15 @@ export class ComfyHost<ID extends string = string> {
    // SERVER LOGS ----------------------------------------------------------------------
    // /internal routes are served bare (no /api prefix, no custom-node hijacks)
 
+   /** the `--preview-method` this host was launched with, read from `GET /system_stats`.
+    * `'none'` (ComfyUI's default) means no live preview frame will ever arrive; null = the host
+    * does not publish its launch flags (a cloud host), so only a run can tell */
+   fetchPreviewMethod = async (): Promise<PreviewMethod | null> => {
+      const res = await this.fetch('/system_stats', {})
+      if (!res.ok) throw new Error(`GET /system_stats failed: ${res.status}`)
+      return previewMethodFromSystemStats(await res.json())
+   }
+
    /** the server's recent console buffer (entries are write CHUNKS, not lines) */
    fetchRawLogs = async (): Promise<{ entries: LogEntry[] }> => {
       const res = await this.fetch('/internal/logs/raw', {}, { apiPrefix: false })
@@ -792,13 +810,24 @@ export class ComfyHost<ID extends string = string> {
       prompt.onPromptRelatedMessage(msg)
    }
 
-   /** the latent image beeing generated, in case you want to display it */
-   latentPreview: Maybe<{
-      promptID: Maybe<PromptID>
-      receivedAt: number_Timestamp
-      blob: Blob
-      url: string
-   }> = null
+   /** the last raw preview frame; `latentPreview` decodes it only when read */
+   private _latentFrame: Maybe<{ data: ArrayBuffer; promptID: Maybe<PromptID>; receivedAt: number_Timestamp }> = null
+   private _latentPreview: Maybe<LatentPreview> = null
+
+   /** the latent image beeing generated, in case you want to display it. Built on read: a
+    * session that never reads it never decodes a frame nor holds an object url */
+   get latentPreview(): Maybe<LatentPreview> {
+      if (this._latentPreview != null || this._latentFrame == null) return this._latentPreview
+      const frame = parsePreviewFrame(this._latentFrame.data)
+      const blob = new Blob([frame.bytes], { type: frame.mime })
+      this._latentPreview = {
+         blob,
+         url: URL.createObjectURL(blob),
+         receivedAt: this._latentFrame.receivedAt,
+         promptID: this._latentFrame.promptID,
+      }
+      return this._latentPreview
+   }
 
    /** byte-level latent-preview hook (e.g. TUI live preview panel) */
    onLatentPreview: Maybe<(p: { bytes: Uint8Array; mime: string; promptID: Maybe<PromptID> }) => void> = null
@@ -831,43 +860,47 @@ export class ComfyHost<ID extends string = string> {
     * never revives one) */
    lastWsMessageAt: number | null = null
 
+   /** a type 1 or 4 frame. Parsed only when someone wants it, in this order (architecture.md,
+    * Live previews): the ws saver's output, the pre-registration buffer, the run's onPreview,
+    * the host hook. Nobody listening = the frame is kept by reference and never copied */
+   private onPreviewFrame(data: ArrayBuffer): void {
+      let parsed: ParsedPreviewFrame | null = null
+      const frame = (): ParsedPreviewFrame => (parsed ??= parsePreviewFrame(data))
+      const promptID = this.activePromptID
+      const activeExec = promptID != null ? this.executions.get(promptID) : null
+      // OUTPUT, not preview: while a SaveImageWebsocket node executes, each preview-kind
+      // frame IS one output image (frames follow their 'executing' message on the same
+      // socket, architecture.md item 14)
+      if (activeExec?.wsOutputNodeExecuting)
+         return activeExec.onWsImageOutput({ bytes: frame().bytes, mime: frame().mime })
+      // pre-registration window: ws messages can beat the POST /prompt response, and an
+      // ephemeral output frame in that window would be the ONLY copy of the image. Buffer it
+      // IN ORDER with the json messages; ComfyExecution.onCreate replays the queue and decides
+      // output-vs-preview from the state at replay time
+      const pending = promptID != null ? this._pendingMsgs.get(promptID) : undefined
+      if (pending != null)
+         pending.push({
+            type: 'binary_preview_frame',
+            bytes: frame().bytes,
+            mime: frame().mime,
+            metadata: frame().metadata,
+         })
+      // the object url REGISTRY holds a strong ref to its blob until revoked, and a sampler
+      // emits one frame per step: revoke the outgoing one or a long session retains every latent
+      if (this._latentPreview != null) URL.revokeObjectURL(this._latentPreview.url)
+      this._latentPreview = null
+      this._latentFrame = { data, promptID, receivedAt: Date.now() as number_Timestamp }
+      if (activeExec?.onPreview != null) activeExec.onPreviewFrame(frame())
+      if (this.onLatentPreview != null) this.onLatentPreview({ bytes: frame().bytes, mime: frame().mime, promptID })
+   }
+
    onMessage(e: WsMessageEvent): void {
       this.lastWsMessageAt = Date.now()
       if (this.data.onWsMessageAny) this.data.onWsMessageAny(e)
       if (e.data instanceof ArrayBuffer) {
+         if (isPreviewFrameType(binaryFrameType(e.data))) return this.onPreviewFrame(e.data)
          const frame = parseBinaryWsFrame(e.data)
-         if (frame.kind === 'preview') {
-            // OUTPUT, not preview: while a SaveImageWebsocket node executes,
-            // each preview-kind frame IS one output image (frames follow their
-            // 'executing' message on the same socket — architecture.md item 14)
-            const activeExec = this.activePromptID != null ? this.executions.get(this.activePromptID) : null
-            if (activeExec?.wsOutputNodeExecuting) {
-               activeExec.onWsImageOutput({ bytes: frame.bytes, mime: frame.mime })
-               return
-            }
-            // pre-registration window: ws messages
-            // can beat the POST /prompt response, and an ephemeral output frame
-            // in that window would be the ONLY copy of the image — buffer it IN
-            // ORDER with the json messages; ComfyExecution.onCreate replays the
-            // queue and decides output-vs-latent from the state at replay time
-            if (this.activePromptID != null) {
-               const pending = this._pendingMsgs.get(this.activePromptID)
-               if (pending != null) pending.push({ type: 'binary_preview_frame', bytes: frame.bytes, mime: frame.mime })
-            }
-            // type 1 AND the cloud's type 4 (preview + metadata) feed the same hook.
-            // The object url REGISTRY holds a strong ref to its blob until it is
-            // revoked (node and browsers alike), and a sampler emits one frame per
-            // step: revoke the outgoing one or a long session retains every latent
-            if (this.latentPreview != null) URL.revokeObjectURL(this.latentPreview.url)
-            const imageBlob = new Blob([frame.bytes], { type: frame.mime })
-            this.latentPreview = {
-               blob: imageBlob,
-               url: URL.createObjectURL(imageBlob),
-               receivedAt: Date.now() as number_Timestamp,
-               promptID: this.activePromptID,
-            }
-            this.onLatentPreview?.({ bytes: frame.bytes, mime: frame.mime, promptID: this.activePromptID })
-         } else if (frame.kind === 'unknown' && !this._unknownBinaryFrameTypes.has(frame.eventType)) {
+         if (frame.kind === 'unknown' && !this._unknownBinaryFrameTypes.has(frame.eventType)) {
             // wire tolerance: log once per type, never throw (a throw per sampling
             // step is what the first live cloud run did on type 4)
             this._unknownBinaryFrameTypes.add(frame.eventType)

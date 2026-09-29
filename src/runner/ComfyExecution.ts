@@ -22,6 +22,7 @@ import type {
 } from 'src/runner/ComfyWsApi.ts'
 import { MediaImage } from 'src/runner/MediaImage.ts'
 import { isVideoFilename, mediaMime } from 'src/runner/mediaKinds.ts'
+import { previewMetadataNodeId } from 'src/runner/wsBinaryFrame.ts'
 
 /** paths claimed by in-flight retrievals: two same-second runs on a
  * counter-resetting cloud host compute the same name before either writes.
@@ -71,6 +72,23 @@ export type ExecutionProgress = ProgressReport & {
    progressText: string | null
 }
 
+/** one live preview frame of a run: the image a sampler is forming, once per step */
+export type ExecutionPreview = {
+   promptId: PromptID
+   /** the image as ComfyUI encoded it, jpeg or png */
+   bytes: Uint8Array
+   mime: string
+   /** the node that sent the frame: the frame's own metadata when it names one (type 4 frames),
+    * else the node executing when it arrived. Null when neither is known */
+   nodeId: ComfyNodeId | null
+   /** that node's class name in the sent prompt (`KSampler`), null when unknown */
+   nodeName: string | null
+   /** that node's own counter when the frame arrived (sampler step of total), null when unknown */
+   step: { value: number; max: number } | null
+   /** the raw metadata json of a type 4 frame (`node_id`, `prompt_id`, …), null on a type 1 frame */
+   metadata: unknown
+}
+
 export class ComfyExecution {
    get host(): ComfyHost {
       return this.workflow.host
@@ -85,6 +103,7 @@ export class ComfyExecution {
          scrubHistory?: boolean
          ephemeral?: boolean
          onProgress?: Maybe<(p: ExecutionProgress) => void>
+         onPreview?: Maybe<(p: ExecutionPreview) => void>
          logProgress?: boolean
       } = {},
    ) {
@@ -94,6 +113,7 @@ export class ComfyExecution {
       this.scrubHistory = init.scrubHistory ?? false
       this.ephemeral = init.ephemeral ?? false
       this.onProgress = init.onProgress ?? null
+      this.onPreview = init.onPreview ?? null
       this.logProgress = init.logProgress ?? false
       // register with the host so websocket messages route here,
       // then flush messages that arrived before we existed
@@ -114,6 +134,8 @@ export class ComfyExecution {
    // ---- progress ----------------------------------------------------------
    /** called on every progress-relevant websocket message */
    onProgress: Maybe<(p: ExecutionProgress) => void> = null
+   /** called on every live preview frame of this run. Null = frames are never decoded for it */
+   onPreview: Maybe<(p: ExecutionPreview) => void> = null
    /** render a live single-line progress report to the console */
    logProgress: boolean = false
    readonly startedAt: number = Date.now()
@@ -197,9 +219,10 @@ export class ComfyExecution {
    onPromptRelatedMessage = (msg: PendingWsItem): void => {
       const graph = this.workflow
       // replayed pre-registration binary frame: an OUTPUT only when the ws
-      // saver was executing at this point of the stream; stale latents drop
+      // saver was executing at this point of the stream, else a preview
       if (msg.type === 'binary_preview_frame') {
          if (this.wsOutputNodeExecuting) this.onWsImageOutput({ bytes: msg.bytes, mime: msg.mime })
+         else this.onPreviewFrame(msg)
          return
       }
       if (msg.type === 'execution_start') return
@@ -446,6 +469,27 @@ export class ComfyExecution {
       if (uid == null) return false
       const apiJson = this.snapshot?.apiJson ?? this.workflow.apiJson
       return apiJson[uid]?.class_type === 'SaveImageWebsocket'
+   }
+
+   /** @internal a live preview frame of this run; never an output (the host routes ws saver frames
+    * to onWsImageOutput before they get here) */
+   onPreviewFrame(p: { bytes: Uint8Array; mime: string; metadata: unknown }): void {
+      const listener = this.onPreview
+      if (listener == null) return
+      const current = this.workflow.currentExecutingNode
+      const named = previewMetadataNodeId(p.metadata)
+      const nodeId: ComfyNodeId | null = named ?? current?.uid ?? null
+      const apiJson = this.snapshot?.apiJson ?? this.workflow.apiJson
+      const counter = current != null && current.uid === nodeId ? current.progress : null
+      listener({
+         promptId: this.data.id,
+         bytes: p.bytes,
+         mime: p.mime,
+         nodeId,
+         nodeName: nodeId != null ? (apiJson[nodeId]?.class_type ?? null) : null,
+         step: counter != null ? { value: counter.value, max: counter.max } : null,
+         metadata: p.metadata,
+      })
    }
 
    /** one binary ws frame = one output image of the executing SaveImageWebsocket

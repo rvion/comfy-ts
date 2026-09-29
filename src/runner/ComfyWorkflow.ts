@@ -8,7 +8,7 @@ import { convertFlowToLiteGraphJSON } from 'src/litegraph/convertFlowToLiteGraph
 import type { LiteGraphJSON } from 'src/litegraph/LiteGraphJSON.ts'
 import { ComfyNode } from 'src/graph/ComfyNode.ts'
 import type { ComfyNodeId, ComfyNodeMetadata } from 'src/graph/ComfyNodeID.ts'
-import { ComfyExecution, type ExecutionProgress } from 'src/runner/ComfyExecution.ts'
+import { ComfyExecution, type ExecutionPreview, type ExecutionProgress } from 'src/runner/ComfyExecution.ts'
 import { rewriteSaveNodesToWebsocket } from 'src/runner/ephemeral.ts'
 import type { ComfySchema } from 'src/sdk-generator/ComfySchema.ts'
 import type { ComfyApiJson, ComfyApiNodeJson } from 'src/sdk-generator/comfy-api-json.ts'
@@ -52,6 +52,10 @@ export type RunSettings = {
    log?: boolean
    /** called on every progress-relevant websocket message */
    onProgress?: (p: ExecutionProgress) => void
+   /** called on every live preview frame of this run (the image a sampler is forming). Opt in:
+    * without it no frame is decoded for the run. ComfyUI sends frames only when launched with
+    * `--preview-method`, see `host.fetchPreviewMethod()` */
+   onPreview?: (p: ExecutionPreview) => void
 }
 
 /** exactly what was sent to the host for one execution, frozen at send time */
@@ -427,6 +431,7 @@ export class ComfyWorkflow<ID extends string = string> {
             // ephemeral implies the scrub unless the caller explicitly opted out
             scrubHistory: p.scrubHistory ?? p.ephemeral ?? false,
             onProgress: p.onProgress,
+            onPreview: p.onPreview,
             logProgress: p.log ?? false,
          },
       )

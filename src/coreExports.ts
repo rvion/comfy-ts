@@ -16,6 +16,7 @@ export {
    type ComfyHostID,
    type ConnectOptions,
 } from 'src/host/ComfyHost.ts'
+export type { PreviewMethod } from 'src/host/previewMethod.ts'
 export { type ParsedHostBase, parseHostBase, renderHttpBase, renderWsUrl } from 'src/host/hostUrl.ts'
 export { ComfyManager } from 'src/host/ComfyManager.ts'
 export { ComfyUploader, type ComfyUploadImageResult } from 'src/host/ComfyUploader.ts'
@@ -39,6 +40,7 @@ export {
    type ComfyVideoOutput,
    type ComfyExecutionData,
    type ComfyTextOutput,
+   type ExecutionPreview,
    type ExecutionProgress,
 } from 'src/runner/ComfyExecution.ts'
 export type { PromptID, WsMsg, PromptRelated_WsMsg } from 'src/runner/ComfyWsApi.ts'

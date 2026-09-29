@@ -7,6 +7,7 @@ The 7 goals (2026-07-24). This table is the truth about where each stands — ne
 Builder API (`workflow.builder.KSampler({…})`), execution over ws with progress, asset upload/retrieve, DX goodies (`auto()` slot inference, functional input signals, `HasSingle` shortcuts), smart abstractions leaning on content addressing: uploads are hash-named (`MediaImage.hash` → `enumName`) and deduped against the host schema before any byte is sent.
 
 - ✅ builder + execution + live progress (`run({ log, onProgress })`) + `execution.images`
+- ✅ live latent previews per run (`run({ onPreview })`: jpeg or png bytes + node + step, opt in, nothing parsed without a listener); needs ComfyUI launched with `--preview-method`, `host.fetchPreviewMethod()` checks it
 - ✅ Vars + `defineWorkflow` (tweak & re-run, fresh graph per run)
 - ✅ hash-named upload dedupe (`ComfyUploader`)
 - 🔶 more content-addressed asset flows (local cache by hash) — planned

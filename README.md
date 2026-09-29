@@ -220,6 +220,27 @@ await txt2img.run({ log: true }) // fresh graph, fresh image
 
 `vars` can be a lambda receiving `v` so vars reference each other: `v.prompt('a cozy house', { loraKeywordsFrom: loras })` prefixes the active loras' trigger keywords. Name the file `*.cflow.ts` and the TUI finds it.
 
+## 👀 Live previews: watch the image form
+
+Pass `onPreview` to any run and every sampling step hands you the image so far:
+
+```ts
+const execution = await txt2img.run({
+   onPreview: (p) => {
+      // p.bytes: jpeg or png (p.mime) · p.nodeId / p.nodeName: 'KSampler' · p.step: { value: 7, max: 20 }
+      showImage(new Blob([p.bytes], { type: p.mime }))
+   },
+})
+```
+
+It works the same on `definedWorkflow.run()`, `workflow.run()` and `workflow.start()`. Without `onPreview`, no frame is decoded or copied for the run. A preview is never an output: `execution.images` holds only what the graph saved.
+
+ComfyUI sends previews only when it was launched with `--preview-method auto` (or `latent2rgb`, `taesd`). Its default is `none`, and then no frame ever arrives. Ask the host:
+
+```ts
+await host.fetchPreviewMethod() // 'auto' · 'none' = relaunch with --preview-method auto · null = the host does not say (cloud)
+```
+
 ## 🕶️ Ephemeral outputs: leave no traces
 
 Some images should not outlive the run — client work, private subjects, anything you would not leave in a shared server's `output/` folder. ComfyUI has three image savers, and they differ exactly there:

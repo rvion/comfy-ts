@@ -185,6 +185,7 @@ export class DefinedWorkflow<ID extends string = string, V extends VarsSpec = Va
          idMode: settings.idMode,
          log: settings.log,
          onProgress: settings.onProgress,
+         onPreview: settings.onPreview,
       })
       this.lastExecution = execution
       return execution

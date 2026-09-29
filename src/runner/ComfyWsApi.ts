@@ -152,7 +152,7 @@ export type PromptRelated_WsMsg = typeof types.PromptRelated_WsMsg.infer
 /** a binary preview-kind ws frame buffered IN ORDER with the json messages
  * during the pre-registration window (ComfyHost._pendingMsgs) — replayed by
  * ComfyExecution.onCreate, which decides output-vs-latent at replay time */
-export type PendingBinaryFrame = { type: 'binary_preview_frame'; bytes: Uint8Array; mime: string }
+export type PendingBinaryFrame = { type: 'binary_preview_frame'; bytes: Uint8Array; mime: string; metadata: unknown }
 export type PendingWsItem = PromptRelated_WsMsg | PendingBinaryFrame
 export type WsMsg = typeof types.WsMsg.infer
 export type ComfyStatusData = typeof types.ComfyStatusData.infer
