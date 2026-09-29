@@ -96,7 +96,10 @@ bunx comfy-ts gen --id <host-id> [--host http://127.0.0.1:8188]  # codegen
 bunx comfy-ts outline [file] [--section Name] [--lines N]  # inspect a sdk.d.ts
 bunx comfy-ts loras [--id <host-id>] [--host http://…]  # mirror lora metadata (optional ComfyUI-Lora-Manager extension)
 bunx comfy-ts tui [dir | module.cflow.ts]  # interactive tweak & re-run
+bunx comfy-ts run <name | module.cflow.ts> [--draft <name>] [--<var> <value>…] [--out <path>] [--json]  # one generation, headless
 ```
+
+`comfy-ts run` is how an agent generates: the module is found in the cwd, then in the bundled examples, by key or a unique part of it (`folder/name` narrows, like `rvion/anima`). Every var is a flag (`--prompt "…" --seed 7 --image in.png`, `--<var>-file` reads a text var from a file), `--out` says where the output goes, and `--json` prints one line with every output path. `comfy-ts run <name> --help` lists the vars. A clip's transcript can sit beside it as `<clip>.txt`: a voice clip given as `--voice` then brings its transcript along.
 
 `comfy-ts loras` writes `.comfy-ts/hosts/<id>/loras.json`: per lora, the model's real name, its civitai trigger words, tags, base model and preview url, stored raw. It is what makes `v.prompt(text, { loraKeywordsFrom: lorasVar })` inject a lora's trigger words with nothing typed by hand, and what lets the TUI find a lora by its human name. Read it yourself (`getLoraInfo`, `getLoraTriggerWords`, `getLoraDisplayName`) when a user asks which lora to pick. Absent extension or no sync yet: every getter answers empty, nothing breaks.
 

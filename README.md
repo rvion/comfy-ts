@@ -297,6 +297,8 @@ bunx comfy-ts loras                # mirror your loras' names + trigger words (b
 bunx comfy-ts tui                  # your *.cflow.ts + bundled examples
 bunx comfy-ts tui [dir | module]   # scan just that
 bunx comfy-ts serve [dir | module] # drafts as a local HTTP API (below)
+bunx comfy-ts run anima-t2i --prompt "a knight in the rain" --out knight.png
+                                   # one generation, headless: every var a flag
 ```
 
 Any reachable host: the box under your desk or a GPU machine across the network, same command, same output.

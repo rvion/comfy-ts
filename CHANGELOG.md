@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- **`comfy-ts run`: one generation from the command line.** `comfy-ts run anima-t2i --prompt "a knight in the rain" --out knight.png` runs a module's draft headless, with live progress. Every var is a flag, `--<var>-file` reads a text var from a file, and `--out` says where the output goes (several outputs are numbered, a folder keeps the server's names). `--json` prints one line with every output path, for scripts and agents. The module is found in the current folder, then in the bundled examples, by its key or a unique part of it (`folder/name` narrows). `comfy-ts run <name> --help` lists its vars. It runs the exact path `comfy-ts serve` runs: the same draft loading, input checks and seeds.
+- **Example 16: a voice from a description.** `16-tts-voice-design` speaks one sample line in a voice you describe (Qwen3-TTS VoiceDesign through TTS-Audio-Suite). The clip and the line are what `15-tts-voice-clone` takes, and `comfy-ts run` writes the line beside the clip as its transcript, so a consistent voice for many lines is two commands.
+
 - **⌘W closes the open draft tab** in the web panel while another tab is left. On the last tab it closes the window, in a desktop app window (WKWebView). A browser keeps ⌘W for itself, so there it always closes the browser tab.
 
 ## 2.16.0

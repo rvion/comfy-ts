@@ -39,6 +39,15 @@ Usage:
          panel. No bundled examples, no auth, and any origin may call it: use
          --host beyond localhost only on a network you trust.
 
+   comfy-ts run <name | module.cflow.ts> [--draft <name>] [--<var> <value>…] [--out <path>] [--json]
+         ONE generation, headless, with live progress: the module is found in cwd,
+         then in the examples bundled with comfy-ts, by its key (10-anima-t2i), its
+         key without the number (anima-t2i) or a unique part (anima). Each var is a
+         flag (--prompt "…" --seed 7 --image in.png), --<var>-file reads a text var
+         from a file, --out writes the output there (several: a-1.png, a-2.png; a
+         dir keeps the server's names). \`comfy-ts run <name> --help\` lists the vars,
+         \`comfy-ts run\` lists the modules. --json prints one line with the paths
+
    comfy-ts help
 `
 
@@ -47,7 +56,7 @@ async function main(): Promise<number> {
    if (cmd === 'gen') return runGen(rest)
    if (cmd === 'outline') return runOutline(rest)
    if (cmd === 'loras') return runLoras(rest)
-   if (cmd === 'tui' || cmd === 'serve') {
+   if (cmd === 'tui' || cmd === 'serve' || cmd === 'run') {
       // .cflow.ts workflow modules need bun: node refuses to strip types under
       // node_modules, exactly where the packaged examples live — and the bin's
       // node shebang means `bunx comfy-ts tui|serve` lands here under NODE. Hop
@@ -59,6 +68,10 @@ async function main(): Promise<number> {
          console.error(
             `[comfy-ts ${cmd}] bun not found (${res.error.message}) — continuing under node: the examples packaged in node_modules cannot load here, and your own .cflow.ts modules rely on node's type stripping`,
          )
+      }
+      if (cmd === 'run') {
+         const { runRun } = await import('src/cli/run/run-run.ts')
+         return runRun(rest)
       }
       if (cmd === 'serve') {
          const { runServe } = await import('src/cli/serve/run-serve.ts')
