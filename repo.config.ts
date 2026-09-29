@@ -22,6 +22,7 @@ export default defineRepo({
          '.shipkit/wrapper',
          '.tmp/**',
          'CLAUDE.local.md',
+         'agent/global-contribution.md',
          'dist',
       ],
       typecheck: [
