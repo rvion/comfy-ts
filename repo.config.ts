@@ -34,5 +34,5 @@ export default defineRepo({
    identity: { colorLight: '#1453ad', colorDark: '#6da2ee' },
    name: 'comfy-ts',
    visibility: 'public',
-   release: { npm: true },
+   release: { npm: true, npmTokenCommand: ['rv-secret', 'get', 'rv/npm/token'] },
 })
