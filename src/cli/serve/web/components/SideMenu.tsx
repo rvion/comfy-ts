@@ -1,5 +1,6 @@
 // the menu column: where you are, widest scope first (workspace, workflow, draft, host, preview).
 // a left Panel above 760px (collapsible to an icon rail), a drawer behind ☰ below
+import { dialogs } from 'src/cli/serve/web/state/dialog.ts'
 import { observer, useLocalObservable } from 'mobx-react-lite'
 import type { ReactNode } from 'react'
 import { Icon, type IconName } from 'src/cli/serve/web/components/Icon.tsx'
@@ -96,11 +97,14 @@ const DraftSection = observer(function DraftSection(p: { st: WebSt; form: FormSt
                      type="button"
                      className="head-icon danger"
                      data-tip="delete this draft's file (default resets to the workflow's own values)"
-                     onClick={() => {
-                        if (
-                           window.confirm(`delete draft '${p.form.draft}' of ${p.form.moduleKey}? the file is removed.`)
-                        )
-                           void p.st.deleteDraft({ module: p.form.moduleKey, draft: p.form.draft })
+                     onClick={async () => {
+                        const target = { module: p.form.moduleKey, draft: p.form.draft }
+                        const ok = await dialogs.confirm({
+                           message: `delete draft '${target.draft}' of ${target.module}? the file is removed.`,
+                           ok: 'delete',
+                           danger: true,
+                        })
+                        if (ok) void p.st.deleteDraft(target)
                      }}
                   >
                      <Icon name="trash" />
@@ -277,9 +281,13 @@ export const MenuCards = observer(function MenuCards(p: { st: WebSt }) {
                            type="button"
                            className="head-icon danger"
                            data-tip="restart ComfyUI on that host (manager reboot) — it reconnects when back"
-                           onClick={() => {
-                              if (window.confirm(`restart ComfyUI on '${p.st.hostFor(form.moduleKey)}'?`))
-                                 void p.st.hostAction('restart')
+                           onClick={async () => {
+                              const ok = await dialogs.confirm({
+                                 message: `restart ComfyUI on '${p.st.hostFor(form.moduleKey)}'?`,
+                                 ok: 'restart',
+                                 danger: true,
+                              })
+                              if (ok) void p.st.hostAction('restart')
                            }}
                         >
                            <Icon name="power" />

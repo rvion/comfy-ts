@@ -18,6 +18,7 @@ import { collapsedPreview } from 'src/cli/serve/web/state/stableSlots.ts'
 import { GenerateButton, VarsForm } from 'src/cli/serve/web/components/VarsForm.tsx'
 import { DraftTabs, useTabShortcuts } from 'src/cli/serve/web/components/DraftTabs.tsx'
 import { ShortcutsModal } from 'src/cli/serve/web/components/ShortcutsModal.tsx'
+import { DialogLayer } from 'src/cli/serve/web/components/DialogLayer.tsx'
 import type { WebSt } from 'src/cli/serve/web/state/WebSt.ts'
 
 /** ⌘A / ctrl+A selects the field you are in. The browser does this on its own until something
@@ -529,6 +530,7 @@ export const App = observer(function App(p: { st: WebSt }) {
          {narrow ? <MenuDrawer st={p.st} /> : null}
          <Omnibox st={p.st} />
          <ShortcutsModal st={p.st} />
+         <DialogLayer />
          <TooltipLayer />
       </div>
    )

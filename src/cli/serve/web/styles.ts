@@ -882,6 +882,14 @@ button.enh-big { font-size: 14px; padding: 8px 18px; }
 .modal-overlay.hist-overlay { z-index: 60; }
 .modal.hist-modal { width: min(1100px, 100%); height: min(76vh, 100%); max-height: none; }
 .hist-modal .modal-head { align-items: center; }
+/* the panel's confirm and text prompt (DialogLayer): above every modal, the enhancer included */
+.modal-overlay.dialog-overlay { z-index: 70; }
+.modal.dialog-modal { width: min(420px, 100%); }
+.dialog-body { display: flex; flex-direction: column; gap: 10px; }
+.dialog-message { white-space: pre-line; }
+.dialog-body input { width: 100%; }
+.dialog-actions { display: flex; justify-content: flex-end; gap: 8px; padding: 0 10px 10px; }
+.dialog-actions button.dialog-danger { color: var(--red); border-color: var(--red); }
 .hist-cols { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); }
 .hist-list { min-height: 0; overflow-y: auto; border-right: 1px solid var(--border); padding: 6px; display: flex; flex-direction: column; gap: 2px; }
 .hist-row {

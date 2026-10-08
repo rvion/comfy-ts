@@ -1,5 +1,6 @@
 // ROOT state tree of the serve web ui (app-state-tree doctrine: one root,
 // child stores hang off it, components read and call)
+import { dialogs } from 'src/cli/serve/web/state/dialog.ts'
 import { makeAutoObservable, observableRef, observableShallow, runInAction } from 'mobx'
 import {
    deleteDraft,
@@ -1398,7 +1399,15 @@ export class WebSt {
       const name = rawName.trim()
       if (form == null || name === '') return
       const existing = this.moduleByKey(form.moduleKey)?.drafts.includes(name) === true
-      if (existing && !window.confirm(`draft '${name}' already exists — overwrite it?`)) return
+      if (
+         existing &&
+         !(await dialogs.confirm({
+            message: `draft '${name}' already exists: overwrite it?`,
+            ok: 'overwrite',
+            danger: true,
+         }))
+      )
+         return
       try {
          const reply = await saveDraft({ module: form.moduleKey, draft: name, values })
          runInAction(() => {

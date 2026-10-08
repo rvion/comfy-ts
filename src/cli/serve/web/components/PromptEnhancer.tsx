@@ -1,6 +1,7 @@
 // ✨ on a prompt row → the refine modal: the LLM configs and the master prompts as two lists of
 // vertical tabs on the left, the job (yours → rewrite) alone on the right. A tab's pen opens its
 // editor over the job. Nothing touches the var until APPLY.
+import { dialogs } from 'src/cli/serve/web/state/dialog.ts'
 import { Icon } from 'src/cli/serve/web/components/Icon.tsx'
 import { observer } from 'mobx-react-lite'
 import { useEffect, useRef, type ReactNode } from 'react'
@@ -51,8 +52,8 @@ const TabList = observer(function TabList(p: {
    onSelect(name: string): void
    onCreate(name: string): void
 }) {
-   const create = (): void => {
-      const name = window.prompt(`name the new ${p.kind}`, p.newName)
+   const create = async (): Promise<void> => {
+      const name = await dialogs.prompt({ message: `name the new ${p.kind}`, value: p.newName })
       if (name != null) p.onCreate(name)
    }
    const dot = (name: string): ReactNode => {
@@ -96,7 +97,7 @@ const TabList = observer(function TabList(p: {
                   ) : null}
                </div>
             ))}
-            <button type="button" className="enh-tab-new" onClick={create}>
+            <button type="button" className="enh-tab-new" onClick={() => void create()}>
                <Icon name="plus" /> new {p.kind}
             </button>
          </div>
@@ -184,14 +185,19 @@ function EditPanel(p: {
    onClose(): void
    children: ReactNode
 }): ReactNode {
-   const rename = (): void => {
+   const rename = async (): Promise<void> => {
       if (p.name == null) return
-      const name = window.prompt(`rename this ${p.kind} (renames the file)`, p.name)
+      const name = await dialogs.prompt({ message: `rename this ${p.kind} (renames the file)`, value: p.name })
       if (name != null) p.onRename(name)
    }
-   const remove = (): void => {
+   const remove = async (): Promise<void> => {
       if (p.name == null) return
-      if (window.confirm(`delete ${p.kind} '${p.name}'? its file is removed.`)) p.onDelete()
+      const ok = await dialogs.confirm({
+         message: `delete ${p.kind} '${p.name}'? its file is removed.`,
+         ok: 'delete',
+         danger: true,
+      })
+      if (ok) p.onDelete()
    }
    return (
       <section className="enh-edit">
@@ -204,10 +210,10 @@ function EditPanel(p: {
                   <button type="button" onClick={() => p.onDuplicate()}>
                      duplicate
                   </button>
-                  <button type="button" onClick={rename}>
+                  <button type="button" onClick={() => void rename()}>
                      rename
                   </button>
-                  <button type="button" className="quiet-danger" onClick={remove}>
+                  <button type="button" className="quiet-danger" onClick={() => void remove()}>
                      <Icon name="trash" /> delete
                   </button>
                </span>

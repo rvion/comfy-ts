@@ -1,6 +1,7 @@
 // the open drafts as tabs over the work area: a click opens one (a click on the open one shows
 // its actions), × or a middle click closes it, ⌘1 to ⌘8 pick one, ⌘9 the last, ⌘PageUp and
 // ⌘PageDown step, ⌘W closes the open one unless it is the last (ctrl elsewhere), from any focus
+import { dialogs } from 'src/cli/serve/web/state/dialog.ts'
 import {
    autoUpdate,
    flip,
@@ -159,9 +160,13 @@ const TabMenu = observer(function TabMenu(p: { st: WebSt; tab: DraftTab; anchor:
                type="button"
                className="menu-row menu-action danger"
                onClick={() =>
-                  run(() => {
-                     if (window.confirm(`delete draft '${p.tab.draft}' of ${p.tab.module}? the file is removed.`))
-                        return p.st.deleteDraft(p.tab)
+                  run(async () => {
+                     const ok = await dialogs.confirm({
+                        message: `delete draft '${p.tab.draft}' of ${p.tab.module}? the file is removed.`,
+                        ok: 'delete',
+                        danger: true,
+                     })
+                     if (ok) await p.st.deleteDraft(p.tab)
                   })
                }
             >
