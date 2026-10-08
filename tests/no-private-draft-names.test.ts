@@ -14,7 +14,7 @@ const ROOT = join(import.meta.dir, '..')
 
 /** names that say nothing about anyone: the defaults the tools write themselves */
 function isGenericDraftName(name: string): boolean {
-   return name.length < 5 || /^(default|new( \d+)?|draft-\d+|copy( \d+)?)$/.test(name)
+   return name.length < 5 || /^(default(-\d+)?|new( \d+)?|draft-\d+|copy( \d+)?)$/.test(name)
 }
 
 function localDraftNames(): string[] {
@@ -30,8 +30,9 @@ function localDraftNames(): string[] {
 
 describe('no private draft name in a tracked file', () => {
    it('the defaults the tools write are not private; anything else is', () => {
-      for (const n of ['default', 'new', 'new 2', 'draft-1', 'copy']) expect(isGenericDraftName(n)).toBe(true)
-      for (const n of ['rooftop-portrait-3', 'sheep fun 2']) expect(isGenericDraftName(n)).toBe(false)
+      for (const n of ['default', 'default-2', 'new', 'new 2', 'draft-1', 'copy'])
+         expect(isGenericDraftName(n)).toBe(true)
+      for (const n of ['rooftop-portrait-3', 'sheep fun 2', 'default-cyan']) expect(isGenericDraftName(n)).toBe(false)
    })
 
    it('no tracked file spells a draft name from this machine', () => {
