@@ -36,7 +36,7 @@ export function finishRewrite(model: string, kept: readonly string[]): string {
    const items = negativeItems(kept)
    const body = model
       .split('\n')
-      .filter((l) => kept.length === 0 || !isKept(l))
+      .filter((l) => !isKept(l))
       .map((l) => {
          if (items.size === 0) return l
          let at = l.indexOf(' - ')

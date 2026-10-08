@@ -39,7 +39,7 @@ Rewrite it into ONE paragraph a reader could picture with their eyes closed:
 - plain descriptive english. Flowing sentences and comma separated descriptive clauses both read well; disconnected keyword soup does not. No praise words, never "masterpiece", "8k", "highly detailed", "award winning", "trending on". The model is steered by what you name, not by what you forbid.
 - text that must appear inside the image is spelled out in "quotes", exactly as it should be rendered.
 - roughly 60 to 150 words, one paragraph, no lists, no headings, no quotes around the result itself.
-- keep any "// " comment line and any "- " negative line from the input verbatim, each on its own line.
+- never write a negative ("- ...") line or a comment ("// ...") line: the panel keeps the user's own and adds them back after your prompt.
 
 Answer with the rewritten prompt and nothing else: no preamble, no explanation.
 `,

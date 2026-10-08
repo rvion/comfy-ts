@@ -28,6 +28,14 @@ describe('kept lines around an enhance', () => {
       expect(finishRewrite(model, ['- blurry, cropped'])).toBe('1girl, rain\n- blurry, cropped')
    })
 
+   // why we think it is actually a bug, and not just meaning spec should change: the kept lines
+   // are the USER's, and a "- " line the model invents becomes a negative on apply; a 9B echoed the
+   // input subject as one, so apply would steer the workflow away from the very thing asked for
+   it('with nothing kept, a negative or comment line the model invents is dropped', () => {
+      const model = '// a cat on a roof\n- "a cat on a roof"\nA tabby cat sits on a red tiled roof at dusk.'
+      expect(finishRewrite(model, [])).toBe('A tabby cat sits on a red tiled roof at dusk.')
+   })
+
    it('control: with nothing kept, the rewrite is the model output, trimmed', () => {
       expect(finishRewrite('  1girl, rain \n', [])).toBe('1girl, rain')
       expect(splitKeptLines('just a prompt')).toEqual({ body: 'just a prompt', kept: [] })
