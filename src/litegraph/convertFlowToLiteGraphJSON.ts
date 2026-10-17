@@ -1,7 +1,7 @@
 import type { ComfyNode } from 'src/graph/ComfyNode.ts'
 import type { ComfyWorkflow } from 'src/runner/ComfyWorkflow.ts'
 import { bang } from 'src/utils/bang.ts'
-import { classifySchemaInput } from 'src/sdk-generator/inputWidgetKind.ts'
+import { classifySchemaInput, containerInstanceSlotType } from 'src/sdk-generator/inputWidgetKind.ts'
 import type { LiteGraphJSON } from 'src/litegraph/LiteGraphJSON.ts'
 import type { LiteGraphLinkTuple } from 'src/litegraph/LiteGraphLink.ts'
 import { asLiteGraphLinkID, type LiteGraphLinkID } from 'src/litegraph/LiteGraphLinkID.ts'
@@ -40,27 +40,38 @@ export const convertFlowToLiteGraphJSON = (graph: ComfyWorkflow): LiteGraphJSON 
 const convertNodeToLiteGraphNode = (ctx: LiteGraphCtx, node: ComfyNode<any>): LiteGraphNode => {
    const inputs: LiteGraphNodeInput[] = []
    const widgets_values: unknown[] = []
+   // target_slot = index within THIS node's litegraph inputs array,
+   // not the schema input index (widget inputs are not litegraph slots)
+   const pushLinked = (name: string, type: string, link: [string, number], shape?: number): void => {
+      const nodeUidNumber = bang(
+         ctx.graph.nodes.find((n) => n.uid === link[0])?.uidNumber,
+         `link target node "${link[0]}" not found in graph`,
+      )
+      const linkId = ctx.allocateLink(nodeUidNumber, link[1], node.uidNumber, asLiteGraphSlotIndex(inputs.length), type)
+      inputs.push(shape == null ? { name, type, link: linkId } : { name, type, shape, link: linkId })
+   }
    for (const ipt of node.$schema.inputs) {
-      const raw = node.serializeValue(ipt.nameInComfy, node.json.inputs[ipt.nameInComfy])
       const kind = classifySchemaInput(ipt)
+      if (kind.kind === 'dynamic-container') {
+         // the declaration is never a slot: each grown instance is its own
+         // optional slot `decl.<instance>` (shape 7), as the editor stores it
+         const type = containerInstanceSlotType(ipt.opts) ?? '*'
+         for (const instance of kind.instanceNames) {
+            const name = `${ipt.nameInComfy}.${instance}`
+            const value = node.json.inputs[name]
+            if (value == null) continue
+            const raw = node.serializeValue(name, value)
+            if (!_isLink(raw))
+               throw new Error(
+                  `🔴 [toWorkflowJson] ${node.$schema.nameInComfy}#${node.uid} "${name}" holds a literal; an autogrow instance is a link slot in the editor`,
+               )
+            pushLinked(name, type, raw, 7)
+         }
+         continue
+      }
+      const raw = node.serializeValue(ipt.nameInComfy, node.json.inputs[ipt.nameInComfy])
       if (_isLink(raw)) {
-         const nodeUidNumber = bang(
-            ctx.graph.nodes.find((n) => n.uid === raw[0])?.uidNumber,
-            `link target node "${raw[0]}" not found in graph`,
-         )
-         inputs.push({
-            name: ipt.nameInComfy,
-            type: ipt.typeName,
-            // target_slot = index within THIS node's litegraph inputs array,
-            // not the schema input index (widget inputs are not litegraph slots)
-            link: ctx.allocateLink(
-               nodeUidNumber,
-               raw[1],
-               node.uidNumber,
-               asLiteGraphSlotIndex(inputs.length),
-               ipt.typeName,
-            ),
-         })
+         pushLinked(ipt.nameInComfy, ipt.typeName, raw)
       } else if (kind.kind === 'widget') {
          // frontend button-widget values ride BEFORE the real value (LOAD_3D)
          widgets_values.push(...kind.prefixValues, raw)
@@ -69,7 +80,7 @@ const convertNodeToLiteGraphNode = (ctx: LiteGraphCtx, node: ComfyNode<any>): Li
          // INT-named-seed heuristic lives inside controlConsumes), so export
          // and import can never disagree on the run length
          const phantoms = kind.consumes - 1 - kind.prefixValues.length
-         for (let i = 0; i < phantoms; i++) widgets_values.push(false)
+         for (let i = 0; i < phantoms; i++) widgets_values.push(controlMode(ipt.opts))
       } else {
          // unconnected link-kind input: a litegraph slot with no link —
          // NEVER a widget value (that would misalign the round-trip import)
@@ -94,6 +105,13 @@ const convertNodeToLiteGraphNode = (ctx: LiteGraphCtx, node: ComfyNode<any>): Li
       size: [node.width, node.height],
       widgets_values,
    }
+}
+
+/** the editor's control widget is a combo (fixed, increment, decrement, randomize):
+ * a config naming a mode keeps it, anything else is `fixed`, the seed the code pinned */
+const controlMode = (opts: unknown): string => {
+   const mode = typeof opts === 'object' && opts != null ? Reflect.get(opts, 'control_after_generate') : null
+   return typeof mode === 'string' ? mode : 'fixed'
 }
 
 const _isLink = (v: unknown): v is [string, number] => {

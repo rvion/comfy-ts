@@ -1086,7 +1086,7 @@ describe('export/import control-widget parity (v3 config spellings)', () => {
       const lite = await wf.toWorkflowJson()
       const controlNode = lite.nodes.find((n) => n.type === 'TestControlCombo')
       // mode (truthy control) rides [value, phantom]; seed (false control) rides bare
-      expect(controlNode?.widgets_values).toEqual(['b', false, 42, 5])
+      expect(controlNode?.widgets_values).toEqual(['b', 'fixed', 42, 5])
 
       const imported = hostV3.importWorkflowJson(lite, { id: 'control-roundtrip-imported' })
       expect(imported.toApiJson('use_stringified_numbers_only')).toEqual(wf.toApiJson('use_stringified_numbers_only'))
