@@ -1,7 +1,7 @@
 // `comfy-ts serve [dir | module.cflow.ts] [--port N] [--host ADDR]`
 // drafts as a local HTTP generation API — agent/architecture.md item 12
 import { statSync } from 'node:fs'
-import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
+import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 import { networkInterfaces } from 'node:os'
 import { pathToFileURL } from 'node:url'
 import { dirname, resolve } from 'pathe'
@@ -153,14 +153,17 @@ export async function runServe(args: string[]): Promise<number> {
    })
    printStartup(app, parsed.bind, parsed.port)
 
-   const server = createServer(makeRequestListener(app))
+   return listenUntilClosed(createServer(makeRequestListener(app)), parsed.port, parsed.bind)
+}
 
+/** listens, then stays up until the server closes; resolves the exit code */
+export function listenUntilClosed(server: Server, port: number, bind: string): Promise<number> {
    server.on('error', (e) => {
       console.error(`[comfy-ts serve] server error: ${extractErrorMessage(e)}`)
       process.exitCode = 1
       server.close()
    })
-   server.listen(parsed.port, parsed.bind)
+   server.listen(port, bind)
 
    // stays up until the process is interrupted or the server dies
    return new Promise<number>((resolveExit) => {
