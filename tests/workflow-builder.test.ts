@@ -1035,7 +1035,10 @@ describe('autogrow containers (builder face)', () => {
       const bb = wf.builderBase
       const a = bang(bb.TestProducer, 'fixture has TestProducer')({})
       const b = bang(bb.TestProducer, 'fixture has TestProducer')({})
-      const grow = bang(bb.TestImageAutogrow, 'spec has TestImageAutogrow')({
+      const grow = bang(
+         bb.TestImageAutogrow,
+         'spec has TestImageAutogrow',
+      )({
          'images.image_1': a,
          'images.image_2': b,
          text: bang(a.outputs.STRING),
