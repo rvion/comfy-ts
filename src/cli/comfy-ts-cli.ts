@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // sidekick CLI: `bunx comfy-ts <command>` — codegen without writing any code
-import { hopToBun } from 'src/cli/bunHop.ts'
+import { armHopChild, hopToBun } from 'src/cli/bunHop.ts'
 import { fileURLToPath } from 'node:url'
 import { runGen } from 'src/cli/gen.ts'
 import { runLoras } from 'src/cli/loras.ts'
@@ -62,12 +62,13 @@ async function main(): Promise<number> {
       // node shebang means `bunx comfy-ts tui|serve` lands here under NODE. Hop
       // to bun when we are not already in it; without bun, degrade loudly.
       if (process.versions.bun == null) {
-         const res = hopToBun([fileURLToPath(import.meta.url), cmd, ...rest])
+         const res = await hopToBun([fileURLToPath(import.meta.url), cmd, ...rest])
          if ('code' in res) return res.code
          console.error(
             `[comfy-ts ${cmd}] bun not found (${res.error.message}) — continuing under node: the examples packaged in node_modules cannot load here, and your own .cflow.ts modules rely on node's type stripping`,
          )
       }
+      armHopChild()
       if (cmd === 'run') {
          const { runRun } = await import('src/cli/run/run-run.ts')
          return runRun(rest)

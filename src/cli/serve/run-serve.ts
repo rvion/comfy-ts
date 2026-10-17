@@ -1,5 +1,6 @@
 // `comfy-ts serve [dir | module.cflow.ts] [--port N] [--host ADDR]`
 // drafts as a local HTTP generation API — agent/architecture.md item 12
+import { spawnSync } from 'node:child_process'
 import { statSync } from 'node:fs'
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 import { networkInterfaces } from 'node:os'
@@ -151,24 +152,58 @@ export async function runServe(args: string[]): Promise<number> {
       workspace: typeof comfyts === 'undefined' ? process.cwd() : comfyts.rootPath,
       root: statSync(target).isDirectory() ? target : dirname(target),
    })
-   printStartup(app, parsed.bind, parsed.port)
-
-   return listenUntilClosed(createServer(makeRequestListener(app)), parsed.port, parsed.bind)
+   return listenUntilClosed(createServer(makeRequestListener(app)), parsed.port, parsed.bind, () =>
+      printStartup(app, parsed.bind, parsed.port),
+   )
 }
 
-/** listens, then stays up until the server closes; resolves the exit code */
-export function listenUntilClosed(server: Server, port: number, bind: string): Promise<number> {
-   server.on('error', (e) => {
-      console.error(`[comfy-ts serve] server error: ${extractErrorMessage(e)}`)
-      process.exitCode = 1
-      server.close()
-   })
-   server.listen(port, bind)
-
-   // stays up until the process is interrupted or the server dies
+/** listens, then stays up until the server closes; resolves the exit code. A listen
+ * failure resolves 1 AT ONCE: bun fires no `close` for a server that never listened,
+ * and a cli awaiting one never ends (agent/architecture.md item 12) */
+export function listenUntilClosed(
+   server: Server,
+   port: number,
+   bind: string,
+   onListening?: () => void,
+): Promise<number> {
    return new Promise<number>((resolveExit) => {
-      server.on('close', () => resolveExit(typeof process.exitCode === 'number' ? process.exitCode : 0))
+      let listening = false
+      server.once('listening', () => {
+         listening = true
+         onListening?.()
+      })
+      server.on('error', (e) => {
+         if (!listening) {
+            console.error(`[comfy-ts serve] 🔴 ${describeListenError(e, port, bind)}`)
+            resolveExit(1)
+            return
+         }
+         console.error(`[comfy-ts serve] server error: ${extractErrorMessage(e)}`)
+         server.close()
+         resolveExit(1)
+      })
+      server.on('close', () => resolveExit(0))
+      server.listen(port, bind)
    })
+}
+
+function describeListenError(e: Error, port: number, bind: string): string {
+   const code = 'code' in e ? e.code : undefined
+   if (code !== 'EADDRINUSE') return `cannot listen on ${bind}:${port}: ${extractErrorMessage(e)}`
+   const holder = portHolder(port)
+   const by = holder == null ? '' : ` by ${holder}`
+   return `port ${port} on ${bind} is taken${by}: stop it, or pick another port with --port <n>`
+}
+
+/** `pid <n> (<command>)` of the process listening on a tcp port; null when unknowable
+ * (no lsof on this box, or the holder is not visible to this user) */
+export function portHolder(port: number): string | null {
+   const lsof = spawnSync('lsof', ['-nP', `-iTCP:${port}`, '-sTCP:LISTEN', '-t'], { encoding: 'utf8', timeout: 2000 })
+   const pid = lsof.error == null ? lsof.stdout.split('\n')[0]?.trim() : undefined
+   if (pid == null || pid === '') return null
+   const ps = spawnSync('ps', ['-o', 'command=', '-p', pid], { encoding: 'utf8', timeout: 2000 })
+   const command = ps.error == null ? ps.stdout.trim().slice(0, 160) : ''
+   return command === '' ? `pid ${pid}` : `pid ${pid} (${command})`
 }
 
 export type Nic = { address: string; family: string | number; internal: boolean }
