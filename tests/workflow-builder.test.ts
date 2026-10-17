@@ -997,6 +997,67 @@ describe('autogrow containers (builder face)', () => {
       expect(node?.inputs['images.image_1']).toEqual([prod.uid, 1])
       expect(wf.problems).toEqual([])
    })
+
+   it('toWorkflowJson exports one linked slot per grown instance, and imports back to the same prompt', async () => {
+      // why we think it is actually a bug, and not just meaning spec should change: the api prompt links images.image_1 and images.image_2, the official editor templates store one `decl.<instance>` slot per instance (shape 7, the template slot type, linked), and importWorkflowJson reads exactly that shape. The export instead writes ONE unlinked slot named after the container, so the file opens with its sources disconnected and runs a different graph than the one built
+      const { bang } = await import('src/utils/bang.ts')
+      const hostV3 = comfy.host({ id: 'test-host-v3-autogrow-export', host: '127.0.0.1', port: 65503 })
+      const spec = JSON.parse(readFileSync('tests/fixtures/object_info-v3-widgets.json', 'utf-8'))
+      spec.TestImageAutogrow = {
+         input: {
+            required: {
+               images: [
+                  'COMFY_AUTOGROW_V3',
+                  {
+                     template: {
+                        input: { required: { image: ['IMAGE', {}] } },
+                        names: ['image_1', 'image_2', 'image_3'],
+                        min: 0,
+                     },
+                  },
+               ],
+               text: ['STRING', { forceInput: true }],
+            },
+         },
+         output: ['CONDITIONING'],
+         output_is_list: [false],
+         output_name: ['positive'],
+         name: 'TestImageAutogrow',
+         display_name: 'TestImageAutogrow',
+         description: 'synthetic: IMAGE autogrow container',
+         python_module: 'nodes',
+         category: 'test',
+         output_node: false,
+      }
+      hostV3.schema.update({ spec, embeddings: [] })
+
+      const wf = hostV3.workflow({ id: 'autogrow-export-test' })
+      const bb = wf.builderBase
+      const a = bang(bb.TestProducer, 'fixture has TestProducer')({})
+      const b = bang(bb.TestProducer, 'fixture has TestProducer')({})
+      const grow = bang(bb.TestImageAutogrow, 'spec has TestImageAutogrow')({
+         'images.image_1': a,
+         'images.image_2': b,
+         text: bang(a.outputs.STRING),
+      })
+
+      const lite = await wf.toWorkflowJson()
+      const node = bang(lite.nodes.find((n) => n.id === grow.uidNumber))
+      const linkOf = (name: string) => {
+         const id = node.inputs?.find((i) => i.name === name)?.link
+         return lite.links.find((l) => l[0] === id)
+      }
+      // control: a plain link input exports linked, before and after the fix
+      expect(linkOf('text')?.[1]).toBe(a.uidNumber)
+      expect(node.inputs?.map((i) => i.name)).toEqual(['images.image_1', 'images.image_2', 'text'])
+      expect(node.inputs?.[0]).toMatchObject({ name: 'images.image_1', type: 'IMAGE', shape: 7 })
+      // TestProducer's IMAGE output is slot 1
+      expect(linkOf('images.image_1')?.slice(1, 5)).toEqual([a.uidNumber, 1, grow.uidNumber, 0])
+      expect(linkOf('images.image_2')?.slice(1, 5)).toEqual([b.uidNumber, 1, grow.uidNumber, 1])
+
+      const imported = hostV3.importWorkflowJson(lite, { id: 'autogrow-export-imported' })
+      expect(imported.toApiJson('use_stringified_numbers_only')).toEqual(wf.toApiJson('use_stringified_numbers_only'))
+   })
 })
 
 describe('export/import control-widget parity (v3 config spellings)', () => {
@@ -1028,6 +1089,32 @@ describe('export/import control-widget parity (v3 config spellings)', () => {
       expect(controlNode?.widgets_values).toEqual(['b', false, 42, 5])
 
       const imported = hostV3.importWorkflowJson(lite, { id: 'control-roundtrip-imported' })
+      expect(imported.toApiJson('use_stringified_numbers_only')).toEqual(wf.toApiJson('use_stringified_numbers_only'))
+   })
+
+   it('the exported control_after_generate value is a mode the editor knows, fixed by default', async () => {
+      // why we think it is actually a bug, and not just meaning spec should change: the editor's control widget is a combo over fixed, increment, decrement and randomize, and the official templates store one of those on every KSampler (fixed or randomize, never a boolean). The export writes `false`, a value outside the combo. `fixed` keeps the seed the code pinned
+      const wf = host.workflow({ id: 'control-mode-export' })
+      const b = wf.builder
+      const ckpt = b.CheckpointLoaderSimple({ ckpt_name: 'model.safetensors' })
+      const sampled = b.KSampler({
+         model: ckpt,
+         positive: b.CLIPTextEncode({ clip: ckpt, text: 'a' }),
+         negative: b.CLIPTextEncode({ clip: ckpt, text: 'b' }),
+         latent_image: b.EmptyLatentImage({ width: 512, height: 512, batch_size: 1 }),
+         seed: 7,
+         steps: 3,
+         cfg: 5,
+         sampler_name: 'euler',
+         scheduler: 'normal',
+         denoise: 1,
+      })
+      const lite = await wf.toWorkflowJson()
+      const values = lite.nodes.find((n) => n.id === sampled.uidNumber)?.widgets_values
+      // control: the seed itself rides first, unchanged
+      expect(values?.[0]).toBe(7)
+      expect(values?.[1]).toBe('fixed')
+      const imported = host.importWorkflowJson(lite, { id: 'control-mode-imported' })
       expect(imported.toApiJson('use_stringified_numbers_only')).toEqual(wf.toApiJson('use_stringified_numbers_only'))
    })
 })
