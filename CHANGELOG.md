@@ -1,5 +1,13 @@
 # comfy-ts
 
+## 2.17.1
+
+- **`comfy-ts serve` on a taken port exits at once.** It prints one line naming the port, the bind and the process that holds it, then exits with code 1. Before, it hung at full CPU and held no port. The serving banner now prints only once the socket listens.
+- **Stopping `comfy-ts` never leaves its bun process behind.** The node wrapper forwards SIGINT, SIGTERM and SIGHUP to the bun process it starts for `tui`, `serve` and `run`, and that process exits when its parent dies, a SIGKILL included.
+- **`toWorkflowJson` exports autogrow inputs linked.** An autogrow input (like `TextEncodeQwenImage21.images`) becomes one linked slot per instance, so the exported file opens in the ComfyUI editor with its sources connected and runs the same graph. A literal inside an instance throws. A seed's `control_after_generate` is now written as a real mode, the one the config names or `fixed`, never `false`.
+- **Confirm and text prompts are drawn in the web panel.** Deletes, renames, the draft overwrite, the ComfyUI restart and the enhancer's new master prompt and new llm buttons now work in an app window built on WKWebView, where `window.prompt` and `window.confirm` return at once.
+- **The prompt enhancer never turns the model's own lines into yours.** A `// ` or `- ` line the model writes is always dropped, and only the lines you kept come back. Before, with no kept lines in the input, a model could echo your subject as a `- ` line, which the rewrite then applied as a negative.
+
 ## 2.17.0
 
 - **Live previews per run: `run({ onPreview })`.** Every sampling step hands the callback the image so far: `{ promptId, bytes, mime, nodeId, nodeName, step, metadata }`. It threads through `DefinedWorkflow.run`, `ComfyWorkflow.run` and `start`. Opt in: a run without it decodes no frame, and `host.latentPreview` is now built only when read. A preview never becomes an output, and a `SaveImageWebsocket` output never reaches `onPreview`. `host.fetchPreviewMethod()` says whether the host was launched with `--preview-method`, without which ComfyUI sends no preview at all. The web panel's live preview now follows the run that produced it, on any host.
