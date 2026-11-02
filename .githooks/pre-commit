@@ -1,2 +1,7 @@
 #!/bin/sh
+if [ -f node_modules/rvlib-shipkit/src/cli.ts ]; then
+  bun node_modules/rvlib-shipkit/src/cli.ts hooks pre-commit || exit 1
+else
+  echo "pre-commit: rvlib-shipkit not installed (run bun install), shipkit gate skipped" >&2
+fi
 exec bun scripts/check-banned.ts --staged
