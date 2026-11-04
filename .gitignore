@@ -57,6 +57,7 @@ __pycache__/
 !.shipkit/assets/
 !.shipkit/comfy/
 !.shipkit/repros/
+.shipkit/social/drafts/**/*-trailer.mp4
 .shipkit/assets/out/
 .shipkit/private/
 .shipkit/tmp/
