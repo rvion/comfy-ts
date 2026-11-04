@@ -1,5 +1,5 @@
 // krea2 turbo text-to-image, ported from a real production pipeline
-// (rabbits-vs-sheeps "unified"). krea2 turbo UNET + standard LoraLoader chain
+// (a game's "unified" sprite flow). krea2 turbo UNET + standard LoraLoader chain
 // → KSampler(8 steps, cfg 1) → RMBG cutout → transparent png game sprite.
 //
 // run directly:  bun examples/rvion/04-krea2-turbo-t2i.cflow.ts ["prompt"] [seed]
