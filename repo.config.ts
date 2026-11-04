@@ -33,12 +33,15 @@ const VENDORED_NAMES: [fp: string, file: string, count: number][] = [
 
 export default defineRepo({
    hooks: {
-      leakAllow: VENDORED_NAMES.map(([fp, file, count]) => ({
-         reason: 'a third party ComfyUI node or author name in the vendored manager lists, reviewed',
-         paths: [file],
-         patterns: [fp],
-         count,
-      })),
+      leakAllow: [
+         ...VENDORED_NAMES.map(([fp, file, count]) => ({
+            reason: 'a third party ComfyUI node or author name in the vendored manager lists, reviewed',
+            paths: [file],
+            patterns: [fp],
+            count,
+         })),
+         { reason: 'the npm author field: the published maintainer address, public on purpose', paths: ['package.json'], patterns: ['fp:e58aafa3370b'], count: 1 },
+      ],
    },
    // >>> shipkit ignored inputs — managed block, the traced audit writes it, edit outside the markers
    ignoredInputs: {
