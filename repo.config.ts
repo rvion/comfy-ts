@@ -32,6 +32,7 @@ const VENDORED_NAMES: [fp: string, file: string, count: number][] = [
 ]
 
 export default defineRepo({
+   speaksAs: 'rvion',
    hooks: {
       leakAllow: [
          ...VENDORED_NAMES.map(([fp, file, count]) => ({
