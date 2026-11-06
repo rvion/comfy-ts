@@ -31,7 +31,7 @@
         "oxfmt": "^0.60.0",
         "oxlint": "^1.75.0",
         "oxlint-tsgolint": "^7.0.2001",
-        "rvlib-shipkit": "^2.17.0",
+        "rvlib-shipkit": "^2.17.1",
         "rvlib-ts-tools": "^0.3.3",
         "tsdown": "^0.22.14",
         "typescript": "^7.0.2",
@@ -473,7 +473,7 @@
 
     "mimic-fn": ["mimic-fn@2.1.0", "", {}, "sha512-OqbOk5oEQeAZ8WXWydlu9HJjz9WVdEIvamMCcXmuqUYjTknH/sqsWvhQ3vgwKFRR1HpjvNBKQ37nbJgYzGqGcg=="],
 
-    "mobx": ["mobx@7.1.4", "", {}, "sha512-2G9WcLqXGKe4e5usnMabjz06mqO5hQmad3qagY7/n5MmKS7t281+XtmYxnPYqVmSnCEGAKJkrdRfDhOjn3UNJg=="],
+    "mobx": ["mobx@7.1.5", "", {}, "sha512-m+fpkdEnE6NYxiFtUxS1xgfx2GG2j960LOCFvCso7EqWgmPkJQZWAVZQ62Xb9if6bbJXGRVQCoKjFmg1b+IwQg=="],
 
     "mobx-react-lite": ["mobx-react-lite@5.1.2", "", { "peerDependencies": { "mobx": "^7.0.0", "react": "^18 || ^19" } }, "sha512-40ZukD+RmKT1up5J1rHcPU8wJSB++Wf37lkV6wIHdQtRTt9wCYf9swfYUbfcW+Mz94xImQBwQ7jAr0aP0KeATA=="],
 
@@ -519,7 +519,7 @@
 
     "rolldown-plugin-dts": ["rolldown-plugin-dts@0.27.13", "", { "dependencies": { "dts-resolver": "^3.0.0", "get-tsconfig": "5.0.0-beta.5", "obug": "^2.1.4", "yuku-ast": "^0.7.0", "yuku-codegen": "^0.7.0", "yuku-parser": "^0.7.0" }, "peerDependencies": { "@typescript/native-preview": "*", "@volar/typescript": "~2.4.0", "rolldown": "^1.0.0", "typescript": "^5.0.0 || ^6.0.0 || ~7.0.0", "vue-tsc": "~3.2.0 || ~3.3.0" }, "optionalPeers": ["@typescript/native-preview", "@volar/typescript", "typescript", "vue-tsc"] }, "sha512-DeVZJbbB0ajp5q6vABqC8ZCJzxftlxbiV60Bk96GFdQaysGVpgTTVjQu0lUt4Lb+aRCtejfOixtQKDRol7IuVQ=="],
 
-    "rvlib-shipkit": ["rvlib-shipkit@2.17.0", "", { "dependencies": { "@floating-ui/react": "^0.27.20", "@napi-rs/canvas": "^1.1.0", "clipanion": "^4.0.0-rc.4", "ink": "^7.1.1", "marked": "^18.0.7", "mobx": "^7.0.0", "mobx-react-lite": "^5.0.0", "react": "^19.2.7", "react-dom": "^19.2.7", "react-resizable-panels": "^4.13.3", "sanitize-html": "^2.17.6", "sharp": "^0.35.3" }, "peerDependencies": { "comfy-ts": "^2.9.0" }, "optionalPeers": ["comfy-ts"], "bin": { "sk": "src/cli.ts", "shipkit": "src/cli.ts" } }, "sha512-+vPveGCqkQmmgv5mGgfW/FIYha8Qt4mR3Ge2WxlsSGBO1jMLUTwLkU1F7OIzaOETWENDrZVT4HUer538iL1w7w=="],
+    "rvlib-shipkit": ["rvlib-shipkit@2.17.1", "", { "dependencies": { "@floating-ui/react": "^0.27.20", "@napi-rs/canvas": "^1.1.0", "clipanion": "^4.0.0-rc.4", "ink": "^7.1.1", "marked": "^18.0.7", "mobx": "^7.0.0", "mobx-react-lite": "^5.0.0", "react": "^19.2.7", "react-dom": "^19.2.7", "react-resizable-panels": "^4.13.3", "sanitize-html": "^2.17.6", "sharp": "^0.35.3" }, "peerDependencies": { "comfy-ts": "^2.9.0" }, "optionalPeers": ["comfy-ts"], "bin": { "sk": "src/cli.ts", "shipkit": "src/cli.ts" } }, "sha512-qdw0B8ut7SMiasSXht9bmuEKVK61JiQk8efnME2dXoUsdBnLfifBr0QdEjiEUZQ4TpaexuSGFQp6FuHZbJvBIQ=="],
 
     "rvlib-ts-tools": ["rvlib-ts-tools@0.3.3", "", { "bin": { "rvt": "src/cli.ts" } }, "sha512-bR/YiVLx2iEt1M7vIO+OOEh8/DDuumEKQ03Y8NwSjkNDtF379b+AO0T0UwJDQTvGGzl1AUxzDfsr2Eo8wxsVkA=="],
 
