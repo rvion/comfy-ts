@@ -25,6 +25,7 @@ One generated SDK per host: `Comfy.<HostNs>.{IN,OUT,Node,Builder,Slots,Accepts,U
 Types for every KNOWN custom node / plugin / model in the ecosystem (`src/manager/generated/Known*.ts` from ComfyUI-Manager JSONs), so `host.installCustomNodeByTitle('…')` autocompletes across the whole ecosystem.
 
 - ✅ registry mirror + generated Known* unions (`bun run gen:manager`)
+- 🔶 installs through the Manager queue API on every generation (custom node V3.x, 4.x legacy UI, 4.x default): `host.manager.installModel(row)` and `installPlugin(row)` resolve true only on a verified install (architecture.md, Manager HTTP client). Plugin and model LISTS are not served by the 4.x default UI.
 - 🔶 refresh workflow + docs
 
 ## G4 — import both ComfyUI JSON formats into code
