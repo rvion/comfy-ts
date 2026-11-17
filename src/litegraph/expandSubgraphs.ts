@@ -23,8 +23,60 @@ export type CanonicalSubgraphDef = {
 const SUBGRAPH_INPUT_NODE_ID = -10
 const SUBGRAPH_OUTPUT_NODE_ID = -20
 
-/** 48 corpus files nest defs inside defs; a self-referencing def would loop forever */
-const MAX_EXPANSION_PASSES = 32
+/** expanded node count above which a file is refused before expanding: the largest official
+ * template expands to 575 nodes, and fan-out nesting grows geometrically without any cycle */
+export const MAX_EXPANDED_NODES = 100_000
+
+/**
+ * before any expansion: the definitions as a graph (def → the defs its NORMAL-mode instances name,
+ * the only ones expansion follows). A cycle reachable from the root is refused with the defs it
+ * runs through, and the expanded size is counted, not built, and refused above
+ * MAX_EXPANDED_NODES. One explicit stack, no recursion: the file decides the depth
+ */
+const checkExpansion = (wf: CanonicalWorkflow, defs: Map<string, CanonicalSubgraphDef>): void => {
+   const children = (nodes: CanonicalNode[]): string[] =>
+      nodes.filter((n) => n.mode === 'normal' && defs.has(n.type)).map((n) => n.type)
+   const own = (nodes: CanonicalNode[]): number =>
+      nodes.filter((n) => !(n.mode === 'normal' && defs.has(n.type))).length
+   const name = (id: string): string => JSON.stringify(defs.get(id)?.name ?? id)
+   const cap = (n: number): number => Math.min(n, MAX_EXPANDED_NODES + 1)
+   const size = new Map<string, number>() // done (black): expanded node count of one instance
+   const onPath = new Set<string>() // gray
+   for (const root of new Set(children(wf.nodes))) {
+      if (size.has(root)) continue
+      const stack: { id: string; kids: string[]; next: number }[] = [
+         { id: root, kids: children(bang(defs.get(root)).nodes), next: 0 },
+      ]
+      onPath.add(root)
+      while (stack.length > 0) {
+         const top = bang(stack[stack.length - 1])
+         const kid = top.kids[top.next++]
+         if (kid == null) {
+            const total = top.kids.reduce((acc, k) => cap(acc + (size.get(k) ?? 0)), own(bang(defs.get(top.id)).nodes))
+            size.set(top.id, total)
+            onPath.delete(top.id)
+            stack.pop()
+            continue
+         }
+         if (size.has(kid)) continue
+         if (onPath.has(kid)) {
+            const from = stack.findIndex((frame) => frame.id === kid)
+            const cycle = [...stack.slice(from).map((frame) => frame.id), kid].map(name).join(' → ')
+            throw new WorkflowNormalizeError('subgraph-cycle', `subgraph definitions contain themselves: ${cycle}`, {
+               cycle: stack.slice(from).map((frame) => frame.id),
+            })
+         }
+         onPath.add(kid)
+         stack.push({ id: kid, kids: children(bang(defs.get(kid)).nodes), next: 0 })
+      }
+   }
+   const total = children(wf.nodes).reduce((acc, k) => cap(acc + (size.get(k) ?? 0)), own(wf.nodes))
+   if (total > MAX_EXPANDED_NODES)
+      throw new WorkflowNormalizeError(
+         'subgraph-too-large',
+         `subgraph expansion would produce more than ${MAX_EXPANDED_NODES} nodes (the largest official template has 575)`,
+      )
+}
 
 /**
  * widget-kind fallback when a def input slot has no boundary target carrying a
@@ -43,14 +95,16 @@ const PRIMITIVE_WIDGET_TYPES: ReadonlySet<string> = new Set(['INT', 'FLOAT', 'ST
  * passthrough walk, which needs no interior.
  */
 export const expandSubgraphs = (wf: CanonicalWorkflow, defs: Map<string, CanonicalSubgraphDef>): CanonicalWorkflow => {
+   checkExpansion(wf, defs)
+   // acyclic now: each pass goes one definition deeper, so defs.size passes always suffice
    let passes = 0
    while (true) {
       const expandable = wf.nodes.filter((n) => defs.has(n.type) && n.mode !== 'bypassed')
       if (expandable.length === 0) return wf
-      if (++passes > MAX_EXPANSION_PASSES)
+      if (++passes > defs.size + 1)
          throw new WorkflowNormalizeError(
             'subgraph-cycle',
-            `subgraph expansion did not terminate after ${MAX_EXPANSION_PASSES} passes — self-referencing definitions?`,
+            `subgraph expansion still had instances after ${passes - 1} passes over ${defs.size} definitions`,
          )
       for (const instance of expandable) {
          if (instance.mode === 'muted') dropMutedInstance(wf, instance)

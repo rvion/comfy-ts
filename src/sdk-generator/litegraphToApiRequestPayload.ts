@@ -102,6 +102,10 @@ export const convertLiteGraphToPrompt = (
       else if (Object.hasOwn(node.widgets.named, 'value')) PRIMITIVE_VALUES[node.id] = node.widgets.named['value']
    }
 
+   // indexes: a lookup per link must not scan the document (a large file stays linear)
+   const linksById = new Map(workflow.links.map((l) => [l.id, l]))
+   const nodesById = new Map(workflow.nodes.map((n) => [n.id, n]))
+
    // 2. every executable node
    for (const node of workflow.nodes) {
       if (isNeverExecuted(node)) continue // frontend-only nodes (reroutes/primitives unwrapped below)
@@ -339,14 +343,14 @@ export const convertLiteGraphToPrompt = (
       // 2.b links
       type ParentInfo = { node: CanonicalNode; link: CanonicalLink }
       const getParentNode = (linkId: LiteGraphLinkID): ParentInfo => {
-         const link = workflow.links.find((link) => link.id === linkId)
+         const link = linksById.get(linkId)
          if (link == null)
             throw new WorkflowConvertError(
                'dangling-link',
                `node ${node.id}(${node.type}) references a non-existing link (id=${linkId})`,
                node,
             )
-         const parentNode = workflow.nodes.find((n) => n.id === link.originId)
+         const parentNode = nodesById.get(link.originId)
          if (parentNode == null)
             throw new WorkflowConvertError(
                'dangling-link',
@@ -520,18 +524,28 @@ export const convertLiteGraphToPrompt = (
       }
    }
    if (missing.size > 0) {
-      const complete = (id: string, seen: Set<string>): boolean => {
-         if (seen.has(id)) return true
-         seen.add(id)
-         if (missing.has(id)) return false
-         for (const value of Object.values(prompt[id]?.inputs ?? {}))
-            if (Array.isArray(value) && typeof value[0] === 'string' && !complete(value[0], seen)) return false
-         return true
-      }
+      // blocked = every node downstream of a missing input, one queue walk over the consumer
+      // edges: a file decides the graph depth, so no recursion here
+      const consumers = new Map<string, string[]>()
+      for (const [id, n] of Object.entries(prompt))
+         for (const value of Object.values(n.inputs))
+            if (Array.isArray(value) && typeof value[0] === 'string') {
+               const list = consumers.get(value[0]) ?? []
+               list.push(id)
+               consumers.set(value[0], list)
+            }
+      const blocked = new Set(missing.keys())
+      const queue = [...blocked]
+      for (let head = 0; head < queue.length; head++)
+         for (const next of consumers.get(queue[head] ?? '') ?? [])
+            if (!blocked.has(next)) {
+               blocked.add(next)
+               queue.push(next)
+            }
       const outputs = Object.keys(prompt).filter(
          (id) => schema.data.spec[prompt[id]?.class_type ?? '']?.output_node === true,
       )
-      const dropped = outputs.filter((id) => !complete(id, new Set()))
+      const dropped = outputs.filter((id) => blocked.has(id))
       const first = missing.values().next().value
       if (first != null && outputs.length > 0 && dropped.length === outputs.length)
          throw new WorkflowConvertError('missing-required-input', first.message, first.node)

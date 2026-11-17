@@ -18,7 +18,12 @@ import type { LiteGraphNodeInput } from 'src/litegraph/LiteGraphNodeInput.ts'
 import type { LiteGraphNodeOutput } from 'src/litegraph/LiteGraphNodeOutput.ts'
 import type { LiteGraphSubgraphDef } from 'src/litegraph/LiteGraphSubgraphDef.ts'
 
-export type WorkflowNormalizeErrorCode = 'schema-reject' | 'subgraph-cycle' | 'subgraph-io-mismatch' | 'bad-document'
+export type WorkflowNormalizeErrorCode =
+   | 'schema-reject'
+   | 'subgraph-cycle'
+   | 'subgraph-too-large'
+   | 'subgraph-io-mismatch'
+   | 'bad-document'
 
 /** a workflow JSON we cannot turn into a CanonicalWorkflow — loud, typed, never a cast */
 export class WorkflowNormalizeError extends Error {
