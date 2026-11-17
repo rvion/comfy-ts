@@ -33,7 +33,10 @@ export const ComfyUIObjectInfoScope = scope({
    // means it's broken: some nodes declare an input whose spec is literally
    // [null] — accepted here so ONE bad node cannot fail a whole schema parse
    ComfyInputSpecAlt3: type([type.null]),
-   ComfyInputSpec: `ComfyInputSpecAlt1 | ComfyInputSpecAlt2 | ComfyInputSpecAlt3`,
+   // a trailing extra entry (kjnodes EndRecordCUDAMemoryHistory: a description string); ComfyUI
+   // and its frontend read [0] and [1] only, so do we
+   ComfyInputSpecAlt4: ['ComfyInputType', 'ComfyInputOpts', 'unknown'],
+   ComfyInputSpec: `ComfyInputSpecAlt1 | ComfyInputSpecAlt2 | ComfyInputSpecAlt3 | ComfyInputSpecAlt4`,
 
    ComfyInputType: `string | ComfyEnumDef`,
 
