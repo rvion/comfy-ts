@@ -195,6 +195,7 @@ Wave 3 — families the regenerated catalog runs (files the earlier sweeps found
 | chronoedit | i2i  | `image_chrono_edit_14B` (the template's default: distill lora off, 20 steps cfg 4; the lora branch and its step and cfg switches drop) |
 | hidream-o1 | t2i  | `image_hidream_o1` (the template's default state: its reference-image branch and its gemma prompt rewrite are switched off and drop; the trained sizes ride in the size var comment) |
 | hidream-o1 | i2i  | `image_hidream_o1_dev` (the dev template defaults to its reference branch; the latent size comes from the reference image's metadata floored to 32 in the build, in place of GetImageSize + two ComfyMathExpression) |
+| stable-audio3 | t2a | `audio_stable_audio_3_medium` (the reprompt branch is on in the template and is the `reprompt` toggle; its system prompts come from `examples/rvion/stableAudio3Prompts.ts`, shared with rvion 12; the string assembly nodes become that helper) |
 | mage-flow  | t2i  | `image_mage_flow_t2i_int8`        |
 | mage-flow  | i2i  | `image_mage_flow_edit_int8` (width and height 0 = the reference's size, in place of the template's GetImageSize switches) |
 | minimax-h3 | t2i  | `image_minimax_h3_t2i` (the still-image template loads the fp16 video vae, which the cloud has; the H3 video templates stay skipped on the int8 vae; the off-by-default turbo lora branch drops) |
