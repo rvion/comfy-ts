@@ -3,6 +3,7 @@
 // source and 404s everything else, the old direct install routes included.
 import { describe, expect, it } from 'bun:test'
 import { ComfyManager, type ManagerGeneration } from 'src/host/ComfyManager.ts'
+import type { ManagerMirror } from 'src/manager/installedView.ts'
 import type { ComfyManagerModelInfo } from 'src/manager/types/ComfyManagerModelInfo.ts'
 import type { ComfyManagerPluginInfo } from 'src/manager/types/ComfyManagerPluginInfo.ts'
 
@@ -46,6 +47,62 @@ const packs = {
    },
 }
 
+const row = (title: string, repo: string): ComfyManagerPluginInfo =>
+   ({
+      id: title,
+      author: 'someone',
+      title,
+      reference: `https://github.com/${repo}`,
+      files: [`https://github.com/${repo}`],
+      install_type: 'git-clone',
+      description: '',
+   }) as ComfyManagerPluginInfo
+
+const modelRow = (name: string, type: string, save_path: string, filename: string): ComfyManagerModelInfo =>
+   ({
+      name,
+      type,
+      base: 'SD1.5',
+      save_path,
+      description: '',
+      reference: '',
+      filename,
+      url: `https://huggingface.co/x/${filename}`,
+   }) as ComfyManagerModelInfo
+
+const mirrorPlugins = [
+   plugin,
+   row('Comfy Cliption', 'pharmapsychotic/comfy-cliption'),
+   row('Disabled Pack', 'someone/disabled-pack'),
+   row('Missing Pack', 'someone/missing-pack'),
+   row('Unmapped Pack', 'someone/unmapped-pack'),
+   row('Cased Pack', 'someone/ComfyUI-Cased'),
+]
+const mirrorModels = [
+   model,
+   modelRow('Missing Model', 'checkpoint', 'default', 'missing.safetensors'),
+   modelRow('Sub Model', 'checkpoint', 'checkpoints/SD1.5', 'sub.ckpt'),
+   modelRow('HF Model', 'diffusers', 'diffusers', '<huggingface>'),
+   modelRow('Custom Folder Model', 'GroundingDINO', 'groundingdino', 'dino.pth'),
+   modelRow('Root Model', 'instantid', 'instantid/SDXL', 'ip-adapter.bin'),
+   // upstream ships a few names twice with different files
+   modelRow('Twice', 'upscale', 'default', 'twice-a.pth'),
+   modelRow('Twice', 'upscale', 'default', 'twice-b.pth'),
+]
+const mirror: ManagerMirror = {
+   plugins_byTitle: new Map(mirrorPlugins.map((p) => [p.title, p])),
+   modelRows: mirrorModels,
+}
+
+// getmappings: a registered repo's url key replaced by its registry id, title_aux kept
+const mappings: Record<string, [string[], { title_aux: string }]> = {
+   'comfyui-impact-pack': [['FaceDetailer'], { title_aux: 'ComfyUI Impact Pack' }],
+   'comfyui-cliption': [['CliptionNode'], { title_aux: 'Comfy Cliption' }],
+   'https://github.com/someone/disabled-pack': [['DisabledNode'], { title_aux: 'Disabled Pack' }],
+   'https://github.com/someone/missing-pack': [['MissingNode'], { title_aux: 'Missing Pack' }],
+   'Cased-Pack': [['CasedNode'], { title_aux: 'Cased Pack' }],
+}
+
 type Call = { method: string; route: string; body: unknown }
 type Item = { uiId: string; kind: 'model' | 'plugin'; body: Record<string, unknown> }
 
@@ -59,6 +116,7 @@ class FakeManager {
    outcome: 'success' | 'error' = 'success'
    neverDrains = false
    refuseModel: string | null = null
+   coreFiles: Record<string, string[]> = { vae_approx: [], checkpoints: [], diffusers: [], loras: [] }
 
    constructor(public gen: ManagerGeneration | 'none') {}
 
@@ -85,6 +143,7 @@ class FakeManager {
       return new ComfyManager(
          { getServerHostHTTP: () => 'http://box:8188', fetch: (route, init) => this.serve(route, init) },
          { pollMs: 1, installTimeoutMs: 30 },
+         () => mirror,
       )
    }
 
@@ -97,6 +156,12 @@ class FakeManager {
       const pre = this.pre
       const is = (m: string, r: string): boolean => method === m && route === r
       if (g === 'none') return new Response('', { status: 404 })
+      // core ComfyUI, whatever the Manager
+      if (is('GET', '/models')) return Response.json(Object.keys(this.coreFiles))
+      if (method === 'GET' && route.startsWith('/models/')) {
+         const files = this.coreFiles[decodeURIComponent(route.slice('/models/'.length))]
+         return files == null ? new Response('', { status: 404 }) : Response.json(files)
+      }
       if (is('GET', '/v2/manager/version')) return g === 'v3' ? new Response('', { status: 404 }) : new Response('4.4')
       if (is('GET', '/manager/version')) return g === 'v3' ? new Response('V3.42') : new Response('', { status: 404 })
       if (is('GET', '/v2/manager/is_legacy_manager_ui') && g !== 'v3')
@@ -106,6 +171,7 @@ class FakeManager {
       if (g !== 'v4' && method === 'GET' && route.startsWith(`${pre}/customnode/getlist?`))
          return Response.json({ channel: 'default', node_packs: packs })
       if (is('GET', `${pre}/customnode/installed`)) return Response.json(this.installed)
+      if (is('GET', `${pre}/customnode/getmappings?mode=cache`)) return Response.json(mappings)
       if (is('POST', `${pre}/manager/queue/install_model`)) {
          if (this.refuseModel != null) return new Response(this.refuseModel, { status: 400 })
          const b = record(body)
@@ -314,9 +380,98 @@ describe('fetchPlugins', () => {
       } as typeof list)
    })
 
-   it('4.x default ui serves no list: the error says how to get one', async () => {
-      await expect(new FakeManager('v4').manager().fetchPlugins()).rejects.toThrow(
-         /ComfyUI-Manager 4\.4 \(v4\) does not serve \/customnode\/getlist: start ComfyUI with --enable-manager-legacy-ui/,
+   it('V3 entries carry the mirror title of their repo, so lookups by mirror title work', async () => {
+      const manager = new FakeManager('v3').manager()
+      manager.pluginList = await manager.fetchPlugins()
+      expect(manager.getPluginStatus('Comfy Cliption' as never)).toBe('update-available')
+   })
+})
+
+// the 4.x default ui serves no list: the installed view joins our mirror to what the host reports
+describe('4.x default ui: the installed view', () => {
+   const v4Box = (): FakeManager => {
+      const box = new FakeManager('v4')
+      box.installed = {
+         // a registry archive install: registry id only, joined through the Manager's mappings
+         'comfyui-impact-pack': { cnr_id: 'comfyui-impact-pack', aux_id: null, enabled: true },
+         // the scan lowercases the registry id, the mappings keep the registry casing
+         'cased-pack': { cnr_id: 'cased-pack', aux_id: null, enabled: true },
+         // a git clone: joined by owner/repo
+         'comfy-cliption': { cnr_id: '', aux_id: 'pharmapsychotic/comfy-cliption', enabled: true },
+         'disabled-pack.disabled': { cnr_id: '', aux_id: 'someone/disabled-pack', enabled: false },
+         // a git clone of a repo the mirror does not list: no mirror row, no effect
+         PixelThing: { cnr_id: '', aux_id: 'someone/pixel-thing', enabled: true },
+         // disabled and tied to nothing: whichever row it is, that row reads not-installed anyway
+         'old-pack@1_0_0': { cnr_id: 'old-pack', aux_id: null, enabled: false },
+      }
+      box.coreFiles = {
+         vae_approx: ['taef1_decoder.pth'],
+         checkpoints: ['SD1.5\\sub.ckpt', 'other.safetensors'],
+         diffusers: [],
+         instantid: ['ip-adapter.bin'],
+         upscale_models: ['twice-a.pth'],
+      }
+      return box
+   }
+
+   it('plugins: installed, disabled, missing, each with its status, never Update', async () => {
+      const manager = v4Box().manager()
+      manager.pluginList = await manager.fetchPlugins()
+      expect(manager.getPluginStatus('ComfyUI Impact Pack' as never)).toBe('installed')
+      expect(manager.getPluginStatus('Comfy Cliption' as never)).toBe('installed')
+      expect(manager.getPluginStatus('Disabled Pack' as never)).toBe('not-installed')
+      expect(manager.getPluginStatus('Missing Pack' as never)).toBe('not-installed')
+      expect(manager.getPluginStatus('Unmapped Pack' as never)).toBe('not-installed')
+      expect(manager.getPluginStatus('Cased Pack' as never)).toBe('installed')
+      expect(manager.isPluginInstalled('ComfyUI Impact Pack' as never)).toBe(true)
+      expect(manager.titlesOfAllInstalledPlugins.sort()).toEqual(
+         ['ComfyUI Impact Pack', 'Comfy Cliption', 'Cased Pack'].sort(),
       )
+      expect(manager.pluginList.custom_nodes.some((x) => x.installed === 'Update')).toBe(false)
+   })
+
+   it('a registry install nothing ties to a row: the rows it could be read unknown, the others stay decided', async () => {
+      const box = v4Box()
+      box.installed['mystery-pack'] = { cnr_id: 'mystery-pack', aux_id: null, enabled: true }
+      const manager = box.manager()
+      const r = await capturingErrors(() => manager.fetchPlugins())
+      manager.pluginList = r.value
+      expect(manager.getPluginStatus('Unmapped Pack' as never)).toBe('unknown')
+      expect(manager.isPluginInstalled('Unmapped Pack' as never)).toBe(false)
+      expect(manager.getPluginStatus('Missing Pack' as never)).toBe('not-installed')
+      expect(manager.getPluginStatus('ComfyUI Impact Pack' as never)).toBe('installed')
+      expect(r.errors).toContain('(mystery-pack): the mirror rows they could be read unknown')
+   })
+
+   it('models: installed, missing, in a sub folder, and the undecidable ones unknown', async () => {
+      const manager = v4Box().manager()
+      manager.modelList = await manager.fetchModels()
+      expect(manager.getModelStatus('TAEF1 Decoder' as never)).toBe('installed')
+      expect(manager.isModelInstalled('TAEF1 Decoder' as never)).toBe(true)
+      expect(manager.getModelStatus('Missing Model' as never)).toBe('not-installed')
+      expect(manager.getModelStatus('Sub Model' as never)).toBe('installed')
+      expect(manager.getModelStatus('HF Model' as never)).toBe('unknown')
+      expect(manager.getModelStatus('Custom Folder Model' as never)).toBe('unknown')
+      // the Manager counts the folder root as installed too
+      expect(manager.getModelStatus('Root Model' as never)).toBe('installed')
+      // one file present, the other absent: the name alone cannot say
+      expect(manager.getModelStatus('Twice' as never)).toBe('unknown')
+   })
+
+   it('reads only what the default ui and core serve, never the legacy lists', async () => {
+      const box = v4Box()
+      const manager = box.manager()
+      await manager.fetchPluginsAndModels()
+      expect(box.routes()).not.toContain('GET /v2/customnode/getlist')
+      expect(box.routes()).not.toContain('GET /v2/externalmodel/getlist')
+      expect(box.routes()).toContain('GET /v2/customnode/installed')
+      expect(box.routes()).toContain('GET /v2/customnode/getmappings')
+      expect(box.routes()).toContain('GET /models/vae_approx')
+   })
+
+   it('a host whose answer has the wrong shape throws, never a guessed list', async () => {
+      const box = v4Box()
+      box.installed = { broken: { enabled: 'yes' } } as never
+      await expect(box.manager().fetchPlugins()).rejects.toThrow(/GET \/v2\/customnode\/installed: /)
    })
 })

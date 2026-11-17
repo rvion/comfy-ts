@@ -42,6 +42,8 @@ export class ComfyRegistry {
 
    // Models
    knownModels = new Map<KnownModel_Name, ComfyManagerModelInfo>()
+   /** every model row, the ones sharing a name included (knownModels keeps the last) */
+   modelRows: ComfyManagerModelInfo[] = []
 
    // a1111 → comfy alternatives (alter-list.json)
    alterations: ComfyManagerAlterInfo[] = []

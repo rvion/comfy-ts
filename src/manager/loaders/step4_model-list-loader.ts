@@ -31,6 +31,7 @@ export const _getKnownModels = (DB: ComfyRegistry): void => {
    for (const modelInfo of knownModelList) {
       DB.knownModels.set(modelInfo.name, modelInfo)
    }
+   DB.modelRows = knownModelList
 
    // CODEGEN ------------------------------------------------------------
    if (DB.opts.genTypes) {

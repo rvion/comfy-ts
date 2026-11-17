@@ -1,17 +1,29 @@
 /** 🔶 NAMING DISCLAIMER: I call a "custom node package" => "PLUGIN" */
 
-import { type Type, type } from 'arktype'
+import { type ArkErrors, type Type, type } from 'arktype'
 import { nanoid } from 'nanoid'
 import type { ComfyRegistry } from 'src/manager/ComfyRegistry.ts'
 import type { KnownComfyPluginTitle } from 'src/manager/generated/KnownComfyPluginTitle.ts'
 import type { KnownModel_Name } from 'src/manager/generated/KnownModel_Name.ts'
+import {
+   attributePacks,
+   buildModelView,
+   buildPluginView,
+   type InstalledPacks,
+   InstalledPacks_ark,
+   type ManagerMirror,
+   modelFolders,
+   type PackMappings,
+   PackMappings_ark,
+   packIsInstalled,
+   repoPath,
+} from 'src/manager/installedView.ts'
 import type { ComfyManagerAPIFetchPolicy } from 'src/manager/types/ComfyManagerAPIFetchPolicy.ts'
 import {
    type ComfyManagerAPIModelList,
    ComfyManagerAPIModelList_ark,
 } from 'src/manager/types/ComfyManagerAPIModelList.ts'
 import {
-   type ComfyManagerAPIPack,
    type ComfyManagerAPIPackList,
    ComfyManagerAPIPackList_ark,
    type ComfyManagerAPIPluginList,
@@ -43,6 +55,7 @@ type ManagerRoute =
    | '/customnode/getlist'
    | '/externalmodel/getlist'
    | '/customnode/installed'
+   | '/customnode/getmappings'
    | '/manager/queue/install'
    | '/manager/queue/batch'
    | '/manager/queue/task'
@@ -64,24 +77,20 @@ const NOT_SERVED: Record<ManagerGeneration, ManagerRoute[]> = {
    ],
 }
 
+/** everything that differs between generations beyond a route's spelling */
+type ManagerStrategy = {
+   fetchPlugins: (mode: ComfyManagerAPIFetchPolicy, skipUpdate: boolean) => Promise<ComfyManagerAPIPluginList>
+   fetchModels: () => Promise<ComfyManagerAPIModelList>
+   enqueuePlugin: (plugin: ComfyManagerPluginInfo, uiId: string) => Promise<void>
+   /** wait until the queued task ran: resolves when it succeeded, throws with why when not */
+   settle: (what: string, uiId: string, landed: () => Promise<boolean>) => Promise<void>
+}
+
 const QueueStatus_ark = type({ is_processing: 'boolean' })
 const TaskHistory_ark = type({
    history: { 'status?': { status_str: 'string', 'messages?': 'string[]' }, 'result?': 'string' },
 })
-const InstalledPacks_ark = type.Record(
-   'string',
-   type({ 'cnr_id?': 'string | null', 'aux_id?': 'string | null', enabled: 'boolean' }),
-)
-
-/** `https://github.com/Owner/Repo.git/` → `owner/repo`: the Manager's aux id and our match key */
-const repoPath = (url: string): string =>
-   url
-      .toLowerCase()
-      .replace(/\/+$/, '')
-      .replace(/\.git$/, '')
-      .split('/')
-      .slice(-2)
-      .join('/')
+const ModelFolders_ark = type('string[]')
 
 const errorText = (e: unknown): string => (e instanceof Error ? e.message : String(e))
 
@@ -92,6 +101,8 @@ export class ComfyManager {
          fetch: (route: string, init?: RequestInit, p?: { apiPrefix?: boolean }) => Promise<Response>
       },
       public timing: ManagerTiming = { ...MANAGER_TIMING },
+      /** the mirror the lists are joined to; the registry by default */
+      public mirror: () => ManagerMirror = () => comfyts.registry,
    ) {}
 
    get registry(): ComfyRegistry {
@@ -145,14 +156,46 @@ export class ComfyManager {
 
    /** the one place a Manager route gets its generation's spelling */
    private route = (api: ManagerApi, route: ManagerRoute, query: string = ''): string => {
-      if (NOT_SERVED[api.generation].includes(route)) {
-         const hint =
-            route === '/customnode/getlist' || route === '/externalmodel/getlist'
-               ? ': start ComfyUI with --enable-manager-legacy-ui to get the lists'
-               : ''
-         throw new Error(`🔴 ComfyUI-Manager ${api.version} (${api.generation}) does not serve ${route}${hint}`)
-      }
+      if (NOT_SERVED[api.generation].includes(route))
+         throw new Error(`🔴 ComfyUI-Manager ${api.version} (${api.generation}) does not serve ${route}`)
       return `${api.generation === 'v3' ? '' : '/v2'}${route}${query}`
+   }
+
+   /** the one place the generations differ beyond a route's spelling */
+   private strategy = (api: ManagerApi): ManagerStrategy => {
+      switch (api.generation) {
+         case 'v3':
+            return {
+               fetchPlugins: (mode, skipUpdate) => this.listedPlugins(api, mode, skipUpdate),
+               fetchModels: () => this.listedModels(api),
+               enqueuePlugin: (plugin, uiId) =>
+                  this.enqueueListedPlugin(api, plugin, uiId, (body) =>
+                     this.post(this.route(api, '/manager/queue/install'), body),
+                  ),
+               settle: (what, _uiId, landed) => this.settleByDrain(api, what, landed),
+            }
+         case 'v4-legacy-ui':
+            return {
+               fetchPlugins: (mode, skipUpdate) => this.listedPlugins(api, mode, skipUpdate),
+               fetchModels: () => this.listedModels(api),
+               enqueuePlugin: (plugin, uiId) =>
+                  this.enqueueListedPlugin(api, plugin, uiId, async (body) => {
+                     const route = this.route(api, '/manager/queue/batch')
+                     const res = await this.post(route, { install: [body] })
+                     const failed = typeof res === 'object' && res != null && 'failed' in res ? res.failed : null
+                     if (Array.isArray(failed) && failed.length > 0)
+                        throw new Error(`POST ${route} refused ${JSON.stringify(failed)}`)
+                  }),
+               settle: (what, _uiId, landed) => this.settleByDrain(api, what, landed),
+            }
+         case 'v4':
+            return {
+               fetchPlugins: () => this.installedPluginView(api),
+               fetchModels: () => this.installedModelView(),
+               enqueuePlugin: (plugin, uiId) => this.enqueuePluginTask(api, plugin, uiId),
+               settle: (what, uiId) => this.settleByHistory(api, what, uiId),
+            }
+      }
    }
 
    // -----------
@@ -244,9 +287,9 @@ export class ComfyManager {
 
    modelList: Maybe<ComfyManagerAPIModelList> = null
 
+   /** what the host has of our model mirror; a model absent from the list reads `unknown` */
    fetchModels = async (): Promise<ComfyManagerAPIModelList> => {
-      const api = await this.api()
-      return this.getJSON(this.route(api, '/externalmodel/getlist', '?mode=cache'), ComfyManagerAPIModelList_ark)
+      return this.strategy(await this.api()).fetchModels()
    }
 
    fetchLogs = (): Promise<any> => {
@@ -268,13 +311,9 @@ export class ComfyManager {
                const body = { ...model, ui_id: uiId, client_id: this.clientId }
                await this.post(this.route(api, '/manager/queue/install_model'), body)
             },
-            landed: async (api) => {
-               const list = await this.getJSON(
-                  this.route(api, '/externalmodel/getlist', '?mode=cache'),
-                  ComfyManagerAPIModelList_ark,
-               )
+            landed: async (s) => {
                // the triple the Manager's own install whitelist matches on
-               const row = list.models.find(
+               const row = (await s.fetchModels()).models.find(
                   (x) => x.filename === model.filename && x.save_path === model.save_path && x.base === model.base,
                )
                return row?.installed === 'True'
@@ -330,29 +369,56 @@ export class ComfyManager {
       return status
    }
 
-   /** the Manager's plugin list, in the public `custom_nodes` shape whatever the wire shape */
+   /** the host's plugin list in the public `custom_nodes` shape, titled like our mirror; absent = `unknown` */
    fetchPlugins = async (
       /** @default: 'cache' */
       mode: ComfyManagerAPIFetchPolicy = 'cache',
       /** @default: true */
       skipUpdate: boolean = true,
    ): Promise<ComfyManagerAPIPluginList> => {
-      const raw = await this.fetchPluginWire(mode, skipUpdate)
+      return this.strategy(await this.api()).fetchPlugins(mode, skipUpdate)
+   }
+
+   /** queue the install, wait until the Manager ran it; true only once the pack is verified installed */
+   installPlugin = async (plugin: ComfyManagerPluginInfo): Promise<boolean> => {
+      return this.runInstall(`plugin "${plugin.title}"`, {
+         enqueue: (api, uiId) => this.strategy(api).enqueuePlugin(plugin, uiId),
+         landed: async (_s, api) => {
+            const data = await this.installedData(api)
+            return packIsInstalled(attributePacks(data.installed, data.mappings), plugin)
+         },
+      })
+   }
+
+   // LIST BUILDERS: one per source, picked by the strategy -------------------------------
+   /** the Manager's own getlist (v3, v4 legacy ui), normalized */
+   private listedPlugins = async (
+      api: ManagerApi,
+      mode: ComfyManagerAPIFetchPolicy,
+      skipUpdate: boolean,
+   ): Promise<ComfyManagerAPIPluginList> => {
+      const raw = await this.fetchPluginWire(api, mode, skipUpdate)
       if (!('node_packs' in raw)) return raw
+      const titleByRepo = new Map<string, KnownComfyPluginTitle>()
+      for (const p of this.mirror().plugins_byTitle.values())
+         for (const f of p.files) titleByRepo.set(repoPath(f), p.title)
       return {
          chanel: raw.channel,
-         custom_nodes: Object.values(raw.node_packs).map((p) => ({
-            title: p.title,
-            installed: p.state !== 'enabled' ? 'False' : p['update-state'] === 'true' ? 'Update' : 'True',
-         })),
+         custom_nodes: Object.values(raw.node_packs).map((p) => {
+            const repo = p.files?.[0]
+            return {
+               title: (repo != null ? titleByRepo.get(repoPath(repo)) : undefined) ?? p.title,
+               installed: p.state !== 'enabled' ? 'False' : p['update-state'] === 'true' ? 'Update' : 'True',
+            }
+         }),
       }
    }
 
    private fetchPluginWire = async (
+      api: ManagerApi,
       mode: ComfyManagerAPIFetchPolicy,
       skipUpdate: boolean,
    ): Promise<ComfyManagerAPIPackList | ComfyManagerAPIPluginList> => {
-      const api = await this.api()
       const query = `?mode=${mode}${skipUpdate ? '&skip_update=true' : ''}`
       const json: unknown = await this.getJSON(this.route(api, '/customnode/getlist', query))
       if (typeof json === 'object' && json != null && 'custom_nodes' in json)
@@ -360,112 +426,130 @@ export class ComfyManager {
       return softValidate(ComfyManagerAPIPackList_ark, json)
    }
 
-   /** queue the install, wait until the Manager ran it; true only once the pack is verified installed */
-   installPlugin = async (plugin: ComfyManagerPluginInfo): Promise<boolean> => {
+   private listedModels = async (api: ManagerApi): Promise<ComfyManagerAPIModelList> => {
+      return this.getJSON(this.route(api, '/externalmodel/getlist', '?mode=cache'), ComfyManagerAPIModelList_ark)
+   }
+
+   /** what is installed, as the Manager scans it, joined through its own registry id mappings */
+   private installedData = async (api: ManagerApi): Promise<{ installed: InstalledPacks; mappings: PackMappings }> => {
+      const [installed, mappings] = await Promise.all([
+         this.getValid(this.route(api, '/customnode/installed'), InstalledPacks_ark),
+         this.getValid(this.route(api, '/customnode/getmappings', '?mode=cache'), PackMappings_ark),
+      ])
+      return { installed, mappings }
+   }
+
+   /** v4 serves no list: our mirror against what is installed */
+   private installedPluginView = async (api: ManagerApi): Promise<ComfyManagerAPIPluginList> => {
+      const view = buildPluginView({ mirror: this.mirror(), ...(await this.installedData(api)) })
+      if (view.unattributed.length > 0)
+         logError(
+            `ComfyUI-Manager ${api.version} reports installed packs no mirror row can be tied to ` +
+               `(${view.unattributed.join(', ')}): the mirror rows they could be read unknown`,
+         )
+      return view.list
+   }
+
+   /** v4 serves no model list: core ComfyUI's model folders against our mirror */
+   private installedModelView = async (): Promise<ComfyManagerAPIModelList> => {
+      const models = this.mirror().modelRows
+      const registered = new Set(await this.getValid('/models', ModelFolders_ark))
+      const folders = [...modelFolders(models)].filter((f) => registered.has(f))
+      const lists = await Promise.all(
+         folders.map(
+            async (f) => [f, await this.getValid(`/models/${encodeURIComponent(f)}`, ModelFolders_ark)] as const,
+         ),
+      )
+      return buildModelView({ models, files: new Map(lists) })
+   }
+
+   // INSTALL FLOW: enqueue → start → settle -------------------------------------------
+   /** v3 and v4 legacy ui: the Manager's own list row for the pack, sent like its own ui does */
+   private enqueueListedPlugin = async (
+      api: ManagerApi,
+      plugin: ComfyManagerPluginInfo,
+      uiId: string,
+      send: (body: Record<string, unknown>) => Promise<unknown>,
+   ): Promise<void> => {
       const url = plugin.files[0] ?? plugin.reference
-      let key: string | null = null
-      return this.runInstall(`plugin "${plugin.title}"`, {
-         enqueue: async (api, uiId) => {
-            if (api.generation === 'v4') {
-               const id = repoPath(url).split('/').pop() ?? url
-               const params = {
-                  id,
-                  version: 'nightly',
-                  selected_version: 'nightly',
-                  repository: url,
-                  mode: 'cache',
-                  channel: 'default',
-               }
-               await this.post(this.route(api, '/manager/queue/task'), {
-                  ui_id: uiId,
-                  client_id: this.clientId,
-                  kind: 'install',
-                  params,
-               })
-               return
-            }
-            const list = await this.fetchPluginWire('cache', true)
-            if (!('node_packs' in list))
-               throw new Error(
-                  `ComfyUI-Manager ${api.version} lists packs in the pre-V3 shape and has no queue install`,
-               )
-            const found = Object.entries(list.node_packs).find(([, p]) =>
-               (p.files ?? []).some((f) => repoPath(f) === repoPath(url)),
-            )
-            if (found == null)
-               throw new Error(
-                  `${url} is not in the Manager's own list (channel ${list.channel}), so it refuses to install it`,
-               )
-            const row: ComfyManagerAPIPack = found[1]
-            key = row.id ?? found[0]
-            const body = {
-               ...row,
-               id: key,
-               channel: list.channel,
-               mode: 'cache',
-               ui_id: uiId,
-               skip_post_install: false,
-            }
-            if (api.generation === 'v3') {
-               await this.post(this.route(api, '/manager/queue/install'), body)
-               return
-            }
-            const res: unknown = await this.post(this.route(api, '/manager/queue/batch'), { install: [body] })
-            const failed = typeof res === 'object' && res != null && 'failed' in res ? res.failed : null
-            if (Array.isArray(failed) && failed.length > 0)
-               throw new Error(`POST ${this.route(api, '/manager/queue/batch')} refused ${JSON.stringify(failed)}`)
-         },
-         landed: async (api) => {
-            const json = await this.getJSON(this.route(api, '/customnode/installed'))
-            const installed = InstalledPacks_ark(json)
-            if (installed instanceof type.errors) throw new Error(`GET customnode/installed: ${installed.summary}`)
-            // a registered pack answers with its cnr id, a git clone with its owner/repo
-            return Object.values(installed).some(
-               (p) =>
-                  p.enabled &&
-                  ((key != null && p.cnr_id?.toLowerCase() === key.toLowerCase()) ||
-                     (p.aux_id != null && repoPath(p.aux_id) === repoPath(url))),
-            )
-         },
+      const list = await this.fetchPluginWire(api, 'cache', true)
+      if (!('node_packs' in list))
+         throw new Error(`ComfyUI-Manager ${api.version} lists packs in the pre-V3 shape and has no queue install`)
+      const found = Object.entries(list.node_packs).find(([, p]) =>
+         (p.files ?? []).some((f) => repoPath(f) === repoPath(url)),
+      )
+      if (found == null)
+         throw new Error(
+            `${url} is not in the Manager's own list (channel ${list.channel}), so it refuses to install it`,
+         )
+      const [key, row] = found
+      await send({
+         ...row,
+         id: row.id ?? key,
+         channel: list.channel,
+         mode: 'cache',
+         ui_id: uiId,
+         skip_post_install: false,
       })
    }
 
-   // INSTALL FLOW: enqueue → start → wait → outcome -----------------------------------
+   /** v4: no list to take a row from, so the pack goes by repo name at nightly */
+   private enqueuePluginTask = async (api: ManagerApi, plugin: ComfyManagerPluginInfo, uiId: string): Promise<void> => {
+      const url = plugin.files[0] ?? plugin.reference
+      const id = repoPath(url).split('/').pop() ?? url
+      const params = {
+         id,
+         version: 'nightly',
+         selected_version: 'nightly',
+         repository: url,
+         mode: 'cache',
+         channel: 'default',
+      }
+      await this.post(this.route(api, '/manager/queue/task'), {
+         ui_id: uiId,
+         client_id: this.clientId,
+         kind: 'install',
+         params,
+      })
+   }
+
+   /** v4: the task's own history entry says how it ended */
+   private settleByHistory = async (api: ManagerApi, what: string, uiId: string): Promise<void> => {
+      const route = this.route(api, '/manager/queue/history', `?ui_id=${encodeURIComponent(uiId)}`)
+      const entry = await this.waitFor(
+         what,
+         async () => (await this.getValid(route, TaskHistory_ark)).history.status ?? null,
+      )
+      if (entry.status_str !== 'success' && entry.status_str !== 'skip')
+         throw new Error(`the Manager reports ${entry.status_str}: ${(entry.messages ?? []).join(' | ')}`)
+   }
+
+   /** v3, v4 legacy ui: no per item result over http, so wait for the drain and look at the end state */
+   private settleByDrain = async (api: ManagerApi, what: string, landed: () => Promise<boolean>): Promise<void> => {
+      const route = this.route(api, '/manager/queue/status')
+      await this.waitFor(what, async () => ((await this.getValid(route, QueueStatus_ark)).is_processing ? null : true))
+      if (!(await landed()))
+         throw new Error(
+            `the Manager queue drained but it is not installed; ComfyUI-Manager ${api.version} ` +
+               `reports why only over its websocket (cm-queue-status) and in the ComfyUI console`,
+         )
+   }
+
    private runInstall = async (
       what: string,
       p: {
          enqueue: (api: ManagerApi, uiId: string) => Promise<void>
-         /** the end state, for the generations that report no per item result over http */
-         landed: (api: ManagerApi) => Promise<boolean>
+         /** the end state, read when the generation reports no per item result */
+         landed: (s: ManagerStrategy, api: ManagerApi) => Promise<boolean>
       },
    ): Promise<boolean> => {
       try {
          const api = await this.api()
+         const s = this.strategy(api)
          const uiId = nanoid()
          await p.enqueue(api, uiId)
          await this.post(this.route(api, '/manager/queue/start'))
-         if (api.generation === 'v4') {
-            const route = this.route(api, '/manager/queue/history', `?ui_id=${encodeURIComponent(uiId)}`)
-            const entry = await this.waitFor(what, async () => {
-               const history = TaskHistory_ark(await this.getJSON(route))
-               if (history instanceof type.errors) throw new Error(`GET ${route}: ${history.summary}`)
-               return history.history.status ?? null
-            })
-            if (entry.status_str !== 'success' && entry.status_str !== 'skip')
-               throw new Error(`the Manager reports ${entry.status_str}: ${(entry.messages ?? []).join(' | ')}`)
-         } else {
-            const route = this.route(api, '/manager/queue/status')
-            await this.waitFor(what, async () => {
-               const status = QueueStatus_ark(await this.getJSON(route))
-               if (status instanceof type.errors) throw new Error(`GET ${route}: ${status.summary}`)
-               return status.is_processing ? null : true
-            })
-            if (!(await p.landed(api)))
-               throw new Error(
-                  `the Manager queue drained but it is not installed; ComfyUI-Manager ${api.version} ` +
-                     `reports why only over its websocket (cm-queue-status) and in the ComfyUI console`,
-               )
-         }
+         await s.settle(what, uiId, () => p.landed(s, api))
          logSuccess(`${what} installed`)
          return true
       } catch (exception) {
@@ -513,5 +597,12 @@ export class ComfyManager {
       if (validator) return softValidate(validator, jsonResult)
       // wire tolerance (agent/coding.md): unvalidated endpoints return unknown-shaped json
       return jsonResult as OUT
+   }
+
+   /** a GET whose shape the decision depends on: a mismatch throws instead of lying */
+   private getValid = async <OUT>(route: string, schema: (json: unknown) => OUT | ArkErrors): Promise<OUT> => {
+      const res = schema(await this.getJSON(route))
+      if (res instanceof type.errors) throw new Error(`GET ${route}: ${res.summary}`)
+      return res
    }
 }
