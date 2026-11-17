@@ -59,7 +59,7 @@ export const ltx23T2v = host.defineWorkflow({
               'sampling_mode.min_p': 0.05,
               'sampling_mode.repetition_penalty': 1.05,
               'sampling_mode.seed': 0,
-              thinking: true,
+              thinking: false,
               use_default_template: true,
               mtp: 'auto',
            }).outputs.generated_text
