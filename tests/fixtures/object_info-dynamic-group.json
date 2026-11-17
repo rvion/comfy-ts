@@ -1,0 +1,245 @@
+{
+   "CheckpointLoaderSimple": {
+      "input": {
+         "required": {
+            "ckpt_name": [
+               [
+                  "model.safetensors"
+               ],
+               {
+                  "tooltip": "The name of the checkpoint (model) to load."
+               }
+            ]
+         }
+      },
+      "input_order": {
+         "required": [
+            "ckpt_name"
+         ]
+      },
+      "is_input_list": false,
+      "output": [
+         "MODEL",
+         "CLIP",
+         "VAE"
+      ],
+      "output_is_list": [
+         false,
+         false,
+         false
+      ],
+      "output_name": [
+         "MODEL",
+         "CLIP",
+         "VAE"
+      ],
+      "name": "CheckpointLoaderSimple",
+      "display_name": "Load Checkpoint",
+      "description": "Loads a diffusion model checkpoint, diffusion models are used to denoise latents.",
+      "python_module": "nodes",
+      "category": "model/loaders",
+      "output_node": false,
+      "has_intermediate_output": false,
+      "output_tooltips": [
+         "The model used for denoising latents.",
+         "The CLIP model used for encoding text prompts.",
+         "The VAE model used for encoding and decoding images to and from latent space."
+      ],
+      "search_aliases": [
+         "load model",
+         "checkpoint",
+         "model loader",
+         "load checkpoint",
+         "ckpt",
+         "model"
+      ]
+   },
+   "LoadLoraModel": {
+      "input": {
+         "required": {
+            "model": [
+               "MODEL",
+               {
+                  "tooltip": "The diffusion model the LoRAs will be applied to."
+               }
+            ],
+            "loras": [
+               "COMFY_DYNAMICGROUP_V3",
+               {
+                  "tooltip": "Each row applies one LoRA to the model.",
+                  "template": {
+                     "required": {
+                        "lora_name": [
+                           "COMBO",
+                           {
+                              "tooltip": "The name of the LoRA file to apply.",
+                              "multiselect": false,
+                              "options": [
+                                 "style_a.safetensors",
+                                 "style_b.safetensors",
+                                 "detail.safetensors"
+                              ]
+                           }
+                        ],
+                        "strength": [
+                           "FLOAT",
+                           {
+                              "tooltip": "How strongly to apply this LoRA. 0 = off, negative inverts the effect.",
+                              "default": 1,
+                              "min": -100,
+                              "max": 100,
+                              "step": 0.01
+                           }
+                        ],
+                        "enabled": [
+                           "BOOLEAN",
+                           {
+                              "tooltip": "Turn off to skip this LoRA without changing its file or strength.",
+                              "default": true
+                           }
+                        ]
+                     }
+                  },
+                  "min": 1,
+                  "max": 20,
+                  "group_name": "LoRA"
+               }
+            ]
+         }
+      },
+      "input_order": {
+         "required": [
+            "model",
+            "loras"
+         ]
+      },
+      "is_input_list": false,
+      "output": [
+         "MODEL"
+      ],
+      "output_is_list": [
+         false
+      ],
+      "output_name": [
+         "MODEL"
+      ],
+      "output_tooltips": [
+         "The modified diffusion model."
+      ],
+      "output_matchtypes": null,
+      "name": "LoadLoraModel",
+      "display_name": "Load LoRA (Model)",
+      "description": "Apply a stack of LoRAs to a diffusion model. Add one row per LoRA; each row picks a LoRA file and its strength.",
+      "python_module": "comfy_extras.nodes_lora_stack",
+      "category": "model/loaders",
+      "output_node": false,
+      "deprecated": false,
+      "experimental": false,
+      "dev_only": false,
+      "api_node": false,
+      "price_badge": null,
+      "search_aliases": [
+         "lora",
+         "load lora",
+         "apply lora",
+         "lora model",
+         "lora stack"
+      ],
+      "essentials_category": null,
+      "has_intermediate_output": false
+   },
+   "LoadLoraTextEncoder": {
+      "input": {
+         "required": {
+            "clip": [
+               "CLIP",
+               {
+                  "tooltip": "The CLIP text encoder the LoRAs will be applied to."
+               }
+            ],
+            "loras": [
+               "COMFY_DYNAMICGROUP_V3",
+               {
+                  "tooltip": "Each row applies one LoRA to the text encoder.",
+                  "template": {
+                     "required": {
+                        "lora_name": [
+                           "COMBO",
+                           {
+                              "tooltip": "The name of the LoRA file to apply.",
+                              "multiselect": false,
+                              "options": [
+                                 "style_a.safetensors",
+                                 "style_b.safetensors",
+                                 "detail.safetensors"
+                              ]
+                           }
+                        ],
+                        "strength": [
+                           "FLOAT",
+                           {
+                              "tooltip": "How strongly to apply this LoRA. 0 = off, negative inverts the effect.",
+                              "default": 1,
+                              "min": -100,
+                              "max": 100,
+                              "step": 0.01
+                           }
+                        ],
+                        "enabled": [
+                           "BOOLEAN",
+                           {
+                              "tooltip": "Turn off to skip this LoRA without changing its file or strength.",
+                              "default": true
+                           }
+                        ]
+                     }
+                  },
+                  "min": 1,
+                  "max": 20,
+                  "group_name": "LoRA"
+               }
+            ]
+         }
+      },
+      "input_order": {
+         "required": [
+            "clip",
+            "loras"
+         ]
+      },
+      "is_input_list": false,
+      "output": [
+         "CLIP"
+      ],
+      "output_is_list": [
+         false
+      ],
+      "output_name": [
+         "CLIP"
+      ],
+      "output_tooltips": [
+         "The modified CLIP text encoder."
+      ],
+      "output_matchtypes": null,
+      "name": "LoadLoraTextEncoder",
+      "display_name": "Load LoRA (Text Encoder)",
+      "description": "Apply a stack of LoRAs to a CLIP text encoder. Add one row per LoRA; each row picks a LoRA file and its strength.",
+      "python_module": "comfy_extras.nodes_lora_stack",
+      "category": "model/loaders",
+      "output_node": false,
+      "deprecated": false,
+      "experimental": false,
+      "dev_only": false,
+      "api_node": false,
+      "price_badge": null,
+      "search_aliases": [
+         "lora",
+         "load lora",
+         "apply lora",
+         "clip lora",
+         "lora stack"
+      ],
+      "essentials_category": null,
+      "has_intermediate_output": false
+   }
+}

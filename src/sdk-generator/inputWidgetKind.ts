@@ -27,6 +27,8 @@ export type InputWidgetKind =
      }
    | { kind: 'dynamic-combo'; options: DynamicComboOption[]; defaultKey: string }
    | { kind: 'dynamic-container'; instanceNames: string[]; requiredCount: number }
+   /** widget rows: prompt keys `<decl>.<row>.<field>`, saved run `[count, …row field runs]` (architecture.md, dynamic group) */
+   | { kind: 'dynamic-group'; fields: RawInputSpecEntry[]; min: number; max: number }
 
 /** one raw `[type, opts]` input entry as spelled in object_info (dynamic-combo branches arrive in this raw form) */
 export type RawInputSpecEntry = {
@@ -106,6 +108,15 @@ const parseContainer = (template: Record<string, unknown>): InputWidgetKind => {
    }
 }
 
+/** dynamic group (`template` holding `required`/`optional` sections itself): fields in the
+ * frontend's creation order, required then optional; `_io.py _DynamicGroup` defaults min 0, max 20 */
+const parseGroup = (o: Record<string, unknown>, template: Record<string, unknown>): InputWidgetKind => ({
+   kind: 'dynamic-group',
+   fields: flattenInputSections(template),
+   min: typeof o['min'] === 'number' ? o['min'] : 0,
+   max: typeof o['max'] === 'number' ? o['max'] : 20,
+})
+
 /**
  * the single template sub-input's slot type of an autogrow container
  * (`'IMAGE'` for TextEncodeBooguEdit.images). null when opts are not an
@@ -179,10 +190,12 @@ export const classifyWidgetInput = (p: {
       }
       return { kind: 'widget', consumes: controlConsumes(o, p.type, p.name), strictValues: true, prefixValues: [] }
    }
-   // 6. template WITH nested input = autogrow container; WITHOUT = matchtype slot typing
+   // 6. template WITH nested input = autogrow container; WITH its own required/optional
+   // sections = dynamic group; with neither = matchtype slot typing
    const template = o?.['template']
-   if (isRecord(template)) {
+   if (o != null && isRecord(template)) {
       if (isRecord(template['input'])) return parseContainer(template)
+      if (isRecord(template['required']) || isRecord(template['optional'])) return parseGroup(o, template)
       return { kind: 'slot' }
    }
    // 7. socketless: a widget that never has a socket (IMAGECOMPARE, COLOR); value domain unknown

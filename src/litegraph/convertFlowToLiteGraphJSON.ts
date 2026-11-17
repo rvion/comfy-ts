@@ -1,7 +1,14 @@
 import type { ComfyNode } from 'src/graph/ComfyNode.ts'
 import type { ComfyWorkflow } from 'src/runner/ComfyWorkflow.ts'
 import { bang } from 'src/utils/bang.ts'
-import { classifySchemaInput, containerInstanceSlotType } from 'src/sdk-generator/inputWidgetKind.ts'
+import {
+   classifySchemaInput,
+   classifyWidgetInput,
+   containerInstanceSlotType,
+   defaultValueForWidget,
+   type InputWidgetKind,
+} from 'src/sdk-generator/inputWidgetKind.ts'
+import { exhaust } from 'src/utils/exhaust.ts'
 import type { LiteGraphJSON } from 'src/litegraph/LiteGraphJSON.ts'
 import type { LiteGraphLinkTuple } from 'src/litegraph/LiteGraphLink.ts'
 import { asLiteGraphLinkID, type LiteGraphLinkID } from 'src/litegraph/LiteGraphLinkID.ts'
@@ -42,16 +49,63 @@ const convertNodeToLiteGraphNode = (ctx: LiteGraphCtx, node: ComfyNode<any>): Li
    const widgets_values: unknown[] = []
    // target_slot = index within THIS node's litegraph inputs array,
    // not the schema input index (widget inputs are not litegraph slots)
-   const pushLinked = (name: string, type: string, link: [string, number], shape?: number): void => {
+   const pushLinked = (
+      name: string,
+      type: string,
+      link: [string, number],
+      extra: { shape?: number; widget?: boolean } = {},
+   ): void => {
       const nodeUidNumber = bang(
          ctx.graph.nodes.find((n) => n.uid === link[0])?.uidNumber,
          `link target node "${link[0]}" not found in graph`,
       )
       const linkId = ctx.allocateLink(nodeUidNumber, link[1], node.uidNumber, asLiteGraphSlotIndex(inputs.length), type)
-      inputs.push(shape == null ? { name, type, link: linkId } : { name, type, shape, link: linkId })
+      const input: LiteGraphNodeInput = { name, type, link: linkId }
+      if (extra.shape != null) input.shape = extra.shape
+      if (extra.widget === true) input.widget = { name }
+      inputs.push(input)
+   }
+   /** frontend button-widget values ride BEFORE the real value (LOAD_3D); the control_after_generate
+    * phantom AFTER it: the classifier's consumes covers prefix + value + control, config-driven
+    * (the 2024 INT-named-seed heuristic lives inside controlConsumes), so export and import can
+    * never disagree on the run length */
+   const pushWidgetRun = (kind: Extract<InputWidgetKind, { kind: 'widget' }>, raw: unknown, opts: unknown): void => {
+      widgets_values.push(...kind.prefixValues, raw)
+      const phantoms = kind.consumes - 1 - kind.prefixValues.length
+      for (let i = 0; i < phantoms; i++) widgets_values.push(controlMode(opts))
    }
    for (const ipt of node.$schema.inputs) {
       const kind = classifySchemaInput(ipt)
+      if (kind.kind === 'dynamic-group') {
+         // the editor's run: the row count, then each row's field runs; every row field is a
+         // widget, a linked one keeps its widget value AND gets its socket (dynamicGroupWidget.ts)
+         const prefix = `${ipt.nameInComfy}.`
+         let rows = 0
+         for (const key of Object.keys(node.json.inputs)) {
+            if (!key.startsWith(prefix)) continue
+            const row = Number(key.slice(prefix.length).split('.')[0])
+            if (Number.isInteger(row) && row >= rows) rows = row + 1
+         }
+         widgets_values.push(rows)
+         for (let row = 0; row < rows; row++) {
+            for (const field of kind.fields) {
+               const name = `${prefix}${row}.${field.name}`
+               const fieldKind = classifyWidgetInput({ name: field.name, type: field.type, opts: field.opts })
+               if (fieldKind.kind !== 'widget')
+                  throw new Error(
+                     `🔴 [toWorkflowJson] ${node.$schema.nameInComfy}#${node.uid} "${name}" is a ${fieldKind.kind}; a dynamic group row holds widgets only`,
+                  )
+               const typeName = typeof field.type === 'string' ? field.type : 'COMBO'
+               const value: unknown = node.json.inputs[name]
+               const fallback = defaultValueForWidget({ type: typeName, opts: field.opts })
+               if (_isLink(value)) {
+                  pushLinked(name, typeName, value, { widget: true })
+                  pushWidgetRun(fieldKind, fallback, field.opts)
+               } else pushWidgetRun(fieldKind, value ?? fallback, field.opts)
+            }
+         }
+         continue
+      }
       if (kind.kind === 'dynamic-container') {
          // the declaration is never a slot: each grown instance is its own
          // optional slot `decl.<instance>` (shape 7), as the editor stores it
@@ -65,26 +119,27 @@ const convertNodeToLiteGraphNode = (ctx: LiteGraphCtx, node: ComfyNode<any>): Li
                throw new Error(
                   `🔴 [toWorkflowJson] ${node.$schema.nameInComfy}#${node.uid} "${name}" holds a literal; an autogrow instance is a link slot in the editor`,
                )
-            pushLinked(name, type, raw, 7)
+            pushLinked(name, type, raw, { shape: 7 })
          }
          continue
       }
       const raw = node.serializeValue(ipt.nameInComfy, node.json.inputs[ipt.nameInComfy])
       if (_isLink(raw)) {
          pushLinked(ipt.nameInComfy, ipt.typeName, raw)
-      } else if (kind.kind === 'widget') {
-         // frontend button-widget values ride BEFORE the real value (LOAD_3D)
-         widgets_values.push(...kind.prefixValues, raw)
-         // control_after_generate phantom AFTER the value: the classifier's
-         // consumes covers prefix + value + control, config-driven (the 2024
-         // INT-named-seed heuristic lives inside controlConsumes), so export
-         // and import can never disagree on the run length
-         const phantoms = kind.consumes - 1 - kind.prefixValues.length
-         for (let i = 0; i < phantoms; i++) widgets_values.push(controlMode(ipt.opts))
-      } else {
-         // unconnected link-kind input: a litegraph slot with no link —
-         // NEVER a widget value (that would misalign the round-trip import)
-         inputs.push({ name: ipt.nameInComfy, type: ipt.typeName, link: null })
+         continue
+      }
+      switch (kind.kind) {
+         case 'widget':
+            pushWidgetRun(kind, raw, ipt.opts)
+            break
+         case 'slot':
+         case 'dynamic-combo':
+            // unconnected link-kind input: a litegraph slot with no link —
+            // NEVER a widget value (that would misalign the round-trip import)
+            inputs.push({ name: ipt.nameInComfy, type: ipt.typeName, link: null })
+            break
+         default:
+            exhaust(kind)
       }
    }
    const outputs = node.$schema.outputs.map(

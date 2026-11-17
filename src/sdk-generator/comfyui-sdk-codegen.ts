@@ -1,4 +1,5 @@
 import type { Maybe } from 'src/types/index.ts'
+import { exhaust } from 'src/utils/exhaust.ts'
 import { CodeBuffer } from 'src/utils/CodeBuffer.ts'
 import { escapeJSKey } from 'src/utils/escapeJSKey.ts'
 import type { ComfySchema } from 'src/sdk-generator/ComfySchema.ts'
@@ -43,6 +44,17 @@ const dynamicComboUnion = (p: {
       return `{ ${[key, ...fields].join('; ')} }`
    })
    return ` & (${members.join(' | ')})`
+}
+
+/** one dynamic-group row as an object type: a field is optional when it has a default or sits in
+ * the template's optional section (ComfyNode fills it, agent/sdk-codegen.md) */
+const dynamicGroupRow = (fields: RawInputSpecEntry[]): string => {
+   const members = fields.map((e) => {
+      const opts = isRecord(e.opts) ? e.opts : null
+      const optional = !e.required || opts?.['default'] !== undefined
+      return `${escapeJSKey(e.name)}${optional ? '?' : ''}: ${branchInputType(e)}`
+   })
+   return `{ ${members.join('; ')} }`
 }
 
 /**
@@ -111,6 +123,8 @@ export function codegenSDK(this: ComfySchema, opts: CodegenOptions): string {
 
    // #region IN ---------------------------------------------------------------------------------
    const nodes = this.nodes.toSorted((a, b) => a.nodeKey.localeCompare(b.nodeKey))
+   /** one row type per dynamic group, named once so a long COMBO union is not printed twice */
+   const groupRows: [key: string, row: string][] = []
    p(`interface IN {`)
    b.indent()
    for (const n of nodes) {
@@ -123,27 +137,45 @@ export function codegenSDK(this: ComfySchema, opts: CodegenOptions): string {
          // decl itself — the backend prompt input is `<name>.<inst>`, the
          // first template.min instances required (agent/sdk-codegen.md)
          const kind = classifySchemaInput(i)
-         if (kind.kind === 'dynamic-container') {
-            const instType = containerInstanceSlotType(i.opts)
-            if (instType != null) {
-               kind.instanceNames.forEach((instName, ix) => {
-                  const opt = ix >= kind.requiredCount ? '?' : ''
-                  p(`    ${escapeJSKey(`${i.nameInComfy}.${instName}`)}${opt}: Accepts[${JSON.stringify(instType)}]`)
-               })
+         switch (kind.kind) {
+            case 'dynamic-container': {
+               const instType = containerInstanceSlotType(i.opts)
+               if (instType != null) {
+                  kind.instanceNames.forEach((instName, ix) => {
+                     const opt = ix >= kind.requiredCount ? '?' : ''
+                     p(`    ${escapeJSKey(`${i.nameInComfy}.${instName}`)}${opt}: Accepts[${JSON.stringify(instType)}]`)
+                  })
+               }
+               continue
             }
-            continue
-         }
-         if (kind.kind === 'dynamic-combo') {
-            const optsDyn = typeof i.opts === 'string' ? null : i.opts
-            comboSuffixes.push(
-               dynamicComboUnion({
-                  name: i.nameInComfy,
-                  nameEscaped: i.nameInComfyEscaped,
-                  options: kind.options,
-                  keyOptional: optsDyn?.default !== undefined || !i.required,
-               }),
-            )
-            continue
+            case 'dynamic-combo': {
+               const optsDyn = typeof i.opts === 'string' ? null : i.opts
+               comboSuffixes.push(
+                  dynamicComboUnion({
+                     name: i.nameInComfy,
+                     nameEscaped: i.nameInComfyEscaped,
+                     options: kind.options,
+                     keyOptional: optsDyn?.default !== undefined || !i.required,
+                  }),
+               )
+               continue
+            }
+            case 'dynamic-group': {
+               // an array of row objects, the backend's own list[dict] value; ComfyNode
+               // expands it to the dotted `<decl>.<row>.<field>` prompt keys
+               const rowKey = `${n.nodeKey}.${i.nameInComfy}`
+               groupRows.push([rowKey, dynamicGroupRow(kind.fields)])
+               const row = `GroupRow[${JSON.stringify(rowKey)}]`
+               p(`    /** min=${kind.min} max=${kind.max} rows */`)
+               if (kind.min > 0) p(`    ${i.nameInComfyEscaped}: [${row}, ...${row}[]]`)
+               else p(`    ${i.nameInComfyEscaped}?: ${row}[]`)
+               continue
+            }
+            case 'widget':
+            case 'slot':
+               break
+            default:
+               exhaust(kind)
          }
          const opts_ = typeof i.opts === 'string' ? null : i.opts
          let type = `Accepts[${JSON.stringify(i.typeName)}]`
@@ -181,6 +213,15 @@ export function codegenSDK(this: ComfySchema, opts: CodegenOptions): string {
    b.deindent()
    p('}')
    p('')
+   if (groupRows.length > 0) {
+      p(`/** one row of each dynamic group input, keyed \`<node>.<input>\` */`)
+      p(`interface GroupRow {`)
+      b.indent()
+      for (const [key, row] of groupRows) p(`${JSON.stringify(key)}: ${row}`)
+      b.deindent()
+      p('}')
+      p('')
+   }
 
    // #region OUT --------------------------------------------------------------------------------
    p(`interface OUT {`)

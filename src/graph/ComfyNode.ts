@@ -9,13 +9,14 @@ import {
    containerInstanceSlotType,
    defaultValueForWidget,
 } from 'src/sdk-generator/inputWidgetKind.ts'
-import type { DynamicComboOption } from 'src/sdk-generator/inputWidgetKind.ts'
+import type { DynamicComboOption, RawInputSpecEntry } from 'src/sdk-generator/inputWidgetKind.ts'
 import type { Maybe } from 'src/types/index.ts'
 import { comfyColors } from 'src/utils/ComfyColors.ts'
 import { auto_ } from 'src/graph/autoValue.ts'
 import type { ComfyNodeId, ComfyNodeMetadata } from 'src/graph/ComfyNodeID.ts'
 import { ComfyNodeOutput } from 'src/graph/ComfyNodeOutput.ts'
 import { NodeSlotSize, NodeTitleHeight, nodeLineHeight } from 'src/graph/NodeSlotSize.ts'
+import { exhaust } from 'src/utils/exhaust.ts'
 
 type NodeExecutionStatus = 'executing' | 'done' | 'error' | 'waiting' | 'cached' | null
 
@@ -185,21 +186,39 @@ export class ComfyNode<
    _convertPromptExtToPrompt(promptExt: ComfyApiNodeJson): ComfyApiNodeJson {
       const inputs: { [inputName: string]: any } = {}
       const _done = new Set<string>()
-      /** every dotted key of every branch: the selected ones are written here, the rest are dropped */
+      /** every dotted key a dynamic input wrote or dropped on purpose: the rest loop skips them */
       const _comboBranchKeys = new Set<string>()
       for (const i of this.$schema.inputs) {
          _done.add(i.nameInComfy)
          const kind = classifySchemaInput(i)
-         if (kind.kind === 'dynamic-combo') {
-            this._writeDynamicCombo({
-               name: i.nameInComfy,
-               options: kind.options,
-               defaultKey: kind.defaultKey,
-               provided: promptExt.inputs,
-               out: inputs,
-               claimed: _comboBranchKeys,
-            })
-            continue
+         switch (kind.kind) {
+            case 'dynamic-combo':
+               this._writeDynamicCombo({
+                  name: i.nameInComfy,
+                  options: kind.options,
+                  defaultKey: kind.defaultKey,
+                  provided: promptExt.inputs,
+                  out: inputs,
+                  claimed: _comboBranchKeys,
+               })
+               continue
+            case 'dynamic-group':
+               this._writeDynamicGroup({
+                  name: i.nameInComfy,
+                  fields: kind.fields,
+                  min: kind.min,
+                  max: kind.max,
+                  provided: promptExt.inputs,
+                  out: inputs,
+                  claimed: _comboBranchKeys,
+               })
+               continue
+            case 'widget':
+            case 'slot':
+            case 'dynamic-container':
+               break
+            default:
+               exhaust(kind)
          }
          const value = this.serializeValue(i.nameInComfy, promptExt.inputs[i.nameInComfy])
          // absent optionals (autogrow containers included) stay OUT of the
@@ -251,6 +270,61 @@ export class ComfyNode<
                  })
                : this.serializeValue(dotted, given)
       }
+   }
+
+   /** dynamic group → the row array becomes `<decl>.<row>.<field>` keys, absent fields filled
+    * from the schema (architecture.md, dynamic group). No array = a prompt json whose dotted
+    * keys are already the rows: they pass through the rest loop untouched */
+   private _writeDynamicGroup(p: {
+      name: string
+      fields: RawInputSpecEntry[]
+      min: number
+      max: number
+      provided: { [k: string]: unknown }
+      out: { [k: string]: any }
+      claimed: Set<string>
+   }): void {
+      const where = `${this.$schema.nodeKey}#${this.uid}`
+      const raw = p.provided[p.name]
+      const prefix = `${p.name}.`
+      if (raw == null) {
+         const hasRows = Object.keys(p.provided).some((k) => k.startsWith(prefix))
+         if (!hasRows && p.min > 0)
+            this.graph.recordProblem(`🔴 "${p.name}" on ${where} needs at least ${p.min} row(s)`)
+         return
+      }
+      // the array wins over stray dotted keys of the same group
+      for (const k of Object.keys(p.provided)) if (k.startsWith(prefix)) p.claimed.add(k)
+      if (!Array.isArray(raw)) {
+         this.graph.recordProblem(`🔴 "${p.name}" on ${where} takes an array of rows, got ${JSON.stringify(raw)}`)
+         return
+      }
+      if (raw.length < p.min || raw.length > p.max)
+         this.graph.recordProblem(
+            `🔴 "${p.name}" on ${where} has ${raw.length} row(s), the host takes ${p.min} to ${p.max}`,
+         )
+      raw.forEach((row: unknown, ix) => {
+         if (typeof row !== 'object' || row == null || Array.isArray(row)) {
+            this.graph.recordProblem(`🔴 "${p.name}" row ${ix} on ${where} is not an object: ${JSON.stringify(row)}`)
+            return
+         }
+         const given = new Map(Object.entries(row))
+         for (const field of p.fields) {
+            const dotted = `${p.name}.${ix}.${field.name}`
+            const value = given.get(field.name)
+            p.out[dotted] =
+               value == null
+                  ? defaultValueForWidget({
+                       type: typeof field.type === 'string' ? field.type : 'COMBO',
+                       opts: field.opts,
+                       enumValues: Array.isArray(field.type) ? field.type.filter(isScalarValue) : undefined,
+                    })
+                  : this.serializeValue(dotted, value)
+            given.delete(field.name)
+         }
+         for (const extra of given.keys())
+            this.graph.recordProblem(`🔴 "${p.name}" row ${ix} on ${where} has no field "${extra}"`)
+      })
    }
 
    /** return the list of nodes piped into this node */
@@ -454,6 +528,13 @@ export class ComfyNode<
          const slotType = containerInstanceSlotType(decl.opts)
          if (kind.kind === 'dynamic-container' && kind.instanceNames.includes(name.slice(dot + 1)) && slotType != null)
             return slotType
+         // dynamic group row field `decl.<row>.<field>`: the template field carries the type
+         if (kind.kind === 'dynamic-group') {
+            const rest = name.slice(dot + 1)
+            const fieldName = rest.slice(rest.indexOf('.') + 1)
+            const field = kind.fields.find((f) => f.name === fieldName)
+            if (rest.includes('.') && typeof field?.type === 'string') return field.type
+         }
       }
       throw new Error(
          `🔴 no input "${name}" on ${this.$schema.nodeKey}: cannot tell which output of the linked node to use`,

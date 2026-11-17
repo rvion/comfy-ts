@@ -257,10 +257,19 @@ export class ComfySchema {
                   }
                }
             }
+            // dynamic group: row fields are typed by their own slot types, and the group is
+            // required exactly when it needs rows (upstream counts min even on an optional input)
+            if (widgetKind?.kind === 'dynamic-group') {
+               for (const entry of widgetKind.fields) {
+                  if (typeof entry.type === 'string') this.knownSlotTypes.add(asComfyNodeSlotTypeName(entry.type))
+               }
+            }
+            const required =
+               widgetKind?.kind === 'dynamic-group' ? widgetKind.min > 0 : ipt.required && !isAutogrowContainer
 
             node.inputs.push({
                slotName: inputSlotName,
-               required: ipt.required && !isAutogrowContainer,
+               required,
                nameInComfy: inputNameInComfy,
                nameInComfyEscaped: escapeJSKey(inputNameInComfy),
                typeName: inputTypeName,

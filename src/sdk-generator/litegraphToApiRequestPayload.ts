@@ -10,6 +10,7 @@ import type { ComfyNodeSchema } from 'src/sdk-generator/ComfyNodeSchema.ts'
 import type { ComfyApiJson, ComfyApiNodeJson } from 'src/sdk-generator/comfy-api-json.ts'
 import type { NodeInputExt } from 'src/sdk-generator/comfyui-types.ts'
 import { howManyWidgetValuesForThisInputType } from 'src/sdk-generator/Primitives.ts'
+import { exhaust } from 'src/utils/exhaust.ts'
 import {
    classifySchemaInput,
    classifyWidgetInput,
@@ -212,12 +213,45 @@ export const convertLiteGraphToPrompt = (
          for (const sub of opt.inputs) consumeBranchInput(`${p.path}.${sub.name}`, sub)
       }
 
+      /** the row count first (named, else positional, else `min`), then every row's fields in
+       * template order: the frontend's saved run (architecture.md, dynamic group) */
+      const consumeDynamicGroup = (p: {
+         path: string
+         fields: RawInputSpecEntry[]
+         min: number
+         max: number
+      }): void => {
+         const r = resolveWidgetValue({ promptName: p.path, consumes: 1, prefixLen: 0 })
+         const saved = r.filled ? p.min : r.value
+         if (typeof saved !== 'number' || !Number.isInteger(saved) || saved < 0 || saved > p.max)
+            throw new WorkflowConvertError(
+               'invalid-widget-value',
+               `node ${node.id}(${node.type}): dynamic group "${p.path}" row count is not an integer in [0, ${p.max}]: ${JSON.stringify(saved)}`,
+               node,
+            )
+         // the frontend clamps a short count UP to min (dynamicGroupWidget: Math.max(min, requested))
+         const rows = Math.max(p.min, saved)
+         if (r.filled || rows !== saved) LOG(`${node.type}#${node.id}.${p.path} = ${rows} rows (min ${p.min})`)
+         for (let row = 0; row < rows; row++)
+            for (const field of p.fields) consumeBranchInput(`${p.path}.${row}.${field.name}`, field)
+      }
+
       const consumeBranchInput = (subPath: string, sub: RawInputSpecEntry): void => {
          const kind = classifyWidgetInput({ name: sub.name, type: sub.type, opts: sub.opts })
-         // slots and containers materialize as dotted serialized inputs, resolved as links in 2.b
-         if (kind.kind === 'slot' || kind.kind === 'dynamic-container') return
-         if (kind.kind === 'dynamic-combo')
-            return consumeDynamicCombo({ path: subPath, options: kind.options, defaultKey: kind.defaultKey })
+         switch (kind.kind) {
+            // slots and containers materialize as dotted serialized inputs, resolved as links in 2.b
+            case 'slot':
+            case 'dynamic-container':
+               return
+            case 'dynamic-combo':
+               return consumeDynamicCombo({ path: subPath, options: kind.options, defaultKey: kind.defaultKey })
+            case 'dynamic-group':
+               return consumeDynamicGroup({ path: subPath, fields: kind.fields, min: kind.min, max: kind.max })
+            case 'widget':
+               break
+            default:
+               return exhaust(kind)
+         }
          const inlineEnum = Array.isArray(sub.type)
             ? sub.type.filter(
                  (v): v is string | number | boolean =>
@@ -247,38 +281,48 @@ export const convertLiteGraphToPrompt = (
             kind = { kind: 'widget', consumes: legacyConsumes === 2 ? 2 : 1, strictValues: true, prefixValues: [] }
          }
 
-         if (kind.kind === 'widget') {
-            consumePlainWidget({
-               promptName: field.nameInComfy,
-               typeName: field.typeName,
-               opts: field.opts,
-               consumes: kind.consumes,
-               prefixLen: kind.prefixValues.length,
-               strict: kind.strictValues,
-               linkedInput: input,
-            })
-         } else if (kind.kind === 'dynamic-combo') {
-            consumeDynamicCombo({ path: field.nameInComfy, options: kind.options, defaultKey: kind.defaultKey })
-         } else if (kind.kind === 'dynamic-container') {
-            // the declaration itself never appears; the first template.min
-            // instances must be connected (backend requires them by name)
-            for (const instName of kind.instanceNames.slice(0, kind.requiredCount)) {
-               const iname = `${field.nameInComfy}.${instName}`
-               const inst = inputsInNodeJSON.find((i) => i.name === iname)
-               if (inst?.link == null)
+         switch (kind.kind) {
+            case 'widget':
+               consumePlainWidget({
+                  promptName: field.nameInComfy,
+                  typeName: field.typeName,
+                  opts: field.opts,
+                  consumes: kind.consumes,
+                  prefixLen: kind.prefixValues.length,
+                  strict: kind.strictValues,
+                  linkedInput: input,
+               })
+               break
+            case 'dynamic-combo':
+               consumeDynamicCombo({ path: field.nameInComfy, options: kind.options, defaultKey: kind.defaultKey })
+               break
+            case 'dynamic-group':
+               consumeDynamicGroup({ path: field.nameInComfy, fields: kind.fields, min: kind.min, max: kind.max })
+               break
+            case 'dynamic-container':
+               // the declaration itself never appears; the first template.min
+               // instances must be connected (backend requires them by name)
+               for (const instName of kind.instanceNames.slice(0, kind.requiredCount)) {
+                  const iname = `${field.nameInComfy}.${instName}`
+                  const inst = inputsInNodeJSON.find((i) => i.name === iname)
+                  if (inst?.link == null)
+                     throw new WorkflowConvertError(
+                        'missing-required-input',
+                        `node ${node.id}(${node.type}): autogrow "${field.nameInComfy}" requires instance "${iname}" connected (template.min = ${kind.requiredCount})`,
+                        node,
+                     )
+               }
+               break
+            case 'slot':
+               if (!fieldNamesPresent.has(field.nameInComfy) && field.required)
                   throw new WorkflowConvertError(
                      'missing-required-input',
-                     `node ${node.id}(${node.type}): autogrow "${field.nameInComfy}" requires instance "${iname}" connected (template.min = ${kind.requiredCount})`,
+                     `node ${node.id}(${node.type}): required input "${field.nameInComfy}" (${field.typeName}) has neither widget value nor link`,
                      node,
                   )
-            }
-         } else if (!fieldNamesPresent.has(field.nameInComfy)) {
-            if (field.required)
-               throw new WorkflowConvertError(
-                  'missing-required-input',
-                  `node ${node.id}(${node.type}): required input "${field.nameInComfy}" (${field.typeName}) has neither widget value nor link`,
-                  node,
-               )
+               break
+            default:
+               exhaust(kind)
          }
       }
 
