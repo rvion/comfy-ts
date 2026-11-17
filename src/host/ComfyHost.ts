@@ -24,6 +24,8 @@ import {
    type PromptRelated_WsMsg,
    type WsMsg,
    WsMsg_ark,
+   isIgnoredWsEventType,
+   isRoutedWsEventType,
    WsMsgLogsData_ark,
 } from 'src/runner/ComfyWsApi.ts'
 import { ComfySchema } from 'src/sdk-generator/ComfySchema.ts'
@@ -848,8 +850,10 @@ export class ComfyHost<ID extends string = string> {
    /** the session assigned to us by the server */
    comfySessionId: string = 'temp' /** send by ComfyUI server */
 
-   /** binary frame types we already complained about (one log per type, no spam) */
+   /** event types we already complained about on this connection (one log per type, no
+    * spam); both sets clear when the server assigns a new session id */
    private _unknownBinaryFrameTypes = new Set<number>()
+   private _unknownWsEventTypes = new Set<string>()
 
    /** handy to keep around */
    status: ComfyStatusData['status'] | null = null
@@ -919,11 +923,27 @@ export class ComfyHost<ID extends string = string> {
          return
       }
 
-      const msg_: unknown = JSON.parse(String(e.data))
+      let msg_: unknown = JSON.parse(String(e.data))
 
-      // ----- crystools silent fix -----
-      if (typeof msg_ === 'object' && msg_ != null && 'type' in msg_) {
-         if (msg_.type === 'crystools.monitor') return
+      // ----- routed, ignored by name, or unknown (architecture.md, ws events) -----
+      const rec = typeof msg_ === 'object' && msg_ != null ? msg_ : null
+      const eventType = rec != null && 'type' in rec && typeof rec.type === 'string' ? rec.type : null
+      if (eventType != null && isIgnoredWsEventType(eventType)) return
+      if (eventType == null || !isRoutedWsEventType(eventType)) {
+         const key = eventType ?? '<no type>'
+         if (this._unknownWsEventTypes.has(key)) return
+         this._unknownWsEventTypes.add(key)
+         console.error(
+            `🔴 unknown ws event type ${JSON.stringify(key)} from host ${this.data.id}, ignored (reported once per connection)`,
+         )
+         return
+      }
+
+      // the reconnect resend of the running node carries no prompt_id (server.py websocket_handler)
+      if (eventType === 'executing' && this.activePromptID != null && rec != null) {
+         const data: unknown = Reflect.get(rec, 'data')
+         if (typeof data === 'object' && data != null && !('prompt_id' in data))
+            msg_ = { type: eventType, data: { ...data, prompt_id: this.activePromptID } }
       }
 
       // ----- soft-validate against the schema -----
@@ -942,7 +962,11 @@ export class ComfyHost<ID extends string = string> {
             this.comfySessionId = msg.data.sid
             this._sessionResolve?.()
             this._sessionResolve = null
-            if (sidChanged) this.onSession?.(msg.data.sid)
+            if (sidChanged) {
+               this._unknownWsEventTypes.clear()
+               this._unknownBinaryFrameTypes.clear()
+               this.onSession?.(msg.data.sid)
+            }
          }
          this.status = msg.data.status
          this.onStatus?.({ queueRemaining: msg.data.status?.exec_info?.queue_remaining ?? 0 })
@@ -963,6 +987,7 @@ export class ComfyHost<ID extends string = string> {
          msg.type === 'execution_start' ||
          msg.type === 'execution_cached' ||
          msg.type === 'execution_error' ||
+         msg.type === 'execution_interrupted' ||
          msg.type === 'execution_success' ||
          msg.type === 'executing' ||
          msg.type === 'executed' ||
@@ -982,9 +1007,5 @@ export class ComfyHost<ID extends string = string> {
          return
       }
       exhaust(msg)
-      console.log('❌', 'Unknown message:', msg)
-
-      toastError('Unknown message type: ' + JSON.stringify(msg.type))
-      // throw new Error('Unknown message type: ' + JSON.stringify(msg))
    }
 }

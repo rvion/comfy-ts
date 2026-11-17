@@ -1,6 +1,6 @@
 import { scope, type } from 'arktype'
 import { ComfyNodeId_ark } from 'src/graph/ComfyNodeID.ts'
-import type { Tagged } from 'src/types/index.ts'
+import type { IsEqual, Tagged } from 'src/types/index.ts'
 
 /** the id ComfyUI assigns to one queued execution (wire-level name kept) */
 export type PromptID = Tagged<string, { PromptID: true }>
@@ -61,19 +61,21 @@ const tempScope = scope({
    },
    _WsMsgExecutedData: {
       node: 'ComfyNodeID',
-      output: {
-         'previews?': [{ filepath: 'string' }, '[]'],
-         'images?': 'ComfyImageInfo[]',
-         // SaveAudio*, PreviewAudio: same file triple as an image
-         'audio?': 'ComfyImageInfo[]',
-         // VideoHelperSuite's VHS_VideoCombine, and savers that name their list `video`
-         'video?': 'ComfyImageInfo[]',
-         'gifs?': 'ComfyImageInfo[]',
-         // ui payload of a text output node (PreviewAny, and how TextGenerate
-         // results reach the client); entries are soft, non-strings are dropped
-         'text?': 'unknown[]',
-      },
+      // null for a cached node whose cache entry holds no ui payload (asset_enrichment.emit_cached_output)
+      output: '_WsMsgExecutedOutput | null',
       prompt_id: 'PromptID',
+   },
+   _WsMsgExecutedOutput: {
+      'previews?': [{ filepath: 'string' }, '[]'],
+      'images?': 'ComfyImageInfo[]',
+      // SaveAudio*, PreviewAudio: same file triple as an image
+      'audio?': 'ComfyImageInfo[]',
+      // VideoHelperSuite's VHS_VideoCombine, and savers that name their list `video`
+      'video?': 'ComfyImageInfo[]',
+      'gifs?': 'ComfyImageInfo[]',
+      // ui payload of a text output node (PreviewAny, and how TextGenerate
+      // results reach the client); entries are soft, non-strings are dropped
+      'text?': 'unknown[]',
    },
    WsMsgExecuted: {
       type: "'executed'",
@@ -98,11 +100,24 @@ const tempScope = scope({
       exception_type: 'string',
       traceback: 'string[]',
       current_inputs: 'Record<string, unknown>',
-      current_outputs: 'Record<string, unknown>',
+      // execution.py sends list(current_outputs): the ids of the nodes that already have outputs
+      current_outputs: 'ComfyNodeID[]',
    },
    WsMsgExecutionError: {
       type: "'execution_error'",
       data: '_WsMsgExecutionErrorData',
+   },
+
+   // an interrupt (POST /interrupt) ends the prompt with this and no execution_success
+   _WsMsgExecutionInterruptedData: {
+      prompt_id: 'PromptID',
+      node_id: 'ComfyNodeID',
+      node_type: 'string',
+      executed: 'ComfyNodeID[]',
+   },
+   WsMsgExecutionInterrupted: {
+      type: "'execution_interrupted'",
+      data: '_WsMsgExecutionInterruptedData',
    },
 
    WSMsgManagerFeedbackData: { data: 'string' },
@@ -134,7 +149,7 @@ const tempScope = scope({
 
    // UNION TYPES
    PromptRelated_WsMsg:
-      'WsMsgExecutionStart | WsMsgExecutionCached | WsMsgExecuting | WsMsgProgress | WsMsgProgressState | WsMsgExecuted | WsMsgExecutionError | WsMsgExecutionSuccess',
+      'WsMsgExecutionStart | WsMsgExecutionCached | WsMsgExecuting | WsMsgProgress | WsMsgProgressState | WsMsgExecuted | WsMsgExecutionError | WsMsgExecutionInterrupted | WsMsgExecutionSuccess',
    WsMsg: 'WsMsgStatus | WSMsgManagerFeedback | WsMsgLogs | PromptRelated_WsMsg',
 })
 
@@ -166,6 +181,7 @@ export type WsMsgProgressState = typeof types.WsMsgProgressState.infer
 export type WsMsgExecuted = typeof types.WsMsgExecuted.infer
 export type WsMsgExecutionSuccess = typeof types.WsMsgExecutionSuccess.infer
 export type WsMsgExecutionError = typeof types.WsMsgExecutionError.infer
+export type WsMsgExecutionInterrupted = typeof types.WsMsgExecutionInterrupted.infer
 export type WSMsgManagerFeedback = typeof types.WSMsgManagerFeedback.infer
 export type LogEntry = typeof types.LogEntry.infer
 export type WsMsgLogs = typeof types.WsMsgLogs.infer
@@ -180,5 +196,56 @@ export type PromptInfo = { prompt_id: PromptID }
 export const PromptInfo_ark = type({ prompt_id: types.PromptID }).as<PromptInfo>()
 
 export const WsMsg_ark = types.WsMsg
+
+/** every json event type ComfyHost.onMessage routes; checked against the WsMsg union below */
+export const ROUTED_WS_EVENT_TYPES = [
+   'status',
+   'manager-terminal-feedback',
+   'logs',
+   'execution_start',
+   'execution_cached',
+   'executing',
+   'progress',
+   'progress_state',
+   'executed',
+   'execution_error',
+   'execution_interrupted',
+   'execution_success',
+] as const
+true satisfies IsEqual<(typeof ROUTED_WS_EVENT_TYPES)[number], WsMsg['type']>
+
+/** events a server or a custom node sends by design that comfy-ts has no use for: dropped
+ * before validation, never logged (architecture.md, ws events) */
+export const IGNORED_WS_EVENT_TYPES = [
+   // ComfyUI server.py: only the reply to a client that opens with its own feature_flags
+   'feature_flags',
+   // ComfyUI app/agent_host.py: the local agent host's state, broadcast
+   'agent_status',
+   // ComfyUI app/asset_export.py: an export task's progress, broadcast
+   'asset_export',
+   // ComfyUI app/assets/seeder.py: the asset index scan, broadcast while the assets system is on
+   'assets.seed.started',
+   'assets.seed.progress',
+   'assets.seed.fast_complete',
+   'assets.seed.enrich_complete',
+   'assets.seed.completed',
+   'assets.seed.cancelled',
+   'assets.seed.error',
+   'assets.seed.paused',
+   'assets.seed.resumed',
+   // ComfyUI-Manager (V3.x legacy and 4.x): install queue progress, broadcast
+   'cm-queue-status',
+   'cm-api-try-install-customnode',
+   // ComfyUI-Manager 4.x glob/manager_server.py: one task of the install queue
+   'cm-task-started',
+   'cm-task-completed',
+   // ComfyUI-Crystools: the resource monitor, about once a second
+   'crystools.monitor',
+] as const
+
+const ROUTED_SET: ReadonlySet<string> = new Set(ROUTED_WS_EVENT_TYPES)
+const IGNORED_SET: ReadonlySet<string> = new Set(IGNORED_WS_EVENT_TYPES)
+export const isRoutedWsEventType = (t: string): boolean => ROUTED_SET.has(t)
+export const isIgnoredWsEventType = (t: string): boolean => IGNORED_SET.has(t)
 export const ComfyImageInfo_ark = types.ComfyImageInfo
 export const WsMsgLogsData_ark = types._WsMsgLogsData

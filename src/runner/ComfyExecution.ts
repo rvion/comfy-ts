@@ -18,6 +18,7 @@ import type {
    WsMsgExecuted,
    WsMsgExecuting,
    WsMsgExecutionError,
+   WsMsgExecutionInterrupted,
    WsMsgExecutionSuccess,
 } from 'src/runner/ComfyWsApi.ts'
 import { MediaImage } from 'src/runner/MediaImage.ts'
@@ -34,7 +35,7 @@ export type ComfyExecutionData = {
    id: PromptID
    graphID: ComfyWorkflowID
    executed: boolean
-   error?: WsMsgExecutionError | null
+   error?: WsMsgExecutionError | WsMsgExecutionInterrupted | null
    status?: ComfyExecutionStatus | null
 }
 
@@ -233,6 +234,8 @@ export class ComfyExecution {
          // per-node progress map; global progress is derived from the msgs above
       } else if (msg.type === 'executed') this.onExecuted(msg)
       else if (msg.type === 'execution_error') return void this.onError(msg)
+      // the server sends no execution_success after an interrupt: this message ends the run
+      else if (msg.type === 'execution_interrupted') return void this._finish({ status: 'Failure', error: msg })
       else if (msg.type === 'execution_success') return void this.onExecutionSuccess(msg)
       else {
          console.log(`🔴 UNEXPECTED MESSAGE:`, msg)

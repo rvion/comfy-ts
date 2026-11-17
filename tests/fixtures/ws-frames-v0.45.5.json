@@ -1,0 +1,113 @@
+[
+   {
+      "type": "status",
+      "data": {
+         "status": {
+            "exec_info": {
+               "queue_remaining": 0
+            }
+         },
+         "sid": "sid-1"
+      }
+   },
+   {
+      "type": "execution_start",
+      "data": {
+         "prompt_id": "prompt-1",
+         "timestamp": 1794928133354
+      }
+   },
+   {
+      "type": "execution_cached",
+      "data": {
+         "nodes": [],
+         "prompt_id": "prompt-1",
+         "timestamp": 1794928133368
+      }
+   },
+   {
+      "type": "progress_state",
+      "data": {
+         "prompt_id": "prompt-1",
+         "nodes": {
+            "0": {
+               "value": 0,
+               "max": 1,
+               "state": "running",
+               "node_id": "0",
+               "prompt_id": "prompt-1",
+               "display_node_id": "0",
+               "parent_node_id": null,
+               "real_node_id": "0"
+            }
+         }
+      }
+   },
+   {
+      "type": "executing",
+      "data": {
+         "node": "0",
+         "display_node": "0",
+         "prompt_id": "prompt-1"
+      }
+   },
+   {
+      "type": "progress",
+      "data": {
+         "value": 1,
+         "max": 1,
+         "prompt_id": "prompt-1",
+         "node": "6"
+      }
+   },
+   {
+      "type": "executed",
+      "data": {
+         "node": "8",
+         "display_node": "8",
+         "output": {
+            "images": [
+               {
+                  "filename": "ComfyUI_temp_cexrv_00001_.png",
+                  "subfolder": "",
+                  "type": "temp",
+                  "metadata": {
+                     "kind": "image",
+                     "width": 64,
+                     "height": 64
+                  }
+               }
+            ]
+         },
+         "prompt_id": "prompt-1"
+      }
+   },
+   {
+      "type": "execution_success",
+      "data": {
+         "prompt_id": "prompt-1",
+         "timestamp": 1794928142256
+      }
+   },
+   {
+      "type": "executing",
+      "data": {
+         "node": null,
+         "prompt_id": "prompt-1"
+      }
+   },
+   {
+      "type": "execution_interrupted",
+      "data": {
+         "prompt_id": "prompt-2",
+         "node_id": "4",
+         "node_type": "KSampler",
+         "executed": [
+            "1",
+            "3",
+            "2"
+         ],
+         "timestamp": 1794928278406
+      }
+   }
+]
