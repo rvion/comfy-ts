@@ -1,5 +1,15 @@
 # comfy-ts
 
+## 2.18.1
+
+- **An install can say that its outcome is unknown.** `manager.installModelOutcome(model)` and `manager.installPluginOutcome(pack)` return `'installed' | 'failed' | 'unknown'`. `unknown` means the client lost sight of the task while the Manager may still be installing: refetch the list and read the status before you install again. `installModel` and `installPlugin` still return `true` only for a verified install.
+- **A failed status request no longer ends an install.** The wait goes on until the host has not answered for `timing.pollGraceMs` (default 2 minutes). Before, one failed request made the install resolve `false` while the Manager was still downloading.
+- **Fixed on the Manager 4.x default UI: an install removed from the queue fails at once.** A queue reset from the Manager UI or another client used to leave the install waiting for the whole `installTimeoutMs`, 1 hour by default.
+- **Fixed on the Manager 4.x default UI: a pack install is checked against what is installed.** The Manager installs by repo name, and a few repo names belong to another pack. An install the Manager calls successful now fails when the pack does not show up as installed.
+- **A requirement the host cannot decide is no longer treated as missing.** `host.matchRequirements` returns `false` only for a requirement known to be missing, and warns with the name of each one it cannot decide. `host.checkRequirements(reqs)` returns `{ missing, undecided }`: queue installs for `missing` only. `isModelInstalled` and `isPluginInstalled` are `true` only for a known install, so read `getModelStatus` and `getPluginStatus` to tell "not installed" from "cannot decide".
+- **Fixed: a workflow whose subgraphs contain themselves fails at once** with a `subgraph-cycle` error that names them. Before, the import never returned. Nested subgraphs that would expand to more than 100,000 nodes fail with a `subgraph-too-large` error.
+- **Fixed: a very long chain of nodes with a missing required input** gives the `missing-required-input` error and no longer a stack overflow. Importing a large workflow is also faster.
+
 ## 2.18.0
 
 - **Installs work on current ComfyUI-Manager.** `manager.installModel` and `manager.installPlugin` go through the Manager's install queue on every Manager generation: the legacy custom node (V3.x) and the pip Manager 4.x, with its default UI or its legacy UI. Before, they called routes that Managers no longer serve and always resolved `false`. Both now resolve only when the Manager ran the install and the result is checked, so a large model can take minutes. `timing.installTimeoutMs` (default 1 hour) bounds the wait. A refused install logs the route and what the host said, and a refusal by the Manager 4.x security policy names the settings it wants.
