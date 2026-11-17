@@ -6,5 +6,8 @@ export const ComfyManagerAPIModelList_ark = type({
    models: type({
       name: type.string.as<KnownModel_Name>(),
       installed: `'False' | 'True' | 'Update'`,
+      'filename?': 'string',
+      'save_path?': 'string',
+      'base?': 'string',
    }).array(),
 })
