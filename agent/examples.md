@@ -192,6 +192,7 @@ Wave 3 — families the regenerated catalog runs (files the earlier sweeps found
 | family     | mode | template                          |
 | ---------- | ---- | --------------------------------- |
 | mage-flow  | t2i  | `image_mage_flow_t2i_int8`        |
+| mage-flow  | i2i  | `image_mage_flow_edit_int8` (width and height 0 = the reference's size, in place of the template's GetImageSize switches) |
 
 ## Skipped (exhaustive, with reasons)
 
