@@ -1,5 +1,20 @@
 # comfy-ts
 
+## 2.18.0
+
+- **Installs work on current ComfyUI-Manager.** `manager.installModel` and `manager.installPlugin` go through the Manager's install queue on every Manager generation: the legacy custom node (V3.x) and the pip Manager 4.x, with its default UI or its legacy UI. Before, they called routes that Managers no longer serve and always resolved `false`. Both now resolve only when the Manager ran the install and the result is checked, so a large model can take minutes. `timing.installTimeoutMs` (default 1 hour) bounds the wait. A refused install logs the route and what the host said, and a refusal by the Manager 4.x security policy names the settings it wants.
+- **Plugin and model status on every Manager.** `fetchPlugins`, `fetchModels`, `isPluginInstalled`, `getPluginStatus`, `isModelInstalled` and `getModelStatus` work again on Manager V3.x, whose list changed shape, and now on the Manager 4.x default UI, which serves no list: there the view is built from what the host has installed and the bundled registry. A pack or a model the host cannot decide reads `unknown`, never a wrong answer. On the 4.x default UI `update-available` is never reported.
+- **`manager.api()` says which Manager the host runs**: `{ generation: 'v3' | 'v4-legacy-ui' | 'v4', version }`.
+- **Dynamic group inputs are typed.** ComfyUI 0.45 adds `COMFY_DYNAMICGROUP_V3` inputs, used by `LoadLoraModel.loras` and `LoadLoraTextEncoder.loras`. The generated sdk types them as a list of rows with at least one row, `b.LoadLoraModel({ model, loras: [{ lora_name, strength }] })`, and a workflow that uses them imports and exports the way the editor saves it. Before, these nodes could not be built from typed code.
+- **An interrupted run settles.** `execution.done` now resolves as a failure when the server interrupts the run. Before, it never resolved.
+- **No noise for events a server sends by design.** Asset seeding, agent status and Manager queue events are ignored by name. A type that is really unknown prints one error per type per connection, not one per frame.
+- **`toWorkflowJson` exports dynamic combos and widgets fed by a link** as the editor saves them. Before, a dynamic combo became an empty slot, and a widget fed by a link lost its value, which shifted every widget after it on the next import.
+- **Official templates import more exactly.** A seed inside a dynamic combo no longer shifts the widgets after it (every `TextGenerate` node was affected). Widget inputs of custom types such as `BOUNDING_BOXES` and `COLORS` keep their value. A subgraph widget that feeds a slot input reaches the prompt. A workflow file with a text `last_node_id` or empty slot fields loads. When every output of a converted workflow misses a required input the import throws, and when only some do it warns and names the outputs ComfyUI will skip.
+- **A host whose node sends a three part input spec connects without a schema error.**
+- **Fresh data.** The bundled Manager registry lists 6054 node packs and 565 models. The Comfy Cloud catalog in `examples/comfy-cloud/sdk.d.ts` has 3893 node types.
+- **24 new cloud examples**: mage-flow (text and image to image, base and turbo), minimax-h3, ltx2 and ltx23 (text and image to video), netayume, hidream-o1 (text and image to image), chronoedit, ace-step15 and stable-audio3 (text to audio), boogu text to image, krea2 image to image, and model variants of z-image, qwen-image, anima, ernie, flux1 and flux2.
+- **Changed: `manager.configureLogging` throws when the host does not serve its route.** No current Manager serves it. Before, it returned the error page as text.
+
 ## 2.17.1
 
 - **`comfy-ts serve` on a taken port exits at once.** It prints one line naming the port, the bind and the process that holds it, then exits with code 1. Before, it hung at full CPU and held no port. The serving banner now prints only once the socket listens.
