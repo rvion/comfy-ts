@@ -194,6 +194,7 @@ Wave 3 — families the regenerated catalog runs (files the earlier sweeps found
 | qwen-image | t2i  | `image_qwen_Image_2512` → `qwen-image-t2i-2512` (50 steps, cfg 4; the off Lightning lora branch drops) |
 | z-image    | t2i  | `image_z_image` → `z-image-t2i-base` (undistilled: 25 steps, cfg 4, a real negative) |
 | ace-step15 | t2a  | `audio_ace_step_1_5_split` (the `model` choice adds `audio_ace_step1_5_xl_{turbo,sft,base}`, each with its template's steps, cfg, top_p and 4b lm encoder; local twin: rvion 13) |
+| anima      | t2i  | `image_anima_base_v1` → `anima-t2i-base` (euler, 30 steps, cfg 4; the off turbo lora branch drops) |
 | boogu      | t2i  | `image_boogu_image_0_1_turbo_t2i` (new mode of the Wave 2 boogu family) |
 | krea2      | i2i  | `image_krea2_turbo_int8_image_style_reference` (new mode of the Wave 2 krea2 family: the input is a STYLE reference through the style lora; the off-by-default prompt rewrite drops) |
 | chronoedit | i2i  | `image_chrono_edit_14B` (the template's default: distill lora off, 20 steps cfg 4; the lora branch and its step and cfg switches drop) |
@@ -214,7 +215,7 @@ Wave 3 — families the regenerated catalog runs (files the earlier sweeps found
 ## Skipped (exhaustive, with reasons)
 
 - **Every `api_*` family** — API nodes proxy external providers, billed per call on top of compute; not the local-model zoo: Nano Banana (all), Google/ Gemini (all), GPT-Image/OpenAI/ChatGPT, Claude, Grok, Kimi, OpenRouter, Kling (2.6/3.0/O1/O3), Seedance (1.0/1.5/2.0), Seedream (4.0/4.5/5.0), Seed 2.0, Seed Audio, ByteDance, Vidu (Q1/Q2/Q3), Veo, Luma (+UNI-1), Runway, PixVerse, MiniMax, Wan2.5/2.6/2.7, Recraft, Reve, Magnific, Topaz, HitPaw, BRIA, ElevenLabs, HeyGen, Sync 3, Tripo (+P1), Rodin, Meshy, SwitchX, HappyHorse, WaveSpeed, Sonilo, Quiver, Reimagine, FlashVSR, Real-ESRGAN, ideogram API rows.
-- **flux2 klein 9b fp8 / 9b-kv fp8, anima base v1** — those variants' files absent (families still covered via other variants).
+- **flux2 klein 9b fp8 / 9b-kv fp8** — those variants' files absent (family still covered via other variants).
 - **3D families** (Hunyuan3D local, MoGe, TripoSplat) — output mode outside t2i/i2i/t2v/i2v.
 - **Utility/control families** (SAM3, DWPose, Depth Anything v2/v3, SDPose-OOD, BiRefNet, Mediapipe, LivePortrait, FILM, RIFE, SUPIR, SeedVR2, PiD, Lotus depth) — not generation modes.
 - **Specialty video variants** (wan2.2 Animate, Wan2.1 VACE/InfiniteTalk/ SCAIL/ATI/wanmove/causal-forcing, HuMo, animate-diff/IP Adapter, Bernini-R, VOID, SCAIL-2) — control-driven or niche variants of covered families; candidates for later waves, not zoo core.
