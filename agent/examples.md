@@ -191,6 +191,7 @@ Wave 3 — families the regenerated catalog runs (files the earlier sweeps found
 
 | family     | mode | template                          |
 | ---------- | ---- | --------------------------------- |
+| z-image    | t2i  | `image_z_image` → `z-image-t2i-base` (undistilled: 25 steps, cfg 4, a real negative) |
 | ace-step15 | t2a  | `audio_ace_step_1_5_split` (the `model` choice adds `audio_ace_step1_5_xl_{turbo,sft,base}`, each with its template's steps, cfg, top_p and 4b lm encoder; local twin: rvion 13) |
 | boogu      | t2i  | `image_boogu_image_0_1_turbo_t2i` (new mode of the Wave 2 boogu family) |
 | krea2      | i2i  | `image_krea2_turbo_int8_image_style_reference` (new mode of the Wave 2 krea2 family: the input is a STYLE reference through the style lora; the off-by-default prompt rewrite drops) |
