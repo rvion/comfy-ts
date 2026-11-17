@@ -198,6 +198,7 @@ Wave 3 — families the regenerated catalog runs (files the earlier sweeps found
 | ltx2       | i2v  | `video_ltx2_i2v` (same two passes, the start image pinned in both; the template's two ResizeImageMaskNode become ImageScale center crop + ImageScaleToMaxDimension 1536 area, the COMFY_MATCHTYPE_V3 typing gap ltx25-i2v describes) |
 | ltx23      | t2v  | `video_ltx2_3_t2v` (dev fp8 + distilled lora at 0.5, cfg 1 on both passes; the template's bypassed LTXVImgToVideoInplace chain on an EmptyImage is a no-op in t2v and drops; its prompt enhancer, on by default, is the `enhance` toggle) |
 | ltx23      | i2v  | `video_ltx2_3_i2v` (start image at strength 0.7 then 1; same resize stand ins as ltx2-i2v; the enhancer is off in this template, so `enhance` defaults off) |
+| netayume   | t2i  | `image_netayume_lumina_t2i` (the two fixed system prompt prefixes join the prompt in the build, in place of the template's StringConcatenate nodes) |
 
 ## Skipped (exhaustive, with reasons)
 
