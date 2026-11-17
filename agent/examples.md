@@ -201,6 +201,7 @@ Wave 3 — families the regenerated catalog runs (files the earlier sweeps found
 | krea2      | i2i  | `image_krea2_turbo_int8_image_style_reference` (new mode of the Wave 2 krea2 family: the input is a STYLE reference through the style lora; the off-by-default prompt rewrite drops) |
 | chronoedit | i2i  | `image_chrono_edit_14B` (the template's default: distill lora off, 20 steps cfg 4; the lora branch and its step and cfg switches drop) |
 | flux1      | t2i  | `flux1_krea_dev` → `flux1-t2i-krea` (same graph as flux1-t2i, the Krea Dev fp8 weights) |
+| flux2      | t2i  | `image_flux2_text_to_image` → `flux2-t2i-dev` (FLUX.2 Dev: BasicGuider + FluxGuidance 4, mistral 3 small encoder; the off turbo lora branch drops) |
 | hidream-o1 | t2i  | `image_hidream_o1` (the template's default state: its reference-image branch and its gemma prompt rewrite are switched off and drop; the trained sizes ride in the size var comment) |
 | hidream-o1 | i2i  | `image_hidream_o1_dev` (the dev template defaults to its reference branch; the latent size comes from the reference image's metadata floored to 32 in the build, in place of GetImageSize + two ComfyMathExpression) |
 | stable-audio3 | t2a | `audio_stable_audio_3_medium` (the reprompt branch is on in the template and is the `reprompt` toggle; its system prompts come from `examples/rvion/stableAudio3Prompts.ts`, shared with rvion 12; the string assembly nodes become that helper) |
