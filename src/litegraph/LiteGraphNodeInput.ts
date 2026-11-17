@@ -7,7 +7,7 @@ export type LiteGraphNodeInput = {
    type: string //                  | 'CLIP'
    link?: LiteGraphLinkID | null // | 5 (widget-backed inputs omit the key)
    shape?: number //                | 7
-   label?: string //                | 'select'
+   label?: string | null //         | 'select' (null in the official fibo2 templates)
    widget?: {
       name: string //               | 'select'
       config?: unknown //           | 2022-era serializer only, gone since
@@ -19,7 +19,7 @@ export const LiteGraphNodeInput_ark = type({
    type: 'string',
    'link?': LiteGraphLinkID_.or(type.null),
    'shape?': 'number',
-   'label?': 'string',
+   'label?': type.string.or(type.null),
    'widget?': type({
       name: 'string',
       'config?': 'unknown',

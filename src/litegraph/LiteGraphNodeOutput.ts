@@ -8,7 +8,7 @@ export type LiteGraphNodeOutput = {
    type: string // 'CONDITIONING'
    links?: LiteGraphLinkID[] | null // unconnected outputs may omit the key
    shape?: number // '2D'
-   slot_index?: LiteGraphSlotIndex
+   slot_index?: LiteGraphSlotIndex | null // the official fibo2 templates write null
 }
 
 export const LiteGraphNodeOutput_ark = type({
@@ -16,7 +16,7 @@ export const LiteGraphNodeOutput_ark = type({
    type: 'string',
    'links?': LiteGraphLinkID_.array().or(type.null),
    'shape?': 'number',
-   'slot_index?': LiteGraphSlotIndex_,
+   'slot_index?': LiteGraphSlotIndex_.or(type.null),
 })
 
 true satisfies IsEqual<LiteGraphNodeOutput, typeof LiteGraphNodeOutput_ark.infer>

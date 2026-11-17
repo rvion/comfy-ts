@@ -2,6 +2,8 @@ import { describe, expect, it } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { type } from 'arktype'
 import { LiteGraphJSON_ark } from 'src/litegraph/LiteGraphJSON.ts'
+import { LiteGraphNodeInput_ark } from 'src/litegraph/LiteGraphNodeInput.ts'
+import { LiteGraphNodeOutput_ark } from 'src/litegraph/LiteGraphNodeOutput.ts'
 import { printArkResultInConsole } from 'src/utils/printArkResultInConsole.ts'
 import { parseWorkflowJson } from 'src/litegraph/normalizeWorkflow.ts'
 import { ComfySchema } from 'src/sdk-generator/ComfySchema.ts'
@@ -28,6 +30,16 @@ describe('LiteGraphJSON arktype schema', () => {
       const root = { nodes: [], links: [], version: 0.4, last_link_id: 0 }
       expect(LiteGraphJSON_ark({ ...root, last_node_id: 298 })).not.toBeInstanceOf(type.errors)
       expect(LiteGraphJSON_ark({ ...root, last_node_id: '298' })).not.toBeInstanceOf(type.errors)
+   })
+
+   // why we think it is actually a bug, and not just meaning spec should change: the official fibo2 edit templates write null for every unset slot field (output slot_index, input label) and the frontend opens them, so our tolerant schema must read null as absent
+   it('accepts null slot fields, the way the official fibo2 templates serialize them', () => {
+      const output = { name: 'MODEL', type: 'MODEL', links: [1] }
+      expect(LiteGraphNodeOutput_ark({ ...output, slot_index: 0 })).not.toBeInstanceOf(type.errors)
+      expect(LiteGraphNodeOutput_ark({ ...output, slot_index: null })).not.toBeInstanceOf(type.errors)
+      const input = { name: 'model', type: 'MODEL', link: 1 }
+      expect(LiteGraphNodeInput_ark({ ...input, label: 'model' })).not.toBeInstanceOf(type.errors)
+      expect(LiteGraphNodeInput_ark({ ...input, label: null })).not.toBeInstanceOf(type.errors)
    })
 })
 
