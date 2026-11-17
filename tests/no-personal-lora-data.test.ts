@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
-import { execFileSync } from 'node:child_process'
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
-import { basename, join } from 'pathe'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
+import { basename } from 'pathe'
+import { shippedTexts, trackedFiles, type ShippedText } from 'tests/shippedFiles.ts'
 
 /**
  * A lora-manager sweep describes ONE machine's model collection: absolute disk
@@ -28,59 +28,13 @@ const SYNTHETIC = 'tests/fixtures/lm-loras-list.synthetic.json'
 /** a hand-written fixture documents a handful of CASES; past this it is a collection */
 const MAX_INVENTORY_ENTRIES = 20
 
-let trackedMemo: string[] | null = null
-function trackedFiles(): string[] {
-   trackedMemo ??= execFileSync('git', ['ls-files'], { encoding: 'utf8' })
-      .split('\n')
-      .filter((f) => f !== '')
-   return trackedMemo
-}
-
 /**
- * npm packs by package.json's `files` whitelist and never consults git, so a
- * file that is merely UNTRACKED still ships. Scanning only `git ls-files` would
- * leave that hole open: walk every packed tree from disk too. `dist/` is the
- * sharpest case — gitignored AND published, so neither half of the union saw it.
+ * every tracked or packed file (tests/shippedFiles.ts owns the walk), this guard left out.
+ * NO content exemptions: a big file is the worst case, not the exempt one. The upstream
+ * manager catalogs (~3MB each) are scanned like everything else and pass.
  */
-function packedSourceFiles(): string[] {
-   const out: string[] = []
-   const walk = (dir: string): void => {
-      for (const entry of readdirSync(dir, { withFileTypes: true })) {
-         const full = join(dir, entry.name)
-         if (entry.isDirectory()) {
-            if (entry.name !== 'node_modules') walk(full)
-         } else out.push(full)
-      }
-   }
-   for (const root of ['src', 'examples', 'dist']) if (existsSync(root)) walk(root)
-   return out
-}
-
-let scannedMemo: { file: string; text: string }[] | null = null
-/** every tracked or packed file readable as text, read ONCE for every scan below */
-function scannedTexts(): { file: string; text: string }[] {
-   if (scannedMemo != null) return scannedMemo
-   const out: { file: string; text: string }[] = []
-   for (const file of new Set([...trackedFiles(), ...packedSourceFiles()])) {
-      if (file === SELF) continue
-      let stat: { size: number }
-      try {
-         stat = statSync(file)
-      } catch {
-         continue // deleted but still indexed
-      }
-      // NO content exemptions: a big file is the worst case, not the exempt one.
-      // The upstream manager catalogs (~3MB each) are scanned like everything
-      // else and pass. The cap only skips what is too large to read as text.
-      if (stat.size > 40_000_000) continue
-      try {
-         out.push({ file, text: readFileSync(file, 'utf8') })
-      } catch {
-         continue // binary
-      }
-   }
-   scannedMemo = out
-   return out
+function scannedTexts(): ShippedText[] {
+   return shippedTexts().filter((t) => t.file !== SELF)
 }
 
 describe('no captured lora inventory is tracked by git', () => {
