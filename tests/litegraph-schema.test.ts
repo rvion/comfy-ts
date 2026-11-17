@@ -22,6 +22,13 @@ describe('LiteGraphJSON arktype schema', () => {
    it('accepts the advanced example workflow', () => {
       expect(validate('tests/fixtures/ComfyUI-Workflow-2024-11-14-Advanced.json')).not.toBeInstanceOf(type.errors)
    })
+
+   // why we think it is actually a bug, and not just meaning spec should change: the frontend types last_node_id as a NodeId (number | string), and the official ComfyUI blueprints ship it as a string ("298"), so a file the frontend opens fails our tolerant schema
+   it('accepts last_node_id as a string, the way the official blueprints serialize it', () => {
+      const root = { nodes: [], links: [], version: 0.4, last_link_id: 0 }
+      expect(LiteGraphJSON_ark({ ...root, last_node_id: 298 })).not.toBeInstanceOf(type.errors)
+      expect(LiteGraphJSON_ark({ ...root, last_node_id: '298' })).not.toBeInstanceOf(type.errors)
+   })
 })
 
 describe('litegraph -> api conversion (real saved workflows)', () => {

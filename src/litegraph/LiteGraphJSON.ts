@@ -18,7 +18,7 @@ export type ComfyWorkflowJSON = LiteGraphJSON
 export type LiteGraphJSON = {
    id?: string // uuid (newer serializers)
    revision?: number
-   last_node_id?: number // v0.4 (recomputable, absent in v1)
+   last_node_id?: number | string // v0.4 (recomputable, absent in v1), a NodeId: the official blueprints write a string
    last_link_id?: number // v0.4
    state?: Record<string, unknown> // v1: {lastNodeId, lastLinkId, …}
    nodes: LiteGraphNode[]
@@ -41,7 +41,7 @@ export type LiteGraphJSON = {
 export const LiteGraphJSON_ark = type({
    'id?': 'string',
    'revision?': 'number',
-   'last_node_id?': 'number',
+   'last_node_id?': 'number | string',
    'last_link_id?': 'number',
    'state?': type.Record('string', 'unknown'),
    nodes: LiteGraphNode_ark.array(),
