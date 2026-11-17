@@ -1,0 +1,9 @@
+{
+   "name": "comfy-ts",
+   "description": "Claude Code skills for comfy-ts, the typed TypeScript SDK for ComfyUI: set up a host, write a workflow, convert a ComfyUI JSON, run a generation",
+   "author": { "name": "rvion", "url": "https://github.com/rvion" },
+   "homepage": "https://github.com/rvion/comfy-ts",
+   "repository": "https://github.com/rvion/comfy-ts",
+   "license": "MIT",
+   "keywords": ["comfyui", "typescript", "sdk", "workflow", "generative-ai"]
+}

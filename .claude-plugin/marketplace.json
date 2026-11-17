@@ -1,0 +1,13 @@
+{
+   "name": "comfy-ts",
+   "description": "The comfy-ts plugin: Claude Code skills for the typed TypeScript SDK for ComfyUI",
+   "owner": { "name": "rvion", "url": "https://github.com/rvion" },
+   "plugins": [
+      {
+         "name": "comfy-ts",
+         "source": "./claude-code",
+         "description": "Set up comfy-ts, write a workflow, convert a ComfyUI JSON, run a generation",
+         "category": "development"
+      }
+   ]
+}
