@@ -573,4 +573,4 @@ comfy-ts is free, MIT, and maintained for the long run. If it saves you time or 
 
 ## License
 
-MIT © [Rémi Vion](https://github.com/rvion)
+MIT © [rvion](https://github.com/rvion)
