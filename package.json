@@ -63,6 +63,7 @@
       "extra",
       "README.md",
       "guide-for-agents.md",
+      "claude-code",
       "LICENSE"
    ],
    "scripts": {

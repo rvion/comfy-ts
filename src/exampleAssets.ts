@@ -12,6 +12,15 @@ import { dirname, join } from 'pathe'
  * package.json all the way up is a broken install and throws.
  */
 export function bundledExamplesDir(moduleUrl: string = import.meta.url): string | null {
+   const pkgDir = comfyTsPackageDir(moduleUrl)
+   if (pkgDir == null) return null
+   const examples = join(pkgDir, 'examples')
+   return existsSync(examples) ? examples : null
+}
+
+/** the comfy-ts package root (the folder of its package.json), by the same walk: null when the
+ * nearest named package is another one, a throw when no package.json is found at all */
+export function comfyTsPackageDir(moduleUrl: string = import.meta.url): string | null {
    let dir = dirname(fileURLToPath(moduleUrl))
    let prev = ''
    while (dir !== prev) {
@@ -24,10 +33,7 @@ export function bundledExamplesDir(moduleUrl: string = import.meta.url): string 
             // a malformed package.json on the walk (someone's broken fixture
             // dir) must not take the whole TUI down; treat as unnamed
          }
-         if (pkg.name === 'comfy-ts') {
-            const examples = join(dir, 'examples')
-            return existsSync(examples) ? examples : null
-         }
+         if (pkg.name === 'comfy-ts') return dir
          if (pkg.name != null) return null
       }
       prev = dir

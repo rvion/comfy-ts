@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url'
 import { runGen } from 'src/cli/gen.ts'
 import { runLoras } from 'src/cli/loras.ts'
 import { runOutline } from 'src/cli/outline.ts'
+import { runSkill } from 'src/cli/skill.ts'
 
 const HELP = `comfy-ts — typed SDK codegen for ComfyUI
 
@@ -48,6 +49,12 @@ Usage:
          dir keeps the server's names). \`comfy-ts run <name> --help\` lists the vars,
          \`comfy-ts run\` lists the modules. --json prints one line with the paths
 
+   comfy-ts skill install [--user | --dir <skills-dir>] [--force]
+         copy the comfy-ts Claude Code skills into .claude/skills/ of the cwd
+         (--user: your personal skills folder): /comfy-ts-guide, -setup,
+         -workflow, -convert, -run. A file you edited is never overwritten
+         without --force. \`comfy-ts skill --help\` says more
+
    comfy-ts help
 `
 
@@ -56,6 +63,7 @@ async function main(): Promise<number> {
    if (cmd === 'gen') return runGen(rest)
    if (cmd === 'outline') return runOutline(rest)
    if (cmd === 'loras') return runLoras(rest)
+   if (cmd === 'skill') return runSkill(rest)
    if (cmd === 'tui' || cmd === 'serve' || cmd === 'run') {
       // .cflow.ts workflow modules need bun: node refuses to strip types under
       // node_modules, exactly where the packaged examples live — and the bin's

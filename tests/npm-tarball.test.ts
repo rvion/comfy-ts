@@ -82,5 +82,8 @@ describe('npm tarball', () => {
       // bundled audio + video inputs: the media-var examples default to these
       expect(paths).toContain('examples/media/sine_440hz_3s.flac')
       expect(paths).toContain('examples/media/testsrc_256x256_3s.mp4')
+      // `comfy-ts skill install` copies the Claude Code skills from the package's own plugin folder
+      expect(paths).toContain('claude-code/skills/guide/SKILL.md')
+      expect(paths).toContain('claude-code/.claude-plugin/plugin.json')
    })
 })
