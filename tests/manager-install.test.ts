@@ -116,6 +116,8 @@ class FakeManager {
    outcome: 'success' | 'error' = 'success'
    neverDrains = false
    refuseModel: string | null = null
+   failMessages = ['Model installation error: boom']
+   exitingWorker = false
    coreFiles: Record<string, string[]> = { vae_approx: [], checkpoints: [], diffusers: [], loras: [] }
 
    constructor(public gen: ManagerGeneration | 'none') {}
@@ -125,14 +127,14 @@ class FakeManager {
    }
 
    drain(): void {
-      if (this.neverDrains) return
+      if (this.neverDrains || !this.processing) return
       for (const item of this.queue) {
          const ok = this.outcome === 'success'
          if (ok && item.kind === 'model') this.onDisk.add(String(item.body.filename))
          if (ok && item.kind === 'plugin')
             this.installed[String(item.body.id)] = { cnr_id: String(item.body.id), aux_id: null, enabled: true }
          this.history[item.uiId] = {
-            status: { status_str: ok ? 'success' : 'error', messages: ok ? [] : ['Model installation error: boom'] },
+            status: { status_str: ok ? 'success' : 'error', messages: ok ? [] : this.failMessages },
          }
       }
       this.queue = []
@@ -202,13 +204,26 @@ class FakeManager {
          return new Response('')
       }
       if (is('POST', `${pre}/manager/queue/start`)) {
+         // the real 4.2.2 worker lingers 4 s after a drain, then exits: a start in that window answers
+         // 201 "already running" and the task stays pending with no worker
+         if (this.exitingWorker) {
+            this.exitingWorker = false
+            return new Response('', { status: 201 })
+         }
          const started = !this.processing
          this.processing = true
          return new Response('', { status: started ? 200 : 201 })
       }
       if (is('GET', `${pre}/manager/queue/status`)) {
          this.drain()
-         return Response.json({ total_count: 0, done_count: 0, in_progress_count: 0, is_processing: this.processing })
+         const pending = this.queue.length
+         return Response.json({
+            total_count: pending,
+            done_count: 0,
+            in_progress_count: 0,
+            pending_count: pending,
+            is_processing: this.processing,
+         })
       }
       if (g === 'v4' && method === 'GET' && route.startsWith('/v2/manager/queue/history?ui_id=')) {
          this.drain()
@@ -275,6 +290,32 @@ describe('installModel', () => {
       const r = await capturingErrors(() => box.manager().installModel(model))
       expect(r.value).toBe(false)
       expect(r.errors).toContain('the Manager reports error: Model installation error: boom')
+   })
+
+   it('4.x: a bare `failed` is the security gate, and the log says which settings it wants', async () => {
+      // what a real 4.2.2 answers on a server listening beyond localhost with network_mode public
+      const box = new FakeManager('v4')
+      box.outcome = 'error'
+      box.failMessages = ['failed']
+      const r = await capturingErrors(() => box.manager().installModel(model))
+      expect(r.value).toBe(false)
+      expect(r.errors).toContain('the Manager reports error: failed')
+      expect(r.errors).toContain('refused by its security policy')
+      expect(r.errors).toContain('network_mode personal_cloud')
+   })
+
+   it('4.x: a start that lands while the worker exits leaves the task pending, so the client starts again', async () => {
+      const box = new FakeManager('v4')
+      box.exitingWorker = true
+      expect(await box.manager().installModel(model)).toBe(true)
+      expect(box.routes().filter((r) => r === 'POST /v2/manager/queue/start').length).toBe(2)
+   })
+
+   it('V3: the same race: idle with work queued is started again, not read as a failed install', async () => {
+      const box = new FakeManager('v3')
+      box.exitingWorker = true
+      expect(await box.manager().installModel(model)).toBe(true)
+      expect(box.routes().filter((r) => r === 'POST /manager/queue/start').length).toBe(2)
    })
 
    it('V3: a drained queue without the file on disk is a failure, not a success', async () => {

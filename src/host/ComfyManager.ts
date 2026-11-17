@@ -86,7 +86,12 @@ type ManagerStrategy = {
    settle: (what: string, uiId: string, landed: () => Promise<boolean>) => Promise<void>
 }
 
-const QueueStatus_ark = type({ is_processing: 'boolean' })
+const QueueStatus_ark = type({
+   is_processing: 'boolean',
+   'pending_count?': 'number',
+   'total_count?': 'number',
+   'done_count?': 'number',
+})
 const TaskHistory_ark = type({
    history: { 'status?': { status_str: 'string', 'messages?': 'string[]' }, 'result?': 'string' },
 })
@@ -516,18 +521,39 @@ export class ComfyManager {
    /** v4: the task's own history entry says how it ended */
    private settleByHistory = async (api: ManagerApi, what: string, uiId: string): Promise<void> => {
       const route = this.route(api, '/manager/queue/history', `?ui_id=${encodeURIComponent(uiId)}`)
-      const entry = await this.waitFor(
-         what,
-         async () => (await this.getValid(route, TaskHistory_ark)).history.status ?? null,
-      )
-      if (entry.status_str !== 'success' && entry.status_str !== 'skip')
-         throw new Error(`the Manager reports ${entry.status_str}: ${(entry.messages ?? []).join(' | ')}`)
+      const entry = await this.waitFor(what, async () => {
+         const status = (await this.getValid(route, TaskHistory_ark)).history.status
+         if (status == null) await this.restartIdleQueue(api)
+         return status ?? null
+      })
+      if (entry.status_str === 'success' || entry.status_str === 'skip') return
+      const messages = entry.messages ?? []
+      // the 4.x worker answers a bare `failed` from its security gate only (4.2.2 and 4.4 source)
+      const gate =
+         messages.length === 1 && messages[0] === 'failed'
+            ? ': refused by its security policy, which allows installs only with security_level normal or below ' +
+              'AND either ComfyUI listening on localhost or network_mode personal_cloud (the ComfyUI console names the rule)'
+            : ''
+      throw new Error(`the Manager reports ${entry.status_str}: ${messages.join(' | ')}${gate}`)
+   }
+
+   /**
+    * a worker lingers a few seconds after a drain, then exits; a start in that window answers 201
+    * "already running" and leaves the new task pending with no worker (seen live on 4.2.2, same loop
+    * in V3 and 4.4). So an idle queue that still holds work is started again.
+    */
+   private restartIdleQueue = async (api: ManagerApi): Promise<'running' | 'restarted' | 'drained'> => {
+      const status = await this.getValid(this.route(api, '/manager/queue/status'), QueueStatus_ark)
+      if (status.is_processing) return 'running'
+      const waiting = status.pending_count ?? (status.total_count ?? 0) - (status.done_count ?? 0)
+      if (waiting <= 0) return 'drained'
+      await this.post(this.route(api, '/manager/queue/start'))
+      return 'restarted'
    }
 
    /** v3, v4 legacy ui: no per item result over http, so wait for the drain and look at the end state */
    private settleByDrain = async (api: ManagerApi, what: string, landed: () => Promise<boolean>): Promise<void> => {
-      const route = this.route(api, '/manager/queue/status')
-      await this.waitFor(what, async () => ((await this.getValid(route, QueueStatus_ark)).is_processing ? null : true))
+      await this.waitFor(what, async () => ((await this.restartIdleQueue(api)) === 'drained' ? true : null))
       if (!(await landed()))
          throw new Error(
             `the Manager queue drained but it is not installed; ComfyUI-Manager ${api.version} ` +
