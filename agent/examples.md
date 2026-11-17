@@ -191,6 +191,7 @@ Wave 3 — families the regenerated catalog runs (files the earlier sweeps found
 
 | family     | mode | template                          |
 | ---------- | ---- | --------------------------------- |
+| ace-step15 | t2a  | `audio_ace_step_1_5_split` (the `model` choice adds `audio_ace_step1_5_xl_{turbo,sft,base}`, each with its template's steps, cfg, top_p and 4b lm encoder; local twin: rvion 13) |
 | chronoedit | i2i  | `image_chrono_edit_14B` (the template's default: distill lora off, 20 steps cfg 4; the lora branch and its step and cfg switches drop) |
 | hidream-o1 | t2i  | `image_hidream_o1` (the template's default state: its reference-image branch and its gemma prompt rewrite are switched off and drop; the trained sizes ride in the size var comment) |
 | hidream-o1 | i2i  | `image_hidream_o1_dev` (the dev template defaults to its reference branch; the latent size comes from the reference image's metadata floored to 32 in the build, in place of GetImageSize + two ComfyMathExpression) |
