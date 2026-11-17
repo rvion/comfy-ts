@@ -118,6 +118,7 @@ class FakeManager {
    refuseModel: string | null = null
    failMessages = ['Model installation error: boom']
    exitingWorker = false
+   refuseBatch = false
    coreFiles: Record<string, string[]> = { vae_approx: [], checkpoints: [], diffusers: [], loras: [] }
 
    constructor(public gen: ManagerGeneration | 'none') {}
@@ -192,6 +193,10 @@ class FakeManager {
          for (const x of Array.isArray(list) ? list : [])
             this.queue.push({ uiId: String(record(x).ui_id), kind: 'plugin', body: record(x) })
          this.processing = true
+         if (this.refuseBatch) {
+            this.queue = []
+            return Response.json({ failed: ['comfyui-impact-pack'] })
+         }
          return Response.json({ failed: [] })
       }
       if (g === 'v4' && is('POST', '/v2/manager/queue/task')) {
@@ -397,6 +402,15 @@ describe('installPlugin', () => {
          },
       })
       expect(box.routes()).not.toContain('GET /v2/customnode/getlist')
+   })
+
+   it('4.x legacy ui: a refused batch names the ids and where the reason is (what a real 4.2.2 answers)', async () => {
+      const box = new FakeManager('v4-legacy-ui')
+      box.refuseBatch = true
+      const r = await capturingErrors(() => box.manager().installPlugin(plugin))
+      expect(r.value).toBe(false)
+      expect(r.errors).toContain('POST /v2/manager/queue/batch refused ["comfyui-impact-pack"]')
+      expect(r.errors).toContain('the batch reply carries ids only')
    })
 
    it('a pack the Manager does not list is refused before anything is queued', async () => {

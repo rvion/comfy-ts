@@ -189,7 +189,10 @@ export class ComfyManager {
                      const res = await this.post(route, { install: [body] })
                      const failed = typeof res === 'object' && res != null && 'failed' in res ? res.failed : null
                      if (Array.isArray(failed) && failed.length > 0)
-                        throw new Error(`POST ${route} refused ${JSON.stringify(failed)}`)
+                        throw new Error(
+                           `POST ${route} refused ${JSON.stringify(failed)}: the batch reply carries ids only, ` +
+                              `the ComfyUI console says why (a 4.x security policy refusal is the usual one)`,
+                        )
                   }),
                settle: (what, _uiId, landed) => this.settleByDrain(api, what, landed),
             }
