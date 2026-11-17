@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, it } from 'bun:test'
+import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
 import { mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'pathe'
@@ -7,15 +7,24 @@ import type { ComfyExecution } from 'src/runner/ComfyExecution.ts'
 import type { RunSettings } from 'src/runner/ComfyWorkflow.ts'
 import { ComfyTS } from 'src/state.ts'
 
-// ONE ComfyTS per process (global singleton) — all offline tests share it
+// ONE ComfyTS per process (global singleton): the files of a test worker share globals,
+// so this file takes the slot for its own run and gives the prior instance back after
+const globalHack = globalThis as { comfyts?: ComfyTS }
+let prior: ComfyTS | undefined
 let comfy: ComfyTS
 let host: ComfyHost<'test-host'>
 
 beforeAll(() => {
+   prior = globalHack.comfyts
+   Reflect.deleteProperty(globalThis, 'comfyts')
    comfy = new ComfyTS({ rootPath: mkdtempSync(join(tmpdir(), 'comfy-ts-test-')) })
    host = comfy.host({ id: 'test-host', host: '127.0.0.1', port: 65500 })
    const spec = JSON.parse(readFileSync('tests/fixtures/object_info.json', 'utf-8'))
    host.schema.update({ spec, embeddings: [] })
+})
+afterAll(() => {
+   Reflect.deleteProperty(globalThis, 'comfyts')
+   if (prior != null) globalHack.comfyts = prior
 })
 
 describe('offline workflow building', () => {
