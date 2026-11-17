@@ -7,6 +7,7 @@ import {
    containerInstanceSlotType,
    defaultValueForWidget,
    type InputWidgetKind,
+   type RawInputSpecEntry,
 } from 'src/sdk-generator/inputWidgetKind.ts'
 import { exhaust } from 'src/utils/exhaust.ts'
 import type { LiteGraphJSON } from 'src/litegraph/LiteGraphJSON.ts'
@@ -74,73 +75,92 @@ const convertNodeToLiteGraphNode = (ctx: LiteGraphCtx, node: ComfyNode<any>): Li
       const phantoms = kind.consumes - 1 - kind.prefixValues.length
       for (let i = 0; i < phantoms; i++) widgets_values.push(controlMode(opts))
    }
+   /** one input, the way the editor saves it: a widget writes its run (a linked one too, with
+    * its widget socket, since the editor serializes every widget), a dynamic combo its key then
+    * the selected branch inline, a group its row count then the rows, a slot its socket */
+   const writeInput = (p: {
+      name: string
+      kind: InputWidgetKind
+      typeName: string
+      opts: unknown
+      value: unknown
+   }): void => {
+      const where = `${node.$schema.nameInComfy}#${node.uid} "${p.name}"`
+      switch (p.kind.kind) {
+         case 'widget':
+            if (_isLink(p.value)) {
+               pushLinked(p.name, p.typeName, p.value, { widget: true })
+               pushWidgetRun(p.kind, defaultValueForWidget({ type: p.typeName, opts: p.opts }), p.opts)
+            } else pushWidgetRun(p.kind, p.value, p.opts)
+            return
+         case 'slot':
+            // an unconnected slot is a litegraph socket with no link, NEVER a widget value
+            if (_isLink(p.value)) pushLinked(p.name, p.typeName, p.value)
+            else inputs.push({ name: p.name, type: p.typeName, link: null })
+            return
+         case 'dynamic-combo': {
+            const kind = p.kind
+            const key = typeof p.value === 'string' ? p.value : kind.defaultKey
+            const option = kind.options.find((o) => o.key === key)
+            if (option == null) throw new Error(`🔴 [toWorkflowJson] ${where}: "${key}" is not one of its options`)
+            widgets_values.push(key)
+            for (const sub of option.inputs) writeSub(`${p.name}.${sub.name}`, sub)
+            return
+         }
+         case 'dynamic-container': {
+            // the declaration is never a slot: each grown instance is its own
+            // optional slot `decl.<instance>` (shape 7), as the editor stores it
+            const type = containerInstanceSlotType(p.opts) ?? '*'
+            for (const instance of p.kind.instanceNames) {
+               const name = `${p.name}.${instance}`
+               const value = node.json.inputs[name]
+               if (value == null) continue
+               const raw = node.serializeValue(name, value)
+               if (!_isLink(raw))
+                  throw new Error(
+                     `🔴 [toWorkflowJson] ${where}.${instance} holds a literal; an autogrow instance is a link slot in the editor`,
+                  )
+               pushLinked(name, type, raw, { shape: 7 })
+            }
+            return
+         }
+         case 'dynamic-group': {
+            // the editor's run: the row count, then each row's field runs (dynamicGroupWidget.ts)
+            const prefix = `${p.name}.`
+            let rows = 0
+            for (const key of Object.keys(node.json.inputs)) {
+               if (!key.startsWith(prefix)) continue
+               const row = Number(key.slice(prefix.length).split('.')[0])
+               if (Number.isInteger(row) && row >= rows) rows = row + 1
+            }
+            widgets_values.push(rows)
+            for (let row = 0; row < rows; row++)
+               for (const field of p.kind.fields) writeSub(`${prefix}${row}.${field.name}`, field)
+            return
+         }
+         default:
+            exhaust(p.kind)
+      }
+   }
+   /** a dotted input (dynamic combo branch, group row field): never a schema input, so its absent
+    * value is the widget's schema default rather than serializeValue's */
+   const writeSub = (name: string, sub: RawInputSpecEntry): void => {
+      const typeName = typeof sub.type === 'string' ? sub.type : 'COMBO'
+      const raw: unknown = node.json.inputs[name]
+      writeInput({
+         name,
+         kind: classifyWidgetInput({ name: sub.name, type: sub.type, opts: sub.opts }),
+         typeName,
+         opts: sub.opts,
+         value: raw === undefined ? defaultValueForWidget({ type: typeName, opts: sub.opts }) : raw,
+      })
+   }
    for (const ipt of node.$schema.inputs) {
       const kind = classifySchemaInput(ipt)
-      if (kind.kind === 'dynamic-group') {
-         // the editor's run: the row count, then each row's field runs; every row field is a
-         // widget, a linked one keeps its widget value AND gets its socket (dynamicGroupWidget.ts)
-         const prefix = `${ipt.nameInComfy}.`
-         let rows = 0
-         for (const key of Object.keys(node.json.inputs)) {
-            if (!key.startsWith(prefix)) continue
-            const row = Number(key.slice(prefix.length).split('.')[0])
-            if (Number.isInteger(row) && row >= rows) rows = row + 1
-         }
-         widgets_values.push(rows)
-         for (let row = 0; row < rows; row++) {
-            for (const field of kind.fields) {
-               const name = `${prefix}${row}.${field.name}`
-               const fieldKind = classifyWidgetInput({ name: field.name, type: field.type, opts: field.opts })
-               if (fieldKind.kind !== 'widget')
-                  throw new Error(
-                     `🔴 [toWorkflowJson] ${node.$schema.nameInComfy}#${node.uid} "${name}" is a ${fieldKind.kind}; a dynamic group row holds widgets only`,
-                  )
-               const typeName = typeof field.type === 'string' ? field.type : 'COMBO'
-               const value: unknown = node.json.inputs[name]
-               const fallback = defaultValueForWidget({ type: typeName, opts: field.opts })
-               if (_isLink(value)) {
-                  pushLinked(name, typeName, value, { widget: true })
-                  pushWidgetRun(fieldKind, fallback, field.opts)
-               } else pushWidgetRun(fieldKind, value ?? fallback, field.opts)
-            }
-         }
-         continue
-      }
-      if (kind.kind === 'dynamic-container') {
-         // the declaration is never a slot: each grown instance is its own
-         // optional slot `decl.<instance>` (shape 7), as the editor stores it
-         const type = containerInstanceSlotType(ipt.opts) ?? '*'
-         for (const instance of kind.instanceNames) {
-            const name = `${ipt.nameInComfy}.${instance}`
-            const value = node.json.inputs[name]
-            if (value == null) continue
-            const raw = node.serializeValue(name, value)
-            if (!_isLink(raw))
-               throw new Error(
-                  `🔴 [toWorkflowJson] ${node.$schema.nameInComfy}#${node.uid} "${name}" holds a literal; an autogrow instance is a link slot in the editor`,
-               )
-            pushLinked(name, type, raw, { shape: 7 })
-         }
-         continue
-      }
-      const raw = node.serializeValue(ipt.nameInComfy, node.json.inputs[ipt.nameInComfy])
-      if (_isLink(raw)) {
-         pushLinked(ipt.nameInComfy, ipt.typeName, raw)
-         continue
-      }
-      switch (kind.kind) {
-         case 'widget':
-            pushWidgetRun(kind, raw, ipt.opts)
-            break
-         case 'slot':
-         case 'dynamic-combo':
-            // unconnected link-kind input: a litegraph slot with no link —
-            // NEVER a widget value (that would misalign the round-trip import)
-            inputs.push({ name: ipt.nameInComfy, type: ipt.typeName, link: null })
-            break
-         default:
-            exhaust(kind)
-      }
+      // a dynamic input's own key is never a schema-default value: read it raw
+      const raw = node.json.inputs[ipt.nameInComfy]
+      const value = kind.kind === 'widget' || kind.kind === 'slot' ? node.serializeValue(ipt.nameInComfy, raw) : raw
+      writeInput({ name: ipt.nameInComfy, kind, typeName: ipt.typeName, opts: ipt.opts, value })
    }
    const outputs = node.$schema.outputs.map(
       (i, ix): LiteGraphNodeOutput => ({
