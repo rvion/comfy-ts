@@ -205,7 +205,7 @@ Wave 3 — families the regenerated catalog runs (files the earlier sweeps found
 | flux2      | i2i  | `image_flux2` → `flux2-i2i-dev` (FLUX.2 Dev edit: the reference at ~1MP through ReferenceLatent on the guided positive; the off turbo lora branch drops) |
 | hidream-o1 | t2i  | `image_hidream_o1` (the template's default state: its reference-image branch and its gemma prompt rewrite are switched off and drop; the trained sizes ride in the size var comment) |
 | hidream-o1 | i2i  | `image_hidream_o1_dev` (the dev template defaults to its reference branch; the latent size comes from the reference image's metadata floored to 32 in the build, in place of GetImageSize + two ComfyMathExpression) |
-| stable-audio3 | t2a | `audio_stable_audio_3_medium` (the reprompt branch is on in the template and is the `reprompt` toggle; its system prompts come from `examples/rvion/stableAudio3Prompts.ts`, shared with rvion 12; the string assembly nodes become that helper) |
+| stable-audio3 | t2a | `audio_stable_audio_3_medium` (the `model` choice adds `audio_stable_audio_3_medium_base`: 50 steps at cfg 7; the reprompt branch is on in the template and is the `reprompt` toggle; its system prompts come from `examples/rvion/stableAudio3Prompts.ts`, shared with rvion 12; the string assembly nodes become that helper) |
 | mage-flow  | t2i  | `image_mage_flow_t2i_int8`        |
 | mage-flow  | t2i  | `image_mage_flow_turbo_t2i_int8` → `mage-flow-t2i-turbo` (4 steps, cfg 1) |
 | mage-flow  | i2i  | `image_mage_flow_edit_int8` (width and height 0 = the reference's size, in place of the template's GetImageSize switches) |

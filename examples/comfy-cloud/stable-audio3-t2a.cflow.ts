@@ -1,5 +1,5 @@
-// stable-audio3 t2a on Comfy Cloud — Stable Audio 3 Medium, 8-step distilled text to audio: music, instruments, sound effects or one-shots
-// source template: audio_stable_audio_3_medium.json (official workflow-templates)
+// stable-audio3 t2a on Comfy Cloud — Stable Audio 3 Medium text to audio: music, instruments, sound effects or one-shots; distilled or base model
+// source template: audio_stable_audio_3_medium.json (official workflow-templates), the base choice follows audio_stable_audio_3_medium_base.json
 // needs COMFY_CLOUD_API_KEY (https://cloud.comfy.org, paid tiers)
 // note: audio outputs PERSIST on the host (upstream ships no websocket saver for audio — image examples stream ephemerally)
 // run directly:  bun examples/comfy-cloud/stable-audio3-t2a.cflow.ts ["prompt"] [seed]
@@ -10,6 +10,12 @@ import { cloudHost, requireCloudKey } from './cloudHost.ts'
 
 const host = await cloudHost()
 
+// each checkpoint with its own template's sampling: the distilled one runs 8 steps at cfg 1, the base one 50 at cfg 7
+const MODELS = {
+   medium: { ckpt: 'stable_audio_3_medium.safetensors', steps: 8, cfg: 1 },
+   'medium base': { ckpt: 'stable_audio_3_medium_base.safetensors', steps: 50, cfg: 7 },
+} as const
+
 export const stableAudio3T2a = host.defineWorkflow({
    id: 'stable-audio3-t2a',
    vars: {
@@ -18,13 +24,15 @@ export const stableAudio3T2a = host.defineWorkflow({
          'Tropical house track with marimba, steel drums, soft synths, smooth bass, layered percussion, and light piano riffs for sunny chill dance vibes',
       ),
       seed: v.seed(42),
+      model: v.choice(['medium', 'medium base'], 'medium', 'model'),
       category: v.choice(SA3_CATEGORIES, 'Music', 'category'),
       // on: a qwen3.5 2b first rewrites the description with the category's system prompt and the target length
       reprompt: v.toggle(true, 'reprompt'),
       seconds: v.float(150, { min: 1, max: 300 }),
    },
    build: (b, vars) => {
-      const ckpt = b.CheckpointLoaderSimple({ ckpt_name: 'stable_audio_3_medium.safetensors' })
+      const m = MODELS[vars.model]
+      const ckpt = b.CheckpointLoaderSimple({ ckpt_name: m.ckpt })
       const clip = b.CLIPLoader({ clip_name: 't5gemma_b_b_ul2.safetensors', type: 'stable_audio', device: 'default' })
 
       const text = vars.reprompt
@@ -53,15 +61,15 @@ export const stableAudio3T2a = host.defineWorkflow({
            }).outputs.generated_text
          : vars.prompt.positive
 
-      // distilled: 8 lcm steps at cfg 1, an empty negative
+      // lcm sampling against an empty negative
       const samples = b.KSampler({
          model: ckpt.outputs.MODEL,
          positive: b.CLIPTextEncode({ clip, text }),
          negative: b.CLIPTextEncode({ clip, text: '' }),
          latent_image: b.EmptyLatentAudio({ seconds: vars.seconds, batch_size: 1 }),
          seed: vars.seed,
-         steps: 8,
-         cfg: 1,
+         steps: m.steps,
+         cfg: m.cfg,
          sampler_name: 'lcm',
          scheduler: 'simple',
          denoise: 1,
