@@ -194,11 +194,11 @@ Wave 3 — families the regenerated catalog runs (files the earlier sweeps found
 | mage-flow  | t2i  | `image_mage_flow_t2i_int8`        |
 | mage-flow  | i2i  | `image_mage_flow_edit_int8` (width and height 0 = the reference's size, in place of the template's GetImageSize switches) |
 | minimax-h3 | t2i  | `image_minimax_h3_t2i` (the still-image template loads the fp16 video vae, which the cloud has; the H3 video templates stay skipped on the int8 vae; the off-by-default turbo lora branch drops) |
+| ltx2       | t2v  | `video_ltx2_t2v` (dev fp8 at cfg 4 over LTXVScheduler, then the distilled lora refine at x2; both passes share the seed noise where the template fixes the refine seed; the EmptyImage size helpers become the size var) |
 
 ## Skipped (exhaustive, with reasons)
 
 - **Every `api_*` family** — API nodes proxy external providers, billed per call on top of compute; not the local-model zoo: Nano Banana (all), Google/ Gemini (all), GPT-Image/OpenAI/ChatGPT, Claude, Grok, Kimi, OpenRouter, Kling (2.6/3.0/O1/O3), Seedance (1.0/1.5/2.0), Seedream (4.0/4.5/5.0), Seed 2.0, Seed Audio, ByteDance, Vidu (Q1/Q2/Q3), Veo, Luma (+UNI-1), Runway, PixVerse, MiniMax, Wan2.5/2.6/2.7, Recraft, Reve, Magnific, Topaz, HitPaw, BRIA, ElevenLabs, HeyGen, Sync 3, Tripo (+P1), Rodin, Meshy, SwitchX, HappyHorse, WaveSpeed, Sonilo, Quiver, Reimagine, FlashVSR, Real-ESRGAN, ideogram API rows.
-- **ltx2 / ltx2.3** (8 local templates) — `ltx-av-step-1751000_vocoder_24K.safetensors` absent from the cloud catalog unions.
 - **flux2 klein 9b fp8 / 9b-kv fp8, anima base v1** — those variants' files absent (families still covered via other variants).
 - **3D families** (Hunyuan3D local, MoGe, TripoSplat) — output mode outside t2i/i2i/t2v/i2v.
 - **Utility/control families** (SAM3, DWPose, Depth Anything v2/v3, SDPose-OOD, BiRefNet, Mediapipe, LivePortrait, FILM, RIFE, SUPIR, SeedVR2, PiD, Lotus depth) — not generation modes.
