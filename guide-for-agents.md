@@ -21,7 +21,7 @@ You are working in a project that uses `comfy-ts`, a type-safe ComfyUI companion
 
 4. Gitignore `.comfy-ts/` entirely. It is local state: host schema dumps (often ~10MB, they describe that machine's models and paths), run outputs, TUI drafts and settings, lora keywords, preview cache. Everything in it is regenerable. (Exception: a private repo may commit `hosts/` to get typed CI.)
 
-Before the first codegen the builder falls back to permissive base types, so code compiles either way. Types sharpen once a generated sdk.d.ts is in scope.
+Before the first codegen the builder falls back to permissive base types, so code compiles either way when `noUncheckedIndexedAccess` is off. With that flag on, every `b.Node(...)` call is an error until a generated sdk.d.ts is in scope, so run the codegen first. Types sharpen once the generated sdk is in scope.
 
 ## The workflow pattern: defineWorkflow + vars + build
 
