@@ -473,6 +473,21 @@ comfy-ts is built to be driven by agents as much as by people. After you install
 
 An agent then generates with one command and reads the output paths from one line of JSON: `bunx comfy-ts run <module> --<var> <value> --out <path> --json` ([the CLI](#%EF%B8%8F-the-cli)).
 
+For Claude Code, comfy-ts also ships slash commands: set up a host, write a workflow, convert a ComfyUI JSON, run a generation. Install them into your project from the package:
+
+```bash
+bunx comfy-ts skill install   # /comfy-ts-setup, /comfy-ts-workflow, /comfy-ts-convert, /comfy-ts-run, /comfy-ts-guide
+```
+
+Or, with no npm install, as a Claude Code plugin (in a Claude Code session):
+
+```
+/plugin marketplace add rvion/comfy-ts
+/plugin install comfy-ts@comfy-ts
+```
+
+Both carry the same skills, which read the guide above from the installed package. A rerun of `skill install` after an upgrade updates them and never overwrites a skill file you edited (`--force` does).
+
 ## 🔁 JSON, both ways
 
 - `workflow.toApiJson()`: the executable prompt format.

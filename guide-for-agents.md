@@ -97,7 +97,10 @@ bunx comfy-ts outline [file] [--section Name] [--lines N]  # inspect a sdk.d.ts
 bunx comfy-ts loras [--id <host-id>] [--host http://…]  # mirror lora metadata (optional ComfyUI-Lora-Manager extension)
 bunx comfy-ts tui [dir | module.cflow.ts]  # interactive tweak & re-run
 bunx comfy-ts run <name | module.cflow.ts> [--draft <name>] [--<var> <value>…] [--out <path>] [--json]  # one generation, headless
+bunx comfy-ts skill install [--user | --dir <skills-dir>] [--force]  # Claude Code skills for this project
 ```
+
+`comfy-ts skill install` gives Claude Code five slash commands in the project: `/comfy-ts-setup`, `/comfy-ts-workflow` (write a module), `/comfy-ts-convert` (a ComfyUI JSON into a module), `/comfy-ts-run` (one generation) and `/comfy-ts-guide` (questions, and the background Claude loads on its own). They follow this guide and never copy it. A rerun after an upgrade updates them, and a skill file you edited is kept unless you pass `--force`. Without npm, the same skills come as a Claude Code plugin: `/plugin marketplace add rvion/comfy-ts`, then `/plugin install comfy-ts@comfy-ts` (commands `/comfy-ts:setup` and so on).
 
 `comfy-ts run` is how an agent generates: the module is found in the cwd, then in the bundled examples, by key or a unique part of it (`folder/name` narrows, like `rvion/anima`). Every var is a flag (`--prompt "…" --seed 7 --image in.png`, `--<var>-file` reads a text var from a file), `--out` says where the output goes, and `--json` prints one line with every output path. `comfy-ts run <name> --help` lists the vars. Every flag is a var name the module declares. A media var declared with `sidecarText: someTextVar` fills that text var from `<file>.txt` beside the file it is given (a voice clip's transcript, example 15).
 
