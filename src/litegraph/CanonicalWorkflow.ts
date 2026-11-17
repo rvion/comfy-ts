@@ -51,6 +51,9 @@ export type CanonicalInput = {
    type: string
    link: LiteGraphLinkID | null // null = unconnected (incl. omitted key)
    widgetName: string | null // widget.name when widget-backed
+   /** an unlinked slot a subgraph input fed while that input had no outer link: it takes the
+    * value of the promoted widget, read from this sibling widget input (architecture.md) */
+   widgetSource: { nodeId: number; inputName: string } | null
 }
 
 export type CanonicalOutput = {

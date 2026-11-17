@@ -198,8 +198,10 @@ export const classifyWidgetInput = (p: {
       if (isRecord(template['required']) || isRecord(template['optional'])) return parseGroup(o, template)
       return { kind: 'slot' }
    }
-   // 7. socketless: a widget that never has a socket (IMAGECOMPARE, COLOR); value domain unknown
-   if (o?.['socketless'] === true) return { kind: 'widget', consumes: 1, strictValues: false, prefixValues: [] }
+   // 7. a socketless KEY, true or false: only a backend WidgetInput emits it (true = no socket,
+   // IMAGECOMPARE, COLOR; false = a socket too, BOUNDING_BOXES, COLORS); value domain unknown
+   if (typeof o?.['socketless'] === 'boolean')
+      return { kind: 'widget', consumes: 1, strictValues: false, prefixValues: [] }
    // 8. known empty-config frontend widgets (LOAD_3D), the one non-config exception
    const emptyConfigEntry = EMPTY_CONFIG_FRONTEND_WIDGETS[widgetTypeName]
    if (emptyConfigEntry != null)

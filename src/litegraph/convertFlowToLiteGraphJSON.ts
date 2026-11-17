@@ -149,7 +149,7 @@ const convertNodeToLiteGraphNode = (ctx: LiteGraphCtx, node: ComfyNode<any>): Li
       const raw: unknown = node.json.inputs[name]
       writeInput({
          name,
-         kind: classifyWidgetInput({ name: sub.name, type: sub.type, opts: sub.opts }),
+         kind: classifyWidgetInput({ name, type: sub.type, opts: sub.opts }),
          typeName,
          opts: sub.opts,
          value: raw === undefined ? defaultValueForWidget({ type: typeName, opts: sub.opts }) : raw,

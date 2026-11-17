@@ -196,6 +196,7 @@ const expandOneInstance = (wf: CanonicalWorkflow, instance: CanonicalNode, def: 
          type: i.type,
          link: i.link != null ? (newLinkIds.get(i.link) ?? null) : null,
          widgetName: i.widgetName,
+         widgetSource: i.widgetSource,
       })),
       outputs: inner.outputs.map((o) => ({
          name: o.name,
@@ -239,6 +240,19 @@ const expandOneInstance = (wf: CanonicalWorkflow, instance: CanonicalNode, def: 
 
    // 7. widget promotion (both serialization eras), then splice
    promoteInstanceWidgets(instance, def, splicedNodes, newNodeIds, boundaryTargetsByInSlot)
+   // 8. a subgraph input with no outer link resolves to its promoted widget (frontend
+   // ExecutableNodeDTO.resolveInput): its slot targets read that widget's value
+   for (const [slot, targets] of boundaryTargetsByInSlot) {
+      if (outerLinkIntoDefSlot.has(slot)) continue
+      const source = targets.find((t) => innerInputAt(splicedNodes, t)?.widgetName != null)
+      const sourceInput = source != null ? innerInputAt(splicedNodes, source) : null
+      if (source == null || sourceInput == null) continue
+      for (const t of targets) {
+         const input = splicedNodes.find((n) => n.id === t.nodeId)?.inputs[t.slot]
+         if (input == null || input.widgetName != null || input.link != null) continue
+         input.widgetSource = { nodeId: source.nodeId, inputName: sourceInput.name }
+      }
+   }
    wf.nodes = wf.nodes.filter((n) => n.id !== instance.id)
    wf.nodes.push(...splicedNodes)
    wf.links.push(...splicedLinks)

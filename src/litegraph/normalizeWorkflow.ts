@@ -100,6 +100,7 @@ const normalizeInput = (i: LiteGraphNodeInput): CanonicalInput => {
       type: i.type,
       link: i.link ?? null,
       widgetName: i.widget?.name ?? null,
+      widgetSource: null,
    }
 }
 

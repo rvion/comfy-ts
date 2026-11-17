@@ -237,7 +237,9 @@ export const convertLiteGraphToPrompt = (
       }
 
       const consumeBranchInput = (subPath: string, sub: RawInputSpecEntry): void => {
-         const kind = classifyWidgetInput({ name: sub.name, type: sub.type, opts: sub.opts })
+         // the frontend names a branch or row widget by its full dotted path, and the seed
+         // heuristic of the control phantom reads that name (architecture.md, rule 9)
+         const kind = classifyWidgetInput({ name: subPath, type: sub.type, opts: sub.opts })
          switch (kind.kind) {
             // slots and containers materialize as dotted serialized inputs, resolved as links in 2.b
             case 'slot':
@@ -314,6 +316,14 @@ export const convertLiteGraphToPrompt = (
                }
                break
             case 'slot':
+               // a value promoted onto a slot (io-widget era subgraph): the frontend sends the literal
+               if (input?.link == null && Object.hasOwn(named, field.nameInComfy)) {
+                  inputs[field.nameInComfy] = toPromptValue(named[field.nameInComfy], {
+                     promptName: field.nameInComfy,
+                     strict: false,
+                  })
+                  break
+               }
                if (!fieldNamesPresent.has(field.nameInComfy) && field.required)
                   throw new WorkflowConvertError(
                      'missing-required-input',
@@ -475,6 +485,60 @@ export const convertLiteGraphToPrompt = (
       }
 
       prompt[String(node.id)] = { inputs, class_type: node.type }
+   }
+
+   // 3. unlinked slots a subgraph input fed with no outer link take that input's promoted widget
+   // value, read from the sibling widget it also fed, once every node is converted
+   for (const node of workflow.nodes) {
+      const own = prompt[String(node.id)]
+      if (own == null) continue
+      for (const ipt of node.inputs) {
+         if (ipt.link != null || ipt.widgetSource == null || Object.hasOwn(own.inputs, ipt.name)) continue
+         const value = prompt[String(ipt.widgetSource.nodeId)]?.inputs[ipt.widgetSource.inputName]
+         if (value !== undefined) own.inputs[ipt.name] = value
+      }
+   }
+
+   // 4. a required plain input absent from the prompt. ComfyUI validates per OUTPUT node
+   // (execution.py validate_prompt): it runs the outputs whose upstream nodes are complete and
+   // rejects the prompt only when none is. Same here: a typed error when no output survives, a
+   // loud warning naming what ComfyUI will drop otherwise; never silent
+   const missing = new Map<string, { node: CanonicalNode; message: string }>()
+   for (const node of workflow.nodes) {
+      const own = prompt[String(node.id)]
+      const nodeSchema = schema.nodesByNameInComfy[node.type]
+      if (own == null || nodeSchema == null) continue
+      for (const field of nodeSchema.inputs) {
+         if (!field.required || Object.hasOwn(own.inputs, field.nameInComfy)) continue
+         const kind = classifySchemaInput(field).kind
+         if (kind !== 'slot' && kind !== 'widget') continue
+         missing.set(String(node.id), {
+            node,
+            message: `node ${node.id}(${node.type}): required input "${field.nameInComfy}" (${field.typeName}) is unlinked and no value covers it`,
+         })
+         break
+      }
+   }
+   if (missing.size > 0) {
+      const complete = (id: string, seen: Set<string>): boolean => {
+         if (seen.has(id)) return true
+         seen.add(id)
+         if (missing.has(id)) return false
+         for (const value of Object.values(prompt[id]?.inputs ?? {}))
+            if (Array.isArray(value) && typeof value[0] === 'string' && !complete(value[0], seen)) return false
+         return true
+      }
+      const outputs = Object.keys(prompt).filter(
+         (id) => schema.data.spec[prompt[id]?.class_type ?? '']?.output_node === true,
+      )
+      const dropped = outputs.filter((id) => !complete(id, new Set()))
+      const first = missing.values().next().value
+      if (first != null && outputs.length > 0 && dropped.length === outputs.length)
+         throw new WorkflowConvertError('missing-required-input', first.message, first.node)
+      if (dropped.length > 0 || outputs.length === 0)
+         console.warn(
+            `🟡 [workflow] ComfyUI will skip output node(s) ${dropped.join(', ') || '(none in this graph)'}: ${[...missing.values()].map((m) => m.message).join('; ')}`,
+         )
    }
 
    return prompt
