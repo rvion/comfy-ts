@@ -187,35 +187,35 @@ Wave 2 — long tail (same bar, lower priority):
 | wan22-5b   | t2v  | `video_wan2_2_5B_ti2v` (ti2v: doubles as i2v with a start image) |
 | chatterbox | t2a  | `audio-chatterbox_tts_multilingual` (swept 2026-07-30: converts clean; the template's LoadAudio voice-clone branch is dropped — its asset is absent from the cloud LoadAudio union and `audio_prompt` is optional, default voice fallback) |
 
-Wave 3 — families the regenerated catalog runs (files the earlier sweeps found absent, or templates no sweep took yet):
+Wave 3 — the regenerated catalog: new families (files the earlier sweeps found absent, or templates no sweep took yet), new modes of Wave 2 families, and the model variants the blueprint corpora name (a suffixed file, written `template → file`; a same-graph variant is a `model` choice instead):
 
 | family     | mode | template                          |
 | ---------- | ---- | --------------------------------- |
-| qwen-image | t2i  | `image_qwen_Image_2512` → `qwen-image-t2i-2512` (50 steps, cfg 4; the off Lightning lora branch drops) |
-| qwen-image | i2i  | `image_qwen_image_edit_2509` → `qwen-image-i2i-2509` (the template's Lightning lora is ON by default: 4 steps, cfg 1, shift 3; no reference latent method in 2509) |
-| z-image    | t2i  | `image_z_image` → `z-image-t2i-base` (undistilled: 25 steps, cfg 4, a real negative) |
 | ace-step15 | t2a  | `audio_ace_step_1_5_split` (the `model` choice adds `audio_ace_step1_5_xl_{turbo,sft,base}`, each with its template's steps, cfg, top_p and 4b lm encoder; local twin: rvion 13) |
 | anima      | t2i  | `image_anima_base_v1` → `anima-t2i-base` (euler, 30 steps, cfg 4; the off turbo lora branch drops) |
-| ernie      | t2i  | `image_ernie_image` → `ernie-t2i-base` (undistilled: 20 steps, cfg 4; the template's prompt enhancer, on by default, is the `enhance` toggle, its chat turn assembled in the build in place of three StringReplace) |
 | boogu      | t2i  | `image_boogu_image_0_1_turbo_t2i` (new mode of the Wave 2 boogu family) |
-| krea2      | i2i  | `image_krea2_turbo_int8_image_style_reference` (new mode of the Wave 2 krea2 family: the input is a STYLE reference through the style lora; the off-by-default prompt rewrite drops) |
 | chronoedit | i2i  | `image_chrono_edit_14B` (the template's default: distill lora off, 20 steps cfg 4; the lora branch and its step and cfg switches drop) |
+| ernie      | t2i  | `image_ernie_image` → `ernie-t2i-base` (undistilled: 20 steps, cfg 4; the template's prompt enhancer, on by default, is the `enhance` toggle, its chat turn assembled in the build in place of three StringReplace) |
 | flux1      | t2i  | `flux1_krea_dev` → `flux1-t2i-krea` (same graph as flux1-t2i, the Krea Dev fp8 weights) |
 | flux2      | t2i  | `image_flux2_text_to_image` → `flux2-t2i-dev` (FLUX.2 Dev: BasicGuider + FluxGuidance 4, mistral 3 small encoder; the off turbo lora branch drops) |
 | flux2      | i2i  | `image_flux2` → `flux2-i2i-dev` (FLUX.2 Dev edit: the reference at ~1MP through ReferenceLatent on the guided positive; the off turbo lora branch drops) |
 | hidream-o1 | t2i  | `image_hidream_o1` (the template's default state: its reference-image branch and its gemma prompt rewrite are switched off and drop; the trained sizes ride in the size var comment) |
 | hidream-o1 | i2i  | `image_hidream_o1_dev` (the dev template defaults to its reference branch; the latent size comes from the reference image's metadata floored to 32 in the build, in place of GetImageSize + two ComfyMathExpression) |
-| stable-audio3 | t2a | `audio_stable_audio_3_medium` (the `model` choice adds `audio_stable_audio_3_medium_base`: 50 steps at cfg 7; the reprompt branch is on in the template and is the `reprompt` toggle; its system prompts come from `examples/rvion/stableAudio3Prompts.ts`, shared with rvion 12; the string assembly nodes become that helper) |
+| krea2      | i2i  | `image_krea2_turbo_int8_image_style_reference` (new mode of the Wave 2 krea2 family: the input is a STYLE reference through the style lora; the off-by-default prompt rewrite drops) |
+| ltx2       | t2v  | `video_ltx2_t2v` (dev fp8 at cfg 4 over LTXVScheduler, then the distilled lora refine at x2; both passes share the seed noise where the template fixes the refine seed; the EmptyImage size helpers become the size var) |
+| ltx2       | i2v  | `video_ltx2_i2v` (same two passes, the start image pinned in both; the template's two ResizeImageMaskNode become ImageScale center crop + ImageScaleToMaxDimension 1536 area, the COMFY_MATCHTYPE_V3 typing gap ltx25-i2v describes) |
+| ltx23      | t2v  | `video_ltx2_3_t2v` (dev fp8 + distilled lora at 0.5, cfg 1 on both passes; the template's bypassed LTXVImgToVideoInplace chain on an EmptyImage is a no-op in t2v and drops; its prompt enhancer, on by default, is the `enhance` toggle) |
+| ltx23      | i2v  | `video_ltx2_3_i2v` (start image at strength 0.7 then 1; same resize stand ins as ltx2-i2v; the enhancer is off in this template, so `enhance` defaults off) |
 | mage-flow  | t2i  | `image_mage_flow_t2i_int8`        |
 | mage-flow  | t2i  | `image_mage_flow_turbo_t2i_int8` → `mage-flow-t2i-turbo` (4 steps, cfg 1) |
 | mage-flow  | i2i  | `image_mage_flow_edit_int8` (width and height 0 = the reference's size, in place of the template's GetImageSize switches) |
 | mage-flow  | i2i  | `image_mage_flow_edit_turbo_int8` → `mage-flow-i2i-turbo` (4 steps, cfg 1, nearest-exact reference scaling) |
 | minimax-h3 | t2i  | `image_minimax_h3_t2i` (the still-image template loads the fp16 video vae, which the cloud has; the H3 video templates stay skipped on the int8 vae; the off-by-default turbo lora branch drops) |
-| ltx2       | t2v  | `video_ltx2_t2v` (dev fp8 at cfg 4 over LTXVScheduler, then the distilled lora refine at x2; both passes share the seed noise where the template fixes the refine seed; the EmptyImage size helpers become the size var) |
-| ltx2       | i2v  | `video_ltx2_i2v` (same two passes, the start image pinned in both; the template's two ResizeImageMaskNode become ImageScale center crop + ImageScaleToMaxDimension 1536 area, the COMFY_MATCHTYPE_V3 typing gap ltx25-i2v describes) |
-| ltx23      | t2v  | `video_ltx2_3_t2v` (dev fp8 + distilled lora at 0.5, cfg 1 on both passes; the template's bypassed LTXVImgToVideoInplace chain on an EmptyImage is a no-op in t2v and drops; its prompt enhancer, on by default, is the `enhance` toggle) |
-| ltx23      | i2v  | `video_ltx2_3_i2v` (start image at strength 0.7 then 1; same resize stand ins as ltx2-i2v; the enhancer is off in this template, so `enhance` defaults off) |
 | netayume   | t2i  | `image_netayume_lumina_t2i` (the two fixed system prompt prefixes join the prompt in the build, in place of the template's StringConcatenate nodes) |
+| qwen-image | t2i  | `image_qwen_Image_2512` → `qwen-image-t2i-2512` (50 steps, cfg 4; the off Lightning lora branch drops) |
+| qwen-image | i2i  | `image_qwen_image_edit_2509` → `qwen-image-i2i-2509` (the template's Lightning lora is ON by default: 4 steps, cfg 1, shift 3; no reference latent method in 2509) |
+| stable-audio3 | t2a | `audio_stable_audio_3_medium` (the `model` choice adds `audio_stable_audio_3_medium_base`: 50 steps at cfg 7; the reprompt branch is on in the template and is the `reprompt` toggle; its system prompts come from `examples/rvion/stableAudio3Prompts.ts`, shared with rvion 12; the string assembly nodes become that helper) |
+| z-image    | t2i  | `image_z_image` → `z-image-t2i-base` (undistilled: 25 steps, cfg 4, a real negative) |
 
 ## Skipped (exhaustive, with reasons)
 
@@ -235,5 +235,10 @@ Wave 3 — families the regenerated catalog runs (files the earlier sweeps found
   - **Marigold v2** (depth, albedo, normals), **MoGe 3**, **SAM 3D Body**, **Pixal3D / TRELLIS.2** — utility or 3D output.
   - every new `api_*` row (Qwen Image 3.0 Pro, Seedance 2.5, Flux.3 Video, Wan3.0, Gemini Omni 1.1, GPT Image 2.5, Mai Image 2.6, Muse Image, HY Image 3.5, Fish Audio, Tripo P2, Meshy 7, …).
 - **Use-case/`template_*`/`templates-*` rows** — recipes on top of covered families (multiangle, relight, storyboard, …), not new families.
+- **Catalog regeneration sweep** (the corpus Wave 3 was cut from):
+  - **Model files absent from the cloud catalog**: FLUX.3 Klein (t2i, edit, distilled), Fibo 2.0 edit (dev, turbo), MOSS-Image (t2i, base, edit, color depth control), Ming Image 0.1 (t2i, edit), MiniMax H3 Image (t2i, edit), P-H3-Image (t2i, edit), Qwen Image 2.1 turbo (t2i, edit), JoyAI Image Edit, Pika H3 Flex (t2v, ref2va, fl2va), FastH3 omniref r2v, LTX-2.5 dfr i2v (its pixel upscaler ic-lora), Idol gaussian splat, RelayVSR x2/x4, WeVisOne-VL segmentation, the Qwen Image Edit 2511 action lora.
+  - **Converter**: templates with a `CreateBoundingBoxes` or `BuildJsonPromptIdeogram` node (custom widget input types `BOUNDING_BOXES`, `COLORS`) do not convert yet: FLUX.3 Klein, MOSS-Image bboxes, Ming Image edit, and three ideogram API rows.
+  - **Variants not taken** (same family and mode as a file above, same graph or a quantization of it): ACE-Step 1.5 checkpoint and split 4b, ACE-Step 1 instrumentals, Chatterbox mono and dialog, Chroma1 Radiance, Flux.1 dev full and schnell (both), Flux.2 Klein 9b t2i and 4b/9b base edits, Flux.2 dev fp8, HiDream I1 dev/full and E1 full, Hunyuan Video 1 t2v, Lens base, LTX-2 distilled t2v/i2v and i2v lora, Qwen-Image 2512 2-step lora, Qwen-Image-Edit (first release), SDXL simple/refiner/turbo, Wan2.1 alpha t2v, and the int8 twins of boogu edit, ideogram4, krea2, qwen-image-edit 2511, z-image and z-image turbo.
+- **Blueprints** (`comfyui-blueprints`, `workflow-templates-blueprints`): subgraph libraries that name the same model families as the templates, so the zoo covers them through the family rows above. The generation blueprints whose family the cloud runs map to a row (their named variants, Z-Image Base, Qwen-Image 2512, Flux.2 Dev, Flux.1 Krea Dev, Anima Base 1.0, Ernie Image, Mage-Flow Turbo, Qwen 2509, Krea-2 style reference, Stable Audio 3 Medium Base, got their own file or choice); the rest are utility, control, 3D, captioning, or cloud-absent (MiniMax H3 i2v, YuE2, JoyAI).
 
 Refetch corpus: `bun run templates:fetch`. Regenerate catalog: `bun run gen:sdk:cloud` (privacy rule in architecture.md applies).
