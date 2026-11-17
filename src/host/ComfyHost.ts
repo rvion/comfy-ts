@@ -163,42 +163,12 @@ export class ComfyHost<ID extends string = string> {
       this.schema = new ComfySchema({ embeddings: [], spec: {} })
    }
 
-   /** helper to check if your host have whatever it needs to run your workflow */
-   matchRequirements = (requirements: Requirements[]): boolean => {
-      const repo = comfyts.registry
-      for (const req of requirements) {
-         if (req.optional) continue
-         if (req.type === 'customNodesByNodeKey') {
-            const plugins: ComfyManagerPluginInfo[] = repo.plugins_byNodeKey.get(req.nodeName) ?? []
-            if (!plugins.find((i) => this.manager.isPluginInstalled(i.title))) {
-               // console.log(`[❌ A] ${JSON.stringify(req)} NOT MATCHED`)
-               return false
-            }
-         } else if (req.type === 'customNodesByTitle') {
-            const plugin: ComfyManagerPluginInfo | undefined = repo.plugins_byTitle.get(req.title)
-            if (plugin == null) continue
-            if (!this.manager.isPluginInstalled(plugin.title)) {
-               // console.log(`[❌ B] ${JSON.stringify(req)} NOT MATCHED`)
-               return false
-            }
-         } else if (req.type === 'customNodesByURI') {
-            const plugin: ComfyManagerPluginInfo | undefined = repo.plugins_byFile.get(req.uri)
-            if (plugin == null) continue
-            if (!this.manager.isPluginInstalled(plugin.title)) {
-               // console.log(`[❌ C] ${JSON.stringify(req)} NOT MATCHED`)
-               return false
-            }
-         } else if (req.type === 'modelInManager') {
-            if (!this.manager.isModelInstalled(req.modelName)) {
-               // console.log(`[❌ D] ${JSON.stringify(req)} NOT MATCHED`)
-               return false
-            }
-         } else {
-            // exhaust(req.type)
-         }
-      }
-      return true
-   }
+   /** false only when a requirement is known missing; an undecided one passes with a warning (manager.matchRequirements) */
+   matchRequirements = (requirements: Requirements[]): boolean => this.manager.matchRequirements(requirements)
+
+   /** `missing` (known not installed, the only ones to queue for install) and `undecided` (the lists cannot say) */
+   checkRequirements = (requirements: Requirements[]): { missing: Requirements[]; undecided: Requirements[] } =>
+      this.manager.checkRequirements(requirements)
 
    // ----- Rotating srever logs -----
 

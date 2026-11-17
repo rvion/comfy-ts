@@ -13,6 +13,8 @@ import type { ComfyManagerPluginInfo } from 'src/manager/types/ComfyManagerPlugi
 /** the part of the registry the views read */
 export type ManagerMirror = {
    plugins_byTitle: ReadonlyMap<KnownComfyPluginTitle, ComfyManagerPluginInfo>
+   plugins_byFile: ReadonlyMap<string, ComfyManagerPluginInfo>
+   plugins_byNodeKey: ReadonlyMap<string, readonly ComfyManagerPluginInfo[]>
    /** every model row: upstream ships a few names twice, with different files */
    modelRows: readonly ComfyManagerModelInfo[]
 }

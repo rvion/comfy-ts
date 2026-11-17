@@ -4,6 +4,7 @@
 import { describe, expect, it } from 'bun:test'
 import { ComfyManager, type ManagerGeneration } from 'src/host/ComfyManager.ts'
 import type { ManagerMirror } from 'src/manager/installedView.ts'
+import type { Requirements } from 'src/host/Requirements.ts'
 import type { ComfyManagerModelInfo } from 'src/manager/types/ComfyManagerModelInfo.ts'
 import type { ComfyManagerPluginInfo } from 'src/manager/types/ComfyManagerPluginInfo.ts'
 
@@ -91,6 +92,8 @@ const mirrorModels = [
 ]
 const mirror: ManagerMirror = {
    plugins_byTitle: new Map(mirrorPlugins.map((p) => [p.title, p])),
+   plugins_byFile: new Map(mirrorPlugins.map((p) => [p.files[0] ?? p.reference, p])),
+   plugins_byNodeKey: new Map([['impact-pack.FaceDetailer', [plugin]]]),
    modelRows: mirrorModels,
 }
 
@@ -119,6 +122,18 @@ class FakeManager {
    failMessages = ['Model installation error: boom']
    exitingWorker = false
    refuseBatch = false
+   /** the install runs this many polls before it lands */
+   drainAfterPolls = 0
+   drainCalls = 0
+   /** poll numbers (status and history GETs, from 1) whose request fails like a network blip */
+   failPolls = new Set<number>()
+   /** every poll from this one on fails: the host is gone */
+   outageFrom: number | null = null
+   pollCount = 0
+   /** a queue/reset from another client right after our start: the task leaves with no result */
+   wipeOnStart = false
+   /** 4.x resolves the id we send through its own map and installs another pack that holds it */
+   installsOtherPack = false
    coreFiles: Record<string, string[]> = { vae_approx: [], checkpoints: [], diffusers: [], loras: [] }
 
    constructor(public gen: ManagerGeneration | 'none') {}
@@ -129,10 +144,11 @@ class FakeManager {
 
    drain(): void {
       if (this.neverDrains || !this.processing) return
+      if (++this.drainCalls <= this.drainAfterPolls) return
       for (const item of this.queue) {
          const ok = this.outcome === 'success'
          if (ok && item.kind === 'model') this.onDisk.add(String(item.body.filename))
-         if (ok && item.kind === 'plugin')
+         if (ok && item.kind === 'plugin' && !this.installsOtherPack)
             this.installed[String(item.body.id)] = { cnr_id: String(item.body.id), aux_id: null, enabled: true }
          this.history[item.uiId] = {
             status: { status_str: ok ? 'success' : 'error', messages: ok ? [] : this.failMessages },
@@ -145,7 +161,7 @@ class FakeManager {
    manager(): ComfyManager {
       return new ComfyManager(
          { getServerHostHTTP: () => 'http://box:8188', fetch: (route, init) => this.serve(route, init) },
-         { pollMs: 1, installTimeoutMs: 30 },
+         { pollMs: 1, installTimeoutMs: 30, pollGraceMs: 10 },
          () => mirror,
       )
    }
@@ -163,7 +179,9 @@ class FakeManager {
       if (is('GET', '/models')) return Response.json(Object.keys(this.coreFiles))
       if (method === 'GET' && route.startsWith('/models/')) {
          const files = this.coreFiles[decodeURIComponent(route.slice('/models/'.length))]
-         return files == null ? new Response('', { status: 404 }) : Response.json(files)
+         // what the Manager downloaded lands on the core listing (every test model sits in vae_approx)
+         const landed = route === '/models/vae_approx' ? [...this.onDisk] : []
+         return files == null ? new Response('', { status: 404 }) : Response.json([...files, ...landed])
       }
       if (is('GET', '/v2/manager/version')) return g === 'v3' ? new Response('', { status: 404 }) : new Response('4.4')
       if (is('GET', '/manager/version')) return g === 'v3' ? new Response('V3.42') : new Response('', { status: 404 })
@@ -206,6 +224,17 @@ class FakeManager {
             kind: b.kind === 'install' ? 'plugin' : 'model',
             body: record(b.params),
          })
+         return new Response('')
+      }
+      const isPoll =
+         method === 'GET' && (route === `${pre}/manager/queue/status` || route.startsWith('/v2/manager/queue/history?'))
+      if (isPoll) {
+         this.pollCount++
+         if (this.failPolls.has(this.pollCount) || (this.outageFrom != null && this.pollCount >= this.outageFrom))
+            throw new TypeError('fetch failed')
+      }
+      if (is('POST', `${pre}/manager/queue/start`) && this.wipeOnStart) {
+         this.queue = []
          return new Response('')
       }
       if (is('POST', `${pre}/manager/queue/start`)) {
@@ -323,6 +352,49 @@ describe('installModel', () => {
       expect(box.routes().filter((r) => r === 'POST /manager/queue/start').length).toBe(2)
    })
 
+   it('4.x: a task wiped from the queue with no result fails at once, not after the deadline', async () => {
+      const box = new FakeManager('v4')
+      box.wipeOnStart = true
+      const manager = box.manager()
+      manager.timing.installTimeoutMs = 5_000
+      const t0 = Date.now()
+      const r = await capturingErrors(() => manager.installModelOutcome(model))
+      expect(r.value).toBe('failed')
+      expect(Date.now() - t0).toBeLessThan(1_000)
+      expect(r.errors).toContain('the task left the queue with no result')
+   })
+
+   it('a failed poll mid install is a blip: the wait goes on and the install lands (every generation)', async () => {
+      for (const gen of ['v3', 'v4-legacy-ui', 'v4'] as const) {
+         const box = new FakeManager(gen)
+         box.drainAfterPolls = 4
+         box.failPolls = new Set([2])
+         const r = await capturingErrors(() => box.manager().installModel(model))
+         expect({ gen, ok: r.value }).toEqual({ gen, ok: true })
+         expect(r.errors).toContain('poll failed, still waiting')
+      }
+   })
+
+   it('a host gone for longer than pollGraceMs: the outcome is unknown, never failed, and the log says not to retry blind', async () => {
+      const box = new FakeManager('v4')
+      box.neverDrains = true
+      box.outageFrom = 2
+      const manager = box.manager()
+      manager.timing.installTimeoutMs = 5_000
+      const r = await capturingErrors(() => manager.installModelOutcome(model))
+      expect(r.value).toBe('unknown')
+      expect(r.errors).toContain('OUTCOME UNKNOWN')
+      expect(r.errors).toContain('before installing again')
+      expect(await new FakeManager('v4').manager().installModel(model)).toBe(true)
+   })
+
+   it('the deadline passing while the task still runs is unknown too', async () => {
+      const box = new FakeManager('v3')
+      box.neverDrains = true
+      const r = await capturingErrors(() => box.manager().installModelOutcome(model))
+      expect(r.value).toBe('unknown')
+   })
+
    it('V3: a drained queue without the file on disk is a failure, not a success', async () => {
       const box = new FakeManager('v3')
       box.outcome = 'error'
@@ -411,6 +483,14 @@ describe('installPlugin', () => {
       expect(r.value).toBe(false)
       expect(r.errors).toContain('POST /v2/manager/queue/batch refused ["comfyui-impact-pack"]')
       expect(r.errors).toContain('the batch reply carries ids only')
+   })
+
+   it('4.x: a success for an id that another pack holds is not this pack installed', async () => {
+      const box = new FakeManager('v4')
+      box.installsOtherPack = true
+      const r = await capturingErrors(() => box.manager().installPluginOutcome(plugin))
+      expect(r.value).toBe('failed')
+      expect(r.errors).toContain('another pack holds the id "comfyui-impact-pack"')
    })
 
    it('a pack the Manager does not list is refused before anything is queued', async () => {
@@ -528,5 +608,48 @@ describe('4.x default ui: the installed view', () => {
       const box = v4Box()
       box.installed = { broken: { enabled: 'yes' } } as never
       await expect(box.manager().fetchPlugins()).rejects.toThrow(/GET \/v2\/customnode\/installed: /)
+   })
+})
+
+describe('requirements: undecided is not missing', () => {
+   const v4Manager = async (): Promise<ComfyManager> => {
+      const box = new FakeManager('v4')
+      box.installed = { 'comfyui-impact-pack': { cnr_id: 'comfyui-impact-pack', aux_id: null, enabled: true } }
+      box.coreFiles = { vae_approx: ['taef1_decoder.pth'], checkpoints: [], diffusers: [] }
+      const manager = box.manager()
+      await manager.fetchPluginsAndModels()
+      return manager
+   }
+
+   it('a requirement the lists cannot decide is undecided, never missing, and matches with a warning', async () => {
+      const manager = await v4Manager()
+      const reqs = [
+         { type: 'modelInManager', modelName: 'HF Model' },
+         { type: 'modelInManager', modelName: 'Missing Model' },
+         { type: 'modelInManager', modelName: 'TAEF1 Decoder' },
+         { type: 'customNodesByTitle', title: 'ComfyUI Impact Pack' },
+         { type: 'customNodesByNodeKey', nodeName: 'impact-pack.FaceDetailer' },
+         { type: 'customNodesByTitle', title: 'Missing Pack' },
+      ] as Requirements[]
+      const check = manager.checkRequirements(reqs)
+      expect(check.missing).toEqual([reqs[1], reqs[5]] as Requirements[])
+      expect(check.undecided).toEqual([reqs[0]] as Requirements[])
+      const r = await capturingErrors(async () =>
+         manager.matchRequirements([reqs[0], reqs[2], reqs[3]] as Requirements[]),
+      )
+      expect(r.value).toBe(true)
+      expect(r.errors).toContain('HF Model')
+      expect(manager.matchRequirements([reqs[1]] as Requirements[])).toBe(false)
+   })
+
+   it('before the lists are fetched every requirement is undecided, none missing', () => {
+      const manager = new FakeManager('v4').manager()
+      const check = manager.checkRequirements([
+         { type: 'modelInManager', modelName: 'TAEF1 Decoder' },
+      ] as Requirements[])
+      expect(check).toEqual({
+         missing: [],
+         undecided: [{ type: 'modelInManager', modelName: 'TAEF1 Decoder' }],
+      } as never)
    })
 })

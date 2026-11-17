@@ -34,7 +34,7 @@ import type { ComfyManagerPluginInfo } from 'src/manager/types/ComfyManagerPlugi
 import type { Maybe } from 'src/types/index.ts'
 import { logError, logSuccess } from 'src/utils/log.ts'
 import { softValidate } from 'src/utils/softValidate.ts'
-import type { PluginInstallStatus } from 'src/host/Requirements.ts'
+import type { PluginInstallStatus, Requirements } from 'src/host/Requirements.ts'
 
 /**
  * the three ComfyUI-Manager servers in the field (agent/architecture.md, Manager HTTP client):
@@ -44,9 +44,17 @@ import type { PluginInstallStatus } from 'src/host/Requirements.ts'
 export type ManagerGeneration = 'v3' | 'v4-legacy-ui' | 'v4'
 export type ManagerApi = { generation: ManagerGeneration; version: string }
 
-/** install waits poll the queue; tests pass milliseconds */
-export type ManagerTiming = { pollMs: number; installTimeoutMs: number }
-export const MANAGER_TIMING: ManagerTiming = { pollMs: 1000, installTimeoutMs: 60 * 60_000 }
+/** install waits poll the queue; `pollGraceMs`: how long the poll survives a host that does not answer */
+export type ManagerTiming = { pollMs: number; installTimeoutMs: number; pollGraceMs: number }
+export const MANAGER_TIMING: ManagerTiming = { pollMs: 1000, installTimeoutMs: 60 * 60_000, pollGraceMs: 120_000 }
+
+/** `unknown`: we lost sight of the task, the Manager may still be installing (agent/architecture.md) */
+export type InstallOutcome = 'installed' | 'failed' | 'unknown'
+
+/** an install the host refused or reported failed: ends the wait at once */
+class InstallFailed extends Error {}
+/** we lost sight of the task: the outcome is not known */
+class OutcomeUnknown extends Error {}
 
 type ManagerRoute =
    | '/manager/version'
@@ -81,9 +89,10 @@ const NOT_SERVED: Record<ManagerGeneration, ManagerRoute[]> = {
 type ManagerStrategy = {
    fetchPlugins: (mode: ComfyManagerAPIFetchPolicy, skipUpdate: boolean) => Promise<ComfyManagerAPIPluginList>
    fetchModels: () => Promise<ComfyManagerAPIModelList>
-   enqueuePlugin: (plugin: ComfyManagerPluginInfo, uiId: string) => Promise<void>
+   /** resolves with the id the host installs by, when it is not the pack's own row */
+   enqueuePlugin: (plugin: ComfyManagerPluginInfo, uiId: string) => Promise<string | undefined>
    /** wait until the queued task ran: resolves when it succeeded, throws with why when not */
-   settle: (what: string, uiId: string, landed: () => Promise<boolean>) => Promise<void>
+   settle: (what: string, uiId: string, landed: () => Promise<boolean | null>, sentId?: string) => Promise<void>
 }
 
 const QueueStatus_ark = type({
@@ -201,7 +210,7 @@ export class ComfyManager {
                fetchPlugins: () => this.installedPluginView(api),
                fetchModels: () => this.installedModelView(),
                enqueuePlugin: (plugin, uiId) => this.enqueuePluginTask(api, plugin, uiId),
-               settle: (what, uiId) => this.settleByHistory(api, what, uiId),
+               settle: (what, uiId, landed, sentId) => this.settleByHistory(api, what, uiId, landed, sentId),
             }
       }
    }
@@ -304,14 +313,18 @@ export class ComfyManager {
       return this.getJSON<unknown>('/internal/logs')
    }
 
+   /** true only for a KNOWN install: false is "not known to be installed" (missing OR undecided), see `getModelStatus` */
    isModelInstalled = (name: KnownModel_Name): boolean => {
       return this.modelList?.models.some((x) => x.name === name && x.installed === 'True') ?? false
    }
 
    modelsBeeingInstalled = new Set<KnownModel_Name>()
 
-   /** queue the install, wait until the Manager ran it; true only once the model is verified installed */
-   installModel = async (model: ComfyManagerModelInfo): Promise<boolean> => {
+   /** queue the install, wait until the Manager ran it; true only once the model is verified installed (`installModelOutcome` tells failed from unknown) */
+   installModel = async (model: ComfyManagerModelInfo): Promise<boolean> =>
+      (await this.installModelOutcome(model)) === 'installed'
+
+   installModelOutcome = async (model: ComfyManagerModelInfo): Promise<InstallOutcome> => {
       this.modelsBeeingInstalled.add(model.name)
       try {
          return await this.runInstall(`model "${model.name}"`, {
@@ -324,7 +337,7 @@ export class ComfyManager {
                const row = (await s.fetchModels()).models.find(
                   (x) => x.filename === model.filename && x.save_path === model.save_path && x.base === model.base,
                )
-               return row?.installed === 'True'
+               return row == null ? null : row.installed === 'True'
             },
          })
       } finally {
@@ -359,6 +372,7 @@ export class ComfyManager {
       )
    }
 
+   /** true only for a KNOWN install: false is "not known to be installed" (missing OR undecided), see `getPluginStatus` */
    isPluginInstalled = (title: KnownComfyPluginTitle): boolean => {
       if (!this.pluginList || !this.pluginList.custom_nodes) return false
       return this.pluginList.custom_nodes.some((x) => x.title === title && x.installed === 'True') ?? false
@@ -377,6 +391,48 @@ export class ComfyManager {
       return status
    }
 
+   // REQUIREMENTS: undecided is not missing --------------------------------------------
+   /** one requirement against the fetched lists; `unknown` when they cannot say, null when the mirror does not know it */
+   requirementStatus = (req: Requirements): PluginInstallStatus | null => {
+      const mirror = this.mirror()
+      const packs = ((): readonly ComfyManagerPluginInfo[] | null => {
+         if (req.type === 'customNodesByNodeKey') return mirror.plugins_byNodeKey.get(req.nodeName) ?? []
+         if (req.type === 'customNodesByTitle') return [mirror.plugins_byTitle.get(req.title)].filter((x) => x != null)
+         if (req.type === 'customNodesByURI') return [mirror.plugins_byFile.get(req.uri)].filter((x) => x != null)
+         return null
+      })()
+      if (packs == null) return req.type === 'modelInManager' ? this.getModelStatus(req.modelName) : null
+      if (packs.length === 0) return req.type === 'customNodesByNodeKey' ? 'unknown' : null
+      const statuses = packs.map((x) => this.getPluginStatus(x.title))
+      if (statuses.some((x) => x === 'installed' || x === 'update-available')) return 'installed'
+      return statuses.every((x) => x === 'not-installed') ? 'not-installed' : 'unknown'
+   }
+
+   /** `missing`: known not installed, the only requirements an install flow may queue; `undecided`: the lists cannot say */
+   checkRequirements = (requirements: Requirements[]): { missing: Requirements[]; undecided: Requirements[] } => {
+      const out: { missing: Requirements[]; undecided: Requirements[] } = { missing: [], undecided: [] }
+      for (const req of requirements) {
+         if (req.optional) continue
+         const status = this.requirementStatus(req)
+         if (status === 'not-installed') out.missing.push(req)
+         else if (status === 'unknown' || status === 'error') out.undecided.push(req)
+      }
+      return out
+   }
+
+   /** false only when a requirement is known missing; an undecided one passes with a warning */
+   matchRequirements = (requirements: Requirements[]): boolean => {
+      const check = this.checkRequirements(requirements)
+      if (check.undecided.length > 0)
+         logError(
+            `requirements the host lists cannot decide, read as present: ${check.undecided.map((r) => JSON.stringify(r)).join(', ')}` +
+               (this.pluginList == null || this.modelList == null
+                  ? ' (the lists are not fetched: call fetchPluginsAndModels)'
+                  : ''),
+         )
+      return check.missing.length === 0
+   }
+
    /** the host's plugin list in the public `custom_nodes` shape, titled like our mirror; absent = `unknown` */
    fetchPlugins = async (
       /** @default: 'cache' */
@@ -387,8 +443,11 @@ export class ComfyManager {
       return this.strategy(await this.api()).fetchPlugins(mode, skipUpdate)
    }
 
-   /** queue the install, wait until the Manager ran it; true only once the pack is verified installed */
-   installPlugin = async (plugin: ComfyManagerPluginInfo): Promise<boolean> => {
+   /** queue the install, wait until the Manager ran it; true only once the pack is verified installed (`installPluginOutcome` tells failed from unknown) */
+   installPlugin = async (plugin: ComfyManagerPluginInfo): Promise<boolean> =>
+      (await this.installPluginOutcome(plugin)) === 'installed'
+
+   installPluginOutcome = async (plugin: ComfyManagerPluginInfo): Promise<InstallOutcome> => {
       return this.runInstall(`plugin "${plugin.title}"`, {
          enqueue: (api, uiId) => this.strategy(api).enqueuePlugin(plugin, uiId),
          landed: async (_s, api) => {
@@ -478,7 +537,7 @@ export class ComfyManager {
       plugin: ComfyManagerPluginInfo,
       uiId: string,
       send: (body: Record<string, unknown>) => Promise<unknown>,
-   ): Promise<void> => {
+   ): Promise<undefined> => {
       const url = plugin.files[0] ?? plugin.reference
       const list = await this.fetchPluginWire(api, 'cache', true)
       if (!('node_packs' in list))
@@ -499,10 +558,15 @@ export class ComfyManager {
          ui_id: uiId,
          skip_post_install: false,
       })
+      return undefined
    }
 
-   /** v4: no list to take a row from, so the pack goes by repo name at nightly */
-   private enqueuePluginTask = async (api: ManagerApi, plugin: ComfyManagerPluginInfo, uiId: string): Promise<void> => {
+   /** v4: no list to take a row from, so the pack goes by repo name at nightly; resolves with that id */
+   private enqueuePluginTask = async (
+      api: ManagerApi,
+      plugin: ComfyManagerPluginInfo,
+      uiId: string,
+   ): Promise<string> => {
       const url = plugin.files[0] ?? plugin.reference
       const id = repoPath(url).split('/').pop() ?? url
       const params = {
@@ -519,17 +583,38 @@ export class ComfyManager {
          kind: 'install',
          params,
       })
+      return id
    }
 
-   /** v4: the task's own history entry says how it ended */
-   private settleByHistory = async (api: ManagerApi, what: string, uiId: string): Promise<void> => {
+   /** v4: the task's own history entry says how it ended; the end state confirms a success */
+   private settleByHistory = async (
+      api: ManagerApi,
+      what: string,
+      uiId: string,
+      landed: () => Promise<boolean | null>,
+      sentId?: string,
+   ): Promise<void> => {
       const route = this.route(api, '/manager/queue/history', `?ui_id=${encodeURIComponent(uiId)}`)
+      const readEntry = async () => (await this.getValid(route, TaskHistory_ark)).history.status ?? null
       const entry = await this.waitFor(what, async () => {
-         const status = (await this.getValid(route, TaskHistory_ark)).history.status
-         if (status == null) await this.restartIdleQueue(api)
-         return status ?? null
+         const status = await readEntry()
+         if (status != null) return status
+         if ((await this.restartIdleQueue(api)) !== 'drained') return null
+         // the worker writes the entry before it lets go of the task: read once more to close that race
+         const late = await readEntry()
+         if (late != null) return late
+         throw new InstallFailed(
+            'the task left the queue with no result (a queue/reset from the Manager UI or another client removes it)',
+         )
       })
-      if (entry.status_str === 'success' || entry.status_str === 'skip') return
+      if (entry.status_str === 'success' || entry.status_str === 'skip') {
+         if ((await this.endState(landed)) !== false) return
+         throw new InstallFailed(
+            sentId != null
+               ? `the Manager reported success, but this pack does not read installed: another pack holds the id "${sentId}" it installs by`
+               : 'the Manager reported success, but it does not read installed afterwards',
+         )
+      }
       const messages = entry.messages ?? []
       // the 4.x worker answers a bare `failed` from its security gate only (4.2.2 and 4.4 source)
       const gate =
@@ -537,7 +622,7 @@ export class ComfyManager {
             ? ': refused by its security policy, which allows installs only with security_level normal or below ' +
               'AND either ComfyUI listening on localhost or network_mode personal_cloud (the ComfyUI console names the rule)'
             : ''
-      throw new Error(`the Manager reports ${entry.status_str}: ${messages.join(' | ')}${gate}`)
+      throw new InstallFailed(`the Manager reports ${entry.status_str}: ${messages.join(' | ')}${gate}`)
    }
 
    /**
@@ -555,47 +640,88 @@ export class ComfyManager {
    }
 
    /** v3, v4 legacy ui: no per item result over http, so wait for the drain and look at the end state */
-   private settleByDrain = async (api: ManagerApi, what: string, landed: () => Promise<boolean>): Promise<void> => {
+   private settleByDrain = async (
+      api: ManagerApi,
+      what: string,
+      landed: () => Promise<boolean | null>,
+   ): Promise<void> => {
       await this.waitFor(what, async () => ((await this.restartIdleQueue(api)) === 'drained' ? true : null))
-      if (!(await landed()))
-         throw new Error(
-            `the Manager queue drained but it is not installed; ComfyUI-Manager ${api.version} ` +
-               `reports why only over its websocket (cm-queue-status) and in the ComfyUI console`,
-         )
+      const state = await this.endState(landed)
+      if (state === true) return
+      if (state === null)
+         throw new OutcomeUnknown('the queue drained, but the lists cannot say whether it is installed')
+      throw new InstallFailed(
+         `the Manager queue drained but it is not installed; ComfyUI-Manager ${api.version} ` +
+            `reports why only over its websocket (cm-queue-status) and in the ComfyUI console`,
+      )
+   }
+
+   /** the end state after the task ran: a host that does not answer here leaves the outcome unknown */
+   private endState = async (landed: () => Promise<boolean | null>): Promise<boolean | null> => {
+      try {
+         return await landed()
+      } catch (exception) {
+         throw new OutcomeUnknown(`the task ran, but its end state could not be read: ${errorText(exception)}`)
+      }
    }
 
    private runInstall = async (
       what: string,
       p: {
-         enqueue: (api: ManagerApi, uiId: string) => Promise<void>
-         /** the end state, read when the generation reports no per item result */
-         landed: (s: ManagerStrategy, api: ManagerApi) => Promise<boolean>
+         /** resolves with the id the host installs by, when it is not the pack's own row */
+         enqueue: (api: ManagerApi, uiId: string) => Promise<string | undefined>
+         /** the end state: true installed, false not, null the lists cannot say */
+         landed: (s: ManagerStrategy, api: ManagerApi) => Promise<boolean | null>
       },
-   ): Promise<boolean> => {
+   ): Promise<InstallOutcome> => {
+      const host = this.host.getServerHostHTTP()
       try {
          const api = await this.api()
          const s = this.strategy(api)
          const uiId = nanoid()
-         await p.enqueue(api, uiId)
+         const sentId = await p.enqueue(api, uiId)
          await this.post(this.route(api, '/manager/queue/start'))
-         await s.settle(what, uiId, () => p.landed(s, api))
+         await s.settle(what, uiId, () => p.landed(s, api), sentId)
          logSuccess(`${what} installed`)
-         return true
+         return 'installed'
       } catch (exception) {
-         logError(`${what}: install failed on ${this.host.getServerHostHTTP()}: ${errorText(exception)}`)
-         return false
+         if (exception instanceof OutcomeUnknown) {
+            logError(
+               `${what}: OUTCOME UNKNOWN on ${host}: ${exception.message}. The Manager may still be installing it: ` +
+                  `refetch the list (fetchModels / fetchPlugins) and read its status before installing again, ` +
+                  `a blind retry queues a second download`,
+            )
+            return 'unknown'
+         }
+         logError(`${what}: install failed on ${host}: ${errorText(exception)}`)
+         return 'failed'
       }
    }
 
-   /** poll until `check` gives a value, never past `timing.installTimeoutMs` */
+   /**
+    * poll until `check` gives a value. A failed request is a blip: logged, and the poll goes on until
+    * `timing.pollGraceMs` passes without one good answer. Giving up, or the deadline, is an UNKNOWN
+    * outcome (the task may still run); only an `InstallFailed` from `check` ends the wait as a failure.
+    */
    private waitFor = async <T>(what: string, check: () => Promise<T | null>): Promise<T> => {
       const deadline = Date.now() + this.timing.installTimeoutMs
+      let lastAnswer = Date.now()
       for (;;) {
-         const value = await check()
-         if (value != null) return value
+         try {
+            const value = await check()
+            lastAnswer = Date.now()
+            if (value != null) return value
+         } catch (exception) {
+            if (exception instanceof InstallFailed) throw exception
+            if (Date.now() - lastAnswer >= this.timing.pollGraceMs)
+               throw new OutcomeUnknown(
+                  `the host gave no answer for ${this.timing.pollGraceMs} ms (manager.timing.pollGraceMs), last: ${errorText(exception)}`,
+               )
+            logError(`${what}: poll failed, still waiting: ${errorText(exception)}`)
+         }
          if (Date.now() >= deadline)
-            throw new Error(
-               `${what} still running after ${this.timing.installTimeoutMs} ms (manager.timing.installTimeoutMs)`,
+            throw new OutcomeUnknown(
+               `still running after ${this.timing.installTimeoutMs} ms (manager.timing.installTimeoutMs)`,
             )
          await new Promise((resolve) => setTimeout(resolve, this.timing.pollMs))
       }
