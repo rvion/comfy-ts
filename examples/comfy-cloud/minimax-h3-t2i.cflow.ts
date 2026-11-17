@@ -22,7 +22,10 @@ export const minimaxH3T2i = host.defineWorkflow({
    build: (b, vars) => {
       // int8 attention on Nvidia and AMD: the template's default backend for this checkpoint
       const model = b.ModelAttentionBackend({
-         model: b.UNETLoader({ unet_name: 'minimax_h3_fl2va_pruned_int8_convrot.safetensors', weight_dtype: 'default' }),
+         model: b.UNETLoader({
+            unet_name: 'minimax_h3_fl2va_pruned_int8_convrot.safetensors',
+            weight_dtype: 'default',
+         }),
          attention: 'comfy kitchen attention',
       })
       const clip = b.CLIPLoader({
