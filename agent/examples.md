@@ -201,6 +201,7 @@ Wave 3 — families the regenerated catalog runs (files the earlier sweeps found
 | mage-flow  | t2i  | `image_mage_flow_t2i_int8`        |
 | mage-flow  | t2i  | `image_mage_flow_turbo_t2i_int8` → `mage-flow-t2i-turbo` (4 steps, cfg 1) |
 | mage-flow  | i2i  | `image_mage_flow_edit_int8` (width and height 0 = the reference's size, in place of the template's GetImageSize switches) |
+| mage-flow  | i2i  | `image_mage_flow_edit_turbo_int8` → `mage-flow-i2i-turbo` (4 steps, cfg 1, nearest-exact reference scaling) |
 | minimax-h3 | t2i  | `image_minimax_h3_t2i` (the still-image template loads the fp16 video vae, which the cloud has; the H3 video templates stay skipped on the int8 vae; the off-by-default turbo lora branch drops) |
 | ltx2       | t2v  | `video_ltx2_t2v` (dev fp8 at cfg 4 over LTXVScheduler, then the distilled lora refine at x2; both passes share the seed noise where the template fixes the refine seed; the EmptyImage size helpers become the size var) |
 | ltx2       | i2v  | `video_ltx2_i2v` (same two passes, the start image pinned in both; the template's two ResizeImageMaskNode become ImageScale center crop + ImageScaleToMaxDimension 1536 area, the COMFY_MATCHTYPE_V3 typing gap ltx25-i2v describes) |
