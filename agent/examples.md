@@ -192,6 +192,7 @@ Wave 3 — families the regenerated catalog runs (files the earlier sweeps found
 | family     | mode | template                          |
 | ---------- | ---- | --------------------------------- |
 | qwen-image | t2i  | `image_qwen_Image_2512` → `qwen-image-t2i-2512` (50 steps, cfg 4; the off Lightning lora branch drops) |
+| qwen-image | i2i  | `image_qwen_image_edit_2509` → `qwen-image-i2i-2509` (the template's Lightning lora is ON by default: 4 steps, cfg 1, shift 3; no reference latent method in 2509) |
 | z-image    | t2i  | `image_z_image` → `z-image-t2i-base` (undistilled: 25 steps, cfg 4, a real negative) |
 | ace-step15 | t2a  | `audio_ace_step_1_5_split` (the `model` choice adds `audio_ace_step1_5_xl_{turbo,sft,base}`, each with its template's steps, cfg, top_p and 4b lm encoder; local twin: rvion 13) |
 | anima      | t2i  | `image_anima_base_v1` → `anima-t2i-base` (euler, 30 steps, cfg 4; the off turbo lora branch drops) |
