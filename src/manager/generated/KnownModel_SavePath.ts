@@ -47,7 +47,7 @@ export type KnownModel_SavePath =
     | "gligen/SD1.5"                                     // x   1
     | "sams"                                             // x  12
     | "seecoders"                                        // x   3
-    | "ultralytics/bbox"                                 // x   6
+    | "ultralytics/bbox"                                 // x   8
     | "ultralytics/segm"                                 // x  10
     | "AnimateDiff"                                      // x   2
     | "animatediff_models"                               // x  12
@@ -104,13 +104,13 @@ export type KnownModel_SavePath =
     | "diffusion_models/PixArt-Alpha"                    // x   1
     | "checkpoints/hunyuan_dit_comfyui"                  // x   3
     | "diffusion_models/hunyuan_video"                   // x   2
-    | "text_encoders"                                    // x   5
+    | "text_encoders"                                    // x   7
     | "diffusion_models/FLUX1"                           // x  26
     | "vae/FLUX1"                                        // x   1
     | "checkpoints/FLUX1"                                // x   2
     | "text_encoders/long_clip"                          // x   2
     | "depth/ml-depth-pro"                               // x   1
-    | "diffusion_models"                                 // x   7
+    | "diffusion_models"                                 // x  12
     | "diffusion_models/kolors"                          // x   2
     | "LLM"                                              // x   3
     | "pulid"                                            // x   2
@@ -124,15 +124,16 @@ export type KnownModel_SavePath =
     | "Janus-Pro"                                        // x   2
     | "vae/kolors"                                       // x   2
     | "diffusion_models/Wan2.1"                          // x  14
-    | "vae"                                              // x   1
+    | "vae"                                              // x   4
     | "diffusion_models/Wan2.2"                          // x   9
     | "diffusers/lllyasviel"                             // x   1
     | "checkpoints/LTX-2"                                // x   4
-    | "loras"                                            // x   6
+    | "loras"                                            // x   8
     | "loras/LTX-2"                                      // x  11
     | "checkpoints/LTX-2.3"                              // x   5
-    | "loras/ltxv/ltx2"                                  // x   3
-    | "latent_upscale_models"                            // x   3
+    | "loras/ltxv/ltx2"                                  // x  13
+    | "latent_upscale_models"                            // x   5
+    | "model_patches"                                    // x   1
     | "diffusion_models/LBM"                             // x   1
     | "vae/qwen-image"                                   // x   1
     | "text_encoders/qwen"                               // x   2
@@ -191,7 +192,7 @@ export const knownModel_SavePath: KnownModel_SavePath[] = [
    'gligen/SD1.5', // x   1
    'sams', // x  12
    'seecoders', // x   3
-   'ultralytics/bbox', // x   6
+   'ultralytics/bbox', // x   8
    'ultralytics/segm', // x  10
    'AnimateDiff', // x   2
    'animatediff_models', // x  12
@@ -248,13 +249,13 @@ export const knownModel_SavePath: KnownModel_SavePath[] = [
    'diffusion_models/PixArt-Alpha', // x   1
    'checkpoints/hunyuan_dit_comfyui', // x   3
    'diffusion_models/hunyuan_video', // x   2
-   'text_encoders', // x   5
+   'text_encoders', // x   7
    'diffusion_models/FLUX1', // x  26
    'vae/FLUX1', // x   1
    'checkpoints/FLUX1', // x   2
    'text_encoders/long_clip', // x   2
    'depth/ml-depth-pro', // x   1
-   'diffusion_models', // x   7
+   'diffusion_models', // x  12
    'diffusion_models/kolors', // x   2
    'LLM', // x   3
    'pulid', // x   2
@@ -268,15 +269,16 @@ export const knownModel_SavePath: KnownModel_SavePath[] = [
    'Janus-Pro', // x   2
    'vae/kolors', // x   2
    'diffusion_models/Wan2.1', // x  14
-   'vae', // x   1
+   'vae', // x   4
    'diffusion_models/Wan2.2', // x   9
    'diffusers/lllyasviel', // x   1
    'checkpoints/LTX-2', // x   4
-   'loras', // x   6
+   'loras', // x   8
    'loras/LTX-2', // x  11
    'checkpoints/LTX-2.3', // x   5
-   'loras/ltxv/ltx2', // x   3
-   'latent_upscale_models', // x   3
+   'loras/ltxv/ltx2', // x  13
+   'latent_upscale_models', // x   5
+   'model_patches', // x   1
    'diffusion_models/LBM', // x   1
    'vae/qwen-image', // x   1
    'text_encoders/qwen', // x   2

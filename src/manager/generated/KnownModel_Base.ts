@@ -4,7 +4,7 @@ export type KnownModel_Base =
     | "SD3"                // x   8
     | "SDXL"               // x  90
     | "SD1.x"              // x  26
-    | "upscale"            // x  19
+    | "upscale"            // x  21
     | "deepbump"           // x   1
     | "face_restore"       // x   3
     | "SVD"                // x   2
@@ -63,11 +63,13 @@ export type KnownModel_Base =
     | "umt5_xxl"           // x   2
     | "FramePackI2V"       // x   1
     | "LTX-2"              // x  16
-    | "LTX-2.3"            // x   8
+    | "LTX-2.3"            // x  18
+    | "LTX-2.5"            // x  13
     | "LBM"                // x   1
     | "Qwen-Image"         // x  14
     | "Qwen-2.5-VL"        // x   2
-    | "Qwen-Image-Edit" // x  12
+    | "Qwen-Image-Edit"    // x  12
+    | "yolov8" // x   2
 
 // prettier-ignore
 export const knownModel_Base: KnownModel_Base[] = [
@@ -75,7 +77,7 @@ export const knownModel_Base: KnownModel_Base[] = [
     "SD3"               ,  // x   8
     "SDXL"              ,  // x  90
     "SD1.x"             ,  // x  26
-    "upscale"           ,  // x  19
+    "upscale"           ,  // x  21
     "deepbump"          ,  // x   1
     "face_restore"      ,  // x   3
     "SVD"               ,  // x   2
@@ -134,9 +136,11 @@ export const knownModel_Base: KnownModel_Base[] = [
     "umt5_xxl"          ,  // x   2
     "FramePackI2V"      ,  // x   1
     "LTX-2"             ,  // x  16
-    "LTX-2.3"           ,  // x   8
+    "LTX-2.3"           ,  // x  18
+    "LTX-2.5"           ,  // x  13
     "LBM"               ,  // x   1
     "Qwen-Image"        ,  // x  14
     "Qwen-2.5-VL"       ,  // x   2
     "Qwen-Image-Edit"   ,  // x  12
+    "yolov8"            ,  // x   2
 ]

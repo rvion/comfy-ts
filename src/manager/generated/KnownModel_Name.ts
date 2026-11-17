@@ -170,6 +170,16 @@ export type KnownModel_Name =
      * see https://huggingface.co/guoyww/animatediff
      */
     | "animatediff/v3_sd15_sparsectrl_scribble.ckpt"
+    /** Anime eye detector (YOLOv8n). Detects eyes in anime-style character art for use with BboxDetectorSEGS/Detailer workflows.
+     * 6.24MB - https://huggingface.co/killjoyelite/anime-eye-yolov8/resolve/6bceece59aa38f7fe9d3867f3e2931b11c7ff9a1/eye_yolov8n.pt
+     * see https://huggingface.co/killjoyelite/anime-eye-yolov8
+     */
+    | "Anime Eye Detector (YOLOv8n)"
+    /** Anime eye detector (YOLOv8s). Detects eyes in anime-style character art for use with BboxDetectorSEGS/Detailer workflows.
+     * 22.5MB - https://huggingface.co/killjoyelite/anime-eye-yolov8/resolve/6bceece59aa38f7fe9d3867f3e2931b11c7ff9a1/eye_yolov8s.pt
+     * see https://huggingface.co/killjoyelite/anime-eye-yolov8
+     */
+    | "Anime Eye Detector (YOLOv8s)"
     /** The idea behind this embedding was to somehow train the negative prompt as an embedding, thus unifying the basis of the negative prompt into one word or embedding.
      * 25KB - https://civitai.com/api/download/models/60095
      * see https://civitai.com/models/55700/badprompt-negative-embedding
@@ -1632,11 +1642,61 @@ NOTE: This VAE model can also be used for image generation with OmniGen2.
      * see https://huggingface.co/Lightricks/LTX-2.3
      */
     | "LTX-2.3 22B Distilled LoRA 1.1"
+    /** In-Context LoRA (IC LoRA) for clean-plate generation from videos.
+     * 0.33GB - https://huggingface.co/Lightricks/LTX-2.3-22b-IC-LoRA-Clean-Plate/resolve/main/ltx-2.3-22b-ic-lora-clean-plate-1.0.safetensors
+     * see https://huggingface.co/Lightricks/LTX-2.3-22b-IC-LoRA-Clean-Plate
+     */
+    | "LTX-2.3 22B IC-LoRA Clean Plate"
+    /** In-Context LoRA (IC LoRA) for video colorization.
+     * 0.91GB - https://huggingface.co/Lightricks/LTX-2.3-22b-IC-LoRA-Colorization/resolve/main/ltx-2.3-22b-ic-lora-colorization-0.9.safetensors
+     * see https://huggingface.co/Lightricks/LTX-2.3-22b-IC-LoRA-Colorization
+     */
+    | "LTX-2.3 22B IC-LoRA Colorization"
+    /** In-Context LoRA (IC LoRA) for deblurring videos.
+     * 0.91GB - https://huggingface.co/Lightricks/LTX-2.3-22b-IC-LoRA-Deblur/resolve/main/ltx-2.3-22b-ic-lora-deblur-0.9.safetensors
+     * see https://huggingface.co/Lightricks/LTX-2.3-22b-IC-LoRA-Deblur
+     */
+    | "LTX-2.3 22B IC-LoRA Deblur"
+    /** In-Context LoRA (IC LoRA) for decompression / artifact cleanup of videos.
+     * 0.91GB - https://huggingface.co/Lightricks/LTX-2.3-22b-IC-LoRA-Decompression/resolve/main/ltx-2.3-22b-ic-lora-decompression-0.9.safetensors
+     * see https://huggingface.co/Lightricks/LTX-2.3-22b-IC-LoRA-Decompression
+     */
+    | "LTX-2.3 22B IC-LoRA Decompression"
+    /** In-Context LoRA (IC LoRA) for video dubbing / revoicing workflows.
+     * 2.47GB - https://huggingface.co/Lightricks/LTX-2.3-22b-IC-LoRA-DubIt/resolve/main/ltx-2.3-22b-ic-lora-dubit-0.9.safetensors
+     * see https://huggingface.co/Lightricks/LTX-2.3-22b-IC-LoRA-DubIt
+     */
+    | "LTX-2.3 22B IC-LoRA DubIt"
+    /** In-Context LoRA (IC LoRA) for 16-bit HDR video generation and SDR-to-HDR conversion.
+     * 0.33GB - https://huggingface.co/Lightricks/LTX-2.3-22b-IC-LoRA-HDR/resolve/main/ltx-2.3-22b-ic-lora-hdr-0.9.safetensors
+     * see https://huggingface.co/Lightricks/LTX-2.3-22b-IC-LoRA-HDR
+     */
+    | "LTX-2.3 22B IC-LoRA HDR"
+    /** In-Context LoRA (IC LoRA) for video inpainting and outpainting.
+     * 1.31GB - https://huggingface.co/Lightricks/LTX-2.3-22b-IC-LoRA-In-Outpainting/resolve/main/ltx-2.3-22b-ic-lora-in-outpainting-0.9.safetensors
+     * see https://huggingface.co/Lightricks/LTX-2.3-22b-IC-LoRA-In-Outpainting
+     */
+    | "LTX-2.3 22B IC-LoRA In-Outpainting"
+    /** In-Context LoRA (IC LoRA) for reference-sheet control, keeping characters, props, and locations consistent across generated videos.
+     * 1.31GB - https://huggingface.co/Lightricks/LTX-2.3-22b-IC-LoRA-Ingredients/resolve/main/ltx-2.3-22b-ic-lora-ingredients-0.9.safetensors
+     * see https://huggingface.co/Lightricks/LTX-2.3-22b-IC-LoRA-Ingredients
+     */
+    | "LTX-2.3 22B IC-LoRA Ingredients"
     /** In-Context LoRA (IC LoRA) for motion track guided video generation.
      * 0.30GB - https://huggingface.co/Lightricks/LTX-2.3-22b-IC-LoRA-Motion-Track-Control/resolve/main/ltx-2.3-22b-ic-lora-motion-track-control-ref0.5.safetensors
      * see https://huggingface.co/Lightricks/LTX-2.3-22b-IC-LoRA-Motion-Track-Control
      */
     | "LTX-2.3 22B IC-LoRA Motion Track Control"
+    /** In-Context LoRA (IC LoRA) for generative 2x pixel spatial upscaling of videos.
+     * 0.65GB - https://huggingface.co/Lightricks/LTX-2.3-22b-IC-LoRA-Pixel-Spatial-Upscaler/resolve/main/ltx-2.3-22b-ic-lora-pixel-spatial-upscaler-x2-0.9.safetensors
+     * see https://huggingface.co/Lightricks/LTX-2.3-22b-IC-LoRA-Pixel-Spatial-Upscaler
+     */
+    | "LTX-2.3 22B IC-LoRA Pixel Spatial Upscaler x2"
+    /** In-Context LoRA (IC LoRA) for generative 4x pixel spatial upscaling of videos.
+     * 0.65GB - https://huggingface.co/Lightricks/LTX-2.3-22b-IC-LoRA-Pixel-Spatial-Upscaler/resolve/main/ltx-2.3-22b-ic-lora-pixel-spatial-upscaler-x4-0.9.safetensors
+     * see https://huggingface.co/Lightricks/LTX-2.3-22b-IC-LoRA-Pixel-Spatial-Upscaler
+     */
+    | "LTX-2.3 22B IC-LoRA Pixel Spatial Upscaler x4"
     /** In-Context LoRA (IC LoRA) for unified multi-condition control (canny, depth, pose) guided video generation.
      * 0.61GB - https://huggingface.co/Lightricks/LTX-2.3-22b-IC-LoRA-Union-Control/resolve/main/ltx-2.3-22b-ic-lora-union-control-ref0.5.safetensors
      * see https://huggingface.co/Lightricks/LTX-2.3-22b-IC-LoRA-Union-Control
@@ -1657,6 +1717,81 @@ NOTE: This VAE model can also be used for image generation with OmniGen2.
      * see https://huggingface.co/Lightricks/LTX-2.3
      */
     | "LTX-2.3 Temporal Upscaler x2"
+    /** LTX-2.5 22B full / trainable DiT transformer (bf16).
+     * 42.02GB - https://huggingface.co/Lightricks/LTX-2.5/resolve/main/diffusion_models/ltx-2.5-22b-dev-transformer-bf16.safetensors
+     * see https://huggingface.co/Lightricks/LTX-2.5
+     */
+    | "LTX-2.5 22B Dev Transformer BF16"
+    /** LTX-2.5 22B full DiT transformer (Comfy int8 + convrot). ComfyUI only.
+     * 21.50GB - https://huggingface.co/Lightricks/LTX-2.5/resolve/main/diffusion_models/ltx-2.5-22b-dev-transformer-comfy-int8-convrot.safetensors
+     * see https://huggingface.co/Lightricks/LTX-2.5
+     */
+    | "LTX-2.5 22B Dev Transformer Comfy INT8"
+    /** A LoRA adapter that transforms the standard LTX-2.5 22B model into a distilled version when loaded.
+     * 8.90GB - https://huggingface.co/Lightricks/LTX-2.5/resolve/main/loras/ltx-2.5-22b-distilled-lora-450-bf16.safetensors
+     * see https://huggingface.co/Lightricks/LTX-2.5
+     */
+    | "LTX-2.5 22B Distilled LoRA"
+    /** LTX-2.5 22B distilled DiT transformer (bf16). Fixed 8-step schedule, CFG=1.
+     * 42.02GB - https://huggingface.co/Lightricks/LTX-2.5/resolve/main/diffusion_models/ltx-2.5-22b-distilled-transformer-bf16.safetensors
+     * see https://huggingface.co/Lightricks/LTX-2.5
+     */
+    | "LTX-2.5 22B Distilled Transformer BF16"
+    /** LTX-2.5 22B distilled DiT transformer (Comfy int8 + convrot). ComfyUI only.
+     * 21.50GB - https://huggingface.co/Lightricks/LTX-2.5/resolve/main/diffusion_models/ltx-2.5-22b-distilled-transformer-comfy-int8-convrot.safetensors
+     * see https://huggingface.co/Lightricks/LTX-2.5
+     */
+    | "LTX-2.5 22B Distilled Transformer Comfy INT8"
+    /** LTX-2.5 22B distilled DiT transformer (NVFP4).
+     * 18.72GB - https://huggingface.co/Lightricks/LTX-2.5/resolve/main/diffusion_models/ltx-2.5-22b-distilled-transformer-nvfp4.safetensors
+     * see https://huggingface.co/Lightricks/LTX-2.5
+     */
+    | "LTX-2.5 22B Distilled Transformer NVFP4"
+    /** In-Context LoRA (IC LoRA) for alpha matte generation on video, for background removal and VFX compositing.
+     * 1.31GB - https://huggingface.co/Lightricks/LTX-2.5-22b-IC-LoRA-Alpha-Gen/resolve/main/ltx-2.5-22b-ic-lora-alpha-gen-0.9.safetensors
+     * see https://huggingface.co/Lightricks/LTX-2.5-22b-IC-LoRA-Alpha-Gen
+     */
+    | "LTX-2.5 22B IC-LoRA Alpha-Gen"
+    /** LTX-2.5 audio VAE and vocoder (bf16).
+     * 0.36GB - https://huggingface.co/Lightricks/LTX-2.5/resolve/main/vae/ltx-2.5-audio-vae-bf16.safetensors
+     * see https://huggingface.co/Lightricks/LTX-2.5
+     */
+    | "LTX-2.5 Audio VAE BF16"
+    /** Optional duration predictor head for LTX-2.5. Predicts clip length from the prompt when num_frames is omitted.
+     * 3.84MB - https://huggingface.co/Lightricks/LTX-2.5/resolve/main/model_patches/ltx-2.5-duration-head-bf16.safetensors
+     * see https://huggingface.co/Lightricks/LTX-2.5
+     */
+    | "LTX-2.5 Duration Head BF16"
+    /** Gemma4 12B text encoder with projections for LTX-2.5 (bf16).
+     * 26.26GB - https://huggingface.co/Lightricks/LTX-2.5/resolve/main/text_encoders/gemma4-12b-with-proj-ltx-2.5-bf16.safetensors
+     * see https://huggingface.co/Lightricks/LTX-2.5
+     */
+    | "LTX-2.5 Gemma4 12B Text Encoder BF16"
+    /** Gemma4 12B text encoder with projections for LTX-2.5 (Comfy int8 + convrot). ComfyUI only.
+     * 15.37GB - https://huggingface.co/Lightricks/LTX-2.5/resolve/main/text_encoders/gemma4-12b-with-proj-ltx-2.5-comfy-int8-convrot.safetensors
+     * see https://huggingface.co/Lightricks/LTX-2.5
+     */
+    | "LTX-2.5 Gemma4 12B Text Encoder Comfy INT8"
+    /** Spatial upscaler model for LTX-2.5. This model enhances the spatial resolution of generated videos by 2x.
+     * 0.96GB - https://huggingface.co/Lightricks/LTX-2.5/resolve/main/latent_upscale_models/ltx-2.5-latent-spatial-upscaler-x2-bf16-1.0.safetensors
+     * see https://huggingface.co/Lightricks/LTX-2.5
+     */
+    | "LTX-2.5 Spatial Upscaler x2"
+    /** Temporal upscaler model for LTX-2.5. This model enhances the temporal resolution of generated videos by 2x.
+     * 0.26GB - https://huggingface.co/Lightricks/LTX-2.5/resolve/main/latent_upscale_models/ltx-2.5-latent-temporal-upscaler-x2-bf16-1.0.safetensors
+     * see https://huggingface.co/Lightricks/LTX-2.5
+     */
+    | "LTX-2.5 Temporal Upscaler x2"
+    /** LTX-2.5 DiffVAE video decoder (bf16). Higher quality, heavier.
+     * 1.47GB - https://huggingface.co/Lightricks/LTX-2.5/resolve/main/vae/ltx-2.5-video-vae-bf16.safetensors
+     * see https://huggingface.co/Lightricks/LTX-2.5
+     */
+    | "LTX-2.5 Video VAE BF16"
+    /** LTX-2.5 Conv VAE video decoder (bf16). Faster, lighter.
+     * 1.45GB - https://huggingface.co/Lightricks/LTX-2.5/resolve/main/vae/ltx-2.5-video-vae-conv-bf16.safetensors
+     * see https://huggingface.co/Lightricks/LTX-2.5
+     */
+    | "LTX-2.5 Video VAE Conv BF16"
     /** Quantized distilled version of the LTX-Video 13B model, optimized for even lower VRAM usage while maintaining quality.
      * 15.7GB - https://huggingface.co/Lightricks/LTX-Video/resolve/main/ltxv-13b-0.9.7-distilled-fp8.safetensors
      * see https://huggingface.co/Lightricks/LTX-Video

@@ -1,16 +1,16 @@
 // prettier-ignore
 export type KnownModel_Type =
     | "TAESD"              // x   8
-    | "upscale"            // x  18
+    | "upscale"            // x  20
     | "checkpoint"         // x  55
     | "deepbump"           // x   1
     | "face_restore"       // x   3
     | "zero123"            // x   5
     | "embedding"          // x   4
-    | "VAE"                // x  13
-    | "diffusion_model"    // x  85
-    | "clip"               // x  29
-    | "lora"               // x  76
+    | "VAE"                // x  16
+    | "diffusion_model"    // x  90
+    | "clip"               // x  31
+    | "lora"               // x  88
     | "unclip"             // x   2
     | "T2I-Adapter"        // x  18
     | "T2I-Style"          // x   1
@@ -21,7 +21,7 @@ export type KnownModel_Type =
     | "sam2.1"             // x   4
     | "sam2"               // x   4
     | "seecoder"           // x   3
-    | "Ultralytics"        // x  16
+    | "Ultralytics"        // x  18
     | "animatediff"        // x  13
     | "animatediff-pia"    // x   1
     | "motion lora"        // x   8
@@ -47,20 +47,21 @@ export type KnownModel_Type =
     | "CustomNet"          // x   2
     | "Janus-Pro"          // x   2
     | "vae"                // x   1
-    | "FramePackI2V" // x   1
+    | "FramePackI2V"       // x   1
+    | "model_patch" // x   1
 
 export const knownModel_Type: KnownModel_Type[] = [
    'TAESD', // x   8
-   'upscale', // x  18
+   'upscale', // x  20
    'checkpoint', // x  55
    'deepbump', // x   1
    'face_restore', // x   3
    'zero123', // x   5
    'embedding', // x   4
-   'VAE', // x  13
-   'diffusion_model', // x  85
-   'clip', // x  29
-   'lora', // x  76
+   'VAE', // x  16
+   'diffusion_model', // x  90
+   'clip', // x  31
+   'lora', // x  88
    'unclip', // x   2
    'T2I-Adapter', // x  18
    'T2I-Style', // x   1
@@ -71,7 +72,7 @@ export const knownModel_Type: KnownModel_Type[] = [
    'sam2.1', // x   4
    'sam2', // x   4
    'seecoder', // x   3
-   'Ultralytics', // x  16
+   'Ultralytics', // x  18
    'animatediff', // x  13
    'animatediff-pia', // x   1
    'motion lora', // x   8
@@ -98,4 +99,5 @@ export const knownModel_Type: KnownModel_Type[] = [
    'Janus-Pro', // x   2
    'vae', // x   1
    'FramePackI2V', // x   1
+   'model_patch', // x   1
 ]
