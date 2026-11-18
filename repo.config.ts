@@ -76,6 +76,7 @@ export default defineRepo({
    // <<< shipkit ignored inputs
    identity: { colorLight: '#1453ad', colorDark: '#6da2ee' },
    name: 'comfy-ts',
+   id: 'comfy-ts',
    visibility: 'public',
    release: { npm: true, npmTokenCommand: ['rv-secret', 'get', 'rv/npm/token'] },
 })
