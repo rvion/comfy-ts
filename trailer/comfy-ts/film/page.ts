@@ -11,11 +11,14 @@ if (page == null || seconds == null || out == null) throw new Error('usage: page
 
 const here = resolve(import.meta.dir, '..')
 const repo = resolve(here, '../..')
-// the editor reads the published types and the public Comfy Cloud catalog, never a generated sdk of a private host
+// the editor reads the published types and the public Comfy Cloud catalog; the one host sdk is the staged project's
 const routes: Record<string, string> = {
    '/lib/comfy-ts.d.ts': join(repo, 'dist/index.d.ts'),
    '/lib/cloud-sdk.d.ts': join(repo, 'examples/comfy-cloud/sdk.d.ts'),
    '/icon.png': join(repo, '.shipkit/identity/icon.png'),
+   // the app take's types: the sdk comfy-ts gen wrote in the staged project; only the type checker reads it, no take shows
+   // a completion or a hover from it
+   '/lib/stage-sdk.d.ts': '/tmp/my-project/.comfy-ts/hosts/my-gpu/sdk.d.ts',
 }
 const types: Record<string, string> = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.ts': 'text/plain', '.png': 'image/png' }
 

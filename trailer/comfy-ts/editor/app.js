@@ -26,9 +26,9 @@ const STARTS = [[0.35, 0.03], [1.65, 0.03], [3.2, 0.028], [5.0, 0.022]]
    openTake({
       code: start,
       file: 'scenery.cflow.ts',
-      libs: { '/lib/comfy-ts.d.ts': 'file:///node_modules/comfy-ts/index.d.ts' },
+      libs: { '/lib/comfy-ts.d.ts': 'file:///node_modules/comfy-ts/index.d.ts', '/lib/stage-sdk.d.ts': 'file:///.comfy-ts/hosts/my-gpu/sdk.d.ts' },
       // typing only: no list opens on a dot, no key accepts one
-      options: { fontSize: 15.5, lineHeight: 22, suggestOnTriggerCharacters: false, acceptSuggestionOnCommitCharacter: false, autoClosingBrackets: 'never', autoClosingQuotes: 'never', autoIndent: 'none' },
+      options: { fontSize: 15.5, lineHeight: 22, stickyScroll: { enabled: false }, suggestOnTriggerCharacters: false, acceptSuggestionOnCommitCharacter: false, autoClosingBrackets: 'never', autoClosingQuotes: 'never', autoIndent: 'none' },
       ready: async () => {
          editor.revealLineNearTop(5)
          editor.setScrollTop(editor.getTopForLineNumber(5))

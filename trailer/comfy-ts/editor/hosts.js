@@ -31,7 +31,7 @@ playEvents([1.2, 2.4, 3.6].map((t, i) => ({ t, run: async () => live(i + 1) })))
 openTake({
    code: CODE,
    file: 'scenery.cflow.ts',
-   libs: { '/lib/comfy-ts.d.ts': 'file:///node_modules/comfy-ts/index.d.ts' },
-   options: { fontSize: 15.5, lineHeight: 24, quickSuggestions: false, suggestOnTriggerCharacters: false },
+   libs: { '/lib/comfy-ts.d.ts': 'file:///node_modules/comfy-ts/index.d.ts', '/editor/env.d.ts': 'file:///env.d.ts' },
+   options: { fontSize: 14, lineHeight: 24, scrollbar: { horizontal: 'hidden' }, quickSuggestions: false, suggestOnTriggerCharacters: false },
    ready: async () => editor.setPosition({ lineNumber: FIRST + 2, column: 1 }),
 })

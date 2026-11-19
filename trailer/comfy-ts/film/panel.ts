@@ -25,7 +25,7 @@ const wrap = Bun.serve({
       new Response(
          `<!doctype html><html><head><meta charset="utf-8"><style>
 html,body{margin:0;height:100%;background:#0b1220;overflow:hidden}
-#chrome{position:absolute;left:56px;right:56px;top:132px;bottom:28px;background:#0f1a2e;border:1px solid #1d2b45;border-radius:14px;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,.45)}
+#chrome{position:absolute;left:56px;right:56px;top:172px;bottom:16px;background:#0f1a2e;border:1px solid #1d2b45;border-radius:14px;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,.45)}
 #tabs{height:40px;display:flex;align-items:center;gap:8px;padding:0 16px;border-bottom:1px solid #1d2b45;font:600 15px monospace;color:#c9d6ee}
 .dot{width:11px;height:11px;border-radius:50%;background:#2a3a58}
 iframe{position:absolute;top:41px;left:0;width:calc(100% / 1.2);height:calc((100% - 41px) / 1.2);transform:scale(1.2);transform-origin:0 0;border:0;background:#fff}

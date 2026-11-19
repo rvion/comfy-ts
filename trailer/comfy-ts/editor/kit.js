@@ -48,6 +48,12 @@ function playEvents(events, stretch = 1) {
          await sleep(30)
       }
       await sleep(40)
+      // ?debug=1: the type errors of the frame over the take, to read them on a probe still
+      if (new URLSearchParams(location.search).get('debug') === '1') {
+         document.getElementById('debug')?.remove()
+         const text = errors().map((m) => `${m.startLineNumber}:${m.startColumn} ${m.message}`).join('\n') || 'no type error'
+         document.body.insertAdjacentHTML('beforeend', `<pre id="debug" style="position:absolute;left:0;right:0;bottom:0;margin:0;background:#000d;color:#f88;font:13px monospace;white-space:pre-wrap;z-index:9">${text.replace(/</g, '&lt;')}</pre>`)
+      }
    }
 }
 
