@@ -7,10 +7,10 @@
 <style>
    html, body { margin: 0; height: 100%; overflow: hidden; }
    body { background: radial-gradient(ellipse at 50% 38%, #18294a 0%, #0b1220 55%, #060a12 100%); }
-   /* the icon above the name the trailer draws in the middle */
-   #mark { position: absolute; left: 50%; top: 120px; width: 190px; height: 190px; transform: translateX(-50%); border-radius: 44px;
-      background: #f4f7ff; box-shadow: 0 0 80px rgba(255, 176, 32, var(--glow, 0.25)), 0 20px 50px rgba(0, 0, 0, .5); }
-   #mark img { width: 100%; height: 100%; }
+   /* the icon (transparent around its pillow and star) straight on the card's ground, no tile behind it; a soft amber
+      glow follows its own shape */
+   #mark { position: absolute; left: 50%; top: 100px; width: 230px; height: 230px; transform: translateX(-50%); }
+   #mark img { width: 100%; height: 100%; filter: drop-shadow(0 0 28px rgba(255, 176, 32, var(--glow, 0.25))) drop-shadow(0 16px 30px rgba(0, 0, 0, .5)); }
 </style>
 </head>
 <body>

@@ -15,15 +15,21 @@ const speed = Number(q.get('speed') ?? 1)
 const idle = Number(q.get('idle') ?? 1e9)
 
 const write = (data) => new Promise((r) => term.write(data, r))
+const IMAGE = /\u001b\]1337;File=[^\u0007]*\u0007/g
+const hasImage = (d) => d.includes('\u001b]1337;')
+
+/** writes the events due by cast time c. Only the last inline image of the batch is decoded: the ones it paints over
+ *  never show on a frame, and decoding every preview of a fast stretch (a TUI's live previews at 2x) crashed the page */
+async function writeUntil(c) {
+   const due = []
+   while (next < events.length && events[next].t <= c) due.push(events[next++].data)
+   const last = due.findLastIndex(hasImage)
+   for (let i = 0; i < due.length; i++) await write(i < last && hasImage(due[i]) ? due[i].replace(IMAGE, '') : due[i])
+   return last >= 0
+}
 
 window.__trailerStep = async (t) => {
-   const c = from + t * speed
-   let images = false
-   while (next < events.length && events[next].t <= c) {
-      images ||= events[next].data.includes('\u001b]1337;')
-      await write(events[next].data)
-      next++
-   }
+   const images = await writeUntil(from + t * speed)
    await frame()
    if (images) {
       // the addon decodes an inline image off the write path
@@ -60,6 +66,19 @@ window.__trailerStep = async (t) => {
          let at = 0
          for (const e of events) at = e.t = Math.max(e.t, at)
       }
+      // one event a whole inline image: the recorder cut an image escape over many reads of the pty
+      const whole = []
+      let open = null
+      for (const e of events) {
+         if (open) {
+            open.data += e.data
+            if (open.data.lastIndexOf('\u0007') > open.data.lastIndexOf('\u001b]1337;')) open = null
+            continue
+         }
+         whole.push(e)
+         if (e.data.lastIndexOf('\u001b]1337;') > e.data.lastIndexOf('\u0007')) open = e
+      }
+      events = whole
       document.getElementById('title').textContent = q.get('title') ?? 'terminal'
       await document.fonts.load("16px 'JetBrains Mono'")
       await document.fonts.load("bold 16px 'JetBrains Mono'")
@@ -79,7 +98,7 @@ window.__trailerStep = async (t) => {
       term.loadAddon(new ImageAddon.ImageAddon({ iipSupport: true, sixelSupport: false }))
       term.open(document.getElementById('term'))
       // the cast's state at `from`, written before the first frame
-      while (next < events.length && events[next].t <= from) await write(events[next++].data)
+      await writeUntil(from)
       await frame()
       mark('ready')
    } catch (e) {

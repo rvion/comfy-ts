@@ -1,0 +1,12 @@
+{
+  "cols": 106, "rows": 12, "cwd": "/tmp/my-project", "max": 180, "kill": true,
+  "env": { "PATH": "/tmp/my-project/node_modules/.bin:$PATH", "PS1": "\\[\\e[38;5;111m\\]my-project\\[\\e[0m\\] \\$ ", "BASH_SILENCE_DEPRECATION_WARNING": "1", "COMFY_CLOUD_API_KEY": "$COMFY_CLOUD_API_KEY" },
+  "cmd": ["bash", "--norc", "--noprofile", "-i"],
+  "steps": [
+    { "wait": "\\$ $", "pause": 0.4, "type": "comfy-ts gen --id my-gpu --host http://127.0.0.1:8085", "cps": 32 },
+    { "pause": 0.3, "type": "\r" },
+    { "wait": "nodes, ", "pause": 0.8, "type": "comfy-ts gen --id comfy-cloud --host https://cloud.comfy.org", "cps": 32 },
+    { "pause": 0.3, "type": "\r" },
+    { "wait": "nodes, ", "end": 2.0, "cap": 120 }
+  ]
+}

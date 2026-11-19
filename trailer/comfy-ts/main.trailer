@@ -1,5 +1,5 @@
-# comfy-ts, the announcement cut: what it is in the first seconds (your ComfyUI as TypeScript types), then one
-# command, then the name and where to get it. Every shot is the product: a real editor over the real types, a real
+# comfy-ts, the announcement cut: any ComfyUI (local, LAN, cloud, a provider), its exact setup read by comfy-ts gen,
+# then the same setup as TypeScript types, one command, an app, the TUI, the panel, agents, and the rest in a montage. Every shot is the product: a real editor over the real types, a real
 # terminal session replayed byte for byte, a real output. The titles carry every claim (feeds play muted), the
 # narrator says the same beat in other words.
 trailer comfy-ts
@@ -39,7 +39,29 @@ code
 
 drums k=kick h=hat c=clap
 
-# the editor: a soft pulse and the arpeggio, rising; the hat comes in on the third beat
+# any host: one line picks the ComfyUI, the others sit commented beside it (local, LAN, cloud, a provider)
+section hosts 2bars tempo 100
+  play * ({ ...pads('Fmaj7 | Am7'), sub: bass('Fmaj7 | Am7', 'hold', 2) })
+  play arp arp('Fmaj7 | Am7', [0, 1, 2, 3, 2, 1], 5, 2)
+shot hosts 2bars
+  film run "bun trailer/comfy-ts/film/page.ts editor/index.html {seconds} {out} take=hosts" reads editor/index.html,editor/kit.js,editor/hosts.js,film/page.ts
+  title "comfy-ts" for 2bars style corner +mark
+  title "Any ComfyUI: local, LAN, *cloud*" at 0.15s for 4.4s style line +claim
+  voice run "bun trailer/comfy-ts/film/voice.ts 'Point Comfy T.S. at any ComfyUI: your GPU, a box on your network, or the cloud.' {out}" reads film/voice.ts at 0.2s
+  cut whip-left 0.5beat
+
+# the cause before the effect: comfy-ts gen reads the box (2857 nodes) and Comfy Cloud (3901 nodes), and writes the SDK
+section gen 3bars tempo 100
+  play * ({ ...pads('Dm9 | Bbmaj7 | C'), sub: bass('Dm9 | Bbmaj7 | C', 'hold', 2), hat: offs(3) })
+  play arp arp('Dm9 | Bbmaj7 | C', [0, 1, 2, 3, 2, 1], 5, 2)
+shot gen 3bars
+  film run "bun trailer/comfy-ts/film/page.ts term/index.html {seconds} {out} cast=casts/gen.cast from=0.2 speed=1.6 idle=0.5 title=my-project" reads term/index.html,term/replay.js,film/page.ts,casts/gen.cast
+  title "comfy-ts" for 3bars style corner +mark
+  title "Your exact setup, *discovered*" at 0.15s for 6.9s style line +claim
+  voice run "bun trailer/comfy-ts/film/voice.ts 'One command reads your exact setup: every node, every model.' {out}" reads film/voice.ts at 0.3s
+  cut whip-left 0.5beat
+
+# the editor: the SDK gen just wrote, completing; a soft pulse and the arpeggio, rising
 section intro 6bars tempo 100
   play * ({ ...pads('Fmaj7 | Am7 | Dm9 | Bbmaj7 | Fmaj7 | C'), sub: bass('Fmaj7 | Am7 | Dm9 | Bbmaj7 | Fmaj7 | C', 'hold', 2) })
   play arp arp('Fmaj7 | Am7 | Dm9 | Bbmaj7 | Fmaj7 | C', [0, 1, 2, 3, 2, 1], 5, 2)
@@ -126,15 +148,25 @@ shot panel 3bars
   voice run "bun trailer/comfy-ts/film/voice.ts 'Or in the browser, every variable a field.' {out}" reads film/voice.ts at 0.4s
   cut whip-left 0.5beat
 
-# an agent: one sentence asked in a real Claude Code session, the agent reads the guide and runs the workflow
+# agents, part one: one line of CLAUDE.md teaches the library, and a run answers in one line of JSON
+section agentdocs 2bars tempo 100
+  play * ({ ...pads('Bbmaj7 | C'), bass: bass('Bbmaj7 | C', 'octave', 2), kick: four(2), hat: offs(2) })
+  play arp arp('Bbmaj7 | C', [0, 1, 2, 3], 5, 2)
+shot agentdocs 2bars
+  film run "bun trailer/comfy-ts/film/page.ts term/index.html {seconds} {out} cast=casts/agent.cast from=0.3 speed=1.2 idle=0.6 title=my-project" reads term/index.html,term/replay.js,film/page.ts,casts/agent.cast
+  title "Built for *agents*" at 0.15s for 4.5s style line +claim
+  voice run "bun trailer/comfy-ts/film/voice.ts 'One line in CLAUDE.md teaches your agent the whole library.' {out}" reads film/voice.ts at 0.2s
+  cut fade 0.5beat
+
+# agents, part two: one sentence asked in a real Claude Code session, the agent reads the guide and runs the workflow
 section agent 4bars tempo 100
   play * ({ ...pads('Dm9 | Bbmaj7 | Fmaj7 | C'), bass: bass('Dm9 | Bbmaj7 | Fmaj7 | C', 'octave', 2), kick: four(4), hat: offs(4), clap: backs(4) })
   play arp arp('Dm9 | Bbmaj7 | Fmaj7 | C', [0, 1, 2, 3], 5, 2)
 shot agent 4bars
   film run "bun trailer/comfy-ts/film/page.ts term/index.html {seconds} {out} cast=casts/claude.cast from=3.6 speed=3.35 title=my-project" reads term/index.html,term/replay.js,film/page.ts,casts/claude.cast
-  title "Agents drive it *too*" at 0.2s for 9.2s style line +claim
+  title "1 sentence, 3 commands, *18 s*" at 0.2s for 9.2s style line +claim
   title "3x speed" at 0.2s for 9.2s style corner +mark
-  voice run "bun trailer/comfy-ts/film/voice.ts 'Ask an agent. It reads one guide and runs it.' {out}" reads film/voice.ts at 0.6s
+  voice run "bun trailer/comfy-ts/film/voice.ts 'Ask in one sentence. It runs three commands and is done in eighteen seconds.' {out}" reads film/voice.ts at 0.6s
   cut fade 0.5beat
 
 # what it makes: real outputs, each made by comfy-ts on a local GPU
@@ -147,14 +179,18 @@ shot outputs 2bars
   voice run "bun trailer/comfy-ts/film/voice.ts 'Photos, art, songs.' {out}" reads film/voice.ts at 0.4s
   cut whip-left 0.5beat
 
-# the zoo: every bundled workflow scrolls past, the cloud catalog's 73 among them
-section zoo 2bars tempo 100
-  play * ({ ...pads('Bbmaj7 | C'), bass: bass('Bbmaj7 | C', 'octave', 2), kick: four(2), hat: offs(2), clap: backs(2) })
-  play arp arp('Bbmaj7 | C', [0, 1, 2, 3], 5, 2)
-shot zoo 2bars
+# and also: every bundled workflow scrolls past while the rest of what comfy-ts does flashes by, one line a beat
+section zoo 3bars tempo 100
+  play * ({ ...pads('Bbmaj7 | C | C'), bass: bass('Bbmaj7 | C | C', 'octave', 2), kick: four(3), hat: offs(3), clap: backs(3) })
+  play arp arp('Bbmaj7 | C | C', [0, 1, 2, 3], 5, 2)
+shot zoo 3bars
   film run "bun trailer/comfy-ts/film/page.ts term/index.html {seconds} {out} cast=casts/list.cast from=1.0 trickle=24 title=my-project" reads term/index.html,term/replay.js,film/page.ts,casts/list.cast
-  title "*73* ready workflows" at 0.2s for 4.4s style line +claim
-  voice run "bun trailer/comfy-ts/film/voice.ts 'Seventy-three ready workflows.' {out}" reads film/voice.ts at 0.4s
+  title "*73* ready workflows" at 0.15s for 1.5s style line +claim
+  title "workflow.json, *both ways*" at 1.65s for 1.4s style line +claim
+  title "an *HTTP API*" at 3.05s for 1.3s style line +claim
+  title "no traces on the *server*" at 4.35s for 1.4s style line +claim
+  title "and in the *browser*" at 5.75s for 1.3s style line +claim
+  voice run "bun trailer/comfy-ts/film/voice.ts 'And more: seventy-three ready workflows, JSON both ways, an HTTP API.' {out}" reads film/voice.ts at 0.2s
   cut dip-black 1beat
 
 # the name and where to get it; the music stops dead and one note rings alone
