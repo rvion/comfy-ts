@@ -139,11 +139,9 @@ section panel 3bars tempo 100
 shot panel 3bars
   film run "bun trailer/comfy-ts/film/panel.ts {seconds} {out}" reads film/panel.ts,stage/scenery.cflow.ts
   title "*5* Or in the web UI" at 0.2s for 6.8s style line +claim
-  title "1.6x speed" at 0.2s for 6.8s style corner +mark
+  title "1.4x speed" at 0.2s for 6.8s style corner +mark
   voice run "bun trailer/comfy-ts/film/voice.ts 'Or in the browser, every variable a field.' {out}" reads film/voice.ts at 0.4s
   cut whip-left 0.5beat
-
-# ComfyUI both ways: a workflow exported as an autolayouted workflow.json opens on the ComfyUI canvas, and a canvas
 
 # 6, editing: the SDK gen wrote, completing, then a wrong model name as a compile error
 section intro 6bars tempo 100
@@ -159,12 +157,13 @@ shot editor 6bars
   voice run "bun trailer/comfy-ts/film/voice.ts 'A wrong name is a compile error.' {out}" reads film/voice.ts at 4bars+0.6s
   cut whip-left 0.5beat
 
-# graph comes back as code (placeholder until the beat stays: it films the box's own ComfyUI page)
+# ComfyUI both ways: the staged module exported as an autolayouted workflow.json lands on a real ComfyUI canvas (focus
+# mode, none of the box's panels); the way back is host.importWorkflowJson, the title's "and back"
 section export 2bars tempo 100
   play * ({ ...pads('Fmaj7 | C'), bass: bass('Fmaj7 | C', 'octave', 2), kick: four(2), hat: offs(2) })
   play arp arp('Fmaj7 | C', [0, 1, 2, 3], 5, 2)
 shot export 2bars
-  film run "bun trailer/comfy-ts/film/page.ts term/index.html {seconds} {out} cast=casts/export.cast from=0.3 speed=1.2 title=my-project" reads term/index.html,term/replay.js,film/page.ts
+  film run "bun trailer/comfy-ts/film/canvas.ts {seconds} {out}" reads film/canvas.ts,stage/export.ts,stage/scenery.cflow.ts
   title "Code to ComfyUI, and *back*" at 0.15s for 4.5s style line +claim
   voice run "bun trailer/comfy-ts/film/voice.ts 'Export to the ComfyUI canvas, and bring a canvas graph back as code.' {out}" reads film/voice.ts at 0.2s
   cut whip-left 0.5beat
