@@ -97,6 +97,14 @@ window.__trailerStep = async (t) => {
       })
       term.loadAddon(new ImageAddon.ImageAddon({ iipSupport: true, sixelSupport: false }))
       term.open(document.getElementById('term'))
+      // the estimate above can overflow the box: shrink until the drawn screen fits
+      const screen = document.querySelector('#term .xterm-screen')
+      for (let i = 0; i < 20; i++) {
+         const r = screen.getBoundingClientRect()
+         if (r.height <= box.height && r.width <= box.width) break
+         term.options.fontSize = Math.round((term.options.fontSize - 0.3) * 10) / 10
+         await frame()
+      }
       // the cast's state at `from`, written before the first frame
       await writeUntil(from)
       await frame()

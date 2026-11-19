@@ -1,16 +1,16 @@
 {
-  "cols": 110, "rows": 30, "cwd": "/tmp/my-project", "max": 120, "kill": true, "drain": 0.5,
+  "cols": 128, "rows": 32, "cwd": "/tmp/my-project", "max": 120, "kill": true, "drain": 0.5,
   "env": { "PATH": "/tmp/my-project/node_modules/.bin:$PATH", "TERM_PROGRAM": "vscode" },
   "cmd": ["comfy-ts", "tui", "."],
   "steps": [
     { "wait": "scenery", "pause": 1.5 },
     { "type": "s" },
-    { "wait": "success", "pause": 1.2, "cap": 60 },
+    { "wait": "success", "pause": 1.2, "cap": 90 },
     { "type": "\u001b[B", "end": 0.35 },
     { "type": "\u001b[B", "end": 0.35 },
-    { "type": " ", "end": 0.5 },
+    { "type": "\u001b[C", "end": 0.5 },
     { "type": "r" },
-    { "wait": "success", "pause": 2.0, "cap": 60 },
+    { "wait": "success", "pause": 2.0, "cap": 90 },
     { "type": "q", "end": 0.5 }
   ]
 }

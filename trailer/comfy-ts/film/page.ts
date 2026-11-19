@@ -36,8 +36,10 @@ try {
    const url = `http://127.0.0.1:${server.port}/${page}${query ? `?${query}` : ''}`
    const ask = { url, out: resolve(out), viewport: { width: 1280, height: 720 }, step: '__trailerStep', waitMs: 60_000, root: repo }
    const log = (l: string): void => console.error(l)
+   // dom: every page here is html; the terminal's image layer is a canvas over the whole terminal, and the service films
+   // a page's largest canvas alone when it covers most of the viewport, which drops the text
    // an out ending in .png is one still, the page stepped to <seconds>: a probe of a frame without a clip
-   const r = out.endsWith('.png') ? await shotUrl({ ...ask, at: Number(seconds) }, log) : await clipUrl({ ...ask, seconds: Number(seconds) }, log)
+   const r = out.endsWith('.png') ? await shotUrl({ ...ask, at: Number(seconds) }, log) : await clipUrl({ ...ask, seconds: Number(seconds), dom: true }, log)
    console.error(r.note ?? 'filmed')
 } finally {
    server.stop(true)
