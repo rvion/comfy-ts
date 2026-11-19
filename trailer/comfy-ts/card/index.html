@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="shot-ready" content="loading">
-<title>comfy-ts end card</title>
+<title>comfy-ts card</title>
 <style>
    html, body { margin: 0; height: 100%; overflow: hidden; }
    body { background: radial-gradient(ellipse at 50% 38%, #18294a 0%, #0b1220 55%, #060a12 100%); }
@@ -20,9 +20,11 @@
    window.__trailerStep = async (t) => {
       document.body.style.setProperty('--glow', String(0.22 + 0.12 * Math.sin(t * 1.6)))
    }
+   // ?mark=none: the ground alone, for a card whose titles fill the frame
+   if (new URLSearchParams(location.search).get('mark') === 'none') document.getElementById('mark').remove()
    const img = document.getElementById('icon')
    const ready = () => document.querySelector('meta[name=shot-ready]').setAttribute('content', 'ready')
-   img.complete ? ready() : img.addEventListener('load', ready)
+   img != null && !img.complete ? img.addEventListener('load', ready) : ready()
 </script>
 </body>
 </html>

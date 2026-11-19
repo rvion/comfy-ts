@@ -47,13 +47,13 @@ section hook 4bars tempo 100
   play * ({ ...pads('Fmaj7 | Am7 | Dm9 | Bbmaj7'), bass: bass('Fmaj7 | Am7 | Dm9 | Bbmaj7', 'octave', 2), kick: seq(rest(32), four(2)), hat: offs(4), clap: seq(rest(32), backs(2)) })
   play arp arp('Fmaj7 | Am7 | Dm9 | Bbmaj7', [0, 1, 2, 3, 2, 1], 5, 2)
 shot promise 2bars
-  film clip ../../.shipkit/cache/trailer/footage/8b063391ce2d.mp4
+  film run "bun trailer/comfy-ts/film/page.ts editor/index.html {seconds} {out}" reads editor/index.html,editor/kit.js,editor/take.js,film/page.ts
   title "comfy-ts" for 2bars style corner +mark
   title "comfy-ts" at 0.1s for 1.5s style big +hook
   title "The ultimate ComfyUI toolkit\nfor *agents* and *humans*" at 1.7s for 3s style big +hook
   voice run "bun trailer/comfy-ts/film/voice.ts 'Comfy T.S. The ultimate ComfyUI toolkit, for agents and humans.' {out}" reads film/voice.ts at 0.2s
 shot path 2bars
-  film run "bun trailer/comfy-ts/film/page.ts card/index.html {seconds} {out}" reads card/index.html,film/page.ts
+  film run "bun trailer/comfy-ts/film/page.ts card/index.html {seconds} {out} mark=none" reads card/index.html,film/page.ts
   title "From 0 to hero in *6 steps*" at 0.1s for 4.6s style big +hook place top
   progress "*1* Set up|*2* Discover|*3* Agents|*4* TUI|*5* Web UI|*6* Editing" at 0.9s every 0.6s place bottom
   voice run "bun trailer/comfy-ts/film/voice.ts 'From zero to hero, in six steps.' {out}" reads film/voice.ts at 0.3s
@@ -177,7 +177,7 @@ section end 3bars tempo 100
 shot end 3bars
   film run "bun trailer/comfy-ts/film/page.ts card/index.html {seconds} {out}" reads card/index.html,film/page.ts
   title "comfy-ts\nyour ComfyUI, typed" at 0.2s style big place middle +name
-  title "bun add comfy-ts\ngithub.com/rvion/comfy-ts" at 1bar style caption place bottom font "JetBrains Mono" weight 700 color #ffb020
+  title "bun add comfy-ts  ·  github.com/rvion/comfy-ts" at 1bar style caption place bottom font "JetBrains Mono" weight 700 color #ffb020
   voice run "bun trailer/comfy-ts/film/voice.ts 'Comfy T.S. Free and open source.' {out}" reads film/voice.ts at 1bar
   sfx run "ffmpeg -v error -f lavfi -i sine=f=1396.9:d=1.4 -af afade=t=out:st=0.02:d=1.38,volume=0.5 {out}" at 2bars+2beats
   cut dip-black 1beat
