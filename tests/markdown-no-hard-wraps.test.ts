@@ -78,7 +78,14 @@ export function findHardWraps(markdown: string): number[] {
       if ((lines[i - 1] ?? '').trim() === '' && line.startsWith('    ')) continue
       const prev = lines[i - 1] ?? ''
       if (prev.trim() === '') continue
-      if (/^\s*(```|~~~)/.test(prev) || /^\s{0,3}#{1,6}\s/.test(prev) || /^\s*\|/.test(prev)) continue
+      // an html comment on its own line is a tag on what follows (a release file's weight), never a cut sentence
+      if (
+         /^\s*(```|~~~)/.test(prev) ||
+         /^\s{0,3}#{1,6}\s/.test(prev) ||
+         /^\s*\|/.test(prev) ||
+         /^\s*<!--.*-->\s*$/.test(prev)
+      )
+         continue
       hits.push(i + 1)
    }
    return hits
@@ -92,6 +99,8 @@ describe('markdown carries no hard wraps', () => {
       expect(findHardWraps('```\ncode\nstays\n```\n')).toEqual([])
       expect(findHardWraps('| a | b |\n| - | - |\n| 1 | 2 |\n')).toEqual([])
       expect(findHardWraps('# heading\ntext under it\n')).toEqual([])
+      expect(findHardWraps('### a change\n<!-- weight: improvement -->\nits description\n')).toEqual([])
+      expect(findHardWraps('<!-- a tag -->\na sentence cut\nfor width\n')).toEqual([3])
    })
 
    it('skips the nested private dirs, not only the top level names', () => {
