@@ -158,10 +158,10 @@ class FakeManager {
       this.processing = false
    }
 
-   manager(): ComfyManager {
+   manager(times: { installTimeoutMs?: number; pollGraceMs?: number } = {}): ComfyManager {
       return new ComfyManager(
          { getServerHostHTTP: () => 'http://box:8188', fetch: (route, init) => this.serve(route, init) },
-         { pollMs: 1, installTimeoutMs: 30, pollGraceMs: 10 },
+         { pollMs: 1, installTimeoutMs: 30, pollGraceMs: 10, ...times },
          () => mirror,
       )
    }
@@ -369,7 +369,11 @@ describe('installModel', () => {
          const box = new FakeManager(gen)
          box.drainAfterPolls = 4
          box.failPolls = new Set([2])
-         const r = await capturingErrors(() => box.manager().installModel(model))
+         // the budgets are wall clock: a 30 ms one ran out under a full parallel suite before the fourth poll, so a test
+         // that waits for success gets budgets it never reaches; it still ends as soon as the install lands
+         const r = await capturingErrors(() =>
+            box.manager({ installTimeoutMs: 5_000, pollGraceMs: 5_000 }).installModel(model),
+         )
          expect({ gen, ok: r.value }).toEqual({ gen, ok: true })
          expect(r.errors).toContain('poll failed, still waiting')
       }
