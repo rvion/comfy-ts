@@ -1,5 +1,12 @@
 # comfy-ts
 
+## Unreleased
+
+- **A host by its id alone.** `comfy.host({ id: 'my-gpu' })` now finds the address that `comfy-ts gen --id my-gpu --host <url>` saved in `.comfy-ts/hosts/my-gpu/host.json`. Committed code names no machine: the address stays in `.comfy-ts/`, which you gitignore. A `url`, or a `host` and `port`, in the call still wins.
+- **An id with no saved address still imports.** The module loads, logs the reason once, and the first `connect()` or `run()` throws with the path it looked at and the `comfy-ts gen` command that writes it. The file is read again at each use, so a `gen` run under an open TUI or `serve` works without a restart.
+- **The bundled `examples/rvion` modules name their host by id** (`comfy.host({ id: 'windows-1' })`) and carry no address. Run `comfy-ts gen --id windows-1 --host <your ComfyUI>` once to point them at your own server.
+- **The agent guide teaches the id-only form** as the default first step.
+
 ## 2.19.0
 
 - **Claude Code skills ship with the package.** `comfy-ts skill install` gives Claude Code five slash commands in your project: `/comfy-ts-setup`, `/comfy-ts-workflow`, `/comfy-ts-convert`, `/comfy-ts-run` and `/comfy-ts-guide`. `--user` installs them for every project of yours, and `--dir <skills-dir>` picks the folder. Run it again after an upgrade: a skill file you edited is never overwritten without `--force`, and the command names it.
