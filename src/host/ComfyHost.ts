@@ -719,6 +719,8 @@ export class ComfyHost<ID extends string = string> {
     * cannot be reached, which is itself the signal a caller watches for a restart */
    checkSchemaDrift = async (p: { full: boolean }): Promise<SchemaDrift> => {
       const loaded: Record<string, unknown> = this.schema.data.spec
+      // no schema loaded yet (a TUI probes a host before its first run loads one): nothing to compare
+      if (Object.keys(loaded).length === 0) return { nodes: null, models: [] }
       const live: Record<string, unknown> = {}
       if (p.full) Object.assign(live, await this.fetchJSON_<Record<string, unknown>>('/object_info'))
       else
