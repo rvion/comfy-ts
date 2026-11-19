@@ -8,9 +8,10 @@
 <style>
    html, body { margin: 0; height: 100%; overflow: hidden; }
    body { background: radial-gradient(ellipse at 50% 55%, #18294a 0%, #0b1220 60%, #060a12 100%); }
-   /* one host call, big: the frame and the closing brace stay, the argument and its name change in place */
-   #what { position: absolute; left: 0; right: 0; top: 268px; text-align: center; font: 800 34px Inter, sans-serif; color: #ffb020; letter-spacing: .01em; }
-   #code { position: absolute; left: 92px; right: 60px; top: 340px; font: 500 32px/1.55 'JetBrains Mono', monospace; color: #c9d6ee; white-space: pre; }
+   /* one host call, the hero of the frame: its opening and closing stay, its argument and its name change in place.
+      The block's left edge is fixed (centred on the widest variant) so the opening never moves */
+   #what { position: absolute; left: 0; right: 0; top: 200px; text-align: center; font: 800 52px Inter, sans-serif; color: #ffb020; letter-spacing: .01em; }
+   #code { position: absolute; left: 136px; top: 290px; font: 500 40px/1.45 'JetBrains Mono', monospace; color: #c9d6ee; white-space: pre; }
    .dim { color: #7f8fb0; }
    .k { color: #6da2ee; }
    .s { color: #e8b27a; }
@@ -21,16 +22,17 @@
 <body>
 <div id="what"></div>
 <div id="code"><span class="dim">comfy.host({</span>
-   <span id="arg"></span>
+<span id="arg"></span>
 <span class="dim">})</span></div>
 <script>
    const s = (x) => `<span class="s">'${x}'</span>`
    const k = (x) => `<span class="k">${x}</span>`
+   const row = (key, value) => `  ${k(key)}${value == null ? '' : `: ${value}`}`
    const HOSTS = [
-      { what: 'your GPU', arg: `${k('id')}: ${s('my-gpu')}` },
-      { what: 'a box on your network', arg: `${k('id')}: ${s('tower')}, ${k('host')}: ${s('192.168.1.5')}, ${k('port')}: <span class="n">8188</span>` },
-      { what: 'Comfy Cloud', arg: `${k('id')}: ${s('cloud')}, ${k('url')}: ${s('https://cloud.comfy.org')}, ${k('apiKey')}` },
-      { what: 'any provider', arg: `${k('id')}: ${s('runpod')}, ${k('url')}: ${s('https://xyz-8188.proxy.runpod.net')}` },
+      { what: 'your GPU', rows: [row('id', s('my-gpu'))] },
+      { what: 'a box on your network', rows: [row('id', s('tower')), row('url', s('http://192.168.1.5:8188'))] },
+      { what: 'Comfy Cloud', rows: [row('id', s('cloud')), row('url', s('https://cloud.comfy.org')), row('apiKey')] },
+      { what: 'any provider', rows: [row('id', s('runpod')), row('url', s('https://pod-8188.proxy.runpod.net'))] },
    ]
    // ?every=<s>: how long each host holds; the swap fades over the first 0.2 s of its turn
    const EVERY = Number(new URLSearchParams(location.search).get('every') ?? 1.8)
@@ -42,7 +44,7 @@
       const i = Math.min(HOSTS.length - 1, Math.floor(t / EVERY))
       if (i !== shown) {
          what.textContent = HOSTS[i].what
-         arg.innerHTML = HOSTS[i].arg
+         arg.innerHTML = HOSTS[i].rows.join(',\n')
          shown = i
       }
       const into = t - i * EVERY
@@ -53,8 +55,8 @@
       }
    }
    document.fonts.ready.then(async () => {
-      await document.fonts.load("500 32px 'JetBrains Mono'")
-      await document.fonts.load('800 34px Inter')
+      await document.fonts.load("500 40px 'JetBrains Mono'")
+      await document.fonts.load('800 52px Inter')
       await window.__trailerStep(0)
       document.querySelector('meta[name=shot-ready]').setAttribute('content', 'ready')
    })
