@@ -7,7 +7,8 @@ its time. The replay page (term/index.html) plays the file back frame by frame.
 script.json: { "cols": 100, "rows": 24, "cwd": "...", "env": {...}, "cmd": ["bash", ...], "max": 180,
                "steps": [ { "wait": "regex", "pause": 0.4, "type": "text\\r", "cps": 22 } ... ] }
 A step with no "type" only waits; "optional": true skips a step whose pattern never prints. The recording ends when the command exits, after the last step's "end" pause,
-or at "max" seconds.
+or at "max" seconds. "hide": ["regex", ...] cuts each match from what the command prints before it is kept (a line
+the cut must not show, the account's plan in a banner); a match the cut missed fails the recording.
 """
 import codecs, fcntl, json, os, pty, re, select, signal, struct, sys, termios, time
 
@@ -28,6 +29,8 @@ os.kill(pid, signal.SIGWINCH)
 out.write(json.dumps({'version': 2, 'width': cols, 'height': rows, 'env': {'TERM': 'xterm-256color'}}) + '\n')
 t0 = time.monotonic()
 dec = codecs.getincrementaldecoder('utf-8')('replace')
+hide = [re.compile(p) for p in script.get('hide', [])]
+kept = []
 seen = ''  # output since the current step began waiting
 alive = True
 
@@ -48,8 +51,11 @@ def pump(timeout):
       return
    text = dec.decode(data)
    if text:
-      out.write(json.dumps([round(time.monotonic() - t0, 4), 'o', text]) + '\n')
       seen += text
+      for rx in hide:
+         text = rx.sub('', text)
+      kept.append(text)
+      out.write(json.dumps([round(time.monotonic() - t0, 4), 'o', text]) + '\n')
 
 
 def wait_for(pattern, cap, optional=False):
@@ -96,3 +102,8 @@ try:
    os.kill(pid, signal.SIGKILL)
 except ProcessLookupError:
    pass
+# a match split across two reads survives the cut: refuse the file rather than keep it
+left = [rx.pattern for rx in hide if rx.search(''.join(kept))]
+if left:
+   os.remove(sys.argv[2])
+   raise SystemExit(f'rec: {left} still in the recording (split across two reads); record it again')

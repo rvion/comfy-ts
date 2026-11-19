@@ -6,7 +6,8 @@ trailer comfy-ts
 size 1280x720
 fps 30
 master -14 LUFS
-duck -9dB
+# the music at one quiet level for the whole cut, 18 dB under the speech, with no dip under the voice lines
+duck 0dB
 # the project's mark in the top right corner (outside every window, clear of the titles), from the first step to the
 # last body shot: the intro and the end card hold the big logo themselves
 watermark .shipkit/identity/icon.png "comfy-ts" top-right from hosts to export
@@ -17,7 +18,7 @@ preset hook font "Inter" weight 800 size 104 color #eaf1ff inner 0 place middle 
 preset flash font "Inter" weight 800 size 88 color #eaf1ff inner 0 place middle shade 0.55 in pop out none
 preset name font "Inter" weight 800 size 150 color #eaf1ff inner 0 sub 0.3 in pop
 
-score tempo 100 reverb 2.2 0.26
+score tempo 100 reverb 2.2 0.26 volume 0.13
 track sub sub volume 0.55
 track pad pad volume 0.42
 track pad2 pad volume 0.36

@@ -5,6 +5,7 @@
   "max": 300,
   "kill": true,
   "drain": 1.0,
+  "hide": ["(?<=\\x1b\\[12G\\x1b\\[38;5;246m)[^\\r\\x1b]*\\xb7[^\\r\\x1b]*(?=\\r)"],
   "env": {
     "PATH": "/tmp/my-project/node_modules/.bin:$PATH",
     "USER": "$USER",
