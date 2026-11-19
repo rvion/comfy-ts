@@ -40,6 +40,7 @@ import { logError as toastError, logInfo } from 'src/utils/log.ts'
 import type { ComfyInstallType } from 'src/host/ComfyInstallType.ts'
 import { ComfyManager } from 'src/host/ComfyManager.ts'
 import { ComfyUploader } from 'src/host/ComfyUploader.ts'
+import { namesNoAddress, readHostFile } from 'src/host/hostFile.ts'
 import { type ParsedHostBase, parseHostBase, renderHttpBase, renderWsUrl } from 'src/host/hostUrl.ts'
 import type { Requirements } from 'src/host/Requirements.ts'
 import { ResilientWebSocketClient, type WsMessageEvent } from 'src/host/ResilientWebsocket.ts'
@@ -143,13 +144,16 @@ export class ComfyHost<ID extends string = string> {
    readonly base: ParsedHostBase
 
    constructor(public data: ComfyHostData & { id: ID }) {
-      this.base = parseHostBase(this.data)
-
       /** folder where file related to the host config will be cached */
       this.cacheFolder = comfyts.resolveFromHosts(this.data.id)
+      const storage = getComfyStorage()
+
+      // the id alone: the address `comfy-ts gen` saved for it (src/host/hostFile.ts)
+      this.base = namesNoAddress(this.data)
+         ? parseHostBase({ id: this.data.id, url: readHostFile(storage, this.cacheFolder, this.data.id) })
+         : parseHostBase(this.data)
 
       // create the folder if it does not exist
-      const storage = getComfyStorage()
       if (!storage.exists(this.cacheFolder)) {
          console.log('🟢 creating folder', this.cacheFolder)
          storage.mkdirp(this.cacheFolder)

@@ -2,6 +2,8 @@
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'pathe'
 import { flagReader } from 'src/cli/flags.ts'
+import { writeHostFile } from 'src/host/hostFile.ts'
+import { renderHttpBase } from 'src/host/hostUrl.ts'
 import { ComfySchema } from 'src/sdk-generator/ComfySchema.ts'
 import type { ComfySchemaJSON } from 'src/sdk-generator/ComfyUIObjectInfoTypes.ts'
 import { ComfyTS } from 'src/state.ts'
@@ -33,10 +35,13 @@ export async function runGen(args: string[]): Promise<number> {
    const spec = await fetchJSON<ComfySchemaJSON>('/object_info')
    const embeddings = await fetchJSON<string[]>('/embeddings').catch(() => [] as string[])
 
-   const dir = join(process.cwd(), '.comfy-ts', 'hosts', id)
+   const dir = host.cacheFolder
    mkdirSync(dir, { recursive: true })
    writeFileSync(join(dir, 'object_info.json'), readableStringify(spec, 4), 'utf8')
    writeFileSync(join(dir, 'embeddings.json'), JSON.stringify(embeddings), 'utf8')
+   // the address, so code names this host by id alone: comfy.host({ id })
+   const hostFile = writeHostFile(comfy.storage, dir, { url: renderHttpBase(host.base) })
+   console.log(`[comfy-ts gen] 🟢 ${hostFile}: comfy.host({ id: '${id}' }) now finds this host`)
 
    const parsed = new ComfySchema({ spec, embeddings })
    const dts = parsed.codegenDTS({ hostId: id })

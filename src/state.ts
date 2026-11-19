@@ -1,6 +1,7 @@
 import { join } from 'pathe'
 import pkgJson from '../package.json' with { type: 'json' }
 import { ComfyHost, type ComfyHostData } from 'src/host/ComfyHost.ts'
+import { namesNoAddress } from 'src/host/hostFile.ts'
 import { parseHostBase, renderHttpBase } from 'src/host/hostUrl.ts'
 import { ComfyRegistry } from 'src/manager/ComfyRegistry.ts'
 import { type ComfyStorage, resolveComfyStorage } from 'src/storage/ComfyStorage.ts'
@@ -55,8 +56,9 @@ export class ComfyTS {
       const existing = this.hosts.get(data.id)
       if (existing != null) {
          // identity = the parsed base quad + apiKey PRESENCE (equivalent url and
-         // host/port spellings unify; the key VALUE never appears in the error)
-         const incoming = parseHostBase(data)
+         // host/port spellings unify; the key VALUE never appears in the error).
+         // The id alone names no address, so it asks for whatever is registered
+         const incoming = namesNoAddress(data) ? existing.base : parseHostBase(data)
          const cur = existing.base
          const sameBase =
             cur.scheme === incoming.scheme &&
