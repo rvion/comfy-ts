@@ -5,7 +5,8 @@ import { RunSt } from 'src/cli/serve/web/state/RunSt.ts'
 
 const realFetch = globalThis.fetch
 let statusReads = 0
-const json = (body: unknown): Response => new Response(JSON.stringify(body), { headers: { 'content-type': 'application/json' } })
+const json = (body: unknown): Response =>
+   new Response(JSON.stringify(body), { headers: { 'content-type': 'application/json' } })
 
 beforeEach(() => {
    statusReads = 0
