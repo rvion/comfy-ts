@@ -4,7 +4,7 @@ import { image, type Brand } from 'rvlib-shipkit'
 
 const brand: Brand = {
     name: 'comfy-ts',
-    tagline: 'your ComfyUI, typed',
+    tagline: 'ComfyUI, typed.',
     palette: { bg: '#0b1220', accent: '#ffb020', ink: '#eaf1ff' },
     mark: image(new URL('./icon.png', import.meta.url)),
 }
