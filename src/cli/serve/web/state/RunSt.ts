@@ -1,7 +1,8 @@
 // the run QUEUE + results. Clicking generate repeatedly enqueues; the drainer
 // sends ONE prompt at a time so anything still pending can be dropped before it
 // ever reaches the host: queued prompts must be clearable, singly or
-// all). Progress + latent preview are polled ~700ms while a prompt is in flight
+// all). Progress + latent preview are polled every RUN_POLL_MS while a prompt is in flight, never
+// while idle
 import { makeAutoObservable, observableShallow, runInAction } from 'mobx'
 import {
    deleteKeptResults,
@@ -28,6 +29,9 @@ export type QueueEntry = {
    payload: Record<string, unknown>
    sent: boolean
 }
+
+/** a sampler often ends within a second: a slower poll misses every latent frame of it */
+const RUN_POLL_MS = 150
 
 function sleep(ms: number): Promise<void> {
    return new Promise((resolve) => setTimeout(resolve, ms))
@@ -194,7 +198,7 @@ export class RunSt {
 
    private async poll(module: string, gen: number): Promise<void> {
       while (gen === this.pollGen) {
-         await sleep(700)
+         await sleep(RUN_POLL_MS)
          if (gen !== this.pollGen) return
          try {
             const status = await fetchRunStatus({ module })
