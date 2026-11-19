@@ -13,9 +13,9 @@ watermark .shipkit/identity/icon.png "comfy-ts" top-right from hosts to export
 # the cut's titles: a beat's claim in the band above the product, the name in the corner, the end card's name
 preset claim font "Inter" weight 800 size 74 color #eaf1ff place top in rise out fade
 preset mark font "JetBrains Mono" weight 700 size 46 in none out none
-preset hook font "Inter" weight 800 size 104 color #eaf1ff place middle shade 0.6 sub 0.8 in pop
-preset flash font "Inter" weight 800 size 88 color #eaf1ff place middle shade 0.55 in pop out none
-preset name font "Inter" weight 800 size 150 color #eaf1ff sub 0.3 in pop
+preset hook font "Inter" weight 800 size 104 color #eaf1ff inner 0 place middle shade 0.6 sub 0.8 in pop
+preset flash font "Inter" weight 800 size 88 color #eaf1ff inner 0 place middle shade 0.55 in pop out none
+preset name font "Inter" weight 800 size 150 color #eaf1ff inner 0 sub 0.3 in pop
 
 score tempo 100 reverb 2.2 0.26
 track sub sub volume 0.55
@@ -57,12 +57,12 @@ shot logo 1bar
   flash at 0s
   title "comfy-ts" at 0s style big place middle +name
   title "github.com/rvion/comfy-ts  ·  bun add comfy-ts" at 0.6s style caption place bottom font "JetBrains Mono" weight 700 size 34 color #c9d6ee out none
-  voice run "bun trailer/comfy-ts/film/voice.ts 'Comfy T.S.; the most efficient way to create, run, and maintain ComfyUI workflows for humans and agents.' {out}" reads film/voice.ts at 0.15s
+  voice run "bun trailer/comfy-ts/film/voice.ts 'Comfy T.S.; the most efficient way to create, run, maintain and operate your ComfyUI workflows, for humans and agents.' {out}" reads film/voice.ts at 0.15s
 shot wall 3bars
   film grid walltui,wallpanel,wallagent,wallcanvas pop 0.15s
-  title "The most *efficient* way" at 0s for 1.65s style big +hook
-  title "to *create*, *run* and *maintain*\nComfyUI workflows" at 1.7s for 2.9s style big +hook
-  title "for *humans* and *agents*" at 4.65s for 2.6s style big +hook
+  title "The most *efficient* way" at 0s for 1.35s style big +hook
+  title "to *create*, *run*, *maintain*\nand *operate* your ComfyUI workflows" at 1.4s for 3.55s style big +hook
+  title "for *humans* and *agents*" at 5s for 2.25s style big +hook
   title "github.com/rvion/comfy-ts  ·  bun add comfy-ts" at 0s for 7.2s style caption place bottom font "JetBrains Mono" weight 700 size 34 color #c9d6ee in none
   cut whip-left 0.5beat
 
