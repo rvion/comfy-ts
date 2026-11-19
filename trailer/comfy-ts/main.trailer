@@ -56,12 +56,14 @@ shot logo 1bar
   push 1.12
   flash at 0s
   title "comfy-ts" at 0s style big place middle +name
+  title "github.com/rvion/comfy-ts  ·  bun add comfy-ts" at 0.6s style caption place bottom font "JetBrains Mono" weight 700 size 34 color #c9d6ee out none
   voice run "bun trailer/comfy-ts/film/voice.ts 'Comfy T.S.; the most efficient way to create, run, and maintain ComfyUI workflows for humans and agents.' {out}" reads film/voice.ts at 0.15s
 shot wall 3bars
   film grid walltui,wallpanel,wallagent,wallcanvas pop 0.15s
   title "The most *efficient* way" at 0s for 1.65s style big +hook
   title "to *create*, *run* and *maintain*\nComfyUI workflows" at 1.7s for 2.9s style big +hook
   title "for *humans* and *agents*" at 4.65s for 2.6s style big +hook
+  title "github.com/rvion/comfy-ts  ·  bun add comfy-ts" at 0s for 7.2s style caption place bottom font "JetBrains Mono" weight 700 size 34 color #c9d6ee in none
   cut whip-left 0.5beat
 
 # the six steps glimpsed, one a beat: each a moment of the take its body shot plays later, the step's number big
@@ -209,15 +211,15 @@ shot export 2bars
   voice run "bun trailer/comfy-ts/film/voice.ts 'Export to the ComfyUI canvas, and back to code.' {out}" reads film/voice.ts at 0.2s
   cut whip-left 0.5beat
 
-# the name and where to get it; the music stops dead and one note rings alone
+# the name and where to get it: the install line, the repo with the GitHub mark and a star that fills once (drawn,
+# silent), the licence; the music stops dead and one note rings alone
 section end 3bars tempo 100
   play * ({ ...pads('Bbmaj7 | C | Fmaj7'), bass: bass('Bbmaj7 | C | Fmaj7', 'octave', 2), kick: four(3), hat: offs(3), clap: backs(3) })
   play bell seq('v9:A5 . . . C6 . . . E6 . . . . . . .', 'v9:G5 . . . . . . . C6 . . . . . . .', 'v10:F5', rep('.', 15))
   stop at 2bars+2beats
 shot end 3bars
-  film run "bun trailer/comfy-ts/film/page.ts card/index.html {seconds} {out}" reads card/index.html,film/page.ts
+  film run "bun trailer/comfy-ts/film/page.ts card/index.html {seconds} {out} end=1" reads card/index.html,card/github-mark.svg,film/page.ts
   title "comfy-ts\nyour ComfyUI, typed" at 0.2s style big place middle +name
-  title "bun add comfy-ts  ·  github.com/rvion/comfy-ts" at 1bar style caption place bottom font "JetBrains Mono" weight 700 color #ffb020
   voice run "bun trailer/comfy-ts/film/voice.ts 'Comfy T.S. Free and open source.' {out}" reads film/voice.ts at 1bar
   sfx run "ffmpeg -v error -f lavfi -i sine=f=1396.9:d=1.4 -af afade=t=out:st=0.02:d=1.38,volume=0.5 {out}" at 2bars+2beats
   cut dip-black 1beat

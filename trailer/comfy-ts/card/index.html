@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="shot-ready" content="loading">
 <title>comfy-ts card</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@600;800&family=JetBrains+Mono:wght@700&display=block" rel="stylesheet">
 <style>
    html, body { margin: 0; height: 100%; overflow: hidden; }
    body { background: radial-gradient(ellipse at 50% 38%, #18294a 0%, #0b1220 55%, #060a12 100%); }
@@ -11,19 +12,63 @@
       glow follows its own shape */
    #mark { position: absolute; left: 50%; top: 100px; width: 230px; height: 230px; transform: translateX(-50%); }
    #mark img { width: 100%; height: 100%; filter: drop-shadow(0 0 28px rgba(255, 176, 32, var(--glow, 0.25))) drop-shadow(0 16px 30px rgba(0, 0, 0, .5)); }
+   /* ?end=1: where to get it, under the name the cut titles: the install line, the repo with the GitHub mark and a star
+      that fills once, the licence. Silent: the star's pop is drawn, never heard */
+   #get { position: absolute; left: 0; right: 0; top: 488px; display: none; text-align: center; color: #eaf1ff; }
+   #get .row { opacity: 0; margin-bottom: 14px; }
+   #install { font: 700 30px 'JetBrains Mono', monospace; color: #ffb020; }
+   #repo { display: inline-flex; align-items: center; gap: 14px; font: 700 28px 'JetBrains Mono', monospace; }
+   #repo .gh { width: 30px; height: 30px; margin-right: 4px; }
+   #repo .gh svg { width: 100%; height: 100%; display: block; }
+   #star { width: 32px; height: 32px; margin-left: 6px; }
+   #star path { fill: rgba(255, 176, 32, var(--fill, 0)); stroke: #ffb020; stroke-width: 1.6; stroke-linejoin: round; }
+   #starit { font: 600 22px Inter, sans-serif; color: #ffb020; opacity: var(--fill, 0); }
+   #oss { font: 600 22px Inter, sans-serif; color: #8fa0c0; letter-spacing: .02em; }
 </style>
 </head>
 <body>
 <div id="mark"><img id="icon" src="/icon.png"></div>
+<div id="get">
+   <div class="row" id="install">bun add comfy-ts</div>
+   <div class="row"><span id="repo"><span class="gh"></span>github.com/rvion/comfy-ts<svg id="star" viewBox="0 0 24 24"><path d="M12 2.6l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.4l-5.8 3.1 1.1-6.5-4.7-4.6 6.5-.9z"/></svg><span id="starit">star it</span></span></div>
+   <div class="row" id="oss">free and open source · MIT</div>
+</div>
 <script>
    // a slow breath of the star's glow, drawn at the time the shot service asks for
+   const q = new URLSearchParams(location.search)
+   const END = q.get('end') === '1'
+   // the rows' entrances and the star's fill, in seconds of the take
+   const ROWS = [1.0, 1.5, 2.6]
+   const STAR = 4.0
+   const ease = (x) => 1 - Math.pow(1 - Math.min(1, Math.max(0, x)), 3)
    window.__trailerStep = async (t) => {
       document.body.style.setProperty('--glow', String(0.22 + 0.12 * Math.sin(t * 1.6)))
+      if (!END) return
+      document.querySelectorAll('#get .row').forEach((row, i) => {
+         const a = ease((t - ROWS[i]) / 0.45)
+         row.style.opacity = String(a)
+         row.style.transform = `translateY(${(1 - a) * 12}px)`
+      })
+      // the star fills once with a small pop: 1, up to 1.35, back to 1 over 0.5 s
+      const f = ease((t - STAR) / 0.3)
+      const k = t < STAR ? 0 : Math.min(1, (t - STAR) / 0.5)
+      const pop = 1 + 0.35 * Math.sin(Math.PI * k)
+      document.body.style.setProperty('--fill', String(f))
+      document.getElementById('star').style.transform = `scale(${pop})`
    }
    // ?mark=none: the ground alone, for a card whose titles fill the frame
-   if (new URLSearchParams(location.search).get('mark') === 'none') document.getElementById('mark').remove()
+   if (q.get('mark') === 'none') document.getElementById('mark').remove()
    const img = document.getElementById('icon')
-   const ready = () => document.querySelector('meta[name=shot-ready]').setAttribute('content', 'ready')
+   const ready = async () => {
+      if (END) {
+         document.getElementById('get').style.display = 'block'
+         document.querySelector('#repo .gh').innerHTML = await (await fetch('/card/github-mark.svg')).text()
+         await document.fonts.load("700 30px 'JetBrains Mono'")
+         await document.fonts.load('600 22px Inter')
+         await window.__trailerStep(0)
+      }
+      document.querySelector('meta[name=shot-ready]').setAttribute('content', 'ready')
+   }
    img != null && !img.complete ? img.addEventListener('load', ready) : ready()
 </script>
 </body>
