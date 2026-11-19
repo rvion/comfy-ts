@@ -11,10 +11,11 @@ duck 0dB
 # the project's mark in the top right corner (outside every window, clear of the titles), from the first step to the
 # last body shot: the intro and the end card hold the big logo themselves
 watermark .shipkit/identity/icon.png "comfy-ts" top-right from hosts to export
-# the video's thumbnail, drawn at each keep and set as the cut's first frames: the web panel with the latent forming
-thumbnail panel+5.2 crop 515,272,705,432 "ComfyUI, typed." chip "bun add comfy-ts"
-# the closing card after the end card: the links a viewer acts on, held 10 s for YouTube's end screen
-endcard
+# the start image, the video's first frames and its uploaded thumbnail: the web panel with the latent forming, made by
+# sk social thumbnail from the frame at panel+5.2 (crop 515,272,705,432, "ComfyUI, typed.", chip "bun add comfy-ts")
+thumbnail thumbnail.jpg
+# the end image, the video's last frames and the picture its end screen is laid on: the end card's final frame
+endcard endcard.png
 # the cut's titles: a beat's claim in the band above the product, the name in the corner, the end card's name
 preset claim font "Inter" weight 800 size 74 color #eaf1ff place top in rise out fade
 preset mark font "JetBrains Mono" weight 700 size 46 in none out none
@@ -23,7 +24,6 @@ preset flash font "Inter" weight 800 size 88 color #eaf1ff inner 0 place middle 
 preset name font "Inter" weight 800 size 150 color #eaf1ff inner 0 sub 0.3 in pop
 
 score tempo 100 reverb 2.2 0.26 volume 0.23
-track sub sub volume 0.55
 track pad pad volume 0.42
 track pad2 pad volume 0.36
 track pad3 pad volume 0.32
@@ -108,7 +108,7 @@ shot g6 2beats
 
 # any host: one call, big, its argument changing in place: local, LAN, cloud, a provider
 section hosts 3bars tempo 100
-  play * ({ ...pads('Fmaj7 | Am7 | Dm9'), sub: bass('Fmaj7 | Am7 | Dm9', 'hold', 2) })
+  play * ({ ...pads('Fmaj7 | Am7 | Dm9'), bass: bass('Fmaj7 | Am7 | Dm9', 'octave', 2) })
   play arp arp('Fmaj7 | Am7 | Dm9', [0, 1, 2, 3, 2, 1], 5, 2)
 shot hosts 3bars
   film run "bun trailer/comfy-ts/film/page.ts card/hosts.html {seconds} {out}" reads card/hosts.html,film/page.ts
@@ -118,7 +118,7 @@ shot hosts 3bars
 
 # the cause before the effect: comfy-ts gen reads the box (2857 nodes) and Comfy Cloud (3901 nodes), and writes the SDK
 section gen 2bars tempo 100
-  play * ({ ...pads('Dm9 | Bbmaj7'), sub: bass('Dm9 | Bbmaj7', 'hold', 2), hat: offs(2) })
+  play * ({ ...pads('Dm9 | Bbmaj7'), bass: bass('Dm9 | Bbmaj7', 'octave', 2), hat: offs(2) })
   play arp arp('Dm9 | Bbmaj7', [0, 1, 2, 3, 2, 1], 5, 2)
 shot gen 2bars
   film run "bun trailer/comfy-ts/film/page.ts term/index.html {seconds} {out} cast=casts/gen.cast from=0.2 speed=2.4 idle=0.5 title=my-project" reads term/index.html,term/replay.js,film/page.ts,casts/gen.cast
@@ -150,7 +150,7 @@ shot agent 3bars
 
 # vars and ifs make the workflow an app: the staged file gains two of each, typed until it reads as the file on disk
 section app 4bars tempo 100
-  play * ({ ...pads('Fmaj7 | Am7 | Dm9 | Bbmaj7'), sub: bass('Fmaj7 | Am7 | Dm9 | Bbmaj7', 'hold', 2), hat: offs(4) })
+  play * ({ ...pads('Fmaj7 | Am7 | Dm9 | Bbmaj7'), bass: bass('Fmaj7 | Am7 | Dm9 | Bbmaj7', 'octave', 2), hat: offs(4) })
   play arp arp('Fmaj7 | Am7 | Dm9 | Bbmaj7', [0, 1, 2, 3, 2, 1], 5, 2)
 shot app 4bars
   film run "bun trailer/comfy-ts/film/page.ts editor/index.html {seconds} {out} take=app" reads editor/index.html,editor/kit.js,editor/app.js,stage/scenery.cflow.ts,film/page.ts
@@ -193,7 +193,7 @@ shot panel 3bars
 
 # 6, editing: the SDK gen wrote, completing, then a wrong model name as a compile error
 section intro 6bars tempo 100
-  play * ({ ...pads('Fmaj7 | Am7 | Dm9 | Bbmaj7 | Fmaj7 | C'), sub: bass('Fmaj7 | Am7 | Dm9 | Bbmaj7 | Fmaj7 | C', 'hold', 2) })
+  play * ({ ...pads('Fmaj7 | Am7 | Dm9 | Bbmaj7 | Fmaj7 | C'), bass: bass('Fmaj7 | Am7 | Dm9 | Bbmaj7 | Fmaj7 | C', 'octave', 2) })
   play arp arp('Fmaj7 | Am7 | Dm9 | Bbmaj7 | Fmaj7 | C', [0, 1, 2, 3, 2, 1], 5, 2)
   play hat seq(vide(4), offs(2))
 shot editor 6bars
@@ -224,10 +224,9 @@ section end 3bars tempo 100
   stop at 2bars+2beats
 shot end 3bars
   film run "bun trailer/comfy-ts/film/page.ts card/index.html {seconds} {out} end=1" reads card/index.html,card/github-mark.svg,film/page.ts
-  title "comfy-ts\nComfyUI, typed." at 0.2s style big place middle +name
+  title "comfy-ts\nComfyUI, typed." at 0.2s style big place middle +name out none
   voice run "bun trailer/comfy-ts/film/voice.ts 'Comfy T.S. Free and open source.' {out}" reads film/voice.ts at 1bar
   sfx run "ffmpeg -v error -f lavfi -i sine=f=1396.9:d=1.4 -af afade=t=out:st=0.02:d=1.38,volume=0.5 {out}" at 2bars+2beats
-  cut dip-black 1beat
 
 # the wall's four cells, each a moment of a take the body plays (from plus length lands on the take's own seconds)
 footage walltui 3bars
