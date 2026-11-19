@@ -79,5 +79,5 @@ export default defineRepo({
    name: 'comfy-ts',
    id: 'comfy-ts',
    visibility: 'public',
-   release: { npm: true, npmTokenCommand: ['rv-secret', 'get', 'rv/npm/token'] },
+   release: { npm: true, releases: true, npmTokenCommand: ['rv-secret', 'get', 'rv/npm/token'] },
 })

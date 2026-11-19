@@ -1,92 +1,170 @@
-# comfy-ts
+# Changelog
 
-## 2.20.1
+<!-- made from .shipkit/releases/ by sk bump: edit those files, never this one -->
 
-- **The web panel catches the latent preview of a fast run.** The panel already showed the latent preview, but it read a running prompt every 700 ms, so a sampler that ends within a second showed none. It now reads every 150 ms while a prompt runs; an idle panel asks nothing, as before.
-- **The TUI no longer warns of a changed host before the first run.** Its header said « changed: +N node types, re-codegen » on a host whose schema was simply not loaded yet. The warning now shows only when a loaded schema really differs from the host.
+## 2.20.1 (2026-11-19): Latent previews on fast runs too
 
-## 2.20.0
+### Web panel
 
-- **A host by its id alone.** `comfy.host({ id: 'my-gpu' })` now finds the address that `comfy-ts gen --id my-gpu --host <url>` saved in `.comfy-ts/hosts/my-gpu/host.json`. Committed code names no machine: the address stays in `.comfy-ts/`, which you gitignore. A `url`, or a `host` and `port`, in the call still wins.
-- **An id with no saved address still imports.** The module loads, logs the reason once, and the first `connect()` or `run()` throws with the path it looked at and the `comfy-ts gen` command that writes it. The file is read again at each use, so a `gen` run under an open TUI or `serve` works without a restart.
-- **The bundled `examples/rvion` modules name their host by id** (`comfy.host({ id: 'windows-1' })`) and carry no address. Run `comfy-ts gen --id windows-1 --host <your ComfyUI>` once to point them at your own server.
-- **The agent guide teaches the id-only form** as the default first step.
+- **The web panel catches the latent preview of a fast run**: The panel already showed the latent preview, but it read a running prompt every 700 ms, so a sampler that ends within a second showed none. It now reads every 150 ms while a prompt runs; an idle panel asks nothing, as before.
 
-## 2.19.0
+### TUI
 
-- **Claude Code skills ship with the package.** `comfy-ts skill install` gives Claude Code five slash commands in your project: `/comfy-ts-setup`, `/comfy-ts-workflow`, `/comfy-ts-convert`, `/comfy-ts-run` and `/comfy-ts-guide`. `--user` installs them for every project of yours, and `--dir <skills-dir>` picks the folder. Run it again after an upgrade: a skill file you edited is never overwritten without `--force`, and the command names it.
-- **The GitHub repo is a Claude Code plugin marketplace** with the same skills, for a project that does not install the package: `/plugin marketplace add rvion/comfy-ts`, then `/plugin install comfy-ts@comfy-ts`.
-- **A clearer README.** One line and three sentences say what the library is, then one table sends you to the part you came for. It is up to date with 2.18: the Manager section, dynamic group inputs, the 73 cloud workflows over 43 model families. The first run command now names a local example.
-- **The agent guide says when code compiles before the first codegen**: with `noUncheckedIndexedAccess` on, run the codegen first.
+- **No warning of a changed host before the first run**: The TUI header said « changed: +N node types, re-codegen » on a host whose schema was simply not loaded yet. The warning now shows only when a loaded schema really differs from the host.
 
-## 2.18.1
+## 2.20.0 (2026-11-19): A host by its id alone
 
-- **An install can say that its outcome is unknown.** `manager.installModelOutcome(model)` and `manager.installPluginOutcome(pack)` return `'installed' | 'failed' | 'unknown'`. `unknown` means the client lost sight of the task while the Manager may still be installing: refetch the list and read the status before you install again. `installModel` and `installPlugin` still return `true` only for a verified install.
-- **A failed status request no longer ends an install.** The wait goes on until the host has not answered for `timing.pollGraceMs` (default 2 minutes). Before, one failed request made the install resolve `false` while the Manager was still downloading.
-- **Fixed on the Manager 4.x default UI: an install removed from the queue fails at once.** A queue reset from the Manager UI or another client used to leave the install waiting for the whole `installTimeoutMs`, 1 hour by default.
-- **Fixed on the Manager 4.x default UI: a pack install is checked against what is installed.** The Manager installs by repo name, and a few repo names belong to another pack. An install the Manager calls successful now fails when the pack does not show up as installed.
-- **A requirement the host cannot decide is no longer treated as missing.** `host.matchRequirements` returns `false` only for a requirement known to be missing, and warns with the name of each one it cannot decide. `host.checkRequirements(reqs)` returns `{ missing, undecided }`: queue installs for `missing` only. `isModelInstalled` and `isPluginInstalled` are `true` only for a known install, so read `getModelStatus` and `getPluginStatus` to tell "not installed" from "cannot decide".
-- **Fixed: a workflow whose subgraphs contain themselves fails at once** with a `subgraph-cycle` error that names them. Before, the import never returned. Nested subgraphs that would expand to more than 100,000 nodes fail with a `subgraph-too-large` error.
-- **Fixed: a very long chain of nodes with a missing required input** gives the `missing-required-input` error and no longer a stack overflow. Importing a large workflow is also faster.
+### Hosts
 
-## 2.18.0
+- **A host by its id alone**: `comfy.host({ id: 'my-gpu' })` now finds the address that `comfy-ts gen --id my-gpu --host <url>` saved in `.comfy-ts/hosts/my-gpu/host.json`. Committed code names no machine: the address stays in `.comfy-ts/`, which you gitignore. A `url`, or a `host` and `port`, in the call still wins.
+- **An id with no saved address still imports**: The module loads, logs the reason once, and the first `connect()` or `run()` throws with the path it looked at and the `comfy-ts gen` command that writes it. The file is read again at each use, so a `gen` run under an open TUI or `serve` works without a restart.
 
-- **Installs work on current ComfyUI-Manager.** `manager.installModel` and `manager.installPlugin` go through the Manager's install queue on every Manager generation: the legacy custom node (V3.x) and the pip Manager 4.x, with its default UI or its legacy UI. Before, they called routes that Managers no longer serve and always resolved `false`. Both now resolve only when the Manager ran the install and the result is checked, so a large model can take minutes. `timing.installTimeoutMs` (default 1 hour) bounds the wait. A refused install logs the route and what the host said, and a refusal by the Manager 4.x security policy names the settings it wants.
-- **Plugin and model status on every Manager.** `fetchPlugins`, `fetchModels`, `isPluginInstalled`, `getPluginStatus`, `isModelInstalled` and `getModelStatus` work again on Manager V3.x, whose list changed shape, and now on the Manager 4.x default UI, which serves no list: there the view is built from what the host has installed and the bundled registry. A pack or a model the host cannot decide has the status `unknown` in `getPluginStatus` and `getModelStatus`, and the yes or no checks `isPluginInstalled` and `isModelInstalled` answer `false` for it. On the 4.x default UI `update-available` is never reported.
-- **`manager.api()` says which Manager the host runs**: `{ generation: 'v3' | 'v4-legacy-ui' | 'v4', version }`.
-- **Dynamic group inputs are typed.** ComfyUI 0.45 adds `COMFY_DYNAMICGROUP_V3` inputs, used by `LoadLoraModel.loras` and `LoadLoraTextEncoder.loras`. The generated sdk types them as a list of rows with at least one row, `b.LoadLoraModel({ model, loras: [{ lora_name, strength }] })`, and a workflow that uses them imports and exports the way the editor saves it. Before, these nodes could not be built from typed code.
-- **An interrupted run settles.** `execution.done` now resolves as a failure when the server interrupts the run. Before, it never resolved.
-- **No noise for events a server sends by design.** Asset seeding, agent status and Manager queue events are ignored by name. A type that is really unknown prints one error per type per connection, not one per frame.
-- **`toWorkflowJson` exports dynamic combos and widgets fed by a link** as the editor saves them. Before, a dynamic combo became an empty slot, and a widget fed by a link lost its value, which shifted every widget after it on the next import.
-- **Official templates import more exactly.** A seed inside a dynamic combo no longer shifts the widgets after it (every `TextGenerate` node was affected). Widget inputs of custom types such as `BOUNDING_BOXES` and `COLORS` keep their value. A subgraph widget that feeds a slot input reaches the prompt. A workflow file with a text `last_node_id` or empty slot fields loads. When every output of a converted workflow misses a required input the import throws, and when only some do it warns and names the outputs ComfyUI will skip.
-- **A host whose node sends a three part input spec connects without a schema error.**
-- **Fresh data.** The bundled Manager registry lists 6054 node packs and 565 models. The Comfy Cloud catalog in `examples/comfy-cloud/sdk.d.ts` has 3893 node types.
+### Examples
+
+- **The bundled examples name their host by id**: The `examples/rvion` modules call `comfy.host({ id: 'windows-1' })` and carry no address. Run `comfy-ts gen --id windows-1 --host <your ComfyUI>` once to point them at your own server.
+
+### Docs
+
+- **The agent guide teaches the id form first**: `comfy.host({ id })` with no address is now the default first step of the guide for coding agents.
+
+## 2.19.0 (2026-11-17): Claude Code skills in the package
+
+### Agents
+
+- **Claude Code skills ship with the package**: `comfy-ts skill install` gives Claude Code five slash commands in your project: `/comfy-ts-setup`, `/comfy-ts-workflow`, `/comfy-ts-convert`, `/comfy-ts-run` and `/comfy-ts-guide`. `--user` installs them for every project of yours, and `--dir <skills-dir>` picks the folder. Run it again after an upgrade: a skill file you edited is never overwritten without `--force`, and the command names it.
+- **The GitHub repo is a Claude Code plugin marketplace**: The same skills, for a project that does not install the package: `/plugin marketplace add rvion/comfy-ts`, then `/plugin install comfy-ts@comfy-ts`.
+- **The agent guide says when code compiles before the first codegen**: With `noUncheckedIndexedAccess` on, run the codegen first.
+
+### Docs
+
+- **A clearer README**: One line and three sentences say what the library is, then one table sends you to the part you came for. It is up to date with 2.18: the Manager section, dynamic group inputs, the 73 cloud workflows over 43 model families. The first run command now names a local example.
+
+## 2.18.1 (2026-11-17): Installs that say when they cannot tell
+
+### Manager
+
+- **An install can say that its outcome is unknown**: `manager.installModelOutcome(model)` and `manager.installPluginOutcome(pack)` return `'installed' | 'failed' | 'unknown'`. `unknown` means the client lost sight of the task while the Manager may still be installing: refetch the list and read the status before you install again. `installModel` and `installPlugin` still return `true` only for a verified install.
+- **A failed status request no longer ends an install**: The wait goes on until the host has not answered for `timing.pollGraceMs` (default 2 minutes). Before, one failed request made the install resolve `false` while the Manager was still downloading.
+- **An install removed from the queue fails at once**: On the Manager 4.x default UI, a queue reset from the Manager UI or another client used to leave the install waiting for the whole `installTimeoutMs`, 1 hour by default.
+- **A pack install is checked against what is installed**: On the Manager 4.x default UI the Manager installs by repo name, and a few repo names belong to another pack. An install the Manager calls successful now fails when the pack does not show up as installed.
+- **A requirement the host cannot decide is no longer treated as missing**: `host.matchRequirements` returns `false` only for a requirement known to be missing, and warns with the name of each one it cannot decide. `host.checkRequirements(reqs)` returns `{ missing, undecided }`: queue installs for `missing` only. `isModelInstalled` and `isPluginInstalled` are `true` only for a known install, so read `getModelStatus` and `getPluginStatus` to tell "not installed" from "cannot decide".
+
+### Workflows
+
+- **A workflow whose subgraphs contain themselves fails at once**: It fails with a `subgraph-cycle` error that names them. Before, the import never returned. Nested subgraphs that would expand to more than 100,000 nodes fail with a `subgraph-too-large` error.
+- **A long chain of nodes with a missing required input no longer overflows the stack**: It gives the `missing-required-input` error. Importing a large workflow is also faster.
+
+## 2.18.0 (2026-11-17): Installs on current ComfyUI-Manager, typed dynamic groups
+
+### Manager
+
+- **Installs work on current ComfyUI-Manager**: `manager.installModel` and `manager.installPlugin` go through the Manager's install queue on every Manager generation: the legacy custom node (V3.x) and the pip Manager 4.x, with its default UI or its legacy UI. Before, they called routes that Managers no longer serve and always resolved `false`. Both now resolve only when the Manager ran the install and the result is checked, so a large model can take minutes. `timing.installTimeoutMs` (default 1 hour) bounds the wait. A refused install logs the route and what the host said, and a refusal by the Manager 4.x security policy names the settings it wants.
+- **Plugin and model status on every Manager**: `fetchPlugins`, `fetchModels`, `isPluginInstalled`, `getPluginStatus`, `isModelInstalled` and `getModelStatus` work again on Manager V3.x, whose list changed shape, and now on the Manager 4.x default UI, which serves no list: there the view is built from what the host has installed and the bundled registry. A pack or a model the host cannot decide has the status `unknown` in `getPluginStatus` and `getModelStatus`, and the yes or no checks `isPluginInstalled` and `isModelInstalled` answer `false` for it. On the 4.x default UI `update-available` is never reported.
+- **`manager.api()` says which Manager the host runs**: It returns `{ generation: 'v3' | 'v4-legacy-ui' | 'v4', version }`.
+- **`manager.configureLogging` throws when the host does not serve its route**: A change of behavior: no current Manager serves it. Before, it returned the error page as text.
+
+### Types
+
+- **Dynamic group inputs are typed**: ComfyUI 0.45 adds `COMFY_DYNAMICGROUP_V3` inputs, used by `LoadLoraModel.loras` and `LoadLoraTextEncoder.loras`. The generated sdk types them as a list of rows with at least one row, `b.LoadLoraModel({ model, loras: [{ lora_name, strength }] })`, and a workflow that uses them imports and exports the way the editor saves it. Before, these nodes could not be built from typed code.
+
+### Runs
+
+- **An interrupted run settles**: `execution.done` now resolves as a failure when the server interrupts the run. Before, it never resolved.
+- **No noise for events a server sends by design**: Asset seeding, agent status and Manager queue events are ignored by name. A type that is really unknown prints one error per type per connection, not one per frame.
+- **A host whose node sends a three part input spec connects without a schema error**
+
+### Workflows
+
+- **`toWorkflowJson` exports dynamic combos and widgets fed by a link**: They are exported as the editor saves them. Before, a dynamic combo became an empty slot, and a widget fed by a link lost its value, which shifted every widget after it on the next import.
+- **Official templates import more exactly**: A seed inside a dynamic combo no longer shifts the widgets after it (every `TextGenerate` node was affected). Widget inputs of custom types such as `BOUNDING_BOXES` and `COLORS` keep their value. A subgraph widget that feeds a slot input reaches the prompt. A workflow file with a text `last_node_id` or empty slot fields loads. When every output of a converted workflow misses a required input the import throws, and when only some do it warns and names the outputs ComfyUI will skip.
+
+### Examples and data
+
 - **24 new cloud examples**: mage-flow (text and image to image, base and turbo), minimax-h3, ltx2 and ltx23 (text and image to video), netayume, hidream-o1 (text and image to image), chronoedit, ace-step15 and stable-audio3 (text to audio), boogu text to image, krea2 image to image, and model variants of z-image, qwen-image, anima, ernie, flux1 and flux2.
-- **Changed: `manager.configureLogging` throws when the host does not serve its route.** No current Manager serves it. Before, it returned the error page as text.
+- **Fresh data**: The bundled Manager registry lists 6054 node packs and 565 models. The Comfy Cloud catalog in `examples/comfy-cloud/sdk.d.ts` has 3893 node types.
 
-## 2.17.1
+## 2.17.1 (2026-11-03): A clean exit, linked autogrow inputs
 
-- **`comfy-ts serve` on a taken port exits at once.** It prints one line naming the port, the bind and the process that holds it, then exits with code 1. Before, it hung at full CPU and held no port. The serving banner now prints only once the socket listens.
-- **Stopping `comfy-ts` never leaves its bun process behind.** The node wrapper forwards SIGINT, SIGTERM and SIGHUP to the bun process it starts for `tui`, `serve` and `run`, and that process exits when its parent dies, a SIGKILL included.
-- **`toWorkflowJson` exports autogrow inputs linked.** An autogrow input (like `TextEncodeQwenImage21.images`) becomes one linked slot per instance, so the exported file opens in the ComfyUI editor with its sources connected and runs the same graph. A literal inside an instance throws. A seed's `control_after_generate` is now written as a real mode, the one the config names or `fixed`, never `false`.
-- **Confirm and text prompts are drawn in the web panel.** Deletes, renames, the draft overwrite, the ComfyUI restart and the enhancer's new master prompt and new llm buttons now work in an app window built on WKWebView, where `window.prompt` and `window.confirm` return at once.
-- **The prompt enhancer never turns the model's own lines into yours.** A `// ` or `- ` line the model writes is always dropped, and only the lines you kept come back. Before, with no kept lines in the input, a model could echo your subject as a `- ` line, which the rewrite then applied as a negative.
+### CLI
 
-## 2.17.0
+- **`comfy-ts serve` on a taken port exits at once**: It prints one line naming the port, the bind and the process that holds it, then exits with code 1. Before, it hung at full CPU and held no port. The serving banner now prints only once the socket listens.
+- **Stopping `comfy-ts` never leaves its bun process behind**: The node wrapper forwards SIGINT, SIGTERM and SIGHUP to the bun process it starts for `tui`, `serve` and `run`, and that process exits when its parent dies, a SIGKILL included.
 
-- **Live previews per run: `run({ onPreview })`.** Every sampling step hands the callback the image so far: `{ promptId, bytes, mime, nodeId, nodeName, step, metadata }`. It threads through `DefinedWorkflow.run`, `ComfyWorkflow.run` and `start`. Opt in: a run without it decodes no frame, and `host.latentPreview` is now built only when read. A preview never becomes an output, and a `SaveImageWebsocket` output never reaches `onPreview`. `host.fetchPreviewMethod()` says whether the host was launched with `--preview-method`, without which ComfyUI sends no preview at all. The web panel's live preview now follows the run that produced it, on any host.
-- **`comfy-ts run`: one generation from the command line.** `comfy-ts run anima-t2i --prompt "a knight in the rain" --out knight.png` runs a module's draft headless, with live progress. Every var is a flag, `--<var>-file` reads a text var from a file, and `--out` says where the output goes (several outputs are numbered, a folder keeps the server's names). `--json` prints one line with every output path, for scripts and agents. The module is found in the current folder, then in the bundled examples, by its key or a unique part of it (`folder/name` narrows). `comfy-ts run <name> --help` lists its vars. It runs the exact path `comfy-ts serve` runs: the same draft loading, input checks and seeds.
-- **Example 16: a voice from a description.** `16-tts-voice-design` speaks one sample line in a voice you describe (Qwen3-TTS VoiceDesign through TTS-Audio-Suite). The clip and the line are what `15-tts-voice-clone` takes, and `comfy-ts run` writes the line beside the clip as its transcript, so a consistent voice for many lines is two commands.
+### Workflows
 
-- **⌘W closes the open draft tab** in the web panel while another tab is left. On the last tab it closes the window, in a desktop app window (WKWebView). A browser keeps ⌘W for itself, so there it always closes the browser tab.
+- **`toWorkflowJson` exports autogrow inputs linked**: An autogrow input (like `TextEncodeQwenImage21.images`) becomes one linked slot per instance, so the exported file opens in the ComfyUI editor with its sources connected and runs the same graph. A literal inside an instance throws. A seed's `control_after_generate` is now written as a real mode, the one the config names or `fixed`, never `false`.
 
-## 2.16.0
+### Web panel
 
-- **Model vars.** `v.model('UNETLoader.unet_name', { default, filter })` inside a `vars: (v) => …` lambda is a choice over the host's own file list for that loader input. The slot name autocompletes, and the value is typed as that slot's union, so it feeds the loader with no cast. `default: null` means "the workflow decides". In `comfy-ts serve`, the refresh-schema action lists a file the host just got without a restart, and a picked file the host no longer has stays picked and is reported.
-- **The krea2 and anima examples take a checkpoint.** `04-krea2-turbo-t2i` lists every krea file on the box (default: the turbo model), and `10-anima-t2i` lists every anima file (default: none, the model choice decides). A finetune you download is picked in your draft and never has to be written into the workflow file.
-- **New example: text to speech in a cloned voice** (`examples/rvion/15-tts-voice-clone.cflow.ts`). It drives the TTS-Audio-Suite node pack: pick an engine (Chatterbox Multilingual v3 by default, Qwen3-TTS, Fish Audio S2 Pro, CosyVoice3, OmniVoice) and a language, give a voice clip and its transcript, and the text comes back in `execution.audios`. A short synthetic English voice ships in `examples/media/`, so it runs out of the box.
-- **Fixed: esc no longer beeps in a native window.** Closing a popup with esc in an app window built on WKWebView (such as a desktop wrapper) also played the system "invalid action" sound, because the panel left the key unhandled. Every esc handler of the web panel now claims the key.
+- **Confirm and text prompts are drawn in the web panel**: Deletes, renames, the draft overwrite, the ComfyUI restart and the enhancer's new master prompt and new llm buttons now work in an app window built on WKWebView, where `window.prompt` and `window.confirm` return at once.
+- **The prompt enhancer never turns the model's own lines into yours**: A `// ` or `- ` line the model writes is always dropped, and only the lines you kept come back. Before, with no kept lines in the input, a model could echo your subject as a `- ` line, which the rewrite then applied as a negative.
 
-## 2.15.0
+## 2.17.0 (2026-09-29): Live previews, and comfy-ts run
 
-- **Audio and video inputs.** `v.audio(path)` and `v.video(path)` join `v.image(path)`: the same plain path value, the same TUI picker (filtered to that medium), the same serve file gate. `await someVar.loadInWorkflow(wf)` uploads the file and returns its loader node: `LoadImage`, `LoadAudio` or `LoadVideo`. The file is named by its hash, so a rerun does not upload it again. An empty var throws `MediaVarEmptyError` (`ImageVarEmptyError` is the same class).
-- **Video outputs come back to your code.** `execution.videos` lists every video an output node wrote (`SaveVideo`, `SaveWEBM`, VideoHelperSuite's `VHS_VideoCombine`), with the same shape as `execution.audios`. An animated webp or gif stays an image. Before, a saved mp4 landed in `execution.images`.
-- **Drop media on a var in the web panel.** An image, audio or video var takes a file dropped from the desktop, or a result dragged from the gallery. Every result also carries one `→ <var>` button per var of its medium in the open workflow. An unsaved result is uploaded first, so the var always holds a local path. A drop of the wrong medium is refused with the reason on the row.
-- **The web panel plays video results** in a player, blurred like images when blur is on. The run reply carries `videos: [{ filename, mime, url, absPath }]`, and with saving off `GET /video/<promptId>/<ix>` serves the file from memory.
-- **`POST /upload` takes files up to about 200 MB**, so a video fits. The other routes keep their 10 MB cap.
-- **New example: a new soundtrack on a video** (`examples/rvion/14-video-soundtrack.cflow.ts`): the frames of one file, the audio of another, muxed back at the fps you pick. `exampleMediaPath()` resolves the bundled sample video and audio it defaults to.
+### Runs
 
-## 2.14.0
+- **Live previews per run: `run({ onPreview })`**: Every sampling step hands the callback the image so far: `{ promptId, bytes, mime, nodeId, nodeName, step, metadata }`. It threads through `DefinedWorkflow.run`, `ComfyWorkflow.run` and `start`. Opt in: a run without it decodes no frame, and `host.latentPreview` is now built only when read. A preview never becomes an output, and a `SaveImageWebsocket` output never reaches `onPreview`. `host.fetchPreviewMethod()` says whether the host was launched with `--preview-method`, without which ComfyUI sends no preview at all. The web panel's live preview now follows the run that produced it, on any host.
 
-- **Recent results survive a reload.** The serve process keeps its last 50 run replies in memory, and the panel shows them again after a reload (`GET /results`, `DELETE /results[/<promptId>]`). Unsaved images and audio keep their bytes under one memory budget, `memoryBudgetMb` in the serve settings (default 100). Past it the oldest bytes go first, and the newest output always stays. A server restart forgets everything.
-- **Ephemeral results say so.** An unsaved image or audio result has an "ephemeral" pill in its corner. A memory button beside blur shows the MB used and lets you pick the budget (25 MB to 2 GB).
-- **A failed run explains itself.** The reply's `error` is one readable line (`<node type> (node <id>): <exception>: <message>`), never an object. The panel shows the full text under the prompt preview, where you can select it or dismiss it.
-- **A shortcuts popup.** A `shortcuts` row in the menu (and a keyboard icon on the folded rail) lists every key the panel binds, grouped by where it works.
-- **Arrow keys in the lightbox.** ↑ ← and ↓ → open the previous or next image of the gallery.
-- **The output row moves like a field.** Drag its label to put it anywhere in the form. The position is remembered per workflow.
-- **A softer theme.** The menu, tab bar and preview side have their own tinted surface, split from the form by thin lines. A picked option is tinted, not a solid block. Tabs are larger. Checkboxes are toggles. Number sliders show a filled track. The prompt selection is a pale blue with black text.
-- **The lora strength slider spans 0 to 1.** The number beside it still takes any value.
-- **Fixed: a tab switch no longer opens the lora picker** or moves the cursor into the prompt after an earlier ⌘O or ⌘P.
+### CLI
+
+- **`comfy-ts run`: one generation from the command line**: `comfy-ts run anima-t2i --prompt "a knight in the rain" --out knight.png` runs a module's draft headless, with live progress. Every var is a flag, `--<var>-file` reads a text var from a file, and `--out` says where the output goes (several outputs are numbered, a folder keeps the server's names). `--json` prints one line with every output path, for scripts and agents. The module is found in the current folder, then in the bundled examples, by its key or a unique part of it (`folder/name` narrows). `comfy-ts run <name> --help` lists its vars. It runs the exact path `comfy-ts serve` runs: the same draft loading, input checks and seeds.
+
+### Examples
+
+- **Example 16: a voice from a description**: `16-tts-voice-design` speaks one sample line in a voice you describe (Qwen3-TTS VoiceDesign through TTS-Audio-Suite). The clip and the line are what `15-tts-voice-clone` takes, and `comfy-ts run` writes the line beside the clip as its transcript, so a consistent voice for many lines is two commands.
+
+### Web panel
+
+- **⌘W closes the open draft tab**: It does so while another tab is left. On the last tab it closes the window, in a desktop app window (WKWebView). A browser keeps ⌘W for itself, so there it always closes the browser tab.
+
+## 2.16.0 (2026-09-28): Model vars
+
+### Vars
+
+- **Model vars**: `v.model('UNETLoader.unet_name', { default, filter })` inside a `vars: (v) => …` lambda is a choice over the host's own file list for that loader input. The slot name autocompletes, and the value is typed as that slot's union, so it feeds the loader with no cast. `default: null` means "the workflow decides". In `comfy-ts serve`, the refresh-schema action lists a file the host just got without a restart, and a picked file the host no longer has stays picked and is reported.
+
+### Examples
+
+- **The krea2 and anima examples take a checkpoint**: `04-krea2-turbo-t2i` lists every krea file on the box (default: the turbo model), and `10-anima-t2i` lists every anima file (default: none, the model choice decides). A finetune you download is picked in your draft and never has to be written into the workflow file.
+- **Text to speech in a cloned voice**: `examples/rvion/15-tts-voice-clone.cflow.ts` drives the TTS-Audio-Suite node pack: pick an engine (Chatterbox Multilingual v3 by default, Qwen3-TTS, Fish Audio S2 Pro, CosyVoice3, OmniVoice) and a language, give a voice clip and its transcript, and the text comes back in `execution.audios`. A short synthetic English voice ships in `examples/media/`, so it runs out of the box.
+
+### Web panel
+
+- **Esc no longer beeps in a native window**: Closing a popup with esc in an app window built on WKWebView (such as a desktop wrapper) also played the system "invalid action" sound, because the panel left the key unhandled. Every esc handler of the web panel now claims the key.
+
+## 2.15.0 (2026-09-28): Audio and video in, video out
+
+### Vars
+
+- **Audio and video inputs**: `v.audio(path)` and `v.video(path)` join `v.image(path)`: the same plain path value, the same TUI picker (filtered to that medium), the same serve file gate. `await someVar.loadInWorkflow(wf)` uploads the file and returns its loader node: `LoadImage`, `LoadAudio` or `LoadVideo`. The file is named by its hash, so a rerun does not upload it again. An empty var throws `MediaVarEmptyError` (`ImageVarEmptyError` is the same class).
+
+### Runs
+
+- **Video outputs come back to your code**: `execution.videos` lists every video an output node wrote (`SaveVideo`, `SaveWEBM`, VideoHelperSuite's `VHS_VideoCombine`), with the same shape as `execution.audios`. An animated webp or gif stays an image. Before, a saved mp4 landed in `execution.images`.
+
+### Web panel
+
+- **Drop media on a var**: An image, audio or video var takes a file dropped from the desktop, or a result dragged from the gallery. Every result also carries one `→ <var>` button per var of its medium in the open workflow. An unsaved result is uploaded first, so the var always holds a local path. A drop of the wrong medium is refused with the reason on the row.
+- **The web panel plays video results**: In a player, blurred like images when blur is on. The run reply carries `videos: [{ filename, mime, url, absPath }]`, and with saving off `GET /video/<promptId>/<ix>` serves the file from memory.
+- **`POST /upload` takes files up to about 200 MB**: So a video fits. The other routes keep their 10 MB cap.
+
+### Examples
+
+- **A new soundtrack on a video**: `examples/rvion/14-video-soundtrack.cflow.ts`: the frames of one file, the audio of another, muxed back at the fps you pick. `exampleMediaPath()` resolves the bundled sample video and audio it defaults to.
+
+## 2.14.0 (2026-09-25): Results that survive a reload
+
+### Web panel
+
+- **Recent results survive a reload**: The serve process keeps its last 50 run replies in memory, and the panel shows them again after a reload (`GET /results`, `DELETE /results[/<promptId>]`). Unsaved images and audio keep their bytes under one memory budget, `memoryBudgetMb` in the serve settings (default 100). Past it the oldest bytes go first, and the newest output always stays. A server restart forgets everything.
+- **Ephemeral results say so**: An unsaved image or audio result has an "ephemeral" pill in its corner. A memory button beside blur shows the MB used and lets you pick the budget (25 MB to 2 GB).
+- **A failed run explains itself**: The reply's `error` is one readable line (`<node type> (node <id>): <exception>: <message>`), never an object. The panel shows the full text under the prompt preview, where you can select it or dismiss it.
+- **A shortcuts popup**: A `shortcuts` row in the menu (and a keyboard icon on the folded rail) lists every key the panel binds, grouped by where it works.
+- **Arrow keys in the lightbox**: ↑ ← and ↓ → open the previous or next image of the gallery.
+- **The output row moves like a field**: Drag its label to put it anywhere in the form. The position is remembered per workflow.
+- **A softer theme**: The menu, tab bar and preview side have their own tinted surface, split from the form by thin lines. A picked option is tinted, not a solid block. Tabs are larger. Checkboxes are toggles. Number sliders show a filled track. The prompt selection is a pale blue with black text.
+- **The lora strength slider spans 0 to 1**: The number beside it still takes any value.
+- **A tab switch no longer opens the lora picker**: Nor does it move the cursor into the prompt after an earlier ⌘O or ⌘P.
 
 ## 2.13.0
 

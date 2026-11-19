@@ -1,0 +1,7 @@
+# next (patch): The pitch first
+
+## Docs
+
+### The README and the npm page open on the pitch
+<!-- weight: improvement -->
+The first line now says what comfy-ts is for: the most efficient way to create, run, maintain and operate your ComfyUI workflows, for humans and agents. The package description on npm says the same, then what you get: a TypeScript SDK typed from your own install, a CLI, a terminal UI, a web panel and a guide for coding agents.
