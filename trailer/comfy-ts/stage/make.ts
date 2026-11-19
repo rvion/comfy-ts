@@ -2,7 +2,7 @@
 // host's schema) never sits in the tree: the workflow module, a CLAUDE.md with the agent line, and comfy-ts
 // resolved to this checkout.
 //   bun trailer/comfy-ts/stage/make.ts [dir]   (default /tmp/my-project)
-import { cpSync, mkdirSync, rmSync, symlinkSync, writeFileSync, chmodSync } from 'fs'
+import { chmodSync, cpSync, mkdirSync, rmSync, writeFileSync } from 'fs'
 import { join, resolve } from 'path'
 
 const dir = resolve(process.argv[2] ?? '/tmp/my-project')
@@ -15,7 +15,9 @@ writeFileSync(join(dir, 'CLAUDE.md'), '@./node_modules/comfy-ts/guide-for-agents
 writeFileSync(join(dir, 'package.json'), JSON.stringify({ name: 'my-project', private: true, type: 'module' }, null, 2) + '\n')
 // one copy of the library for the module and the cli: the checkout's source, as the repo's own tsconfig maps it
 writeFileSync(join(dir, 'tsconfig.json'), JSON.stringify({ compilerOptions: { paths: { 'comfy-ts': [join(repo, 'src/index.ts')] } } }, null, 2) + '\n')
-symlinkSync(repo, join(dir, 'node_modules/comfy-ts'))
+// the package's own files an agent reads, copied in, so nothing it opens resolves outside the project
+mkdirSync(join(dir, 'node_modules/comfy-ts'), { recursive: true })
+for (const f of ['package.json', 'guide-for-agents.md', 'README.md']) cpSync(join(repo, f), join(dir, 'node_modules/comfy-ts', f))
 const bin = join(dir, 'node_modules/.bin/comfy-ts')
 writeFileSync(bin, `#!/bin/sh\nexec bun ${join(repo, 'src/cli/comfy-ts-cli.ts')} "$@"\n`)
 chmodSync(bin, 0o755)

@@ -19,10 +19,11 @@
 </head>
 <body>
 <div id="chrome">
-   <div id="tabs"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="tab">poster.cflow.ts</span></div>
+   <div id="tabs"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="tab"></span></div>
    <div id="editor"></div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js"></script>
-<script src="./take.js"></script>
+<script src="./kit.js"></script>
+<script>document.write(`<script src="./${new URLSearchParams(location.search).get('take') ?? 'take'}.js"><\/script>`)</script>
 </body>
 </html>

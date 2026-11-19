@@ -46,6 +46,20 @@ window.__trailerStep = async (t) => {
          last = at
          events.push({ t: at - shift, data })
       }
+      // trickle=<lines a second>: a burst printed at once (a long listing) is spread line by line from its time, as a
+      // slow terminal would print it, so the eye sees it scroll
+      const trickle = Number(q.get('trickle') ?? 0)
+      if (trickle > 0) {
+         const spread = []
+         for (const e of events) {
+            const parts = e.data.split(/(?<=\n)/)
+            if (parts.length < 4) spread.push(e)
+            else parts.forEach((data, i) => spread.push({ t: e.t + i / trickle, data }))
+         }
+         events = spread
+         let at = 0
+         for (const e of events) at = e.t = Math.max(e.t, at)
+      }
       document.getElementById('title').textContent = q.get('title') ?? 'terminal'
       await document.fonts.load("16px 'JetBrains Mono'")
       await document.fonts.load("bold 16px 'JetBrains Mono'")

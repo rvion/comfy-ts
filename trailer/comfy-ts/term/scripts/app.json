@@ -1,0 +1,12 @@
+{
+  "cols": 118, "rows": 16, "cwd": "/tmp/my-project", "max": 120, "kill": true,
+  "env": { "PATH": "/tmp/my-project/node_modules/.bin:$PATH", "PS1": "\\[\\e[38;5;111m\\]my-project\\[\\e[0m\\] \\$ ", "BASH_SILENCE_DEPRECATION_WARNING": "1" },
+  "cmd": ["bash", "--norc", "--noprofile", "-i"],
+  "steps": [
+    { "wait": "\\$ $", "pause": 0.4, "type": "comfy-ts run scenery --help", "cps": 30 },
+    { "pause": 0.3, "type": "\r" },
+    { "wait": "upscale", "pause": 1.6, "type": "comfy-ts run scenery --prompt \"a lighthouse at dusk, rain\" --seed 9 --night --upscale --out night.png", "cps": 34 },
+    { "pause": 0.3, "type": "\r" },
+    { "wait": "seed 9", "end": 2.0 }
+  ]
+}

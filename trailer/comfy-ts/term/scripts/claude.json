@@ -1,0 +1,52 @@
+{
+  "cols": 110,
+  "rows": 30,
+  "cwd": "/tmp/my-project",
+  "max": 300,
+  "kill": true,
+  "drain": 1.0,
+  "env": {
+    "PATH": "/tmp/my-project/node_modules/.bin:$PATH",
+    "USER": "$USER",
+    "CLAUDE_CONFIG_DIR": "$CLAUDE_CONFIG_DIR"
+  },
+  "cmd": [
+    "claude",
+    "--setting-sources",
+    "project,local",
+    "--strict-mcp-config",
+    "--allowedTools",
+    "Bash(comfy-ts:*)",
+    "Read"
+  ],
+  "steps": [
+    {
+      "wait": "trust",
+      "cap": 12,
+      "optional": true,
+      "pause": 0.6,
+      "type": "\u001b[B\r",
+      "end": 0.4
+    },
+    {
+      "wait": "for agents",
+      "cap": 40,
+      "pause": 1.2,
+      "type": "Make a picture of a lighthouse at night, upscaled 2x, with the workflow in this folder. Save it as poster.png",
+      "cps": 40
+    },
+    {
+      "pause": 0.5,
+      "type": "\r"
+    },
+    {
+      "wait": "poster\\.png",
+      "cap": 240
+    },
+    {
+      "wait": "for agents",
+      "cap": 240,
+      "end": 4
+    }
+  ]
+}

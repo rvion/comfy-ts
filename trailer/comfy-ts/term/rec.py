@@ -6,7 +6,7 @@ its time. The replay page (term/index.html) plays the file back frame by frame.
 
 script.json: { "cols": 100, "rows": 24, "cwd": "...", "env": {...}, "cmd": ["bash", ...], "max": 180,
                "steps": [ { "wait": "regex", "pause": 0.4, "type": "text\\r", "cps": 22 } ... ] }
-A step with no "type" only waits. The recording ends when the command exits, after the last step's "end" pause,
+A step with no "type" only waits; "optional": true skips a step whose pattern never prints. The recording ends when the command exits, after the last step's "end" pause,
 or at "max" seconds.
 """
 import codecs, fcntl, json, os, pty, re, select, signal, struct, sys, termios, time
@@ -15,8 +15,8 @@ script = json.load(open(sys.argv[1]))
 out = open(sys.argv[2], 'w')
 cols, rows = script['cols'], script['rows']
 env = {'PATH': os.environ['PATH'], 'HOME': os.environ['HOME'], 'TERM': 'xterm-256color', 'LANG': 'en_US.UTF-8', 'COLUMNS': str(cols), 'LINES': str(rows)}
-# "$PATH" in a value is the caller's PATH, so a script can put a folder in front of it
-env.update({k: v.replace('$PATH', os.environ['PATH']) for k, v in script.get('env', {}).items()})
+# "$NAME" in a value is the caller's variable ("$PATH" to put a folder in front of it, "$CLAUDE_CONFIG_DIR" to pass one on)
+env.update({k: os.path.expandvars(v) for k, v in script.get('env', {}).items()})
 
 pid, fd = pty.fork()
 if pid == 0:
@@ -52,14 +52,18 @@ def pump(timeout):
       seen += text
 
 
-def wait_for(pattern, cap):
+def wait_for(pattern, cap, optional=False):
+   """True once pattern printed; an optional step that never sees it is skipped (False)"""
    global seen
    rx = re.compile(pattern)
    end = time.monotonic() + cap
    while alive and not rx.search(seen):
       if time.monotonic() > end:
+         if optional:
+            return False
          raise SystemExit(f'rec: "{pattern}" never printed in {cap} s; last output: {seen[-400:]!r}')
       pump(0.05)
+   return True
 
 
 def idle(seconds):
@@ -70,8 +74,8 @@ def idle(seconds):
 
 cap = script.get('max', 180)
 for step in script['steps']:
-   if 'wait' in step:
-      wait_for(step['wait'], step.get('cap', cap))
+   if 'wait' in step and not wait_for(step['wait'], step.get('cap', cap), step.get('optional', False)):
+      continue
    seen = ''
    idle(step.get('pause', 0))
    text = step.get('type', '')
