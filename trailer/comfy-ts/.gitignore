@@ -3,3 +3,5 @@ casts/
 media/
 # a staged project's local state, should one ever be made here
 .comfy-ts/
+# a kept version: its text (versions/v<n>.trailer) is committed, its video and takes are not
+versions/*/
