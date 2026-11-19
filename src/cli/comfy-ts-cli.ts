@@ -12,8 +12,10 @@ const HELP = `comfy-ts — typed SDK codegen for ComfyUI
 Usage:
    comfy-ts gen --id <host-id> [--host http://127.0.0.1:8188] [--api-key <key>] [--out <sdk-path>]
          fetch object_info + embeddings from a live ComfyUI host and write
-         .comfy-ts/hosts/<host-id>/{object_info.json,embeddings.json,sdk.d.ts}
-         (--api-key or COMFY_CLOUD_API_KEY authenticates via X-API-Key;
+         .comfy-ts/hosts/<host-id>/{object_info.json,embeddings.json,sdk.d.ts,host.json}
+         (host.json saves the address: code then names the host by id alone,
+         comfy.host({ id: '<host-id>' }); the api key is never written;
+         --api-key or COMFY_CLOUD_API_KEY authenticates via X-API-Key;
          --out relocates ONLY the sdk.d.ts, e.g. a committed cloud catalog)
 
    comfy-ts outline [file] [--lines N] [--section Name]

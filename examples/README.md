@@ -4,7 +4,7 @@ Every `*.cflow.ts` file here is a runnable workflow module. Run it directly with
 
 ## Layout
 
-- `rvion/01…04-*.cflow.ts`: the didactic sequence against a LOCAL ComfyUI host. Edit the `comfy.host({...})` line to point at yours, and the first run generates a typed SDK for it.
+- `rvion/01…04-*.cflow.ts`: the didactic sequence against a LOCAL ComfyUI host, named by id only: `comfy.host({ id: 'windows-1' })`. Run `bunx comfy-ts gen --id windows-1 --host http://<your-comfy>:8188` once: it saves the address and generates the typed SDK.
 - `rvion/05-comfy-cloud.cflow.ts`: the same t2i against [Comfy Cloud](https://cloud.comfy.org). No local GPU needed: the typed catalog ships committed at `comfy-cloud/sdk.d.ts`.
 - `rvion/06-qwen-image-edit.cflow.ts`: image editing (qwen image edit 2511) against the same local host.
 - `rvion/07-local-llm-text-gen.cflow.ts`: a local LLM, no image. Core's `TextGenerate` runs a chat model loaded through `CLIPLoader`, and the text comes back in `execution.text`. `--sweep` reports which text encoders on your host actually generate.

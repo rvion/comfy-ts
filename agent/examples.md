@@ -40,6 +40,7 @@ The TUI tree renders this layout as a real hierarchy (directory rows, one color 
 - Mode vocabulary (closed): `t2i`, `i2i`, `t2v`, `i2v`, `t2a`.
 - Family keys are short lowercase slugs (`sd15`, `sdxl`, `sd35`, `flux1`, `flux2`, `qwen-image`, `z-image`, `wan21`, `wan22`, `ltxv`, …) — see matrix.
 - Variant suffix only when a family gets TWO files for the same mode (`flux2-t2i-dev` next to `flux2-t2i`); the unsuffixed name is the recommended default.
+- A local-host example names its host by id ONLY: `comfy.host({ id: 'windows-1' })`. The address lives in the gitignored `.comfy-ts/hosts/<id>/host.json` that `comfy-ts gen --host … --id …` writes. examples/ ships on npm, so a machine name or an address in a host line is a leak (SK035 fails it).
 
 ## The shared cloud host helper
 

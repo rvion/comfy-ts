@@ -9,17 +9,17 @@ You are working in a project that uses `comfy-ts`, a type-safe ComfyUI companion
 
    ```bash
    bunx comfy-ts gen --id my-gpu --host http://127.0.0.1:8188
-   # writes .comfy-ts/hosts/my-gpu/{object_info.json,embeddings.json,sdk.d.ts}
+   # writes .comfy-ts/hosts/my-gpu/{object_info.json,embeddings.json,sdk.d.ts,host.json}
    ```
 
-   Or skip the CLI: a first `await host.connect()` fetches the schema and writes the same files.
+   `host.json` is the saved address: from then on `comfy.host({ id: 'my-gpu' })` finds the host, so committed code never names a machine. No saved address and no `url` or `host`/`port`: the call throws and names the `gen` command to run. Or skip the CLI: a first `await host.connect()` fetches the schema and writes the same files, except `host.json`.
 3. Activate the generated types in tsconfig:
 
    ```jsonc
    { "include": ["src", ".comfy-ts/hosts/**/sdk.d.ts"] }
    ```
 
-4. Gitignore `.comfy-ts/` entirely. It is local state: host schema dumps (often ~10MB, they describe that machine's models and paths), run outputs, TUI drafts and settings, lora keywords, preview cache. Everything in it is regenerable. (Exception: a private repo may commit `hosts/` to get typed CI.)
+4. Gitignore `.comfy-ts/` entirely. It is local state: host schema dumps (often ~10MB, they describe that machine's models and paths), host addresses, run outputs, TUI drafts and settings, lora keywords, preview cache. Everything in it is regenerable. (Exception: a private repo may commit `hosts/` to get typed CI.)
 
 Before the first codegen the builder falls back to permissive base types, so code compiles either way when `noUncheckedIndexedAccess` is off. With that flag on, every `b.Node(...)` call is an error until a generated sdk.d.ts is in scope, so run the codegen first. Types sharpen once the generated sdk is in scope.
 
@@ -31,7 +31,7 @@ A workflow module is a `*.cflow.ts` file (that suffix is what the TUI scans for)
 import { ComfyTS, v } from 'comfy-ts'
 
 const comfy = ComfyTS.create()
-const host = comfy.host({ id: 'my-gpu', host: '127.0.0.1', port: 8188 })
+const host = comfy.host({ id: 'my-gpu' }) // the address `comfy-ts gen` saved
 await host.loadSchemaFromCache() // offline import; run() connects lazily
 
 export const txt2img = host.defineWorkflow({
