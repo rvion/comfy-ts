@@ -894,14 +894,14 @@ export class ServeApp {
 
    // #region hosts (run a workflow somewhere else, the TUI's host override) ----
    /** every host this process registered: the modules' own, plus anything they created */
-   private knownHosts(): { id: string; url: string; httpUrl: string; modules: string[] }[] {
-      const byId = new Map<string, { id: string; url: string; httpUrl: string; modules: string[] }>()
+   private knownHosts(): { id: string; url: string; httpUrl: string | null; modules: string[] }[] {
+      const byId = new Map<string, { id: string; url: string; httpUrl: string | null; modules: string[] }>()
       for (const [id, host] of comfyts.hosts)
          byId.set(id, {
             id,
-            url: `${host.base.host}:${host.base.port}`,
+            url: host.addressLabel,
             // the browser needs the REAL base to open the host's own pages (lora manager)
-            httpUrl: host.getServerHostHTTP(),
+            httpUrl: host.noAddress == null ? host.getServerHostHTTP() : null,
             modules: [],
          })
       for (const mod of this.modules) {

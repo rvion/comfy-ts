@@ -140,18 +140,42 @@ export class ComfyHost<ID extends string = string> {
    schema: ComfySchema
    uploader = new ComfyUploader(this)
 
-   /** parsed ONCE from data (url-first or legacy host/port/https) — the url ground truth */
-   readonly base: ParsedHostBase
+   /** parsed ONCE from data (url-first, legacy host/port/https, or the address `gen` saved for
+    * the id alone): the url ground truth. Throws the noAddress text when there is none */
+   get base(): ParsedHostBase {
+      this.readSavedAddress()
+      if (this._base == null) throw new Error(this.noAddress ?? `host '${this.data.id}': no address`)
+      return this._base
+   }
+   private _base: ParsedHostBase | null = null
+
+   /** why the id alone found no saved address; null when the host has one. An import stays safe
+    * (like a missing schema cache): the error is logged once, then thrown at first use */
+   noAddress: string | null = null
+
+   /** `host:port` for labels, or a short note when there is no address; never throws */
+   get addressLabel(): string {
+      return this._base == null ? 'no saved address' : `${this._base.host}:${this._base.port}`
+   }
+
+   /** read again at each use until found: a `comfy-ts gen` run after the import (a TUI or a
+    * serve that stays up) makes the host usable without a restart */
+   private readSavedAddress(): void {
+      if (this._base != null || !namesNoAddress(this.data)) return
+      const saved = readHostFile(getComfyStorage(), this.cacheFolder, this.data.id)
+      this._base = saved.base
+      this.noAddress = saved.error
+   }
 
    constructor(public data: ComfyHostData & { id: ID }) {
       /** folder where file related to the host config will be cached */
       this.cacheFolder = comfyts.resolveFromHosts(this.data.id)
       const storage = getComfyStorage()
 
-      // the id alone: the address `comfy-ts gen` saved for it (src/host/hostFile.ts)
-      this.base = namesNoAddress(this.data)
-         ? parseHostBase({ id: this.data.id, url: readHostFile(storage, this.cacheFolder, this.data.id) })
-         : parseHostBase(this.data)
+      if (namesNoAddress(this.data)) {
+         this.readSavedAddress()
+         if (this.noAddress != null) toastError(this.noAddress)
+      } else this._base = parseHostBase(this.data)
 
       // create the folder if it does not exist
       if (!storage.exists(this.cacheFolder)) {
@@ -402,6 +426,8 @@ export class ComfyHost<ID extends string = string> {
     *  - 'cache': never fetch (throws when no cache exists)
     */
    connect = (p: ConnectOptions = {}): Promise<void> => {
+      this.readSavedAddress()
+      if (this.noAddress != null) return Promise.reject(new Error(this.noAddress))
       if (this._ready == null) {
          this._schemaStrategy = p.schema ?? 'auto'
          this._schemaMaxAgeMs = p.maxAgeMs ?? 24 * 3600_000

@@ -58,18 +58,22 @@ export class ComfyTS {
          // identity = the parsed base quad + apiKey PRESENCE (equivalent url and
          // host/port spellings unify; the key VALUE never appears in the error).
          // The id alone names no address, so it asks for whatever is registered
-         const incoming = namesNoAddress(data) ? existing.base : parseHostBase(data)
-         const cur = existing.base
+         const incoming = namesNoAddress(data) ? null : parseHostBase(data)
+         const cur = existing.noAddress == null ? existing.base : null
          const sameBase =
-            cur.scheme === incoming.scheme &&
-            cur.host === incoming.host &&
-            cur.port === incoming.port &&
-            cur.basePath === incoming.basePath
+            incoming == null ||
+            (cur != null &&
+               cur.scheme === incoming.scheme &&
+               cur.host === incoming.host &&
+               cur.port === incoming.port &&
+               cur.basePath === incoming.basePath)
          const sameAuth = (existing.data.apiKey == null) === (data.apiKey == null)
-         if (!sameBase || !sameAuth)
+         if (!sameBase || !sameAuth) {
+            const authed = (p: { apiKey?: string }): string => (p.apiKey != null ? ' (authed)' : '')
             throw new Error(
-               `host id '${data.id}' already registered at ${renderHttpBase(cur)}${existing.data.apiKey != null ? ' (authed)' : ''} — refusing ${renderHttpBase(incoming)}${data.apiKey != null ? ' (authed)' : ''}`,
+               `host id '${data.id}' already registered ${cur == null ? 'with no address' : `at ${renderHttpBase(cur)}`}${authed(existing.data)} — refusing ${incoming == null ? 'the id alone' : renderHttpBase(incoming)}${authed(data)}`,
             )
+         }
          // cast: whitelist item 7 (agent/coding.md) — id equality checked just above
          return existing as ComfyHost<ID>
       }

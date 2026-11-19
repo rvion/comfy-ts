@@ -12,7 +12,7 @@ You are working in a project that uses `comfy-ts`, a type-safe ComfyUI companion
    # writes .comfy-ts/hosts/my-gpu/{object_info.json,embeddings.json,sdk.d.ts,host.json}
    ```
 
-   `host.json` is the saved address: from then on `comfy.host({ id: 'my-gpu' })` finds the host, so committed code never names a machine. No saved address and no `url` or `host`/`port`: the call throws and names the `gen` command to run. Or skip the CLI: a first `await host.connect()` fetches the schema and writes the same files, except `host.json`.
+   `host.json` is the saved address: from then on `comfy.host({ id: 'my-gpu' })` finds the host, so committed code never names a machine. No saved address and no `url` or `host`/`port`: the module still imports (a loud log), and the first connect or run throws and names the `gen` command to run. Or skip the CLI: a first `await host.connect()` fetches the schema and writes the same files, except `host.json`.
 3. Activate the generated types in tsconfig:
 
    ```jsonc

@@ -225,7 +225,7 @@ export class HostSt {
          { label: 'loras', value: String(schema.getLoras().length) },
          { label: 'embeddings', value: String(schema.data.embeddings.length) },
          { label: 'queue', value: String(this.st.queue.remaining) },
-         { label: 'ws', value: this.host.getWSUrl() },
+         { label: 'ws', value: this.host.noAddress ?? this.host.getWSUrl() },
       ]
    }
 
@@ -251,7 +251,7 @@ export class HostSt {
       for (const host of comfyts.hosts.values()) {
          rows.push({
             host,
-            label: `${host.data.id} (${host.base.host}:${host.base.port})`,
+            label: `${host.data.id} (${host.addressLabel})`,
             active: this.st.hostOverride === host,
          })
       }

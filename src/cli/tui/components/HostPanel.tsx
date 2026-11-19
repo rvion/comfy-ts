@@ -9,10 +9,7 @@ export const HostPanel = observer((p: { st: TuiSt }) => {
    return (
       <Box borderStyle="double" paddingX={1} flexDirection="column">
          <Text bold>
-            host actions · <Text color="green">{h.host.data.id}</Text>{' '}
-            <Text color="gray">
-               ({h.host.base.host}:{h.host.base.port})
-            </Text>
+            host actions · <Text color="green">{h.host.data.id}</Text> <Text color="gray">({h.host.addressLabel})</Text>
             {s.hostOverride != null && <Text color="yellow"> ⇄ override</Text>}
          </Text>
          {h.stats.map((row) => (

@@ -229,7 +229,7 @@ export function saveSettings(p: {
 
 /** every host the serve process knows, and where each module currently runs */
 export type HostsPayload = {
-   hosts: { id: string; url: string; httpUrl: string; modules: string[] }[]
+   hosts: { id: string; url: string; httpUrl: string | null; modules: string[] }[]
    defaults: Record<string, string>
    overrides: Record<string, string>
 }

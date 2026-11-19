@@ -42,10 +42,7 @@ export const Header = observer((p: { st: TuiSt }) => {
                <Text bold color="green">
                   {runHost.data.id}
                </Text>
-               <Text color="gray">
-                  {' '}
-                  ({runHost.base.host}:{runHost.base.port})
-               </Text>
+               <Text color="gray"> ({runHost.addressLabel})</Text>
                {/* the override must stay loud: every run bypasses the workflow's own host */}
                {s.hostOverride != null && s.hostOverride !== s.wf.host && (
                   <Text color="yellow"> ⇄ overrides {s.wf.host.data.id}</Text>

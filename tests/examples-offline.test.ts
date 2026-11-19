@@ -79,6 +79,7 @@ describe('every example imports headlessly (auto-enrolled)', () => {
       expect(r.files.length).toBeGreaterThan(40)
       const keyless = r.stderr.split('PHASE_KEYED')[0] ?? ''
       expect(keyless).toContain('no schema cache') // degraded with a loud log, never thrown
+      expect(keyless).toContain('no address given') // examples/rvion name their host by id alone: same degraded import
       const missing = r.files.filter((f) => !r.stdout.includes(`IMPORT_OK ${f}`))
       expect(missing).toEqual([])
       // the swept i2i/i2v families: 16 zoo files + example 02 carry an image var

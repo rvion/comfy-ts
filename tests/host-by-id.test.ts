@@ -44,26 +44,42 @@ describe('host({ id }) reads the saved address', () => {
       expect(host.getServerHostHTTP()).toBe('http://192.168.1.5:8188/comfy')
    })
 
-   test('no host.json: a loud error naming the gen command and the path, never a localhost default', () => {
+   test('no host.json: the import stays safe, and the first use throws the gen command and the path', async () => {
       const root = freshRoot()
       const comfy = ComfyTS.create({ rootPath: root })
-      expect(() => comfy.host({ id: 'nowhere' })).toThrow('comfy-ts gen --host <url> --id nowhere')
-      expect(() => comfy.host({ id: 'nowhere' })).toThrow(join(root, '.comfy-ts', 'hosts', 'nowhere', 'host.json'))
-      expect(comfy.hosts.has('nowhere')).toBe(false)
+      const host = comfy.host({ id: 'nowhere' })
+      const path = join(root, '.comfy-ts', 'hosts', 'nowhere', 'host.json')
+      expect(host.noAddress).toContain('comfy-ts gen --host <url> --id nowhere')
+      expect(host.noAddress).toContain(path)
+      expect(host.addressLabel).toBe('no saved address')
+      expect(() => host.base).toThrow('comfy-ts gen --host <url> --id nowhere')
+      expect(() => host.getServerHostHTTP()).toThrow('comfy-ts gen --host <url> --id nowhere')
+      await expect(host.connect()).rejects.toThrow('comfy-ts gen --host <url> --id nowhere')
    })
 
-   test('a host.json without a url string throws loud', () => {
+   test('a gen run after the import makes the host usable without a restart', () => {
+      const root = freshRoot()
+      const host = ComfyTS.create({ rootPath: root }).host({ id: 'later' })
+      expect(host.noAddress).not.toBeNull()
+      saveHostFile(root, 'later', JSON.stringify({ url: 'http://127.0.0.1:65503' }))
+      expect(host.getServerHostHTTP()).toBe('http://127.0.0.1:65503')
+      expect(host.noAddress).toBeNull()
+   })
+
+   test('a host.json without a usable url says so, and how to write it again', () => {
       const root = freshRoot()
       saveHostFile(root, 'broken', JSON.stringify({ host: 'a', port: 1 }))
       saveHostFile(root, 'garbled', '{ not json')
+      saveHostFile(root, 'ftp', JSON.stringify({ url: 'ftp://a' }))
       const comfy = ComfyTS.create({ rootPath: root })
-      expect(() => comfy.host({ id: 'broken' })).toThrow('no "url"')
-      expect(() => comfy.host({ id: 'garbled' })).toThrow('not valid json')
+      expect(comfy.host({ id: 'broken' }).noAddress).toContain('no "url"')
+      expect(comfy.host({ id: 'garbled' }).noAddress).toContain('not valid json')
+      expect(comfy.host({ id: 'ftp' }).noAddress).toContain('http or https')
    })
 
    test('no file system (the web entry): the error says to pass the url', () => {
       const comfy = new ComfyTS({ rootPath: '/virtual', storage: createMemoryStorage() })
-      expect(() => comfy.host({ id: 'web-only' })).toThrow("host({ id: 'web-only', url: '<url>' })")
+      expect(comfy.host({ id: 'web-only' }).noAddress).toContain("host({ id: 'web-only', url: '<url>' })")
    })
 
    test('an id already registered in the process comes back as is, whatever spelling registered it', () => {
@@ -72,6 +88,12 @@ describe('host({ id }) reads the saved address', () => {
       const first = comfy.host({ id: 'live', url: 'http://127.0.0.1:65501' })
       expect(comfy.host({ id: 'live' })).toBe(first)
       expect(() => comfy.host({ id: 'live', apiKey: 'test-api-key-12345' })).toThrow('already registered')
+   })
+
+   test('an id registered with no address refuses a later address instead of hiding it', () => {
+      const comfy = ComfyTS.create({ rootPath: freshRoot() })
+      comfy.host({ id: 'unsaved' })
+      expect(() => comfy.host({ id: 'unsaved', url: 'http://127.0.0.1:65504' })).toThrow('with no address')
    })
 
    test('the id alone keeps its literal type, like the other spellings', () => {
