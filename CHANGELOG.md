@@ -1,5 +1,9 @@
 # comfy-ts
 
+## Unreleased
+
+- **The TUI no longer warns of a changed host before the first run.** Its header said « changed: +N node types, re-codegen » on a host whose schema was simply not loaded yet. The warning now shows only when a loaded schema really differs from the host.
+
 ## 2.20.0
 
 - **A host by its id alone.** `comfy.host({ id: 'my-gpu' })` now finds the address that `comfy-ts gen --id my-gpu --host <url>` saved in `.comfy-ts/hosts/my-gpu/host.json`. Committed code names no machine: the address stays in `.comfy-ts/`, which you gitignore. A `url`, or a `host` and `port`, in the call still wins.
