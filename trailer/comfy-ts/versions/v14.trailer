@@ -1,0 +1,244 @@
+# comfy-ts, the announcement cut: the logo and the name in the first second, a wall of the product at work under the
+# promise, then the six steps glimpsed one a beat (the shots the body delivers), then the body walks them in order.
+# Every shot is the product: a real editor over the real types, a real terminal session replayed byte for byte, a real
+# output. The titles carry every claim (feeds play muted), the narrator says the same beat in other words.
+trailer comfy-ts
+size 1280x720
+fps 30
+master -14 LUFS
+# the music at one quiet level for the whole cut, 13 dB under the speech, with no dip under the voice lines
+duck 0dB
+# the project's mark in the top right corner (outside every window, clear of the titles), from the first step to the
+# last body shot: the intro and the end card hold the big logo themselves
+watermark .shipkit/identity/icon.png "comfy-ts" top-right from hosts to export
+# the video's thumbnail, drawn at each keep and set as the cut's first frames: the web panel with the latent forming
+thumbnail panel+5.2 crop 515,272,705,432 "ComfyUI, typed." chip "bun add comfy-ts"
+# the closing card after the end card: the links a viewer acts on, held 10 s for YouTube's end screen
+endcard
+# the cut's titles: a beat's claim in the band above the product, the name in the corner, the end card's name
+preset claim font "Inter" weight 800 size 74 color #eaf1ff place top in rise out fade
+preset mark font "JetBrains Mono" weight 700 size 46 in none out none
+preset hook font "Inter" weight 800 size 104 color #eaf1ff inner 0 place middle shade 0.6 sub 0.8 in pop
+preset flash font "Inter" weight 800 size 88 color #eaf1ff inner 0 place middle shade 0.55 in pop out none
+preset name font "Inter" weight 800 size 150 color #eaf1ff inner 0 sub 0.3 in pop
+
+score tempo 100 reverb 2.2 0.26 volume 0.23
+track sub sub volume 0.55
+track pad pad volume 0.42
+track pad2 pad volume 0.36
+track pad3 pad volume 0.32
+track arp arp volume 0.34
+track bass bassPulse volume 0.5
+track kick kick volume 0.8
+track hat hat volume 0.32
+track clap clap volume 0.5
+track bell bell volume 0.5
+
+code
+  const BAR = 16
+  /** n bars of silence */
+  const vide = (n: number) => rest(n * BAR)
+  /** the three pad voices of a chart */
+  const pads = (ch: string) => ({ pad: voice(ch, 0, 53), pad2: voice(ch, 1, 57), pad3: voice(ch, 2, 60) })
+  /** four on the floor, n bars */
+  const four = (n: number) => rep('k - - - ', 4 * n)
+  /** the hat on the off beats, n bars */
+  const offs = (n: number) => rep('- - h - ', 4 * n)
+  /** a clap on beats two and four, n bars */
+  const backs = (n: number) => rep('- - - - c - - - - - - - c - - - ', n)
+
+drums k=kick h=hat c=clap
+
+# the hook: the logo and the name on a hit, then the promise spoken whole over four windows at work, its words on
+# screen as the voice says them
+section hook 4bars tempo 100
+  play * ({ ...pads('Fmaj7 | C | Dm9 | Bbmaj7'), bass: bass('Fmaj7 | C | Dm9 | Bbmaj7', 'octave', 2), kick: seq('k - - - - - - - - - - - - - - - ', four(3)), hat: seq(rest(16), offs(3)), clap: seq(rest(16), backs(3)) })
+  play arp arp('Fmaj7 | C | Dm9 | Bbmaj7', [0, 1, 2, 3, 2, 1], 5, 2)
+  play bell seq('v10:F5 . . . . . . . A5 . . . C6 . . .', 'v9:F6', rep('.', 15), rep('.', 32))
+shot logo 1bar
+  from 5.6s
+  film run "bun trailer/comfy-ts/film/page.ts card/index.html {seconds} {out}" reads card/index.html,film/page.ts
+  push 1.12
+  flash at 0s
+  title "comfy-ts" at 0s style big place middle +name
+  title "github.com/rvion/comfy-ts  ·  bun add comfy-ts" at 0.6s style caption place bottom font "JetBrains Mono" weight 700 size 34 color #c9d6ee out none
+  voice run "bun trailer/comfy-ts/film/voice.ts 'Comfy T.S.; an efficient way to create, run, maintain and operate your ComfyUI workflows, for humans and agents.' {out}" reads film/voice.ts at 0.15s
+shot wall 3bars
+  film grid walltui,wallpanel,wallagent,wallcanvas pop 0.15s
+  title "An *efficient* way" at 0s for 1.1s style big +hook
+  title "to *create*, *run*, *maintain*\nand *operate* your ComfyUI workflows" at 1.15s for 4.05s style big +hook
+  title "for *humans* and *agents*" at 5.25s for 2s style big +hook
+  title "github.com/rvion/comfy-ts  ·  bun add comfy-ts" at 0s for 7.2s style caption place bottom font "JetBrains Mono" weight 700 size 34 color #c9d6ee in none
+  cut whip-left 0.5beat
+
+# the six steps glimpsed, one a beat: each a moment of the take its body shot plays later, the step's number big
+section path 3bars tempo 100
+  play * ({ ...pads('Dm9 | Bbmaj7 | C'), bass: bass('Dm9 | Bbmaj7 | C', 'octave', 2), kick: four(3), hat: offs(3), clap: backs(3) })
+  play arp arp('Dm9 | Bbmaj7 | C', [0, 1, 2, 3], 5, 2)
+shot g1 2beats
+  # the first variant, the short call: the step's number stands beside it and covers no code
+  from 0.3s
+  film run "bun trailer/comfy-ts/film/page.ts card/hosts.html {seconds} {out}" reads card/hosts.html,film/page.ts
+  title "*1* Set up" at 0s style big +flash
+  voice run "bun trailer/comfy-ts/film/voice.ts 'From zero to hero, in six steps.' {out}" reads film/voice.ts at 0.3s
+shot g2 2beats
+  from 3.6s
+  film run "bun trailer/comfy-ts/film/page.ts term/index.html {seconds} {out} cast=casts/gen.cast from=0.2 speed=2.4 idle=0.5 title=my-project" reads term/index.html,term/replay.js,film/page.ts,casts/gen.cast
+  title "*2* Discover" at 0s style big +flash
+shot g3 2beats
+  from 8.6s
+  film run "bun trailer/comfy-ts/film/page.ts term/index.html {seconds} {out} cast=casts/claude.cast from=5.4 speed=3.35 title=my-project" reads term/index.html,term/replay.js,film/page.ts,casts/claude.cast
+  frame 1.7 at 0.11,0.94
+  title "*3* Agents" at 0s style big +flash
+shot g4 2beats
+  from 6.4s
+  film run "bun trailer/comfy-ts/film/page.ts term/index.html {seconds} {out} cast=casts/tui.cast from=2 speed=1.8 title=comfy-ts" reads term/index.html,term/replay.js,film/page.ts,casts/tui.cast
+  frame 1.5 at 0.6,0.45
+  title "*4* TUI" at 0s style big +flash
+shot g5 2beats
+  from 5s
+  film run "bun trailer/comfy-ts/film/panel.ts {seconds} {out}" reads film/panel.ts,stage/harbor.cflow.ts
+  frame 1.4 at 0.8,0.6
+  title "*5* Web UI" at 0s style big +flash
+shot g6 2beats
+  from 13s
+  film run "bun trailer/comfy-ts/film/page.ts editor/index.html {seconds} {out}" reads editor/index.html,editor/kit.js,editor/take.js,film/page.ts
+  title "*6* Editing" at 0s style big +flash
+  cut whip-left 0.5beat
+
+# any host: one call, big, its argument changing in place: local, LAN, cloud, a provider
+section hosts 3bars tempo 100
+  play * ({ ...pads('Fmaj7 | Am7 | Dm9'), sub: bass('Fmaj7 | Am7 | Dm9', 'hold', 2) })
+  play arp arp('Fmaj7 | Am7 | Dm9', [0, 1, 2, 3, 2, 1], 5, 2)
+shot hosts 3bars
+  film run "bun trailer/comfy-ts/film/page.ts card/hosts.html {seconds} {out}" reads card/hosts.html,film/page.ts
+  title "*1* Any ComfyUI. *One line.*" at 0.15s for 6.9s style line +claim
+  voice run "bun trailer/comfy-ts/film/voice.ts 'Any ComfyUI: your GPU, your network, or the cloud.' {out}" reads film/voice.ts at 0.2s
+  cut whip-left 0.5beat
+
+# the cause before the effect: comfy-ts gen reads the box (2857 nodes) and Comfy Cloud (3901 nodes), and writes the SDK
+section gen 2bars tempo 100
+  play * ({ ...pads('Dm9 | Bbmaj7'), sub: bass('Dm9 | Bbmaj7', 'hold', 2), hat: offs(2) })
+  play arp arp('Dm9 | Bbmaj7', [0, 1, 2, 3, 2, 1], 5, 2)
+shot gen 2bars
+  film run "bun trailer/comfy-ts/film/page.ts term/index.html {seconds} {out} cast=casts/gen.cast from=0.2 speed=2.4 idle=0.5 title=my-project" reads term/index.html,term/replay.js,film/page.ts,casts/gen.cast
+  title "*2* Knows your *exact* setup" at 0.15s for 4.5s style line +claim
+  voice run "bun trailer/comfy-ts/film/voice.ts 'One command reads your exact setup: every node, every model.' {out}" reads film/voice.ts at 0.3s
+  cut whip-left 0.5beat
+
+# agents, part one: one line of CLAUDE.md teaches the library, and a run answers in one line of JSON
+section agentdocs 2bars tempo 100
+  play * ({ ...pads('Bbmaj7 | C'), bass: bass('Bbmaj7 | C', 'octave', 2), kick: four(2), hat: offs(2) })
+  play arp arp('Bbmaj7 | C', [0, 1, 2, 3], 5, 2)
+shot agentdocs 2bars
+  film run "bun trailer/comfy-ts/film/page.ts term/index.html {seconds} {out} cast=casts/agent.cast from=0.3 speed=1.6 idle=0.6 title=my-project" reads term/index.html,term/replay.js,film/page.ts,casts/agent.cast
+  title "*3* One line teaches *any agent*" at 0.15s for 4.5s style line +claim
+  voice run "bun trailer/comfy-ts/film/voice.ts 'One line in CLAUDE.md teaches your agent the whole library.' {out}" reads film/voice.ts at 0.2s
+  cut fade 0.5beat
+
+# agents, part two: one sentence asked in a real Claude Code session, the agent reads the guide and runs the workflow
+section agent 3bars tempo 100
+  play * ({ ...pads('Dm9 | Bbmaj7 | C'), bass: bass('Dm9 | Bbmaj7 | C', 'octave', 2), kick: four(3), hat: offs(3), clap: backs(3) })
+  play arp arp('Dm9 | Bbmaj7 | C', [0, 1, 2, 3], 5, 2)
+shot agent 3bars
+  from 2.4s
+  film run "bun trailer/comfy-ts/film/page.ts term/index.html {seconds} {out} cast=casts/claude.cast from=5.4 speed=3.35 title=my-project" reads term/index.html,term/replay.js,film/page.ts,casts/claude.cast
+  title "1 sentence. 3 commands. *18 s.*" at 0.2s for 6.8s style line +claim
+  title "3x speed" at 0.2s for 6.8s style corner +mark
+  voice run "bun trailer/comfy-ts/film/voice.ts 'Ask in one sentence. It runs three commands and is done in eighteen seconds.' {out}" reads film/voice.ts at 0.6s
+  cut fade 0.5beat
+
+# vars and ifs make the workflow an app: the staged file gains two of each, typed until it reads as the file on disk
+section app 4bars tempo 100
+  play * ({ ...pads('Fmaj7 | Am7 | Dm9 | Bbmaj7'), sub: bass('Fmaj7 | Am7 | Dm9 | Bbmaj7', 'hold', 2), hat: offs(4) })
+  play arp arp('Fmaj7 | Am7 | Dm9 | Bbmaj7', [0, 1, 2, 3, 2, 1], 5, 2)
+shot app 4bars
+  film run "bun trailer/comfy-ts/film/page.ts editor/index.html {seconds} {out} take=app" reads editor/index.html,editor/kit.js,editor/app.js,stage/scenery.cflow.ts,film/page.ts
+  title "Workflows become *apps*" at 0.2s for 9.2s style line +claim
+  voice run "bun trailer/comfy-ts/film/voice.ts 'Add a variable and an if. Your workflow is now an app.' {out}" reads film/voice.ts at 0.4s
+  cut whip-left 0.5beat
+
+# the same file, run as an app: --help lists every var as a flag, then the flags run it
+section appterm 3bars tempo 100
+  play * ({ ...pads('Dm9 | Bbmaj7 | C'), bass: bass('Dm9 | Bbmaj7 | C', 'octave', 2), kick: four(3), hat: offs(3), clap: backs(3) })
+  play arp arp('Dm9 | Bbmaj7 | C', [0, 1, 2, 3], 5, 2)
+shot appterm 3bars
+  film run "bun trailer/comfy-ts/film/page.ts term/index.html {seconds} {out} cast=casts/app.cast from=0.3 speed=1.5 idle=0.5 title=my-project" reads term/index.html,term/replay.js,film/page.ts,casts/app.cast
+  title "Every var is a *flag*" at 0.2s for 6.8s style line +claim
+  voice run "bun trailer/comfy-ts/film/voice.ts 'Every variable is a flag.' {out}" reads film/voice.ts at 0.4s
+  cut fade 0.5beat
+
+# the TUI: the same workflow in the terminal, a reroll, the night toggle, the picture forming live
+section tui 3bars tempo 100
+  play * ({ ...pads('Dm9 | Bbmaj7 | C'), bass: bass('Dm9 | Bbmaj7 | C', 'octave', 2), kick: four(3), hat: offs(3), clap: backs(3) })
+  play arp arp('Dm9 | Bbmaj7 | C', [0, 1, 2, 3], 5, 2)
+shot tui 3bars
+  film run "bun trailer/comfy-ts/film/page.ts term/index.html {seconds} {out} cast=casts/tui.cast from=2 speed=1.8 title=comfy-ts" reads term/index.html,term/replay.js,film/page.ts,casts/tui.cast
+  frame 1.2 at 0.42,0.36
+  title "*4* Tweak, rerun, *watch it form*" at 0.2s for 6.8s style line +claim
+  title "1.8x speed" at 0.2s for 6.8s style corner +mark
+  voice run "bun trailer/comfy-ts/film/voice.ts 'Tweak it in the terminal, and watch it form.' {out}" reads film/voice.ts at 0.4s
+  cut fade 0.5beat
+
+# the web panel: the same vars as fields, a prompt typed, a run with live progress
+section panel 3bars tempo 100
+  play * ({ ...pads('Fmaj7 | Am7 | Bbmaj7'), bass: bass('Fmaj7 | Am7 | Bbmaj7', 'octave', 2), kick: four(3), hat: offs(3), clap: backs(3) })
+  play arp arp('Fmaj7 | Am7 | Bbmaj7', [0, 1, 2, 3], 5, 2)
+shot panel 3bars
+  film run "bun trailer/comfy-ts/film/panel.ts {seconds} {out}" reads film/panel.ts,stage/harbor.cflow.ts
+  title "*5* A web UI, *zero code*" at 0.2s for 6.8s style line +claim
+  title "real time" at 0.2s for 6.8s style corner +mark
+  voice run "bun trailer/comfy-ts/film/voice.ts 'Or in the browser, every variable a field.' {out}" reads film/voice.ts at 0.4s
+  cut whip-left 0.5beat
+
+# 6, editing: the SDK gen wrote, completing, then a wrong model name as a compile error
+section intro 6bars tempo 100
+  play * ({ ...pads('Fmaj7 | Am7 | Dm9 | Bbmaj7 | Fmaj7 | C'), sub: bass('Fmaj7 | Am7 | Dm9 | Bbmaj7 | Fmaj7 | C', 'hold', 2) })
+  play arp arp('Fmaj7 | Am7 | Dm9 | Bbmaj7 | Fmaj7 | C', [0, 1, 2, 3, 2, 1], 5, 2)
+  play hat seq(vide(4), offs(2))
+shot editor 6bars
+  film run "bun trailer/comfy-ts/film/page.ts editor/index.html {seconds} {out}" reads editor/index.html,editor/kit.js,editor/take.js,film/page.ts
+  title "*6* Every node, *typed*" at 0.25s for 3.9s style line +claim
+  title "Every model, *autocompleted*" at 2bars for 4.1s style line +claim
+  title "Typos fail at *compile time*" at 4bars for 4.3s style line +claim place bottom
+  voice run "bun trailer/comfy-ts/film/voice.ts 'Editing: every node and every model autocompletes.' {out}" reads film/voice.ts at 0.4s
+  voice run "bun trailer/comfy-ts/film/voice.ts 'A wrong name is a compile error.' {out}" reads film/voice.ts at 4bars+0.6s
+  cut whip-left 0.5beat
+
+# ComfyUI: the staged module exported as an autolayouted workflow.json lands on a real ComfyUI canvas (focus mode, none
+# of the box's panels)
+section export 2bars tempo 100
+  play * ({ ...pads('Fmaj7 | C'), bass: bass('Fmaj7 | C', 'octave', 2), kick: four(2), hat: offs(2) })
+  play arp arp('Fmaj7 | C', [0, 1, 2, 3], 5, 2)
+shot export 2bars
+  film run "bun trailer/comfy-ts/film/canvas.ts {seconds} {out}" reads film/canvas.ts,stage/export.ts,stage/scenery.cflow.ts
+  title "Straight to the *ComfyUI canvas*" at 0.15s for 4.5s style line +claim
+  voice run "bun trailer/comfy-ts/film/voice.ts 'Export to the ComfyUI canvas, and back to code.' {out}" reads film/voice.ts at 0.2s
+  cut whip-left 0.5beat
+
+# the name and where to get it: the install line, the repo with the GitHub mark and a star that fills once (drawn,
+# silent), the licence; the music stops dead and one note rings alone
+section end 3bars tempo 100
+  play * ({ ...pads('Bbmaj7 | C | Fmaj7'), bass: bass('Bbmaj7 | C | Fmaj7', 'octave', 2), kick: four(3), hat: offs(3), clap: backs(3) })
+  play bell seq('v9:A5 . . . C6 . . . E6 . . . . . . .', 'v9:G5 . . . . . . . C6 . . . . . . .', 'v10:F5', rep('.', 15))
+  stop at 2bars+2beats
+shot end 3bars
+  film run "bun trailer/comfy-ts/film/page.ts card/index.html {seconds} {out} end=1" reads card/index.html,card/github-mark.svg,film/page.ts
+  title "comfy-ts\nComfyUI, typed." at 0.2s style big place middle +name
+  voice run "bun trailer/comfy-ts/film/voice.ts 'Comfy T.S. Free and open source.' {out}" reads film/voice.ts at 1bar
+  sfx run "ffmpeg -v error -f lavfi -i sine=f=1396.9:d=1.4 -af afade=t=out:st=0.02:d=1.38,volume=0.5 {out}" at 2bars+2beats
+  cut dip-black 1beat
+
+# the wall's four cells, each a moment of a take the body plays (from plus length lands on the take's own seconds)
+footage walltui 3bars
+  from 0.8s
+  film run "bun trailer/comfy-ts/film/page.ts term/index.html {seconds} {out} cast=casts/tui.cast from=2 speed=1.8 title=comfy-ts" reads term/index.html,term/replay.js,film/page.ts,casts/tui.cast
+footage wallpanel 3bars
+  from 0.8s
+  film run "bun trailer/comfy-ts/film/panel.ts {seconds} {out}" reads film/panel.ts,stage/harbor.cflow.ts
+footage wallagent 3bars
+  from 2.8s
+  film run "bun trailer/comfy-ts/film/page.ts term/index.html {seconds} {out} cast=casts/claude.cast from=5.4 speed=3.35 title=my-project" reads term/index.html,term/replay.js,film/page.ts,casts/claude.cast
+footage wallcanvas 3bars
+  from 0.8s
+  film run "bun trailer/comfy-ts/film/canvas.ts {seconds} {out}" reads film/canvas.ts,stage/export.ts,stage/scenery.cflow.ts
