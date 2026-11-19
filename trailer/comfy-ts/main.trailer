@@ -224,7 +224,7 @@ section end 3bars tempo 100
   stop at 2bars+2beats
 shot end 3bars
   film run "bun trailer/comfy-ts/film/page.ts card/index.html {seconds} {out} end=1" reads card/index.html,card/github-mark.svg,film/page.ts
-  title "comfy-ts\nyour ComfyUI, typed" at 0.2s style big place middle +name
+  title "comfy-ts\nComfyUI, typed." at 0.2s style big place middle +name
   voice run "bun trailer/comfy-ts/film/voice.ts 'Comfy T.S. Free and open source.' {out}" reads film/voice.ts at 1bar
   sfx run "ffmpeg -v error -f lavfi -i sine=f=1396.9:d=1.4 -af afade=t=out:st=0.02:d=1.38,volume=0.5 {out}" at 2bars+2beats
   cut dip-black 1beat
