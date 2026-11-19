@@ -1,0 +1,63 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="shot-ready" content="loading">
+<title>comfy-ts hosts card</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@600;800&family=JetBrains+Mono:wght@500;700&display=block" rel="stylesheet">
+<style>
+   html, body { margin: 0; height: 100%; overflow: hidden; }
+   body { background: radial-gradient(ellipse at 50% 55%, #18294a 0%, #0b1220 60%, #060a12 100%); }
+   /* one host call, big: the frame and the closing brace stay, the argument and its name change in place */
+   #what { position: absolute; left: 0; right: 0; top: 268px; text-align: center; font: 800 34px Inter, sans-serif; color: #ffb020; letter-spacing: .01em; }
+   #code { position: absolute; left: 92px; right: 60px; top: 340px; font: 500 32px/1.55 'JetBrains Mono', monospace; color: #c9d6ee; white-space: pre; }
+   .dim { color: #7f8fb0; }
+   .k { color: #6da2ee; }
+   .s { color: #e8b27a; }
+   .n { color: #b5e08f; }
+   #arg { display: inline-block; }
+</style>
+</head>
+<body>
+<div id="what"></div>
+<div id="code"><span class="dim">comfy.host({</span>
+   <span id="arg"></span>
+<span class="dim">})</span></div>
+<script>
+   const s = (x) => `<span class="s">'${x}'</span>`
+   const k = (x) => `<span class="k">${x}</span>`
+   const HOSTS = [
+      { what: 'your GPU', arg: `${k('id')}: ${s('my-gpu')}` },
+      { what: 'a box on your network', arg: `${k('id')}: ${s('tower')}, ${k('host')}: ${s('192.168.1.5')}, ${k('port')}: <span class="n">8188</span>` },
+      { what: 'Comfy Cloud', arg: `${k('id')}: ${s('cloud')}, ${k('url')}: ${s('https://cloud.comfy.org')}, ${k('apiKey')}` },
+      { what: 'any provider', arg: `${k('id')}: ${s('runpod')}, ${k('url')}: ${s('https://xyz-8188.proxy.runpod.net')}` },
+   ]
+   // ?every=<s>: how long each host holds; the swap fades over the first 0.2 s of its turn
+   const EVERY = Number(new URLSearchParams(location.search).get('every') ?? 1.8)
+   const FADE = 0.2
+   const what = document.getElementById('what')
+   const arg = document.getElementById('arg')
+   let shown = -1
+   window.__trailerStep = async (t) => {
+      const i = Math.min(HOSTS.length - 1, Math.floor(t / EVERY))
+      if (i !== shown) {
+         what.textContent = HOSTS[i].what
+         arg.innerHTML = HOSTS[i].arg
+         shown = i
+      }
+      const into = t - i * EVERY
+      const a = i === 0 ? 1 : Math.min(1, into / FADE)
+      for (const el of [what, arg]) {
+         el.style.opacity = String(a)
+         el.style.transform = `translateY(${(1 - a) * 10}px)`
+      }
+   }
+   document.fonts.ready.then(async () => {
+      await document.fonts.load("500 32px 'JetBrains Mono'")
+      await document.fonts.load('800 34px Inter')
+      await window.__trailerStep(0)
+      document.querySelector('meta[name=shot-ready]').setAttribute('content', 'ready')
+   })
+</script>
+</body>
+</html>

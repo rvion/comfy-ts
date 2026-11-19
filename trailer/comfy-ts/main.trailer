@@ -41,21 +41,24 @@ code
 
 drums k=kick h=hat c=clap
 
-# the hook: the logo and the name on a hit, then the product at work, four windows on the beat, under the promise
-section hook 2bars tempo 100
-  play * ({ ...pads('Fmaj7 | C'), bass: bass('Fmaj7 | C', 'octave', 2), kick: seq('k - - - - - - - - - - - - - - - ', four(1)), hat: seq(rest(16), offs(1)), clap: seq(rest(16), backs(1)) })
-  play arp arp('Fmaj7 | C', [0, 1, 2, 3, 2, 1], 5, 2)
-  play bell seq('v10:F5 . . . . . . . A5 . . . C6 . . .', 'v9:F6', rep('.', 15))
+# the hook: the logo and the name on a hit, then the promise spoken whole over four windows at work, its words on
+# screen as the voice says them
+section hook 4bars tempo 100
+  play * ({ ...pads('Fmaj7 | C | Dm9 | Bbmaj7'), bass: bass('Fmaj7 | C | Dm9 | Bbmaj7', 'octave', 2), kick: seq('k - - - - - - - - - - - - - - - ', four(3)), hat: seq(rest(16), offs(3)), clap: seq(rest(16), backs(3)) })
+  play arp arp('Fmaj7 | C | Dm9 | Bbmaj7', [0, 1, 2, 3, 2, 1], 5, 2)
+  play bell seq('v10:F5 . . . . . . . A5 . . . C6 . . .', 'v9:F6', rep('.', 15), rep('.', 32))
 shot logo 1bar
   from 5.6s
   film run "bun trailer/comfy-ts/film/page.ts card/index.html {seconds} {out}" reads card/index.html,film/page.ts
   push 1.12
   flash at 0s
-  title "comfy-ts\nthe ComfyUI toolkit for *agents* and *humans*" at 0s style big place middle +name
-  voice run "bun trailer/comfy-ts/film/voice.ts 'Comfy T.S. ComfyUI workflows, easier than ever.' {out}" reads film/voice.ts at 0.15s
-shot wall 1bar
+  title "comfy-ts" at 0s style big place middle +name
+  voice run "bun trailer/comfy-ts/film/voice.ts 'Comfy T.S.; the most efficient way to create, run, and maintain ComfyUI workflows for humans and agents.' {out}" reads film/voice.ts at 0.15s
+shot wall 3bars
   film grid walltui,wallpanel,wallagent,wallcanvas pop 0.15s
-  title "Make and maintain workflows,\n*easier than ever*" at 0.1s style big +hook
+  title "The most *efficient* way" at 0s for 1.65s style big +hook
+  title "to *create*, *run* and *maintain*\nComfyUI workflows" at 1.7s for 2.9s style big +hook
+  title "for *humans* and *agents*" at 4.65s for 2.6s style big +hook
   cut whip-left 0.5beat
 
 # the six steps glimpsed, one a beat: each a moment of the take its body shot plays later, the step's number big
@@ -63,8 +66,8 @@ section path 3bars tempo 100
   play * ({ ...pads('Dm9 | Bbmaj7 | C'), bass: bass('Dm9 | Bbmaj7 | C', 'octave', 2), kick: four(3), hat: offs(3), clap: backs(3) })
   play arp arp('Dm9 | Bbmaj7 | C', [0, 1, 2, 3], 5, 2)
 shot g1 2beats
-  from 3s
-  film run "bun trailer/comfy-ts/film/page.ts editor/index.html {seconds} {out} take=hosts" reads editor/index.html,editor/kit.js,editor/hosts.js,editor/env.d.ts,film/page.ts
+  from 6s
+  film run "bun trailer/comfy-ts/film/page.ts card/hosts.html {seconds} {out}" reads card/hosts.html,film/page.ts
   title "*1* Set up" at 0s style big +flash
   voice run "bun trailer/comfy-ts/film/voice.ts 'From zero to hero, in six steps.' {out}" reads film/voice.ts at 0.3s
 shot g2 2beats
@@ -92,13 +95,13 @@ shot g6 2beats
   title "*6* Editing" at 0s style big +flash
   cut whip-left 0.5beat
 
-# any host: one line picks the ComfyUI, the others sit commented beside it (local, LAN, cloud, a provider)
-section hosts 2bars tempo 100
-  play * ({ ...pads('Fmaj7 | Am7'), sub: bass('Fmaj7 | Am7', 'hold', 2) })
-  play arp arp('Fmaj7 | Am7', [0, 1, 2, 3, 2, 1], 5, 2)
-shot hosts 2bars
-  film run "bun trailer/comfy-ts/film/page.ts editor/index.html {seconds} {out} take=hosts" reads editor/index.html,editor/kit.js,editor/hosts.js,editor/env.d.ts,film/page.ts
-  title "*1* Any ComfyUI. *One line.*" at 0.15s for 4.4s style line +claim
+# any host: one call, big, its argument changing in place: local, LAN, cloud, a provider
+section hosts 3bars tempo 100
+  play * ({ ...pads('Fmaj7 | Am7 | Dm9'), sub: bass('Fmaj7 | Am7 | Dm9', 'hold', 2) })
+  play arp arp('Fmaj7 | Am7 | Dm9', [0, 1, 2, 3, 2, 1], 5, 2)
+shot hosts 3bars
+  film run "bun trailer/comfy-ts/film/page.ts card/hosts.html {seconds} {out}" reads card/hosts.html,film/page.ts
+  title "*1* Any ComfyUI. *One line.*" at 0.15s for 6.9s style line +claim
   voice run "bun trailer/comfy-ts/film/voice.ts 'Any ComfyUI: your GPU, your network, or the cloud.' {out}" reads film/voice.ts at 0.2s
   cut whip-left 0.5beat
 
@@ -216,15 +219,15 @@ shot end 3bars
   cut dip-black 1beat
 
 # the wall's four cells, each a moment of a take the body plays (from plus length lands on the take's own seconds)
-footage walltui 1bar
-  from 5s
+footage walltui 3bars
+  from 0.8s
   film run "bun trailer/comfy-ts/film/page.ts term/index.html {seconds} {out} cast=casts/tui.cast from=2 speed=1.8 title=comfy-ts" reads term/index.html,term/replay.js,film/page.ts,casts/tui.cast
-footage wallpanel 1bar
-  from 5.6s
+footage wallpanel 3bars
+  from 0.8s
   film run "bun trailer/comfy-ts/film/panel.ts {seconds} {out}" reads film/panel.ts,stage/harbor.cflow.ts
-footage wallagent 1bar
-  from 7.6s
+footage wallagent 3bars
+  from 2.8s
   film run "bun trailer/comfy-ts/film/page.ts term/index.html {seconds} {out} cast=casts/claude.cast from=5.4 speed=3.35 title=my-project" reads term/index.html,term/replay.js,film/page.ts,casts/claude.cast
-footage wallcanvas 1bar
-  from 3.6s
+footage wallcanvas 3bars
+  from 0.8s
   film run "bun trailer/comfy-ts/film/canvas.ts {seconds} {out}" reads film/canvas.ts,stage/export.ts,stage/scenery.cflow.ts
