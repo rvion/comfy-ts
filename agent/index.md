@@ -4,6 +4,8 @@ Type-safe ComfyUI companion library for TypeScript, published on npm as `comfy-t
 
 Push discipline: normal house rules (commit own work, push after committing). Publishing: MINOR and PATCH versions may ship autonomously: reviewed work only, CHANGELOG.md entry rewritten from the journal first, version bump, then `bun run release` (scripts/release.ts) does the rest: preflight (clean tree, version unpublished, changelog section present), `bun publish` (prepublishOnly runs the gate + build; npm token read from the local keychain and passed as NPM_CONFIG_TOKEN; bun's packer is the one tests/npm-tarball.test.ts guards, so the tested tarball IS the published one), annotated git tag `vX.Y.Z`, push with tags, GitHub release with the changelog section as notes. Every publication gets a tag AND a GitHub release. MAJOR versions need an explicit go-ahead. `bun run release --dry-run` prints the plan and runs only the checks.
 
+**The pitch** (the trailer's hook, the line every public text starts from: a post, a video title, a description, a thumbnail): « comfy-ts: the most efficient way to create, run and maintain ComfyUI workflows, for humans and agents ». A text written for the public opens from it, never from a new description of the library.
+
 ## Quick start
 
 - `bun run ci` — typecheck + lint + format + imports + tests (the gate; what GitHub runs, portable to a clone with no host sdk on disk)
