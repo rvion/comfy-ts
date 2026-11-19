@@ -2,6 +2,13 @@
 
 <!-- made from .shipkit/releases/ by sk bump: edit those files, never this one -->
 
+## 2.20.2 (2026-11-20): The pitch first
+
+### Docs
+
+- **The README and the npm page open on the pitch**: The first line now says what comfy-ts is for: an efficient way to create, run, maintain and operate your ComfyUI workflows, for humans and agents. The package description on npm says the same, then what you get: a TypeScript SDK typed from your own install, a CLI, a terminal UI, a web panel and a guide for coding agents.
+- **The trailer at the top of the README**: The README opens with the comfy-ts trailer: its picture links to the video on YouTube (1:39).
+
 ## 2.20.1 (2026-11-19): Latent previews on fast runs too
 
 ### Web panel
