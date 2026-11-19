@@ -7,6 +7,9 @@ size 1280x720
 fps 30
 master -14 LUFS
 duck -9dB
+# the project's mark in the top right corner (outside every window, clear of the titles), from the first step to the
+# last body shot: the intro and the end card hold the big logo themselves
+watermark .shipkit/identity/icon.png "comfy-ts" top-right from hosts to export
 # the cut's titles: a beat's claim in the band above the product, the name in the corner, the end card's name
 preset claim font "Inter" weight 800 size 74 color #eaf1ff place top in rise out fade
 preset mark font "JetBrains Mono" weight 700 size 46 in none out none
@@ -66,7 +69,8 @@ section path 3bars tempo 100
   play * ({ ...pads('Dm9 | Bbmaj7 | C'), bass: bass('Dm9 | Bbmaj7 | C', 'octave', 2), kick: four(3), hat: offs(3), clap: backs(3) })
   play arp arp('Dm9 | Bbmaj7 | C', [0, 1, 2, 3], 5, 2)
 shot g1 2beats
-  from 6s
+  # the first variant, the short call: the step's number stands beside it and covers no code
+  from 0.3s
   film run "bun trailer/comfy-ts/film/page.ts card/hosts.html {seconds} {out}" reads card/hosts.html,film/page.ts
   title "*1* Set up" at 0s style big +flash
   voice run "bun trailer/comfy-ts/film/voice.ts 'From zero to hero, in six steps.' {out}" reads film/voice.ts at 0.3s
