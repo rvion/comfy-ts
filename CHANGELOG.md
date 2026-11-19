@@ -1,6 +1,6 @@
 # comfy-ts
 
-## Unreleased
+## 2.20.0
 
 - **A host by its id alone.** `comfy.host({ id: 'my-gpu' })` now finds the address that `comfy-ts gen --id my-gpu --host <url>` saved in `.comfy-ts/hosts/my-gpu/host.json`. Committed code names no machine: the address stays in `.comfy-ts/`, which you gitignore. A `url`, or a `host` and `port`, in the call still wins.
 - **An id with no saved address still imports.** The module loads, logs the reason once, and the first `connect()` or `run()` throws with the path it looked at and the `comfy-ts gen` command that writes it. The file is read again at each use, so a `gen` run under an open TUI or `serve` works without a restart.
