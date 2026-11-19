@@ -42,6 +42,7 @@ export default defineRepo({
             count,
          })),
          { reason: 'the npm author field: the published maintainer address, public on purpose', paths: ['package.json'], patterns: ['fp:e58aafa3370b'], count: 1 },
+         { reason: 'the public project this library was born in, linked under Related projects; also the name of its Discord server', paths: ['README.md'], patterns: ['fp:3cc9850430c8'], count: 1 },
       ],
    },
    // >>> shipkit ignored inputs — managed block, the traced audit writes it, edit outside the markers
