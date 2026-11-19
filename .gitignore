@@ -91,3 +91,4 @@ STATUS.full.md.lock
 */**/.comfy-ts/
 /public/
 .shipkit/identity/brand.hash
+.DS_Store
