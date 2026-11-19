@@ -82,8 +82,8 @@ shot g4 2beats
   frame 1.5 at 0.6,0.45
   title "*4* TUI" at 0s style big +flash
 shot g5 2beats
-  from 6.4s
-  film run "bun trailer/comfy-ts/film/panel.ts {seconds} {out}" reads film/panel.ts,stage/scenery.cflow.ts
+  from 5s
+  film run "bun trailer/comfy-ts/film/panel.ts {seconds} {out}" reads film/panel.ts,stage/harbor.cflow.ts
   frame 1.4 at 0.8,0.6
   title "*5* Web UI" at 0s style big +flash
 shot g6 2beats
@@ -171,9 +171,9 @@ section panel 3bars tempo 100
   play * ({ ...pads('Fmaj7 | Am7 | Bbmaj7'), bass: bass('Fmaj7 | Am7 | Bbmaj7', 'octave', 2), kick: four(3), hat: offs(3), clap: backs(3) })
   play arp arp('Fmaj7 | Am7 | Bbmaj7', [0, 1, 2, 3], 5, 2)
 shot panel 3bars
-  film run "bun trailer/comfy-ts/film/panel.ts {seconds} {out}" reads film/panel.ts,stage/scenery.cflow.ts
+  film run "bun trailer/comfy-ts/film/panel.ts {seconds} {out}" reads film/panel.ts,stage/harbor.cflow.ts
   title "*5* A web UI, *zero code*" at 0.2s for 6.8s style line +claim
-  title "1.4x speed" at 0.2s for 6.8s style corner +mark
+  title "real time" at 0.2s for 6.8s style corner +mark
   voice run "bun trailer/comfy-ts/film/voice.ts 'Or in the browser, every variable a field.' {out}" reads film/voice.ts at 0.4s
   cut whip-left 0.5beat
 
@@ -221,7 +221,7 @@ footage walltui 1bar
   film run "bun trailer/comfy-ts/film/page.ts term/index.html {seconds} {out} cast=casts/tui.cast from=2 speed=1.8 title=comfy-ts" reads term/index.html,term/replay.js,film/page.ts,casts/tui.cast
 footage wallpanel 1bar
   from 5.6s
-  film run "bun trailer/comfy-ts/film/panel.ts {seconds} {out}" reads film/panel.ts,stage/scenery.cflow.ts
+  film run "bun trailer/comfy-ts/film/panel.ts {seconds} {out}" reads film/panel.ts,stage/harbor.cflow.ts
 footage wallagent 1bar
   from 7.6s
   film run "bun trailer/comfy-ts/film/page.ts term/index.html {seconds} {out} cast=casts/claude.cast from=5.4 speed=3.35 title=my-project" reads term/index.html,term/replay.js,film/page.ts,casts/claude.cast

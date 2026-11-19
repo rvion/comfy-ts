@@ -1,4 +1,5 @@
-// films the real web panel at work: `comfy-ts serve` over the staged project, the panel shown in the cut's window
+// films the real web panel at work: `comfy-ts serve` over the staged harbor module (its steps a field, so a run samples
+// long enough to watch), the panel shown in the cut's window
 // frame, a prompt typed and ⌘⏎ pressed by playwright, recorded in real time from chromium's screencast, then trimmed
 // to the shot and encoded at the cut's fps. Holds one of the repo's browser slots while it runs.
 //   bun trailer/comfy-ts/film/panel.ts <seconds> <out.mp4> [stage dir]
@@ -17,7 +18,7 @@ const FPS = 30
 
 const pw = createRequire(import.meta.resolve('rvlib-shipkit/src/shot/browser-slot.ts'))('playwright') as typeof import('playwright')
 
-const serve = Bun.spawn(['bun', join(repo, 'src/cli/comfy-ts-cli.ts'), 'serve', '.', '--port', String(PORT)], { cwd: stage, stdout: 'ignore', stderr: 'pipe' })
+const serve = Bun.spawn(['bun', join(repo, 'src/cli/comfy-ts-cli.ts'), 'serve', 'harbor.cflow.ts', '--port', String(PORT)], { cwd: stage, stdout: 'ignore', stderr: 'pipe' })
 const wrap = Bun.serve({
    port: 0,
    hostname: '127.0.0.1',
@@ -48,6 +49,10 @@ try {
    const panel = page.frameLocator('iframe')
    const editor = panel.locator('.prompt-editor .cm-content').first()
    await editor.waitFor({ timeout: 30_000 })
+   // the latent preview full size in the running card, so the picture forms where the eye already is
+   await panel.locator('button[data-tip^="latent full size"]').click()
+   // a new seed each take: the same seed twice is a cache hit on the box, a run with no sampling to watch
+   await panel.getByRole('button', { name: 'random', exact: true }).first().click()
    await page.waitForTimeout(1500)
 
    const cdp = await page.context().newCDPSession(page)
@@ -59,13 +64,15 @@ try {
       void cdp.send('Page.screencastFrameAck', { sessionId: f.sessionId }).catch(() => undefined)
    })
    await cdp.send('Page.startScreencast', { format: 'jpeg', quality: 92, everyNthFrame: 1 })
-   await page.waitForTimeout(600)
+   // room before the typing: the shot may open early so the run lands where the cut wants it
+   await page.waitForTimeout(2600)
    const typing = Date.now() / 1000
    await editor.click()
    await page.keyboard.press('Meta+A')
    await page.keyboard.type(PROMPT, { delay: 30 })
    await page.waitForTimeout(350)
    await page.keyboard.press('Meta+Enter')
+   const sent = Date.now() / 1000
    // the result lands in the gallery; then a beat to see it
    await panel.locator('img[src*="/outputs/"]').first().waitFor({ timeout: 60_000 })
    const landed = Date.now() / 1000
@@ -77,10 +84,11 @@ try {
    const t0 = shots[0]?.t ?? 0
    const n = Math.round(Number(seconds) * FPS)
    const list: string[] = []
-   // the shot opens just before the prompt is typed and ends 1.6 s after the result lands; when the GPU took longer
+   // the shot ends 1 s after the result lands, in real time, so the latent forms at the same moment of every take; it
+   // opens earlier when the run was quick, or just before the typing when it was slow, and when the GPU took longer
    // than the shot, the whole take plays faster by one factor (printed, so the cut can say it)
-   const start = Math.max(t0, typing - 0.25)
-   const factor = Math.max(1, (landed + 1.6 - start) / Number(seconds))
+   const start = Math.max(t0, Math.min(typing - 0.25, landed + 1 - Number(seconds)))
+   const factor = Math.max(1, (landed + 1 - start) / Number(seconds))
    for (let i = 0, j = 0; i < n; i++) {
       const at = start + (i / FPS) * factor
       while (j + 1 < shots.length && (shots[j + 1]?.t ?? Infinity) <= at) j++
@@ -89,7 +97,7 @@ try {
    writeFileSync(join(frames, 'list.txt'), list.join('\n') + '\n')
    const ff = Bun.spawnSync(['ffmpeg', '-v', 'error', '-y', '-f', 'concat', '-safe', '0', '-i', join(frames, 'list.txt'), '-r', String(FPS), '-pix_fmt', 'yuv420p', '-c:v', 'libx264', '-crf', '16', resolve(out)], { stderr: 'inherit' })
    if (ff.exitCode !== 0) throw new Error('panel: ffmpeg failed')
-   console.error(`panel: ${shots.length} screencast frames, ${n} frames at ${FPS} fps, played ${factor.toFixed(2)}x`)
+   console.error(`panel: ${shots.length} screencast frames, ${n} frames at ${FPS} fps, played ${factor.toFixed(2)}x, the run ${(landed - sent).toFixed(2)} s from ${((sent - start) / factor).toFixed(2)} s of the shot`)
 } finally {
    release()
    wrap.stop(true)

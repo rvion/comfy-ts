@@ -11,6 +11,7 @@ const repo = resolve(import.meta.dir, '../../..')
 rmSync(join(dir, 'node_modules'), { recursive: true, force: true })
 mkdirSync(join(dir, 'node_modules/.bin'), { recursive: true })
 cpSync(join(import.meta.dir, 'scenery.cflow.ts'), join(dir, 'scenery.cflow.ts'))
+cpSync(join(import.meta.dir, 'harbor.cflow.ts'), join(dir, 'harbor.cflow.ts'))
 writeFileSync(join(dir, 'CLAUDE.md'), '@./node_modules/comfy-ts/guide-for-agents.md\n')
 writeFileSync(join(dir, 'package.json'), JSON.stringify({ name: 'my-project', private: true, type: 'module' }, null, 2) + '\n')
 // one copy of the library for the module and the cli: the checkout's source, as the repo's own tsconfig maps it
