@@ -1,6 +1,6 @@
 # comfy-ts
 
-## Unreleased
+## 2.20.1
 
 - **The web panel shows the picture forming.** While a prompt runs, the panel reads its progress and its latent preview every 150 ms instead of every 700 ms, so a sampler that ends within a second still shows its latent in the running card. An idle panel asks nothing, as before.
 - **The TUI no longer warns of a changed host before the first run.** Its header said « changed: +N node types, re-codegen » on a host whose schema was simply not loaded yet. The warning now shows only when a loaded schema really differs from the host.
