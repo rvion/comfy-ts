@@ -11,6 +11,8 @@ duck 0dB
 # the project's mark in the top right corner (outside every window, clear of the titles), from the first step to the
 # last body shot: the intro and the end card hold the big logo themselves
 watermark .shipkit/identity/icon.png "comfy-ts" top-right from hosts to export
+# the video's thumbnail, drawn at each keep and set as the cut's first frames: the web panel with the latent forming
+thumbnail panel+5.2 crop 515,272,705,432 "ComfyUI, typed." chip "bun add comfy-ts"
 # the cut's titles: a beat's claim in the band above the product, the name in the corner, the end card's name
 preset claim font "Inter" weight 800 size 74 color #eaf1ff place top in rise out fade
 preset mark font "JetBrains Mono" weight 700 size 46 in none out none
