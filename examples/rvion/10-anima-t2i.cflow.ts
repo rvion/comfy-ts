@@ -7,7 +7,7 @@
 import { activeLoras, ComfyTS } from 'comfy-ts'
 
 const comfy = ComfyTS.create()
-const host = comfy.host({ id: 'windows-1', host: 'desktop-im18794', port: 8085 })
+const host = comfy.host({ id: 'windows-1' })
 await host.loadSchemaFromCache()
 
 const TURBO_LORA = 'anima\\anima-turbo-lora-v0.2.safetensors'

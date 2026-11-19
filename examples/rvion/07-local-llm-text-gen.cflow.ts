@@ -13,7 +13,7 @@
 import { ComfyTS, promptEnhancerPresets, v } from 'comfy-ts'
 
 const comfy = ComfyTS.create()
-const host = comfy.host({ id: 'windows-1', host: 'desktop-im18794', port: 8085 })
+const host = comfy.host({ id: 'windows-1' })
 await host.loadSchemaFromCache() // offline import; run() connects lazily
 
 // generative on this box (measured, see --sweep). Every entry is a plain text_encoders/

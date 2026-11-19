@@ -9,7 +9,7 @@
 import { ComfyTS, exampleMediaPath, v } from 'comfy-ts'
 
 const comfy = ComfyTS.create()
-const host = comfy.host({ id: 'windows-1', host: 'desktop-im18794', port: 8085 })
+const host = comfy.host({ id: 'windows-1' })
 await host.loadSchemaFromCache() // offline import; run() connects lazily
 
 const ENGINES = ['chatterbox', 'qwen3', 'fishs2', 'cosyvoice3', 'omnivoice'] as const

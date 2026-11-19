@@ -8,7 +8,7 @@ import { ComfyTS, v } from 'comfy-ts'
 import { SA3_CATEGORIES, sa3Reprompt } from './stableAudio3Prompts.ts'
 
 const comfy = ComfyTS.create()
-const host = comfy.host({ id: 'windows-1', host: 'desktop-im18794', port: 8085 })
+const host = comfy.host({ id: 'windows-1' })
 await host.loadSchemaFromCache() // offline import; run() connects lazily
 
 export const stableAudio3T2a = host.defineWorkflow({

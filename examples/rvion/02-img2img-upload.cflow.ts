@@ -4,7 +4,7 @@
 import { asAbsolutePath, ComfyTS, exampleImagePath, MediaImage, v } from 'comfy-ts'
 
 const comfy = ComfyTS.create()
-const host = comfy.host({ id: 'windows-1', host: 'desktop-im18794', port: 8085 })
+const host = comfy.host({ id: 'windows-1' })
 await host.loadSchemaFromCache() // offline import; run() connects lazily
 
 // bundled default input (examples/images/, ships in the tarball) — the TUI picker or argv[2] swap it

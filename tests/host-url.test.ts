@@ -40,8 +40,8 @@ describe('parseHostBase — url-first form', () => {
 
 describe('parseHostBase — legacy host/port/https form', () => {
    test('host+port renders exactly as today', () => {
-      const q = parseHostBase({ id: 'w1', host: 'desktop-im18794', port: 8085 })
-      expect(q).toEqual({ scheme: 'http', host: 'desktop-im18794', port: 8085, basePath: '' })
+      const q = parseHostBase({ id: 'w1', host: 'gpu-box', port: 8085 })
+      expect(q).toEqual({ scheme: 'http', host: 'gpu-box', port: 8085, basePath: '' })
    })
 
    test('https flag picks the https scheme', () => {
@@ -74,8 +74,8 @@ describe('renderHttpBase / renderWsUrl', () => {
    })
 
    test('legacy spelling round-trips like today', () => {
-      const q = parseHostBase({ id: 'w1', host: 'desktop-im18794', port: 8085 })
-      expect(renderHttpBase(q)).toBe('http://desktop-im18794:8085')
-      expect(renderWsUrl(q)).toBe('ws://desktop-im18794:8085/ws')
+      const q = parseHostBase({ id: 'w1', host: 'gpu-box', port: 8085 })
+      expect(renderHttpBase(q)).toBe('http://gpu-box:8085')
+      expect(renderWsUrl(q)).toBe('ws://gpu-box:8085/ws')
    })
 })

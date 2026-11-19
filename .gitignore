@@ -86,3 +86,6 @@ STATUS.full.md.lock
 !.comfy-ts/prompt-enhancers/
 .comfy-ts/prompt-enhancers/*
 !.comfy-ts/prompt-enhancers/*.md
+# a .comfy-ts/ below the root (a project folder of its own, an example run from there) is local
+# machine state too, host addresses included: every rule above is anchored to the root
+*/**/.comfy-ts/
