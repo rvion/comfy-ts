@@ -1,0 +1,12 @@
+{
+  "cols": 100, "rows": 14, "cwd": "/tmp/my-project", "max": 120, "kill": true,
+  "env": { "PATH": "/tmp/my-project/node_modules/.bin:$PATH", "PS1": "\\[\\e[38;5;111m\\]my-project\\[\\e[0m\\] \\$ ", "BASH_SILENCE_DEPRECATION_WARNING": "1" },
+  "cmd": ["bash", "--norc", "--noprofile", "-i"],
+  "steps": [
+    { "wait": "\\$ $", "pause": 0.5, "type": "cat CLAUDE.md", "cps": 30 },
+    { "pause": 0.3, "type": "\r" },
+    { "wait": "\\$ $", "pause": 0.6, "type": "comfy-ts run scenery --prompt \"a harbor at night, lanterns\" --out harbor.png --json", "cps": 34 },
+    { "pause": 0.3, "type": "\r" },
+    { "wait": "\\}\\s*\\r?\\n", "end": 2.0 }
+  ]
+}

@@ -1,0 +1,3 @@
+saved to /private/tmp/my-project/x.png
+loaded DreamShaper_8_pruned.safetensors and anima-turbo-v1.1.safetensors
+host 127.0.0.1:8085

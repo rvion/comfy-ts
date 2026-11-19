@@ -1,0 +1,13 @@
+{
+  "cols": 110, "rows": 30, "cwd": "/tmp/my-project", "max": 120, "kill": true, "drain": 0.5,
+  "env": { "PATH": "/tmp/my-project/node_modules/.bin:$PATH", "TERM_PROGRAM": "vscode" },
+  "cmd": ["comfy-ts", "tui", "."],
+  "steps": [
+    { "wait": "scenery", "pause": 2.0 },
+    { "type": "s" },
+    { "wait": "success", "pause": 1.5, "cap": 60 },
+    { "type": "s" },
+    { "wait": "success", "pause": 2.0, "cap": 60 },
+    { "type": "q", "end": 0.5 }
+  ]
+}

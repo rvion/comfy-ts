@@ -1,0 +1,5 @@
+# recorded terminal sessions and generated media: made again by the film scripts, never committed
+casts/
+media/
+# a staged project's local state, should one ever be made here
+.comfy-ts/

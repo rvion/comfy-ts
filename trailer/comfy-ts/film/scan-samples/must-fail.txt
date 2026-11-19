@@ -1,0 +1,3 @@
+saved to /Users/someone/x.png
+loaded my_private_lora_v3.safetensors
+host sample-box-name:8085 on sample-box-name.example.ts.net

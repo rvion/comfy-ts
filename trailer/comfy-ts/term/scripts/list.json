@@ -1,0 +1,10 @@
+{
+  "cols": 100, "rows": 18, "cwd": "/tmp/my-project", "max": 60, "kill": true,
+  "env": { "PATH": "/tmp/my-project/node_modules/.bin:$PATH", "PS1": "\\[\\e[38;5;111m\\]my-project\\[\\e[0m\\] \\$ ", "BASH_SILENCE_DEPRECATION_WARNING": "1" },
+  "cmd": ["bash", "--norc", "--noprofile", "-i"],
+  "steps": [
+    { "wait": "\\$ $", "pause": 0.4, "type": "comfy-ts run", "cps": 24 },
+    { "pause": 0.3, "type": "\r" },
+    { "wait": "\\$ $", "end": 1.0 }
+  ]
+}

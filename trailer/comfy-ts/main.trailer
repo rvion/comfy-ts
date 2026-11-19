@@ -1,0 +1,89 @@
+# comfy-ts, the announcement cut: what it is in the first seconds (your ComfyUI as TypeScript types), then one
+# command, then the name and where to get it. Every shot is the product: a real editor over the real types, a real
+# terminal session replayed byte for byte, a real output. The titles carry every claim (feeds play muted), the
+# narrator says the same beat in other words.
+trailer comfy-ts
+size 1280x720
+fps 30
+master -14 LUFS
+duck -9dB
+# the cut's titles: a beat's claim in the band above the product, the name in the corner, the end card's name
+preset claim font "Inter" weight 800 size 74 color #eaf1ff place top in rise out fade
+preset mark font "JetBrains Mono" weight 700 size 46 color #ffb020 in none out none
+preset name font "Inter" weight 800 size 150 color #eaf1ff sub 0.3 in pop
+
+score tempo 100 reverb 2.2 0.26
+track sub sub volume 0.55
+track pad pad volume 0.42
+track pad2 pad volume 0.36
+track pad3 pad volume 0.32
+track arp arp volume 0.34
+track bass bassPulse volume 0.5
+track kick kick volume 0.8
+track hat hat volume 0.32
+track clap clap volume 0.5
+track bell bell volume 0.5
+
+code
+  const BAR = 16
+  /** n bars of silence */
+  const vide = (n: number) => rest(n * BAR)
+  /** the three pad voices of a chart */
+  const pads = (ch: string) => ({ pad: voice(ch, 0, 53), pad2: voice(ch, 1, 57), pad3: voice(ch, 2, 60) })
+  /** four on the floor, n bars */
+  const four = (n: number) => rep('k - - - ', 4 * n)
+  /** the hat on the off beats, n bars */
+  const offs = (n: number) => rep('- - h - ', 4 * n)
+  /** a clap on beats two and four, n bars */
+  const backs = (n: number) => rep('- - - - c - - - - - - - c - - - ', n)
+
+drums k=kick h=hat c=clap
+
+# the editor: a soft pulse and the arpeggio, rising; the hat comes in on the third beat
+section intro 6bars tempo 100
+  play * ({ ...pads('Fmaj7 | Am7 | Dm9 | Bbmaj7 | Fmaj7 | C'), sub: bass('Fmaj7 | Am7 | Dm9 | Bbmaj7 | Fmaj7 | C', 'hold', 2) })
+  play arp arp('Fmaj7 | Am7 | Dm9 | Bbmaj7 | Fmaj7 | C', [0, 1, 2, 3, 2, 1], 5, 2)
+  play hat seq(vide(4), offs(2))
+shot editor 6bars
+  film run "bun trailer/comfy-ts/film/page.ts editor/index.html {seconds} {out}" reads editor/index.html,editor/take.js,film/page.ts
+  title "comfy-ts" for 6bars style corner +mark
+  title "Your ComfyUI, *typed*" at 0.25s for 3.9s style line +claim
+  title "Your models, *autocompleted*" at 2bars for 4.1s style line +claim
+  title "Wrong name? *Compile error*" at 4bars for 4.3s style line +claim
+  voice run "bun trailer/comfy-ts/film/voice.ts 'Comfy T.S. turns your ComfyUI into TypeScript.' {out}" reads film/voice.ts at 0.3s
+  voice run "bun trailer/comfy-ts/film/voice.ts 'Every node and every model autocompletes.' {out}" reads film/voice.ts at 2bars+0.3s
+  voice run "bun trailer/comfy-ts/film/voice.ts 'A wrong name is a compile error.' {out}" reads film/voice.ts at 4bars+0.6s
+  cut whip-left 0.5beat
+
+# one command: the groove lands with the enter key
+section run 3bars tempo 100
+  play * ({ ...pads('Dm9 | Bbmaj7 | C'), bass: bass('Dm9 | Bbmaj7 | C', 'octave', 2), kick: four(3), hat: offs(3), clap: backs(3) })
+  play arp arp('Dm9 | Bbmaj7 | C', [0, 1, 2, 3], 5, 2)
+shot run 3bars
+  film run "bun trailer/comfy-ts/film/page.ts term/index.html {seconds} {out} cast=casts/run.cast from=0.3 speed=1.12 idle=0.6 title=my-project" reads term/index.html,term/replay.js,film/page.ts,casts/run.cast
+  title "One command, one *image*" at 0.2s for 6.1s style line +claim
+  voice run "bun trailer/comfy-ts/film/voice.ts 'One command runs it.' {out}" reads film/voice.ts at 0.4s
+  cut fade 0.5beat
+
+# the image it made: air, the voice rests
+section result 2bars tempo 100
+  play * ({ ...pads('Fmaj7 | Am7'), sub: bass('Fmaj7 | Am7', 'hold', 2), hat: offs(2) })
+  play arp arp('Fmaj7 | Am7', [0, 2, 3, 2], 5, 2)
+shot result 2bars
+  film image media/lighthouse.png
+  push 1.08
+  title "made in 1.8 s" at 0.6s for 3.4s style corner +mark
+  cut dip-black 1beat
+
+# the name and where to get it; the music stops dead and one note rings alone
+section end 3bars tempo 100
+  play * ({ ...pads('Bbmaj7 | C | Fmaj7'), sub: bass('Bbmaj7 | C | Fmaj7', 'hold', 2) })
+  play bell seq('v9:A5 . . . C6 . . . E6 . . . . . . .', 'v9:G5 . . . . . . . C6 . . . . . . .', 'v10:F5', rep('.', 15))
+  stop at 2bars+2beats
+shot end 3bars
+  film run "bun trailer/comfy-ts/film/page.ts card/index.html {seconds} {out}" reads card/index.html,film/page.ts
+  title "comfy-ts\nyour ComfyUI, typed" at 0.2s style big place middle +name
+  title "bun add comfy-ts      github.com/rvion/comfy-ts" at 1bar style caption place bottom font "JetBrains Mono" weight 700 color #ffb020
+  voice run "bun trailer/comfy-ts/film/voice.ts 'Comfy T.S. Free and open source.' {out}" reads film/voice.ts at 1bar
+  sfx run "ffmpeg -v error -f lavfi -i sine=f=1396.9:d=1.4 -af afade=t=out:st=0.02:d=1.38,volume=0.5 {out}" at 2bars+2beats
+  cut dip-black 1beat
