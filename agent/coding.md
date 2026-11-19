@@ -11,7 +11,7 @@ Runtime deps: `arktype`, `image-meta`, `nanoid`, `pathe`, `sharp`, `ws`, `ink` +
 ## TypeScript
 
 - absolute repo-root imports WITH extension: `from 'src/utils/bang.ts'` — never relative. `bun run imports:fix` self-heals; `imports:check` is the CI gate.
-- `strict` + `noUncheckedIndexedAccess` + nodenext. `bun run typecheck:lib` (src + scripts) must stay at 0 errors WITHOUT any generated sdk.d.ts on disk — base types in `src/types/comfy-sdk.ts` self-suffice, and `bun run ci` uses that config so the gate matches a fresh clone. examples/ need a generated host sdk by construction: `bun run typecheck` (full, local) covers them, `bun run ci:local` = ci + that.
+- `strict` + `noUncheckedIndexedAccess` + nodenext. `bun run typecheck` (src + scripts) must stay at 0 errors WITHOUT any generated sdk.d.ts on disk — base types in `src/types/comfy-sdk.ts` self-suffice, and `bun run ci` uses that config so the gate matches a fresh clone. examples/ need a generated host sdk by construction: `bun run typecheck:full` (local) covers them, `bun run ci:local` = ci + that.
 - NO `any`, `as any`, `as unknown as X`, `@ts-ignore`.
 - **Cast whitelist** (each individually justified, do not add without updating this list):
   1. runtime graph ↔ generated sdk face: `workflow.builder`/`builderBase`, `ComfyNode.inputs/outputs` wiring, `MediaImage` NodeOf helpers, and the vars-lambda `v as BoundVars<ID>` injection + `LorasVar.bindHost` regex resolution (`v.loras(regex)` claims the generated E_LoraName union) — the runtime objects are built dynamically from the SAME object_info the generated types come from.

@@ -407,7 +407,7 @@ Ground truth: the connectivity inventory that drove this work (16 bare fetch sit
 
 ## Frozen invariants
 
-- `bun run typecheck:lib` (src + scripts, `tsconfig.lib.json`) must pass with ZERO generated sdk.d.ts on disk — that is what a fresh clone and GitHub CI see. `SdkForHost` resolves to the base sdk EAGERLY when `Comfy.Hosts` is empty; without that guard the deferred conditional breaks host variance across state/ComfyHost/ComfyWorkflow/MediaImage. examples/ are excluded from that config: they name nodes and model files that exist only in a generated per-host sdk (`bun run typecheck` covers them locally, after `gen:sdk`).
+- `bun run typecheck` (src + scripts, `tsconfig.lib.json`) must pass with ZERO generated sdk.d.ts on disk — that is what a fresh clone and GitHub CI see. `SdkForHost` resolves to the base sdk EAGERLY when `Comfy.Hosts` is empty; without that guard the deferred conditional breaks host variance across state/ComfyHost/ComfyWorkflow/MediaImage. examples/ are excluded from that config: they name nodes and model files that exist only in a generated per-host sdk (`bun run typecheck` covers them locally, after `gen:sdk`).
 - generated sdk files import ONLY `'comfy-ts'` (mapped to src/index.ts in-repo).
 - one global singleton: `comfyts`. No second registration path.
 - every wire payload has an arktype schema next to its TS type.

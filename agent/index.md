@@ -6,7 +6,7 @@ Push discipline: normal house rules (commit own work, push after committing). Pu
 
 ## Quick start
 
-- `bun run ci` — typecheck:lib + lint + format + imports + tests (the gate; what GitHub runs, portable to a clone with no host sdk on disk)
+- `bun run ci` — typecheck + lint + format + imports + tests (the gate; what GitHub runs, portable to a clone with no host sdk on disk)
 - `bun run ci:local` — the gate PLUS the full typecheck (examples included, needs a generated `.comfy-ts/hosts/*/sdk.d.ts`) — use this one while developing here
 - `bun run gen:sdk` — regenerate `.comfy-ts/hosts/<id>/sdk.d.ts` from cached object_info
 - `bun run sdk:outline` — inspect a generated sdk.d.ts section by section
