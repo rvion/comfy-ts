@@ -12,7 +12,7 @@ const [seconds, out, stage = '/tmp/my-project'] = process.argv.slice(2)
 if (seconds == null || out == null) throw new Error('usage: panel.ts <seconds> <out.mp4> [stage dir]')
 const repo = resolve(import.meta.dir, '../../..')
 const PORT = 8290
-const PROMPT = 'a lantern lit harbor at night, rain, fishing boats'
+const PROMPT = 'a harbor at night, lanterns, rain'
 const FPS = 30
 
 const pw = createRequire(import.meta.resolve('rvlib-shipkit/src/shot/browser-slot.ts'))('playwright') as typeof import('playwright')
@@ -28,7 +28,7 @@ html,body{margin:0;height:100%;background:#0b1220;overflow:hidden}
 #chrome{position:absolute;left:56px;right:56px;top:132px;bottom:28px;background:#0f1a2e;border:1px solid #1d2b45;border-radius:14px;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,.45)}
 #tabs{height:40px;display:flex;align-items:center;gap:8px;padding:0 16px;border-bottom:1px solid #1d2b45;font:600 15px monospace;color:#c9d6ee}
 .dot{width:11px;height:11px;border-radius:50%;background:#2a3a58}
-iframe{position:absolute;top:41px;left:0;width:100%;height:calc(100% - 41px);border:0;background:#fff}
+iframe{position:absolute;top:41px;left:0;width:calc(100% / 1.2);height:calc((100% - 41px) / 1.2);transform:scale(1.2);transform-origin:0 0;border:0;background:#fff}
 </style></head><body><div id="chrome"><div id="tabs"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span style="margin-left:14px">127.0.0.1:${PORT}</span></div>
 <iframe src="http://127.0.0.1:${PORT}/"></iframe></div></body></html>`,
          { headers: { 'content-type': 'text/html' } },
@@ -63,12 +63,13 @@ try {
    const typing = Date.now() / 1000
    await editor.click()
    await page.keyboard.press('Meta+A')
-   await page.keyboard.type(PROMPT, { delay: 38 })
+   await page.keyboard.type(PROMPT, { delay: 30 })
    await page.waitForTimeout(350)
    await page.keyboard.press('Meta+Enter')
    // the result lands in the gallery; then a beat to see it
    await panel.locator('img[src*="/outputs/"]').first().waitFor({ timeout: 60_000 })
-   await page.waitForTimeout(2500)
+   const landed = Date.now() / 1000
+   await page.waitForTimeout(2000)
    await cdp.send('Page.stopScreencast')
    await browser.close()
 
@@ -76,17 +77,19 @@ try {
    const t0 = shots[0]?.t ?? 0
    const n = Math.round(Number(seconds) * FPS)
    const list: string[] = []
-   // the shot opens just before the prompt is typed; past the last frame it holds
+   // the shot opens just before the prompt is typed and ends 1.6 s after the result lands; when the GPU took longer
+   // than the shot, the whole take plays faster by one factor (printed, so the cut can say it)
    const start = Math.max(t0, typing - 0.25)
+   const factor = Math.max(1, (landed + 1.6 - start) / Number(seconds))
    for (let i = 0, j = 0; i < n; i++) {
-      const at = start + i / FPS
+      const at = start + (i / FPS) * factor
       while (j + 1 < shots.length && (shots[j + 1]?.t ?? Infinity) <= at) j++
       list.push(`file '${shots[j]?.file}'\nduration ${1 / FPS}`)
    }
    writeFileSync(join(frames, 'list.txt'), list.join('\n') + '\n')
    const ff = Bun.spawnSync(['ffmpeg', '-v', 'error', '-y', '-f', 'concat', '-safe', '0', '-i', join(frames, 'list.txt'), '-r', String(FPS), '-pix_fmt', 'yuv420p', '-c:v', 'libx264', '-crf', '16', resolve(out)], { stderr: 'inherit' })
    if (ff.exitCode !== 0) throw new Error('panel: ffmpeg failed')
-   console.error(`panel: ${shots.length} screencast frames, ${n} frames at ${FPS} fps`)
+   console.error(`panel: ${shots.length} screencast frames, ${n} frames at ${FPS} fps, played ${factor.toFixed(2)}x`)
 } finally {
    release()
    wrap.stop(true)

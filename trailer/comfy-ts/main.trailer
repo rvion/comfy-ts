@@ -122,6 +122,7 @@ section panel 3bars tempo 100
 shot panel 3bars
   film run "bun trailer/comfy-ts/film/panel.ts {seconds} {out}" reads film/panel.ts,stage/scenery.cflow.ts
   title "Or in your *browser*" at 0.2s for 6.8s style line +claim
+  title "1.6x speed" at 0.2s for 6.8s style corner +mark
   voice run "bun trailer/comfy-ts/film/voice.ts 'Or in the browser, every variable a field.' {out}" reads film/voice.ts at 0.4s
   cut whip-left 0.5beat
 
