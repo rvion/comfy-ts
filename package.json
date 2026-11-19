@@ -71,7 +71,7 @@
       "build:watch": "tsdown --watch",
       "test": "bun test --parallel --no-isolate",
       "test:watch": "bun test --watch",
-      "typecheck": "tsc -p tsconfig.lib.json && tsc -p src/cli/serve/web/tsconfig.json",
+      "typecheck": "tsc -p tsconfig.lib.json && tsc -p examples/web/tsconfig.json && tsc -p src/cli/serve/web/tsconfig.json",
       "typecheck:full": "tsc --noEmit --tsBuildInfoFile node_modules/.cache/tsbuildinfo-typecheck.json && tsc -p examples/web/tsconfig.json && tsc -p src/cli/serve/web/tsconfig.json",
       "lint": "oxlint src examples scripts tests",
       "format": "oxfmt src examples scripts tests",

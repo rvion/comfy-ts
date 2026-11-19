@@ -45,10 +45,16 @@ describe('the gate typecheck: its own cache, every config', () => {
    const rootCall = (script: string): string => script.split('&&')[0]?.trim() ?? ''
 
    it('the root typecheck call passes its own --tsBuildInfoFile', () => {
-      const call = rootCall(scripts.typecheck ?? '')
+      // the root config is typechecked by typecheck:full (the examples need a generated host sdk)
+      const call = rootCall(scripts['typecheck:full'] ?? '')
       const own = /--tsBuildInfoFile\s+(\S+)/.exec(call)?.[1] ?? ''
-      expect(own, `typecheck must pass --tsBuildInfoFile: ${call}`).not.toBe('')
+      expect(own, `typecheck:full must pass --tsBuildInfoFile: ${call}`).not.toBe('')
       expect(own).not.toBe(buildInfoOf('tsconfig.json'))
+   })
+
+   it('the gate typecheck reads the portable config, which owns its cache', () => {
+      expect(rootCall(scripts.typecheck ?? '')).toBe('tsc -p tsconfig.lib.json')
+      expect(buildInfoOf('tsconfig.lib.json')).not.toBe(buildInfoOf('tsconfig.json'))
    })
 
    // why we think it is actually a bug, and not just meaning spec should change: the root config
