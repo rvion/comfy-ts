@@ -4,9 +4,11 @@
 
 <a href="https://youtu.be/eniEaCp_NS4"><img src="https://raw.githubusercontent.com/rvion/comfy-ts/main/trailer/comfy-ts/thumbnail.jpg" alt="The comfy-ts trailer on YouTube, 1:39" width="640"></a>
 
-[![CI](https://github.com/rvion/comfy-ts/actions/workflows/ci.yml/badge.svg)](https://github.com/rvion/comfy-ts/actions/workflows/ci.yml) [![npm version](https://img.shields.io/npm/v/comfy-ts.svg)](https://www.npmjs.com/package/comfy-ts) [![npm downloads](https://img.shields.io/npm/dm/comfy-ts.svg)](https://www.npmjs.com/package/comfy-ts) [![GitHub release](https://img.shields.io/github/v/release/rvion/comfy-ts)](https://github.com/rvion/comfy-ts/releases) [![types](https://img.shields.io/npm/types/comfy-ts)](https://www.npmjs.com/package/comfy-ts) [![license](https://img.shields.io/npm/l/comfy-ts.svg)](https://github.com/rvion/comfy-ts/blob/main/LICENSE) [![sponsor](https://img.shields.io/github/sponsors/rvion?label=sponsor&logo=githubsponsors)](https://github.com/sponsors/rvion)
+[![CI](https://github.com/rvion/comfy-ts/actions/workflows/ci.yml/badge.svg)](https://github.com/rvion/comfy-ts/actions/workflows/ci.yml) [![npm version](https://img.shields.io/npm/v/comfy-ts.svg)](https://www.npmjs.com/package/comfy-ts) [![npm downloads](https://img.shields.io/npm/dm/comfy-ts.svg)](https://www.npmjs.com/package/comfy-ts) [![GitHub release](https://img.shields.io/github/v/release/rvion/comfy-ts)](https://github.com/rvion/comfy-ts/releases) [![types](https://img.shields.io/npm/types/comfy-ts)](https://www.npmjs.com/package/comfy-ts) [![license](https://img.shields.io/npm/l/comfy-ts.svg)](https://github.com/rvion/comfy-ts/blob/main/LICENSE) [![sponsor](https://img.shields.io/github/sponsors/rvion?label=sponsor&logo=githubsponsors)](https://github.com/sponsors/rvion) [![discord](https://img.shields.io/discord/1087008112969531513?label=discord&logo=discord&logoColor=white)](https://discord.gg/GfAN6hF2ad)
 
 Write ComfyUI workflows in TypeScript, then run them from code, one command, a terminal, a browser or an agent. Types come from your own ComfyUI: every node and model it has autocompletes, and a wrong graph is a compile error. Run on your GPU, another machine or Comfy Cloud, and get the images, audio and video back in your code or as files. 73 ready workflows cover 43 model families, from SDXL to Wan video and ACE-Step songs.
+
+💬 Questions, help, or something you made with it: come say hi on [the Discord](https://discord.gg/GfAN6hF2ad).
 
 | you want to | start here |
 | --- | --- |
