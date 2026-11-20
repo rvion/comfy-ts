@@ -103,8 +103,8 @@ async function main(): Promise<void> {
    console.log(`[release] 📝 notes: ${notes.split('\n').length} lines from CHANGELOG.md "## ${version}"`)
 
    run({ cmd: ['gh', 'auth', 'status'], capture: true })
-   const token = run({ cmd: ['rv-secret', 'get', 'rv/npm/token'], capture: true }).trim()
-   if (token === '') throw new Error('[release] 🔴 rv-secret returned an empty npm token')
+   const token = run({ cmd: ['sk', 'secret', 'get', 'rv/npm/token'], capture: true }).trim()
+   if (token === '') throw new Error('[release] 🔴 sk secret returned an empty npm token')
 
    if (dryRun) {
       const steps = alreadyPublished ? `tag ${tag} → push → gh release` : `bun publish → tag ${tag} → push → gh release`
