@@ -2,6 +2,16 @@
 
 <!-- made from .shipkit/releases/ by sk bump: edit those files, never this one -->
 
+## 2.21.0 (2026-11-21)
+
+### Hosts
+
+- **Spread runs over several GPUs**: comfy.leastBusy(hosts) returns the host with the shortest queue; pass it to run({ host }). It counts the jobs in each server queue and the runs this process started that the server has not seen yet, so runs started together spread over the hosts. A host that does not answer is skipped.
+
+### Workflows
+
+- **Each run keeps the var values it was called with**: run() now reads the var values when you call it, not after it connects: set a var, call run(), set it again, call run(), and each run uses its own value. A workflow can also run on another host than the one that defined it, whatever its id.
+
 ## 2.20.2 (2026-11-20): The pitch first
 
 ### Docs
