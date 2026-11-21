@@ -44,6 +44,7 @@ Types for every KNOWN custom node / plugin / model in the ecosystem (`src/manage
 
 `ComfyInstallType` distinguishes local / remote-over-ssh. A locality-aware media retrieval fast-path was on the roadmap here and was DROPPED: the saver × save matrix (G9, README) already gives every placement — same-machine users pick `SaveImage` with no `save:` and read the server's own `output/` file, one write, zero copies. No hidden path derivation to maintain.
 
+- 🔶 several GPUs: `comfy.leastBusy(hosts)` returns the host with the shortest queue (score = max of the server's `queue_remaining` and `host.runsInFlight`, the runs `DefinedWorkflow.run` started there and not finished; a host that does not answer is skipped, all down throws), fed to `wf.run({ host })`. No pool object, no retry. Tested against fake servers, pending a run on two real hosts
 - ✅ type distinction + ssh helpers (`ssh-host-manager/`: config upsert, remote exec — port-forward tunnels DELETED 2026-07-27: they died silently, connect straight to the host instead)
 - ✅ cloud hosts: `url:`-first config + `apiKey` (X-API-Key on http AND the ws upgrade), one authed `host.fetch` with /api-prefix fallback, 302 signed-url downloads, binary type-4 preview frames. Ran live end to end against cloud.comfy.org 2026-07-30 (one 512x512 txt2img: ws progress streamed, output image downloaded). Committed account-generic catalog sdk at `examples/comfy-cloud/sdk.d.ts` (`bun run gen:sdk:cloud`) + `examples/rvion/05-comfy-cloud.cflow.ts`
 

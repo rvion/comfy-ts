@@ -3,6 +3,7 @@ import pkgJson from '../package.json' with { type: 'json' }
 import { ComfyHost, type ComfyHostData } from 'src/host/ComfyHost.ts'
 import { namesNoAddress } from 'src/host/hostFile.ts'
 import { parseHostBase, renderHttpBase } from 'src/host/hostUrl.ts'
+import { leastBusy } from 'src/host/leastBusy.ts'
 import { ComfyRegistry } from 'src/manager/ComfyRegistry.ts'
 import { type ComfyStorage, resolveComfyStorage } from 'src/storage/ComfyStorage.ts'
 import { type AbsolutePath, asAbsolutePath, type RelativePath } from 'src/types/index.ts'
@@ -80,6 +81,11 @@ export class ComfyTS {
       const created = new ComfyHost(data)
       this.hosts.set(data.id, created)
       return created
+   }
+
+   /** the host with the shortest queue, for `wf.run({ host: await comfy.leastBusy([a, b]) })` */
+   leastBusy<H extends ComfyHost<string>>(hosts: readonly H[], p: { timeoutMs?: number } = {}): Promise<H> {
+      return leastBusy(hosts, p)
    }
 
    /**

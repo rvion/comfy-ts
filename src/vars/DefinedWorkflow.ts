@@ -158,36 +158,53 @@ export class DefinedWorkflow<ID extends string = string, V extends VarsSpec = Va
     * the graph is built against (TUI host override): node/model availability
     * there surfaces as workflow.problems / server validation, by design.
     * `p.dry` builds a graph only to read it: nothing is uploaded, lastWorkflow is left alone.
+    * `p.values` builds from a snapshot taken earlier (run() takes it at the call).
     */
-   async build(p: { advance?: boolean; host?: ComfyHost<ID>; dry?: boolean } = {}): Promise<ComfyWorkflow<ID>> {
-      const host = p.host ?? this.host
-      const wf = host.workflow({ id: this.spec.id })
+   async build(
+      p: { advance?: boolean; host?: ComfyHost; dry?: boolean; values?: VarValues<V> } = {},
+   ): Promise<ComfyWorkflow<ID>> {
+      const host: ComfyHost = p.host ?? this.host
+      // cast: whitelist item 1 (agent/coding.md): another host's graph claimed as this host's
+      const wf = host.workflow({ id: this.spec.id }) as ComfyWorkflow<ID>
       wf.dry = p.dry === true
-      const values = varValues(this.vars)
-      if (p.advance) for (const varDef of Object.values(this.vars)) varDef.afterRun()
+      const values = p.values ?? this.snapshot({ advance: p.advance === true })
       await this.spec.build(wf.builder, values, wf)
       if (wf.dry) return wf
       this.lastWorkflow = wf
       return wf
    }
 
-   /** build a fresh graph from the current var values, send it, wait for outputs.
+   /** the current var values; `advance` then moves each var to its next run (the seed) */
+   private snapshot(p: { advance: boolean }): VarValues<V> {
+      const values = varValues(this.vars)
+      if (p.advance) for (const varDef of Object.values(this.vars)) varDef.afterRun()
+      return values
+   }
+
+   /** build a fresh graph from the var values AT THE CALL, send it, wait for outputs:
+    * set a var, call run(), set it again, and each run keeps its own values.
     * connects first (idempotent) — modules can import offline from the schema cache.
     * `settings.host` runs against THAT host instead of the defining one. */
-   async run(settings: RunSettings & { host?: ComfyHost<ID> } = {}): Promise<ComfyExecution> {
-      const host = settings.host ?? this.host
-      await host.connect()
-      const wf = await this.build({ advance: true, host })
-      const execution = await wf.run({
-         save: settings.save,
-         ephemeral: settings.ephemeral,
-         scrubHistory: settings.scrubHistory,
-         idMode: settings.idMode,
-         log: settings.log,
-         onProgress: settings.onProgress,
-         onPreview: settings.onPreview,
-      })
-      this.lastExecution = execution
-      return execution
+   async run(settings: RunSettings & { host?: ComfyHost } = {}): Promise<ComfyExecution> {
+      const host: ComfyHost = settings.host ?? this.host
+      const values = this.snapshot({ advance: true })
+      host.runsInFlight++
+      try {
+         await host.connect()
+         const wf = await this.build({ host, values })
+         const execution = await wf.run({
+            save: settings.save,
+            ephemeral: settings.ephemeral,
+            scrubHistory: settings.scrubHistory,
+            idMode: settings.idMode,
+            log: settings.log,
+            onProgress: settings.onProgress,
+            onPreview: settings.onPreview,
+         })
+         this.lastExecution = execution
+         return execution
+      } finally {
+         host.runsInFlight--
+      }
    }
 }

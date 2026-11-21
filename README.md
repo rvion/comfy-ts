@@ -440,6 +440,19 @@ Reaching a Comfy that runs on another one of your machines:
 - **tailscale**: `tailscale serve 8188` on the box gives a stable https url for `url:`. Plain tailnet hostnames work with `host:` too.
 - **cloudflared**: `cloudflared tunnel --url http://127.0.0.1:8188` prints a temporary public https url. Paste it into `url:`.
 
+Several GPUs: `comfy.leastBusy` returns the host with the shortest queue, and `run({ host })` runs the workflow there.
+
+```ts
+const gpus = [comfy.host({ id: 'gpu-1' }), comfy.host({ id: 'gpu-2' })]
+const runs = prompts.map(async (prompt) => {
+   txt2img.vars.prompt.value = prompt
+   return txt2img.run({ host: await comfy.leastBusy(gpus) })
+})
+await Promise.all(runs)
+```
+
+It counts the jobs in each server's queue, from every client, and the runs this process started that the server has not seen yet, so runs started together spread over the hosts. A host that does not answer is skipped. The graph is built against the host it runs on: a model that host does not have fails the run with ComfyUI's own error.
+
 ## 🔌 Custom nodes and models: ComfyUI-Manager
 
 The whole ComfyUI-Manager registry is mirrored into generated types: every known custom node pack, plugin title and model is a typed union. The generated files are committed, browsable TypeScript:
@@ -568,6 +581,7 @@ One folder of local state per consumer repo: `hosts/` (schema dumps, the generat
 | serve web panel: every var as a control, queue, gallery, phone |   ✅   |
 | prompt refiner in the panel (OpenRouter or local Open WebUI)   |   ✅   |
 | cloud hosts: `url` + `X-API-Key` auth, Comfy Cloud ran live    |   ✅   |
+| several GPUs: `comfy.leastBusy(hosts)` picks the shortest queue |   🔶   |
 | ComfyUI-Manager registry mirror + Known\* ecosystem unions     |   ✅   |
 | install custom nodes / models through the ComfyUI-Manager queue (V3.x, 4.x) |   🔶   |
 | content-addressed local asset cache                            |   🔶   |

@@ -685,6 +685,19 @@ export class ComfyHost<ID extends string = string> {
       return previewMethodFromSystemStats(await res.json())
    }
 
+   /** jobs waiting or running on this host, every client counted (`GET /prompt`) */
+   fetchQueueSize = async (p: { timeoutMs?: number } = {}): Promise<number> => {
+      const res = await this.fetch('/prompt', { signal: AbortSignal.timeout(p.timeoutMs ?? 3000) })
+      if (!res.ok) throw new Error(`GET /prompt failed: ${res.status}`)
+      const size = queueRemainingOf(await res.json())
+      if (size == null) throw new Error(`GET /prompt: no exec_info.queue_remaining in the reply`)
+      return size
+   }
+
+   /** runs started through DefinedWorkflow.run() and not finished yet: counted from the call,
+    * before the prompt reaches the server queue, so runs started together spread out */
+   runsInFlight = 0
+
    /** the server's recent console buffer (entries are write CHUNKS, not lines) */
    fetchRawLogs = async (): Promise<{ entries: LogEntry[] }> => {
       const res = await this.fetch('/internal/logs/raw', {}, { apiPrefix: false })
@@ -1010,4 +1023,12 @@ export class ComfyHost<ID extends string = string> {
       }
       exhaust(msg)
    }
+}
+
+/** `exec_info.queue_remaining` of a `GET /prompt` reply, null when the shape is not there */
+function queueRemainingOf(json: unknown): number | null {
+   if (typeof json !== 'object' || json == null || !('exec_info' in json)) return null
+   const info = json.exec_info
+   if (typeof info !== 'object' || info == null || !('queue_remaining' in info)) return null
+   return typeof info.queue_remaining === 'number' ? info.queue_remaining : null
 }
