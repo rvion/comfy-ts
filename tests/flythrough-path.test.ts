@@ -1,6 +1,7 @@
 // the camera paths of examples/rvion/19-flythrough: frame 0 is the picture's own camera, the speed
 // stays steady where clips join, and the orbit keeps its centre in view at its radius
 import { describe, expect, it } from 'bun:test'
+import { colmapPose } from 'examples/rvion/flythroughColmap.ts'
 import { orbitPath, pathCameras, walkPath } from 'examples/rvion/flythroughPath.ts'
 
 const step = (a: { position: number[] }, b: { position: number[] }) =>
@@ -60,5 +61,34 @@ describe('pathCameras', () => {
       const end = all.at(-1)
       expect(end?.target[0]).toBeCloseTo(10 * Math.SQRT1_2, 6)
       expect(end?.target[2]).toBeCloseTo(-10 * Math.SQRT1_2, 6)
+   })
+})
+
+describe('colmapPose', () => {
+   const project = (pose: ReturnType<typeof colmapPose>, p: [number, number, number]) => {
+      const [w, x, y, z] = pose.q
+      // rotate by the quaternion, then translate
+      const R = [
+         [1 - 2 * (y * y + z * z), 2 * (x * y - w * z), 2 * (x * z + w * y)],
+         [2 * (x * y + w * z), 1 - 2 * (x * x + z * z), 2 * (y * z - w * x)],
+         [2 * (x * z - w * y), 2 * (y * z + w * x), 1 - 2 * (x * x + y * y)],
+      ]
+      return R.map((row, i) => row[0]! * p[0] + row[1]! * p[1] + row[2]! * p[2] + pose.t[i]!)
+   }
+
+   it('a point ahead is in front (z > 0), right is +x, up is -y, as COLMAP wants', () => {
+      const pose = colmapPose({ position: [0, 0, 0], target: [0, 0, -1] })
+      const ahead = project(pose, [0, 0, -5])
+      expect(ahead[2]).toBeCloseTo(5, 6)
+      expect(project(pose, [1, 0, -5])[0]).toBeCloseTo(1, 6)
+      expect(project(pose, [0, 1, -5])[1]).toBeCloseTo(-1, 6)
+   })
+
+   it('a moved, turned camera sees its own target straight ahead', () => {
+      const cam = { position: [2, 1, -3] as [number, number, number], target: [5, 1, -7] as [number, number, number] }
+      const seen = project(colmapPose(cam), cam.target)
+      expect(seen[0]).toBeCloseTo(0, 6)
+      expect(seen[1]).toBeCloseTo(0, 6)
+      expect(seen[2]).toBeCloseTo(5, 6)
    })
 })

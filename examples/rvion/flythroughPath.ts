@@ -137,3 +137,17 @@ export function frameFovY(p: { picture: { width: number; height: number }; fovX:
    const visibleHeight = croppedWidth ? p.picture.height : p.picture.width / aspect
    return (2 * Math.atan(visibleHeight / 2 / focal) * 180) / Math.PI
 }
+
+/** the video models a fly-through can use: their frame rate, and the frame counts they take */
+export const ENGINES = {
+   /** Wan 2.2 Fun Control 14B: 16 fps, 4n+1 frames */
+   wan: { fps: 16, frames: (n: number) => Math.max(5, Math.round((n - 1) / 4) * 4 + 1) },
+   /** MiniMax H3 with its Fun ControlNet: 24 fps, 17k+5 frames (snapped up, as its own template) */
+   h3: { fps: 24, frames: (n: number) => Math.max(5, n) + ((5 - (Math.max(5, n) % 17) + 17) % 17) },
+} as const
+export type Engine = keyof typeof ENGINES
+
+/** the frames of one clip of `seconds` for an engine */
+export function clipFrames(engine: Engine, seconds: number): number {
+   return ENGINES[engine].frames(Math.round(seconds * ENGINES[engine].fps))
+}
