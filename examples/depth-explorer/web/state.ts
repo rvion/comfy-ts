@@ -1,35 +1,19 @@
 // the one state tree of the page: the catalog from the server, the source image, one result per
-// (image, detail, model), the view settings. A sequential run queue: one prompt at a time on the GPU.
+// (image, detail, model), the view settings. The run queue is the explorer kit's.
 import { makeAutoObservable, runInAction } from 'mobx'
+import {
+   fetchCatalog,
+   RunQueue,
+   sampleBlob,
+   uploadSource,
+   type CardInfo,
+   type RunSt,
+   type Source,
+} from '../../explorer-kit/web/runs.ts'
 
-export type WeightFile = { node: string; input: string; file: string; folder: string; url: string }
-export type ModelInfo = {
-   id: string
-   label: string
-   family: string
-   year: number
-   kind: 'depth' | 'normal' | 'material'
-   tier: 'modern' | 'classic'
-   blurb: string
-   autoDownload: boolean
-   ok: boolean
-   missingNodes: string[]
-   missingFiles: WeightFile[]
-}
-export type Source = { key: string; url: string; name: string; width: number; height: number }
+export type ModelInfo = CardInfo & { kind: 'depth' | 'normal' | 'material'; tier: 'modern' | 'classic' }
 export type Colormap = 'gray' | 'turbo'
 export type FocusView = 'wipe' | '3d' | 'light'
-
-export class ResultSt {
-   status: 'queued' | 'running' | 'done' | 'error' = 'queued'
-   url: string | null = null
-   ms: number | null = null
-   error: string | null = null
-   startedAt = 0
-   constructor() {
-      makeAutoObservable(this)
-   }
-}
 
 export class AppSt {
    host = ''
@@ -50,25 +34,19 @@ export class AppSt {
    wipeX = 50
    /** the 3D relief camera and surface */
    relief = { yaw: 0.35, pitch: 0.2, zoom: 1, depthScale: 0.3, shade: 0.6 }
-   results = new Map<string, ResultSt>()
-   private queue: { key: string; model: string; image: string; detail: number }[] = []
-   private draining = false
-   /** ticks every 200 ms while something runs, for the elapsed timers */
-   now = Date.now()
+   runs = new RunQueue()
 
    constructor() {
-      makeAutoObservable(this, { results: true })
-      setInterval(() => runInAction(() => (this.now = Date.now())), 200)
+      makeAutoObservable(this)
    }
 
    async boot(): Promise<void> {
       try {
-         const [m, s] = await Promise.all([fetch('/api/models'), fetch('/api/samples')])
-         const mj = (await m.json()) as { host: string; models: ModelInfo[] }
-         const sj = (await s.json()) as string[]
+         const c = await fetchCatalog<ModelInfo>()
+         const sj = c.samples
          runInAction(() => {
-            this.host = mj.host
-            this.models = mj.models
+            this.host = c.host
+            this.models = c.models
             this.samples = sj
          })
          // deep link: ?image=<sample>&run=all|<id,id>&focus=<id>&view=wipe|3d|light
@@ -197,7 +175,7 @@ export class AppSt {
       return this.visibleModels.filter((m) => m.ok)
    }
    get busy(): boolean {
-      return this.queue.length > 0 || this.draining
+      return this.runs.busy
    }
 
    model(id: string): ModelInfo | undefined {
@@ -206,29 +184,21 @@ export class AppSt {
    resultKey(model: string): string {
       return `${this.source?.key ?? '-'}:${this.detail}:${model}`
    }
-   result(model: string): ResultSt | undefined {
-      return this.results.get(this.resultKey(model))
+   result(model: string): RunSt | undefined {
+      return this.runs.get(this.resultKey(model))
    }
    get doneModels(): ModelInfo[] {
       return this.models.filter((m) => this.result(m.id)?.status === 'done')
    }
 
    async loadSample(name: string): Promise<void> {
-      const blob = await (await fetch(`/api/samples/${encodeURIComponent(name)}`)).blob()
-      await this.setSource(blob, name)
+      await this.setSource(await sampleBlob(name), name)
    }
 
    async setSource(blob: Blob, name: string): Promise<void> {
-      const url = URL.createObjectURL(blob)
-      const img = new Image()
-      img.src = url
-      await img.decode()
-      const res = await fetch('/api/image', { method: 'POST', body: blob })
-      const j = (await res.json()) as { key?: string; error?: string }
-      if (j.key == null) throw new Error(j.error ?? 'upload failed')
-      const key = j.key
+      const source = await uploadSource(blob, name)
       runInAction(() => {
-         this.source = { key, url, name, width: img.naturalWidth, height: img.naturalHeight }
+         this.source = source
          this.focus = null
       })
    }
@@ -236,12 +206,7 @@ export class AppSt {
    enqueue(model: string): void {
       const src = this.source
       if (src == null) return
-      const key = this.resultKey(model)
-      const prev = this.results.get(key)
-      if (prev != null && (prev.status === 'queued' || prev.status === 'running')) return
-      this.results.set(key, new ResultSt())
-      this.queue.push({ key, model, image: src.key, detail: this.detail })
-      void this.drain()
+      this.runs.enqueue(this.resultKey(model), { image: src.key, model, detail: this.detail })
    }
 
    runAll(): void {
@@ -250,55 +215,7 @@ export class AppSt {
 
    /** resolves once the run queue is empty */
    settled(): Promise<void> {
-      return new Promise((resolve) => {
-         const tick = (): void => {
-            if (this.busy) setTimeout(tick, 100)
-            else resolve()
-         }
-         tick()
-      })
-   }
-
-   private async drain(): Promise<void> {
-      if (this.draining) return
-      this.draining = true
-      try {
-         for (;;) {
-            const job = this.queue.shift()
-            if (job == null) break
-            const r = this.results.get(job.key)
-            if (r == null) continue
-            runInAction(() => {
-               r.status = 'running'
-               r.startedAt = Date.now()
-            })
-            try {
-               const res = await fetch('/api/run', {
-                  method: 'POST',
-                  headers: { 'content-type': 'application/json' },
-                  body: JSON.stringify({ image: job.image, model: job.model, detail: job.detail }),
-               })
-               if (!res.ok) {
-                  const j = (await res.json()) as { error?: string }
-                  throw new Error(j.error ?? `http ${res.status}`)
-               }
-               const url = URL.createObjectURL(await res.blob())
-               const ms = Number(res.headers.get('x-ms'))
-               runInAction(() => {
-                  r.url = url
-                  r.ms = ms
-                  r.status = 'done'
-               })
-            } catch (e) {
-               runInAction(() => {
-                  r.error = e instanceof Error ? e.message : String(e)
-                  r.status = 'error'
-               })
-            }
-         }
-      } finally {
-         runInAction(() => (this.draining = false))
-      }
+      return this.runs.settled()
    }
 
    openFocus(model: string): void {

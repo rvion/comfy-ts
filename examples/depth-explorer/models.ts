@@ -2,42 +2,22 @@
 // an entry runs only when the host has its nodes AND its weight files (checked live, see `availability`).
 // depth outputs follow one convention so the grid compares like with like: near = white.
 import { fileURLToPath } from 'node:url'
-import type { BaseNode, BaseNodeFactory, ChoiceOptionLook, ComfyWorkflow } from 'comfy-ts'
+import type { BaseNode, ChoiceOptionLook } from 'comfy-ts'
+import { base, type CatalogEntry, type WeightFile } from '../explorer-kit/catalog.ts'
+import type { ExplorerImg as Img, ExplorerWf as W } from '../explorer-kit/server.ts'
 
-export type HostId = 'windows-1'
-type W = ComfyWorkflow<HostId>
 type B = W['builder']
-type Img = Comfy.Windows1.Accepts['IMAGE']
 
 export type ModelKind = 'depth' | 'normal' | 'material'
 
-/** a weight file the graph names, and where to get it when the host lacks it */
-export type WeightFile = { node: string; input: string; file: string; folder: string; url: string }
-
-export type ModelEntry = {
-   id: string
-   label: string
-   family: string
-   year: number
-   /** when it came out, as precise as known: `2025-11` */
-   date: string
-   /** its weights on disk */
-   size: string
-   /** 1 (rough) to 5 (the best of its kind), judged on the explorer's samples */
-   quality: number
-   /** one run at detail 768 on an RTX class GPU, weights loaded */
-   speed: string
+/** `speed`: one run at detail 768; controlnet_aux nodes download their weights on the first run,
+ * so their `files` stay empty */
+export type ModelEntry = CatalogEntry & {
    /** materials: the map it gives the relight widget */
    map?: 'albedo' | 'roughness' | 'metalness' | 'specular' | 'shading'
    kind: ModelKind
    /** classic = pre 2023 baselines, off by default */
    tier: 'modern' | 'classic'
-   blurb: string
-   nodes: string[]
-   /** weights the host must list; controlnet_aux nodes download theirs on first run instead */
-   files: WeightFile[]
-   /** the node pack downloads its weights on the first run (slow once) */
-   autoDownload?: boolean
    /** the graph up to its output image; the server adds the websocket save node */
    build: (b: B, image: Img, p: { detail: number; wf: W }) => Img | BaseNode
 }
@@ -141,13 +121,6 @@ const mogeGeometry = (b: B, image: Img, detail: number) =>
       apply_mask: false,
       refine_steps: 0,
    })
-
-/** a factory of the base (untyped) builder, or a loud error naming the node */
-function base(wf: W, name: string): BaseNodeFactory {
-   const f = wf.builderBase[name]
-   if (f == null) throw new Error(`this host has no ${name} node`)
-   return f
-}
 
 /** the Marigold v2 blueprint (Comfy-Org): one flow step on a qwen image edit base + a task lora.
  * built on the BASE builder: its weight names are not in the host sdk until they are downloaded */
@@ -696,27 +669,4 @@ export function optionLook(m: ModelEntry): ChoiceOptionLook {
       quality: m.quality,
       ...(m.tier === 'classic' ? { tags: ['classic'] } : {}),
    }
-}
-
-/** raw object_info, as the host schema keeps it */
-type ObjectInfo = Record<string, { input?: { required?: Record<string, unknown>; optional?: Record<string, unknown> } }>
-
-/** the options of a COMBO input in both object_info spellings: [[...]] and ['COMBO', { options }] */
-function comboOptions(info: ObjectInfo, node: string, input: string): string[] {
-   const def = info[node]?.input
-   const slot = def?.required?.[input] ?? def?.optional?.[input]
-   if (!Array.isArray(slot)) return []
-   const head: unknown = slot[0]
-   if (Array.isArray(head)) return head.filter((x): x is string => typeof x === 'string')
-   const meta: unknown = slot[1]
-   const opts: unknown = typeof meta === 'object' && meta != null && 'options' in meta ? meta.options : null
-   return Array.isArray(opts) ? opts.filter((x): x is string => typeof x === 'string') : []
-}
-
-export type Availability = { ok: boolean; missingNodes: string[]; missingFiles: WeightFile[] }
-
-export function availability(info: ObjectInfo, m: ModelEntry): Availability {
-   const missingNodes = m.nodes.filter((n) => info[n] == null)
-   const missingFiles = m.files.filter((f) => !comboOptions(info, f.node, f.input).includes(f.file))
-   return { ok: missingNodes.length === 0 && missingFiles.length === 0, missingNodes, missingFiles }
 }

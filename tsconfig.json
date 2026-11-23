@@ -47,5 +47,5 @@
    "include": ["src", "scripts", "examples", ".comfy-ts/hosts/**/sdk.d.ts", "*.ts"],
    // dom-typed corners have their OWN configs (dom lib): `bun run typecheck` chains
    // both, `typecheck:lib` chains src/cli/serve/web
-   "exclude": ["examples/web", "examples/depth-explorer/web", "examples/world-explorer/web", "src/cli/serve/web"]
+   "exclude": ["examples/web", "examples/depth-explorer/web", "examples/world-explorer/web", "examples/upscale-explorer/web", "examples/explorer-kit/web", "src/cli/serve/web"]
 }

@@ -1,5 +1,6 @@
 import { observer } from 'mobx-react-lite'
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { RunBody, Seg, SourcePicker } from '../../explorer-kit/web/ui.tsx'
 import { GlView, type GlParams } from './gl.ts'
 import { greyDepth, loadImage, paintDepth } from './pixels.ts'
 import { RelightWidgetView } from '../../../src/cli/serve/web/widgets/RelightWidget.tsx'
@@ -42,44 +43,18 @@ const Card = observer(function Card(p: { st: AppSt; model: ModelInfo }) {
    const { st, model } = p
    const r = st.result(model.id)
    const aspect = st.source != null ? `${st.source.width} / ${st.source.height}` : '1'
-   let body: ReactNode
-   if (!model.ok) {
-      body = (
-         <div className="missing">
-            <b>not on this host</b>
-            {model.missingNodes.length > 0 && <span>nodes: {model.missingNodes.join(', ')}</span>}
-            {model.missingFiles.map((f) => (
-               <a key={f.file} href={f.url} target="_blank" rel="noreferrer">
-                  models/{f.folder}/{f.file}
-               </a>
-            ))}
-         </div>
+   const body =
+      r?.status === 'done' && r.url != null ? (
+         <MapImage st={st} model={model} url={r.url} />
+      ) : (
+         <RunBody
+            model={model}
+            run={r}
+            now={st.runs.now}
+            canRun={st.source != null}
+            onRun={() => st.enqueue(model.id)}
+         />
       )
-   } else if (r == null) {
-      body = (
-         <button className="ghost" onClick={() => st.enqueue(model.id)} disabled={st.source == null}>
-            run
-         </button>
-      )
-   } else if (r.status === 'queued') body = <span className="dim">queued</span>
-   else if (r.status === 'running')
-      body = (
-         <span className="dim">
-            <span className="spin" /> {((st.now - r.startedAt) / 1000).toFixed(1)} s
-            {model.autoDownload && st.now - r.startedAt > 8000 && <small>first run downloads the weights</small>}
-         </span>
-      )
-   else if (r.status === 'error')
-      body = (
-         <div className="err">
-            <span>{r.error}</span>
-            <button className="ghost" onClick={() => st.enqueue(model.id)}>
-               retry
-            </button>
-         </div>
-      )
-   else if (r.url != null) body = <MapImage st={st} model={model} url={r.url} />
-
    const done = r?.status === 'done'
    return (
       <div className={`card ${done ? 'done' : ''} ${model.ok ? '' : 'off'}`}>
@@ -114,62 +89,16 @@ const Section = observer(function Section(p: { st: AppSt; title: string; models:
    )
 })
 
-function Seg<T extends string | number>(p: { value: T; options: [T, string][]; onChange: (v: T) => void }) {
-   return (
-      <div className="seg">
-         {p.options.map(([v, label]) => (
-            <button key={String(v)} className={v === p.value ? 'on' : ''} onClick={() => p.onChange(v)}>
-               {label}
-            </button>
-         ))}
-      </div>
-   )
-}
-
 const Sidebar = observer(function Sidebar(p: { st: AppSt }) {
    const { st } = p
-   const [drag, setDrag] = useState(false)
-   const fileRef = useRef<HTMLInputElement>(null)
-   const take = (f: File | undefined): void => {
-      if (f != null && f.type.startsWith('image/')) void st.setSource(f, f.name)
-   }
-   useEffect(() => {
-      const onPaste = (e: ClipboardEvent): void => {
-         const f = [...(e.clipboardData?.files ?? [])].find((x) => x.type.startsWith('image/'))
-         take(f)
-      }
-      window.addEventListener('paste', onPaste)
-      return () => window.removeEventListener('paste', onPaste)
-   })
    return (
       <aside>
-         <div
-            className={`drop ${drag ? 'over' : ''}`}
-            onDragOver={(e) => {
-               e.preventDefault()
-               setDrag(true)
-            }}
-            onDragLeave={() => setDrag(false)}
-            onDrop={(e) => {
-               e.preventDefault()
-               setDrag(false)
-               take(e.dataTransfer.files[0])
-            }}
-            onClick={() => fileRef.current?.click()}
-         >
-            {st.source != null ? <img src={st.source.url} alt={st.source.name} /> : <span>drop an image</span>}
-            <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => take(e.target.files?.[0])} />
-         </div>
-         <div className="dim small">
-            {st.source != null ? `${st.source.name} · ${st.source.width}×${st.source.height}` : ''}
-            <br />
-            drop, click or paste an image
-         </div>
-         <div className="samples">
-            {st.samples.map((s) => (
-               <img key={s} src={`/api/samples/${s}`} alt={s} title={s} onClick={() => void st.loadSample(s)} />
-            ))}
-         </div>
+         <SourcePicker
+            source={st.source}
+            samples={st.samples}
+            onFile={(f, name) => void st.setSource(f, name)}
+            onSample={(name) => void st.loadSample(name)}
+         />
 
          <label>detail</label>
          <Seg

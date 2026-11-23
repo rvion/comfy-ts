@@ -9,7 +9,8 @@
 //
 // run directly:  bun examples/rvion/17-relight.cflow.ts [path/to/image.png]
 import { asAbsolutePath, type BaseNodeInputs, ComfyTS, exampleImagePath, MediaImage, v, widget } from 'comfy-ts'
-import { availability, MODELS, optionLook, type ModelEntry } from '../depth-explorer/models.ts'
+import { MODELS, optionLook, type ModelEntry } from '../depth-explorer/models.ts'
+import { availability } from '../explorer-kit/catalog.ts'
 
 const comfy = ComfyTS.create()
 const host = comfy.host({ id: 'windows-1' })
