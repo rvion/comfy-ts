@@ -1,14 +1,17 @@
+import { compareStructural, reaction } from 'mobx'
 import { observer } from 'mobx-react-lite'
 import { useEffect, useRef } from 'react'
 import { createRoot } from 'react-dom/client'
 import { frameClient } from 'rvlib-shipkit/src/pages/frame-client.ts'
+import { camText, View3d, type Space } from 'rvlib-shipkit/src/view3d/viewer.ts'
 import { WorldSt, type View } from './state.ts'
 import { sendThumb } from './thumb.ts'
-import { Viewer } from './viewer.ts'
 
 // one world of .comfy-ts/worlds, the view page of the `world` thread kind (agent/examples.md, world-explorer). Framed by
 // the hub or alone at its url: the frame client hands it its keys either way
 
+/** the house viewer's space for each 3D view; `source` is a flat picture, no viewer */
+const SPACE: Record<Exclude<View, 'source'>, Space> = { pano: 'pano', world: 'mesh', splat: 'splat' }
 const LABEL: Record<View, string> = { pano: '360°', world: 'walk', splat: 'splat', source: 'picture' }
 const HINT: Record<View, string> = {
    pano: 'drag to look around · wheel or pinch to zoom',
@@ -32,35 +35,77 @@ async function toggleFull(): Promise<void> {
 document.addEventListener('fullscreenchange', () => st.setFull(document.fullscreenElement != null))
 window.addEventListener('keydown', (e) => {
    if (e.key === 'Escape' && document.fullscreenElement != null) void document.exitFullscreen()
+   if (e.code === 'KeyF' && !e.altKey && !e.metaKey && !e.ctrlKey) void toggleFull()
 })
 
-let viewer: Viewer | null = null
+let viewer: View3d | null = null
 const st = new WorldSt((k) => frame.setKeys(k))
-// alone at its url, the client hands the address's keys at once: the state exists first
-const frame = frameClient({ onKeys: (k) => st.fromKeys(k), onFocus: (on) => viewer?.setRunning(on) })
+// alone at its url, the client hands the address's keys at once: the state exists first. A camera from the keys
+// (the other side of a change) is set on the viewer; one equal to its own is left alone, so a glide goes on
+const frame = frameClient({
+   onKeys: (k) => {
+      st.fromKeys(k)
+      if (viewer != null && camText(viewer.cam) !== camText(st.cam)) viewer.setCam(st.cam)
+   },
+})
 // console debugging path (app-state-tree: expose the root)
 Object.assign(window, { world: st })
 
 const shotReady = (on: boolean): void =>
    document.querySelector('meta[name="shot-ready"]')?.setAttribute('content', on ? 'ready' : 'wait')
 
-const Stage = observer(function Stage() {
+/** a world's view drawn once: the shot's ready mark, and its thumbnail when it has none and he has not moved yet */
+function drawn(v: View3d): void {
+   shotReady(true)
+   if (!st.wantsThumb || st.shown !== st.thumbView || st.touched) return
+   const c = v.renderer.domElement
+   st.thumbSent()
+   // right after the frame is drawn: the canvas still holds it
+   sendThumb(st.name, c, c.width, c.height).catch((e: unknown) => st.setNotice((e as Error).message))
+}
+
+/** the 3D views through the house viewer: one viewer while a 3D tab shows, each tab's file loaded into it */
+const Scene = observer(function Scene() {
    const host = useRef<HTMLDivElement>(null)
    useEffect(() => {
-      if (host.current == null) return
-      viewer = new Viewer(
-         st,
-         host.current,
-         () => shotReady(true),
-         () => void toggleFull(),
+      const el = host.current
+      if (el == null) return
+      const v: View3d = new View3d(el, {
+         keys: 'window',
+         onCam: (c) => st.setCam(c),
+         onLoading: (what) => st.setLoading(what),
+         onError: (why) => st.setError(why),
+         onDrawn: () => drawn(v),
+      })
+      viewer = v
+      const stop = reaction(
+         () => {
+            const view = st.shown
+            if (view == null || view === 'source') return null
+            return { space: SPACE[view], url: st.fileUrl(view), fov: st.info?.splatFov ?? undefined }
+         },
+         (src) => {
+            if (src?.url == null) return
+            void v.load({ space: src.space, url: src.url, fov: src.fov }).then(() => v.setCam(st.cam))
+         },
+         { fireImmediately: true, equals: compareStructural },
       )
-      return () => viewer?.stop()
+      return () => {
+         stop()
+         v.destroy()
+         if (viewer === v) viewer = null
+      }
    }, [])
+   return <div ref={host} className="view" />
+})
+
+const Stage = observer(function Stage() {
    const shown = st.shown
    const src = shown === 'source' ? st.fileUrl('source') : null
    useEffect(() => shotReady(shown === 'source'), [shown])
    return (
-      <div ref={host} className="stage">
+      <div className="stage">
+         {shown != null && shown !== 'source' ? <Scene /> : null}
          {src != null ? (
             <img
                src={src}
@@ -128,7 +173,7 @@ const App = observer(function App() {
             </span>
             <span className="tools">
                {shown != null && shown !== 'source' ? (
-                  <button className="tab" title="R, or a double click" onClick={() => st.reset()}>
+                  <button className="tab" title="R, or a double click" onClick={() => viewer?.reset()}>
                      reset view
                   </button>
                ) : null}

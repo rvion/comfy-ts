@@ -1,4 +1,5 @@
 import { makeAutoObservable, runInAction } from 'mobx'
+import { CAM0, camOf, camText, type Cam } from 'rvlib-shipkit/src/view3d/cam.ts'
 
 // the page's state: which world, which of its files, the tab, the camera. Its keys (agent/examples.md, world-explorer):
 // `key` the world, `view` the tab, `cam` the camera; framed by the hub, `state` is the url of a version's side and
@@ -18,33 +19,8 @@ export const FILE_OF: Record<View, string> = {
 export type WorldFile = { name: string; v: string }
 export type WorldInfo = { name: string; files: WorldFile[]; splatFov: number | null }
 
-/** the eye: where it looks (yaw, pitch in radians, three's YXZ order), its zoom (the fov divided by it), where it
- *  stands (x, y, z) and how far ahead its orbit's center is (dist, 0 = the view's own: a splat's median depth) */
-export type Cam = { yaw: number; pitch: number; zoom: number; x: number; y: number; z: number; dist: number }
-export const CAM0: Cam = { yaw: 0, pitch: 0, zoom: 1, x: 0, y: 0, z: 0, dist: 0 }
-const CAM_KEYS = ['yaw', 'pitch', 'zoom', 'x', 'y', 'z', 'dist'] as const
-
-/** a move of the camera, the drag's or the wheel's: what it does depends on the view */
-export type Gesture = 'turn' | 'pan'
-
 /** the keys posted at most this often while he moves: the other side follows, the hub is not flooded */
 const POST_MS = 40
-
-const clamp = (v: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, v))
-const r3 = (v: number): string => String(Math.round(v * 1000) / 1000)
-
-/** where the eye looks, its right and its up, for a yaw and a pitch in three's YXZ order */
-export function axes(c: Pick<Cam, 'yaw' | 'pitch'>): {
-   fwd: [number, number, number]
-   right: [number, number, number]
-   up: [number, number, number]
-} {
-   const sy = Math.sin(c.yaw)
-   const cy = Math.cos(c.yaw)
-   const sp = Math.sin(c.pitch)
-   const cp = Math.cos(c.pitch)
-   return { fwd: [-sy * cp, sp, -cy * cp], right: [cy, 0, -sy], up: [sy * sp, cp, cy * sp] }
-}
 
 export class WorldSt {
    name = ''
@@ -116,8 +92,8 @@ export class WorldSt {
       const q = new URLSearchParams()
       if (this.name !== '') q.set('key', this.name)
       if (this.view != null) q.set('view', this.view)
-      const c = this.cam
-      if (CAM_KEYS.some((k) => c[k] !== CAM0[k])) q.set('cam', CAM_KEYS.map((k) => r3(c[k])).join(','))
+      const cam = camText(this.cam)
+      if (cam !== '') q.set('cam', cam)
       return q.toString().replaceAll('%2C', ',')
    }
 
@@ -129,13 +105,7 @@ export class WorldSt {
       this.mode = mode === 'thumb' || mode === 'lightbox' ? mode : ''
       const view = q.get('view')
       this.view = VIEWS.find((v) => v === view) ?? null
-      const n = (q.get('cam') ?? '').split(',').map(Number)
-      const cam = { ...CAM0 }
-      CAM_KEYS.forEach((k, i) => {
-         const v = n[i]
-         if (q.has('cam') && v !== undefined && Number.isFinite(v)) cam[k] = v
-      })
-      this.cam = cam
+      this.cam = camOf(q.get('cam'))
       this.thumbAgain = q.get('thumb') === 'again'
       const state = q.get('state') ?? ''
       if (state !== '' && state !== this.stateUrl) void this.loadState(state)
@@ -189,83 +159,9 @@ export class WorldSt {
       this.moved()
    }
 
-   /** the median depth of the splat shown, set by the viewer once it loaded: the orbit's center by default */
-   depth = 6
-
-   setDepth(d: number): void {
-      this.depth = d
-   }
-
-   /** how far ahead the eye's orbit center is: a splat's own depth, else 2 m */
-   get dist(): number {
-      return this.cam.dist > 0 ? this.cam.dist : this.shown === 'splat' ? this.depth : 2
-   }
-
-   /** the scale of a move: a splat's depth, a mesh's meter */
-   get scale(): number {
-      return this.shown === 'splat' ? this.depth : 1
-   }
-
-   reset(): void {
-      this.cam = { ...CAM0 }
-      this.moved()
-   }
-
-   /** a drag of dx, dy pixels over a stage h pixels high, at a vertical fov of fovDeg. `turn`: the pano and the mesh
-    *  look around the eye, the splat orbits around the point ahead. `pan`: the eye and that point move together */
-   drag(g: Gesture, dx: number, dy: number, h: number, fovDeg: number): void {
-      const c = this.cam
-      const k = (fovDeg * Math.PI) / 180 / Math.max(1, h)
-      if (this.shown === 'pano' || (g === 'turn' && this.shown === 'world')) {
-         c.yaw += dx * k
-         c.pitch = clamp(c.pitch + dy * k, -1.5, 1.5)
-      } else if (g === 'turn') {
-         const d = this.dist
-         const before = axes(c).fwd
-         const t = [c.x + before[0] * d, c.y + before[1] * d, c.z + before[2] * d]
-         c.yaw -= dx * k
-         c.pitch = clamp(c.pitch - dy * k, -1.5, 1.5)
-         const f = axes(c).fwd
-         c.x = t[0]! - f[0] * d
-         c.y = t[1]! - f[1] * d
-         c.z = t[2]! - f[2] * d
-      } else {
-         // the point ahead follows the pointer
-         const s = (2 * this.dist * Math.tan((fovDeg * Math.PI) / 360)) / Math.max(1, h)
-         const a = axes(c)
-         c.x += (-dx * a.right[0] + dy * a.up[0]) * s
-         c.y += (-dx * a.right[1] + dy * a.up[1]) * s
-         c.z += (-dx * a.right[2] + dy * a.up[2]) * s
-      }
-      this.moved()
-   }
-
-   /** forward (and back with a negative step), in the view's scale: the pano zooms instead */
-   dolly(step: number): void {
-      const c = this.cam
-      if (this.shown === 'pano') {
-         c.zoom = clamp(c.zoom * Math.exp(step), 0.6, 4)
-         return this.moved()
-      }
-      const m = step * this.scale
-      const f = axes(c).fwd
-      c.x += f[0] * m
-      c.y += f[1] * m
-      c.z += f[2] * m
-      if (this.shown === 'splat') c.dist = Math.max(0.05 * this.depth, this.dist - m)
-      this.moved()
-   }
-
-   /** a step of the eye along where it looks (forward), to its right and up, in the view's scale; the mesh walks
-    *  level, the splat flies */
-   move(forward: number, right: number, up: number): void {
-      if (this.shown === 'pano' || this.shown === 'source') return
-      const c = this.cam
-      const a = axes(this.shown === 'world' ? { yaw: c.yaw, pitch: 0 } : c)
-      const s = this.scale
-      c.x += (a.fwd[0] * forward + a.right[0] * right) * s
-      c.y += (a.fwd[1] * forward + up) * s
-      c.z += (a.fwd[2] * forward + a.right[2] * right) * s
+   /** his move in the viewer: the eye as it is now, posted with the other keys */
+   setCam(c: Cam): void {
+      this.cam = c
       this.moved()
    }
 
@@ -303,7 +199,7 @@ export class WorldSt {
 
    /** his first move hides the hint */
    get touched(): boolean {
-      return CAM_KEYS.some((k) => this.cam[k] !== CAM0[k])
+      return camText(this.cam) !== ''
    }
 
    setLoading(what: string | null): void {
