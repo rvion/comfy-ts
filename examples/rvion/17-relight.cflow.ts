@@ -4,7 +4,7 @@
 // The models are the depth explorer's catalog (examples/depth-explorer/models.ts): one choice per
 // map lists the ones this host can run, each option with its picture, date, weights and quality
 // (a choice of one still says what it is). Every material map can be « none ». The image presets
-// include pictures from the web, downloaded once when a run uses them. Outside the panel (CLI,
+// are the example animals (a url works too, see the commented ones). Outside the panel (CLI,
 // TUI) each map is a plain output image.
 //
 // run directly:  bun examples/rvion/17-relight.cflow.ts [path/to/image.png]
@@ -43,17 +43,17 @@ const ids = {
 const material = (map: MapName, preferred: string, label: string) =>
    v.choice(ids[map], pick(ids[map], preferred), { label, select: 'zero-or-one' }).ui(looks(ids[map]))
 
-const BIFOCAL = 'https://www.bifocalfiction.com'
 const image = v.image(exampleImagePath('lioness_768x768.jpg'), {
    presets: {
       lioness: exampleImagePath('lioness_768x768.jpg'),
       bear: exampleImagePath('bear_1024x1024.jpg'),
       walrus: exampleImagePath('walrus_1344x768.jpg'),
       deer: exampleImagePath('deer_768x1344.jpg'),
-      'genomea cover': `${BIFOCAL}/images/genomea-cover-cn1.png`,
-      'dead city 1': `${BIFOCAL}/generated/la-ville-morte-chapitre-3/horizontal/strip-01.webp`,
-      'dead city 2': `${BIFOCAL}/generated/la-ville-morte-chapitre-3/horizontal/strip-02.webp`,
-      'dead city 3': `${BIFOCAL}/generated/la-ville-morte-chapitre-3/horizontal/strip-03.webp`,
+      // a preset can be a url, fetched once when a run uses it:
+      // 'genomea cover': 'https://www.bifocalfiction.com/images/genomea-cover-cn1.png',
+      // 'dead city 1': 'https://www.bifocalfiction.com/generated/la-ville-morte-chapitre-3/horizontal/strip-01.webp',
+      // 'dead city 2': 'https://www.bifocalfiction.com/generated/la-ville-morte-chapitre-3/horizontal/strip-02.webp',
+      // 'dead city 3': 'https://www.bifocalfiction.com/generated/la-ville-morte-chapitre-3/horizontal/strip-03.webp',
    },
 })
 
