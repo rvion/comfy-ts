@@ -94,3 +94,32 @@ body,
    padding: 2px 0;
    pointer-events: auto;
 }
+.tools {
+   margin-left: auto;
+   display: flex;
+   gap: 4px;
+   flex: none;
+}
+
+/* the hub panorama's hint: a pill at the foot of the view */
+.hint {
+   position: absolute;
+   left: 50%;
+   bottom: 10px;
+   transform: translateX(-50%);
+   max-width: calc(100% - 24px);
+   padding: 3px 12px;
+   border-radius: 999px;
+   background: color-mix(in srgb, #000 55%, transparent);
+   color: #d8d9dc;
+   font-size: 12px;
+   white-space: nowrap;
+   overflow: hidden;
+   text-overflow: ellipsis;
+   pointer-events: none;
+}
+
+.hint.notice {
+   bottom: 40px;
+   color: #ffb4b4;
+}

@@ -3,6 +3,7 @@ import { useEffect, useRef } from 'react'
 import { createRoot } from 'react-dom/client'
 import { frameClient } from 'rvlib-shipkit/src/pages/frame-client.ts'
 import { WorldSt, type View } from './state.ts'
+import { sendThumb } from './thumb.ts'
 import { Viewer } from './viewer.ts'
 
 // one world of .comfy-ts/worlds, the view page of the `world` thread kind (agent/examples.md, world-explorer). Framed by
@@ -10,11 +11,26 @@ import { Viewer } from './viewer.ts'
 
 const LABEL: Record<View, string> = { pano: '360°', world: 'walk', splat: 'splat', source: 'picture' }
 const HINT: Record<View, string> = {
-   pano: 'drag to look, wheel to zoom',
-   world: 'drag to look, WASD or arrows to walk',
-   splat: 'drag to orbit, wheel to zoom',
+   pano: 'drag to look around · wheel or pinch to zoom',
+   world: 'drag to look · right drag or shift to pan · WASD to walk, Q E down and up · wheel to go forward',
+   splat: 'drag to orbit · right drag or shift to pan · WASD to fly, Q E down and up · wheel to go forward',
    source: '',
 }
+
+/** the lightbox: the page's root fills the screen. Esc leaves it (the browser's own key); F toggles it */
+async function toggleFull(): Promise<void> {
+   if (document.fullscreenElement != null) return void (await document.exitFullscreen())
+   try {
+      await document.documentElement.requestFullscreen()
+   } catch (e) {
+      st.setNotice(`full screen refused here: ${(e as Error).message}`)
+      setTimeout(() => st.setNotice(null), 4000)
+   }
+}
+document.addEventListener('fullscreenchange', () => st.setFull(document.fullscreenElement != null))
+window.addEventListener('keydown', (e) => {
+   if (e.key === 'Escape' && document.fullscreenElement != null) void document.exitFullscreen()
+})
 
 let viewer: Viewer | null = null
 const st = new WorldSt((k) => frame.setKeys(k))
@@ -30,7 +46,12 @@ const Stage = observer(function Stage() {
    const host = useRef<HTMLDivElement>(null)
    useEffect(() => {
       if (host.current == null) return
-      viewer = new Viewer(st, host.current, () => shotReady(true))
+      viewer = new Viewer(
+         st,
+         host.current,
+         () => shotReady(true),
+         () => void toggleFull(),
+      )
       return () => viewer?.stop()
    }, [])
    const shown = st.shown
@@ -38,13 +59,31 @@ const Stage = observer(function Stage() {
    useEffect(() => shotReady(shown === 'source'), [shown])
    return (
       <div ref={host} className="stage">
-         {src != null ? <img src={src} alt={st.name} draggable={false} /> : null}
+         {src != null ? (
+            <img
+               src={src}
+               alt={st.name}
+               draggable={false}
+               onLoad={(e) => {
+                  const img = e.currentTarget
+                  if (!st.wantsThumb || st.thumbView !== 'source') return
+                  st.thumbSent()
+                  sendThumb(st.name, img, img.naturalWidth, img.naturalHeight).catch((x: unknown) =>
+                     st.setNotice((x as Error).message),
+                  )
+               }}
+            />
+         ) : null}
          {st.error != null ? (
             <div className="note">{st.error}</div>
          ) : st.loading != null ? (
             <div className="note">loading {st.loading}…</div>
          ) : null}
          {st.name === '' && st.standalone ? <Worlds /> : null}
+         {shown != null && HINT[shown] && !st.touched && st.loading == null ? (
+            <div className="hint">{HINT[shown]}</div>
+         ) : null}
+         {st.notice != null ? <div className="hint notice">{st.notice}</div> : null}
       </div>
    )
 })
@@ -76,7 +115,16 @@ const App = observer(function App() {
             <span className="line">
                <b>{st.name || 'worlds'}</b>
                {st.side ? ` · ${st.side}` : ''}
-               {shown != null && HINT[shown] ? ` · ${HINT[shown]}` : ''}
+            </span>
+            <span className="tools">
+               {shown != null && shown !== 'source' ? (
+                  <button className="tab" title="R, or a double click" onClick={() => st.reset()}>
+                     reset view
+                  </button>
+               ) : null}
+               <button className="tab" title={st.full ? 'Esc' : 'F'} onClick={() => void toggleFull()}>
+                  {st.full ? '✕ close' : '⤢ full screen'}
+               </button>
             </span>
          </div>
          <Stage />

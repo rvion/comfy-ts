@@ -3,7 +3,7 @@
 //    bun examples/world-explorer/serve.ts   →  http://127.0.0.1:8293/?key=<world>
 // the hub serves this page again through its proxy: every path the page asks is RELATIVE, so the bundle is built with
 // publicPath './' and the world files answer under `worlds/<name>/<file>`
-import { existsSync, readdirSync, readSync, openSync, closeSync, statSync } from 'node:fs'
+import { closeSync, existsSync, openSync, readdirSync, readSync, renameSync, statSync } from 'node:fs'
 import { join, resolve } from 'pathe'
 
 const PORT = Number(process.env.PORT ?? 8293)
@@ -12,7 +12,9 @@ const WORLDS = join(ROOT, '.comfy-ts/worlds')
 const WEB = join(import.meta.dir, 'web')
 
 /** the files a world may hold, in the order the page shows their tabs */
-const FILES = ['panorama.png', 'world.glb', 'splat.ply', 'source.png'] as const
+const FILES = ['panorama.png', 'world.glb', 'splat.ply', 'source.png', 'thumb.webp'] as const
+/** a thumbnail is a few tens of KB: anything far past it is not one */
+const THUMB_MAX = 2_000_000
 
 type WorldFile = { name: string; v: string }
 type World = { name: string; files: WorldFile[]; splatFov: number | null }
@@ -130,6 +132,20 @@ const server = Bun.serve({
       const url = new URL(req.url)
       const path = decodeURIComponent(url.pathname).replace(/^\/+/, '')
       if (path === 'api/worlds') return json(worlds())
+      // the page renders a world's thumbnail from its first view at the default camera and sends it here
+      const t = /^api\/thumb\/([^/]+)$/.exec(path)
+      if (t != null && req.method === 'POST') {
+         const w = worldOf(String(t[1]))
+         if (w == null) return json({ error: `no world ${t[1]}` }, 404)
+         const bytes = new Uint8Array(await req.arrayBuffer())
+         const webp = bytes.length > 12 && new TextDecoder().decode(bytes.subarray(8, 12)) === 'WEBP'
+         if (!webp || bytes.length > THUMB_MAX) return json({ error: 'a thumbnail is a webp under 2 MB' }, 400)
+         const dest = join(WORLDS, w.name, 'thumb.webp')
+         await Bun.write(`${dest}.tmp`, bytes)
+         renameSync(`${dest}.tmp`, dest)
+         console.log(`🟢 thumbnail of ${w.name}: ${bytes.length} bytes`)
+         return json({ ok: true, bytes: bytes.length })
+      }
       const m = /^worlds\/([^/]+)\/([^/]+)$/.exec(path)
       if (m != null) {
          const w = worldOf(String(m[1]))
