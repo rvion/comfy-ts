@@ -18,6 +18,10 @@ const PANO_SUFFIX = ' 8k UHD, masterpiece, razor-sharp details.'
 const PANO_NEGATIVE =
    '低分辨率，低画质，模糊。杂乱的背景，结构扭曲，模糊纹理，物体融合。构图混乱。过度光滑，画面具有AI感。人脸畸形。巨大物体，巨大建筑，近景特写，近景压迫，比例失调。车，车辆。画面上方的树叶。'
 const PANO_LORA = 'world\\hy-pano-2-qwen-lora.safetensors'
+/** HY-Pano's canvas and its edge blend width: 1952 - 32 = 1920, 2:1 */
+const PANO_W = 1952
+const PANO_H = 960
+const BLEND = 32
 
 const image = v.image(exampleImagePath('lioness_768x768.jpg'), {
    presets: {
@@ -50,7 +54,7 @@ export const world = host.defineWorkflow({
          model: b.ModelSamplingAuraFlow({ model: withLora, shift: 3.1 }),
          positive: encode(`${PANO_PREFIX}${vars.extend}${PANO_SUFFIX}`),
          negative: encode(PANO_NEGATIVE),
-         latent_image: b.EmptySD3LatentImage({ width: 1952, height: 960, batch_size: 1 }),
+         latent_image: b.EmptySD3LatentImage({ width: PANO_W, height: PANO_H, batch_size: 1 }),
          seed: vars.seed,
          steps: vars.steps,
          cfg: vars.cfg,
@@ -58,7 +62,23 @@ export const world = host.defineWorkflow({
          scheduler: 'simple',
          denoise: 1,
       })
-      const panorama = b.VAEDecode({ samples, vae })
+      const raw = b.VAEDecode({ samples, vae })
+      // the seam: HY-Pano's own edge blend (circular_blend_edges), the last BLEND columns fade into
+      // the first ones, then leave; 1952 wide becomes an exact 2:1 that wraps without a cut
+      const strip = (x: number) => b.ImageCrop({ image: raw, width: BLEND, height: PANO_H, x, y: 0 })
+      const joined = b.ImageCompositeMasked({
+         destination: strip(PANO_W - BLEND),
+         source: strip(0),
+         x: 0,
+         y: 0,
+         mask: b['kjnodes.CreateGradientMask']({ invert: true, frames: 1, width: BLEND, height: PANO_H }),
+      })
+      const panorama = b.ImageCompositeMasked({
+         destination: b.ImageCrop({ image: raw, width: PANO_W - BLEND, height: PANO_H, x: 0, y: 0 }),
+         source: joined,
+         x: 0,
+         y: 0,
+      })
       b.SaveImageWebsocket({ images: panorama }, { tag: 'panorama' })
       // the world: MoGe reads 12 perspective views of the panorama, merges one distance map all
       // around, and the textured mesh is that map seen from the middle
