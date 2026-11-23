@@ -17,7 +17,10 @@ beforeEach(() => {
          return json({ running: true, percent: 50, hasPreview: true, previewSeq: statusReads })
       }
       if (url.startsWith('/generate/')) {
-         await new Promise((r) => setTimeout(r, 400))
+         // the run ends once the panel read its status twice: a starved cpu delays the reads,
+         // it must not make the run end before them (the deadline keeps a broken poll red)
+         const deadline = Date.now() + 5000
+         while (statusReads < 2 && Date.now() < deadline) await new Promise((r) => setTimeout(r, 10))
          return json({ promptId: 'p1', module: 'm', draft: 'd', seeds: {}, outputs: [] })
       }
       return json({ runs: [], memory: { usedBytes: 0, budgetBytes: 1, outputs: 0, runs: 0 } })

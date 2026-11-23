@@ -64,7 +64,9 @@ describe('websocket heartbeat', () => {
    it('a socket that stops answering pings is dropped and a new one opens', async () => {
       const f = fakeTransport({ answersPings: false })
       const c = client(f.transport)
-      await Bun.sleep(120)
+      // until the second socket opens: a fixed wait reds on a starved cpu, the deadline keeps a dead heartbeat red
+      const deadline = Date.now() + 5000
+      while (f.created.length < 2 && Date.now() < deadline) await Bun.sleep(5)
       c.disconnectPermanently()
       expect(f.created[0]?.terminated).toBe(true)
       expect(f.created.length).toBeGreaterThan(1)
