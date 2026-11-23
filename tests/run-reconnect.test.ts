@@ -2,7 +2,7 @@
 // reconnect asks for the same session (?clientId=) and each run in flight reconciles over http
 // (architecture.md, ResilientWebsocket.ts). The end to end proof against a fake ComfyUI, with real
 // reconnect pauses, is .shipkit/repros/20261123-run-hangs-after-socket-drop.test.ts
-import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
+import { afterAll, beforeAll, describe, expect, it, spyOn } from 'bun:test'
 import { mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'pathe'
@@ -57,7 +57,7 @@ describe('a run in flight when the socket reconnects', () => {
       const { execution, first, last } = runOn('r-ended')
       execution.onPromptRelatedMessage(ws({ type: 'executed', data: { node: first, output: glb('a.glb'), prompt_id: 'r-ended' } }))
       history['r-ended'] = successEntry('r-ended', { [first]: glb('a.glb'), [last]: glb('b.glb') })
-      await execution.reconcileAfterReconnect()
+      await host.reconcileRuns([execution], 'reconnect')
       await execution.done
       expect(execution.status).toBe('Success')
       expect(execution.models3d.map((m) => m.filename).sort()).toEqual(['a.glb', 'b.glb'])
@@ -79,7 +79,7 @@ describe('a run in flight when the socket reconnects', () => {
          current_outputs: [],
       }
       history['r-error'] = { outputs: {}, status: { status_str: 'error', completed: false, messages: [['execution_error', err]] } }
-      await execution.reconcileAfterReconnect()
+      await host.reconcileRuns([execution], 'reconnect')
       await execution.done
       expect(execution.status).toBe('Failure')
       expect(execution.data.error?.type).toBe('execution_error')
@@ -88,7 +88,7 @@ describe('a run in flight when the socket reconnects', () => {
    it('still queued: it waits, and its end takes the output sent in the gap from /history', async () => {
       const { execution, first, last } = runOn('r-queued')
       queued = new Set(['r-queued'])
-      await execution.reconcileAfterReconnect()
+      await host.reconcileRuns([execution], 'reconnect')
       expect(execution.status).toBe('New')
       // the gap swallowed `first`; `last` and the end come through the socket again
       history['r-queued'] = successEntry('r-queued', { [first]: glb('a.glb'), [last]: glb('b.glb') })
@@ -102,7 +102,7 @@ describe('a run in flight when the socket reconnects', () => {
    it('neither queued nor in /history (the host lost it): it fails instead of waiting forever', async () => {
       const { execution } = runOn('r-lost')
       queued = new Set()
-      await execution.reconcileAfterReconnect()
+      await host.reconcileRuns([execution], 'reconnect')
       await execution.done
       expect(execution.status).toBe('Failure')
       expect(execution.data.reason).toContain('neither in its queue nor in its history')
@@ -113,7 +113,7 @@ describe('a run in flight when the socket reconnects', () => {
       let release: (s: Set<string>) => void = () => {}
       const real = host.fetchQueuedPromptIds
       host.fetchQueuedPromptIds = (): Promise<Set<string>> => new Promise((r) => (release = r))
-      const check = execution.reconcileAfterReconnect()
+      const check = host.reconcileRuns([execution], 'reconnect')
       execution.onPromptRelatedMessage(ws({ type: 'executed', data: { node: last, output: glb('b.glb'), prompt_id: 'r-race' } }))
       execution.onPromptRelatedMessage(ws({ type: 'execution_success', data: { prompt_id: 'r-race', timestamp: 2 } }))
       history['r-race'] = successEntry('r-race', { [first]: glb('a.glb'), [last]: glb('b.glb') })
@@ -125,15 +125,16 @@ describe('a run in flight when the socket reconnects', () => {
       expect(execution.models3d.map((m) => m.filename).sort()).toEqual(['a.glb', 'b.glb'])
    })
 
-   it('a queue of another shape (a cloud host) never fails a run as lost', async () => {
-      const { execution } = runOn('r-cloud')
+   it('a transient queue failure never fails a run as lost', async () => {
+      const { execution } = runOn('r-flaky')
       const real = host.fetchQueuedPromptIds
       host.fetchQueuedPromptIds = async (): Promise<Set<string>> => {
-         throw new Error('an item of queue_running is not [number, prompt_id, …]')
+         throw new Error('connection reset')
       }
-      expect(await execution.reconcileAfterReconnect()).toBe('waiting')
+      await host.reconcileRuns([execution], 'reconnect')
       host.fetchQueuedPromptIds = real
       expect(execution.status).toBe('New')
+      expect(host.reconcileOff).toBe(null)
    })
 
    it('control: a run that never reconnected does not ask /history at its end', async () => {
@@ -164,9 +165,32 @@ describe('the queue read', () => {
       expect([...(await h.fetchQueuedPromptIds())]).toEqual(['a', 'b'])
    })
 
-   it('refuses a queue whose items have another shape, instead of reading it as empty', async () => {
+   it('a queue of another shape (a cloud host) turns the run checks off for that host, once and quietly', async () => {
       const h = answering({ queue_running: [{ prompt_id: 'a' }], queue_pending: [] })
-      expect(await h.fetchQueuedPromptIdsOrNull()).toBe(null)
+      let historyReads = 0
+      h.fetchHistory = async (): Promise<unknown> => (historyReads++, {})
+      const wf = h.workflow({ id: 'cloudish' })
+      const execution = new ComfyExecution(wf, { id: 'c-1' as PromptID, executed: false, graphID: wf.id })
+      const errors: string[] = []
+      const spy = spyOn(console, 'error').mockImplementation((...a: unknown[]) => void errors.push(a.join(' ')))
+      await h.reconcileRuns([execution], 'reconnect')
+      await h.reconcileRuns([execution], 'silence')
+      spy.mockRestore()
+      expect(h.reconcileOff).toContain('not [number, prompt_id')
+      expect(historyReads).toBe(0)
+      expect(execution.status).toBe('New')
+      expect(errors).toEqual([])
+   })
+
+   it('a /history that is not a route (a 404 page) turns the run checks off too', async () => {
+      const h = answering({ queue_running: [], queue_pending: [] })
+      h.fetch = async (route: string): Promise<Response> =>
+         route === '/queue' ? Response.json({ queue_running: [], queue_pending: [] }) : new Response('not found', { status: 404 })
+      const wf = h.workflow({ id: 'no-history' })
+      const execution = new ComfyExecution(wf, { id: 'h-1' as PromptID, executed: false, graphID: wf.id })
+      await h.reconcileRuns([execution], 'reconnect')
+      expect(h.reconcileOff).toContain('404')
+      expect(execution.status).toBe('New')
    })
 })
 

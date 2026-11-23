@@ -95,6 +95,12 @@ export type ConnectOptions = {
    timeoutMs?: number
 }
 
+/** the host answered a run check route, but not as ComfyUI does (no such route, another shape) */
+export class HostRouteUnusableError extends Error {
+   /** name, not instanceof: the cli bundle and dist/index.js each define this class */
+   override readonly name = 'HostRouteUnusableError'
+}
+
 /** the host never came up within ConnectOptions.timeoutMs */
 export class ComfyHostUnreachableError extends Error {
    /** name, not instanceof: the cli bundle and dist/index.js each define this class */
@@ -643,38 +649,65 @@ export class ComfyHost<ID extends string = string> {
       if (!res.ok) throw new Error(`POST ${route} failed on ${this.getServerHostHTTP()}: ${res.status}`)
    }
 
+   /** GET a json route for the run checks: an answer that is not json (a 404, a 405, a page) means the
+    * host has no such route, a HostRouteUnusableError; a network failure stays a plain error */
+   private fetchReconcileJSON_ = async (route: string): Promise<unknown> => {
+      const res = await this.fetch(route)
+      const contentType = res.headers.get('content-type') ?? ''
+      if (res.ok && contentType.includes('json')) return res.json()
+      void res.body?.cancel()
+      throw new HostRouteUnusableError(`GET ${route} answered ${res.status} ${contentType || 'no content-type'}`)
+   }
+
    /** one prompt's `GET /history/<id>` reply, `{}` while the host has no entry for it */
    fetchHistory = (promptId: PromptID): Promise<unknown> => {
-      return this.fetchJSON_<unknown>(`/history/${encodeURIComponent(promptId)}`)
+      return this.fetchReconcileJSON_(`/history/${encodeURIComponent(promptId)}`)
    }
 
    /** the ids of the prompts waiting or running on this host, every client counted (`GET /queue`) */
    fetchQueuedPromptIds = async (): Promise<Set<string>> => {
-      const json = await this.fetchJSON_<unknown>('/queue')
+      const json = await this.fetchReconcileJSON_('/queue')
       const ids = new Set<string>()
       for (const key of ['queue_running', 'queue_pending']) {
          const list: unknown = typeof json === 'object' && json != null ? Reflect.get(json, key) : null
-         if (!Array.isArray(list)) throw new Error(`GET /queue on host '${this.data.id}': no ${key} list`)
+         if (!Array.isArray(list)) throw new HostRouteUnusableError(`GET /queue has no ${key} list`)
          // an item of another shape (a cloud host) could hide a run: refuse the whole answer
          for (const item of list) {
             if (!Array.isArray(item) || typeof item[1] !== 'string')
-               throw new Error(`GET /queue on host '${this.data.id}': an item of ${key} is not [number, prompt_id, …]`)
+               throw new HostRouteUnusableError(`GET /queue: an item of ${key} is not [number, prompt_id, …]`)
             ids.add(item[1])
          }
       }
       return ids
    }
 
-   /** fetchQueuedPromptIds, null when the queue did not answer or its shape was not recognised (logged
-    * once per message): a run is then never declared lost */
+   /** why runs on this host are never checked over http: its /queue or /history is not ComfyUI's
+    * (a cloud host). Null while both answered as ComfyUI does, or were never asked */
+   reconcileOff: string | null = null
+
+   /** @internal a failed run check: true when it proved the host has no usable route (the checks then
+    * stop for good, said once), false for a passing failure the caller reports */
+   noteReconcileFailure(e: unknown): boolean {
+      if (!(e instanceof Error) || e.name !== 'HostRouteUnusableError') return false
+      if (this.reconcileOff == null) {
+         this.reconcileOff = e.message
+         this.stopWatchdog()
+         logInfo(`host '${this.data.id}': ${e.message}, not the ComfyUI shape: runs here are not checked over http, they wait for their events`)
+      }
+      return true
+   }
+
+   /** fetchQueuedPromptIds, null when the queue did not answer (logged once per message) or has another
+    * shape: a run is then never declared lost */
    fetchQueuedPromptIdsOrNull = async (): Promise<Set<string> | null> => {
       try {
          return await this.fetchQueuedPromptIds()
       } catch (e) {
+         if (this.noteReconcileFailure(e)) return null
          const msg = extractErrorMessage(e)
          if (!this._loggedQueueProblems.has(msg)) {
             this._loggedQueueProblems.add(msg)
-            toastError(`host '${this.data.id}': its queue cannot say which runs it still holds (${msg}); runs are never failed as lost here`)
+            toastError(`host '${this.data.id}': its queue did not answer (${msg}); no run is failed as lost until it does`)
          }
          return null
       }
@@ -682,17 +715,20 @@ export class ComfyHost<ID extends string = string> {
    private _loggedQueueProblems = new Set<string>()
 
    // RUN WATCHDOG (architecture.md, ResilientWebsocket.ts) -------------------------------
-   /** a run that heard nothing for this long asks the host over http where it stands */
+   /** a check needs the WHOLE socket quiet this long, and the run itself too */
    runSilenceMs: number = 1000
-   /** the wait doubles after each check that finds the run still on the host, up to this */
+   /** the wait doubles after each check that ends no run, up to this; any ws message resets it */
    runSilenceMaxMs: number = 30_000
+   private _silenceWaitMs: number | null = null
+   private _lastCheckAt: number = 0
+   private _checking: boolean = false
    private _watchdog: Maybe<ReturnType<typeof setInterval>> = null
 
    /** @internal a new run routes its ws messages here, and the watchdog watches it */
    trackExecution(execution: ComfyExecution): void {
       this.executions.set(execution.data.id, execution)
       // a run with no socket (tests that drive messages by hand) has nothing to watch
-      if (this.ws == null || this._watchdog != null) return
+      if (this.ws == null || this._watchdog != null || this.reconcileOff != null) return
       this._watchdog = setInterval(() => this.watchdogTick(), Math.min(250, this.runSilenceMs))
       this._watchdog.unref?.()
    }
@@ -702,22 +738,38 @@ export class ComfyHost<ID extends string = string> {
       this._watchdog = null
    }
 
+   /** a socket that hears no broadcast and no event for a while is deaf, or the host runs one long
+    * quiet node: ask. A run queued behind a talking host is never asked about */
    private watchdogTick(): void {
       if (this.executions.size === 0 || this.ws == null) return this.stopWatchdog()
+      if (this._checking) return
       const now = Date.now()
-      const due = [...this.executions.values()].filter((e) => e.isCheckDue(now))
-      if (due.length > 0) void this.reconcileRuns(due, 'silence')
+      const wait = this._silenceWaitMs ?? this.runSilenceMs
+      if (now - Math.max(this.lastWsMessageAt ?? 0, this._lastCheckAt) < wait) return
+      const due = [...this.executions.values()].filter((e) => !e.reconciling && now - e.lastHeardAt >= this.runSilenceMs)
+      if (due.length === 0) return
+      this._checking = true
+      void this.reconcileRuns(due, 'silence').finally(() => {
+         this._checking = false
+         this._lastCheckAt = Date.now()
+         this._silenceWaitMs = Math.min(wait * 2, this.runSilenceMaxMs)
+      })
    }
 
-   /** one queue read for all the runs, then each one's history. A run that ends from its history while
-    * the socket looked fine means the socket hears nothing: ComfyUI removes a session BY KEY when a
-    * socket's handler ends, so an old handler that ends after a reconnect evicts the new socket of the
-    * same session. A clean close lets the server end that handler before the reconnect */
-   private async reconcileRuns(runs: ComfyExecution[], why: 'reconnect' | 'silence'): Promise<void> {
+   /** @internal one queue read for all the runs, then the history of each run not in it. A run that
+    * ends from its history while the socket looked fine means the socket hears nothing: ComfyUI removes
+    * a session BY KEY when a socket's handler ends, so an old handler that ends after a reconnect evicts
+    * the new socket of the same session. A clean close lets the server end that handler first */
+   async reconcileRuns(runs: ComfyExecution[], why: 'reconnect' | 'silence'): Promise<void> {
+      if (this.reconcileOff != null) return
       const todo = runs.filter((r) => !r.reconciling)
       if (todo.length === 0) return
-      for (const r of todo) r.beginReconcile()
+      for (const r of todo) r.beginReconcile(why)
       const queued = await this.fetchQueuedPromptIdsOrNull()
+      if (this.reconcileOff != null) {
+         for (const r of todo) r.reconciling = false
+         return
+      }
       const verdicts = await Promise.all(todo.map((r) => r.reconcile(queued)))
       if (why === 'silence' && verdicts.includes('history') && this.ws?.isOpen === true) {
          toastError(`host '${this.data.id}': a run ended without its end reaching the socket, which hears nothing; reconnecting`)
@@ -1010,6 +1062,7 @@ export class ComfyHost<ID extends string = string> {
 
    onMessage(e: WsMessageEvent): void {
       this.lastWsMessageAt = Date.now()
+      this._silenceWaitMs = null
       if (this.data.onWsMessageAny) this.data.onWsMessageAny(e)
       if (e.data instanceof ArrayBuffer) {
          if (isPreviewFrameType(binaryFrameType(e.data))) return this.onPreviewFrame(e.data)

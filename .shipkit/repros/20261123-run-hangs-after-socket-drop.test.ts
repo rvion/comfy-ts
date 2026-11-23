@@ -29,6 +29,7 @@ class FakeComfy {
    outputsOf = new Map<string, Record<string, unknown>>()
    /** how long after a socket closes its handler's finally runs (the server learns late of a dead peer) */
    lateFinallyMs = 0
+   reads = { queue: 0, history: 0 }
    server = Bun.serve<{ sid: string }>({
       port: 0,
       fetch: async (req, srv): Promise<Response | undefined> => {
@@ -46,9 +47,11 @@ class FakeComfy {
             return Response.json({ prompt_id: id, number: this.promptCounter, node_errors: {} })
          }
          if (url.pathname === '/api/queue') {
+            this.reads.queue++
             return Response.json({ queue_running: [...this.running].map((id, i) => [i, id, {}, {}, []]), queue_pending: [] })
          }
          if (url.pathname.startsWith('/api/history/')) {
+            this.reads.history++
             const id = url.pathname.slice('/api/history/'.length)
             const entry = this.history.get(id)
             return Response.json(entry == null ? {} : { [id]: entry })
@@ -164,6 +167,18 @@ describe('a run outlives a websocket drop', () => {
       expect(execution.status).toBe('Success')
       expect(execution.models3d.length).toBe(1)
    })
+
+   it('control cost: a healthy run silent 3 s reads no /history and settles at its end', async () => {
+      fake.reads = { queue: 0, history: 0 }
+      const { execution, node } = await startRun('healthy-quiet')
+      await Bun.sleep(3000)
+      fake.finish(execution.data.id, node)
+      const t0 = Date.now()
+      const r = await settle(execution, 2000)
+      expect(r).not.toBe('hung')
+      expect(Date.now() - t0).toBeLessThan(100)
+      expect(fake.reads.history).toBe(0)
+   }, 10_000)
 
    it('the run ends after the drop when the host finished it while the socket was down', async () => {
       const opens = fake.opens

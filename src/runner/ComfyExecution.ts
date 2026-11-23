@@ -128,7 +128,6 @@ export class ComfyExecution {
       this.logProgress = init.logProgress ?? false
       // register with the host so websocket messages route here,
       // then flush messages that arrived before we existed
-      this.silenceWaitMs = this.host.runSilenceMs
       this.host.trackExecution(this)
       this.onCreate()
    }
@@ -350,7 +349,7 @@ export class ComfyExecution {
    /** the output nodes whose `executed` reached us, so a /history replay never retrieves one twice */
    private heardExecuted: Set<string> = new Set()
 
-   /** the run may have lost events (a reconnect, a long silence): its end reads /history for them */
+   /** the run lived through a reconnect and may have lost events: its end reads /history for them */
    private mayHaveMissedEvents: boolean = false
 
    private replayUnheardOutputs(replay: HistoryReplay): void {
@@ -361,16 +360,18 @@ export class ComfyExecution {
    /** the history entry is written right after the end message is queued, so it may lag by a moment */
    historyRetry: { tries: number; ms: number } = { tries: 5, ms: 400 }
 
-   /** a run that lived through a socket drop: an output node that ended in the gap is only in /history */
+   /** a run that lived through a reconnect: an output node that ended in the gap is only in /history */
    private retrieveMissedOutputs = async (): Promise<void> => {
       const id = this.data.id
       for (let i = 0; i < this.historyRetry.tries; i++) {
+         if (this.host.reconcileOff != null) return
          if (i > 0) await new Promise((r) => setTimeout(r, this.historyRetry.ms))
          try {
             const replay = historyReplay(await this.host.fetchHistory(id), id)
             if (replay == null) continue
             return this.replayUnheardOutputs(replay)
          } catch (e) {
+            if (this.host.noteReconcileFailure(e)) return
             return logError(`run ${id}: its history did not answer (${extractErrorMessage(e)}); an output sent while the socket was down may be missing`)
          }
       }
@@ -378,25 +379,14 @@ export class ComfyExecution {
    }
 
    // ---- reconcile over http (architecture.md, ResilientWebsocket.ts) ------------------------
-   /** @internal the watchdog's clock: the last event of this run, and the last http check */
+   /** @internal the last event of this run: the watchdog checks only runs quiet for host.runSilenceMs */
    lastHeardAt: number = Date.now()
-   private lastCheckedAt: number = 0
-   /** @internal the silence before the next http check: host.runSilenceMs, doubled after each check
-    * that finds the run still on the host, up to host.runSilenceMaxMs; any event resets it */
-   silenceWaitMs: number = 0
    /** @internal a check is in flight: never two at once */
    reconciling: boolean = false
    private loggedReconcileProblems: Set<string> = new Set()
 
    private heard(): void {
       this.lastHeardAt = Date.now()
-      this.silenceWaitMs = this.host.runSilenceMs
-   }
-
-   /** @internal the run heard nothing for its current wait, and no check is in flight */
-   isCheckDue(now: number): boolean {
-      if (this.ended || this.reconciling) return false
-      return now - Math.max(this.lastHeardAt, this.lastCheckedAt) >= this.silenceWaitMs
    }
 
    private logReconcileOnce(msg: string): void {
@@ -405,34 +395,35 @@ export class ComfyExecution {
       logError(`run ${this.data.id}: ${msg}`)
    }
 
-   /** @internal called before the host reads its queue, so a live end that lands during the reads
-    * still looks for the outputs of the gap */
-   beginReconcile(): void {
+   /** @internal called before the host reads its queue. After a reconnect the run may have lost events,
+    * so its end reads /history for them; the flag is set before any await, so a live end that lands
+    * during the reads still looks. A check for silence alone does not set it: a quiet run lost nothing */
+   beginReconcile(why: 'reconnect' | 'silence'): void {
       this.reconciling = true
-      this.mayHaveMissedEvents = true
+      if (why === 'reconnect') this.mayHaveMissedEvents = true
    }
 
    /** @internal ask the host where this run stands. `queued` is the host's queue read BEFORE this
     * history read (the server moves a prompt from one to the other under one lock, so this order never
-    * misses a run that ended between the two reads); null when it did not answer or its shape was not
-    * recognised, and then the run is never declared lost. Says how the check ended */
+    * misses a run that ended between the two reads); null when it did not answer, and then the run is
+    * never declared lost. A queued run needs no history read. Says how the check ended */
    reconcile = async (queued: Set<string> | null): Promise<'history' | 'waiting' | 'lost'> => {
-      this.beginReconcile()
       const id = this.data.id
       const hostId = this.host.data.id
       try {
-         if (this.ended) return 'waiting'
+         if (this.ended || queued?.has(id) === true) return 'waiting'
          let replay: HistoryReplay | null
          try {
             replay = historyReplay(await this.host.fetchHistory(id), id)
          } catch (e) {
-            this.logReconcileOnce(`the history of host '${hostId}' did not answer (${extractErrorMessage(e)}); waiting for its events`)
+            if (!this.host.noteReconcileFailure(e))
+               this.logReconcileOnce(`the history of host '${hostId}' did not answer (${extractErrorMessage(e)}); waiting for its events`)
             return 'waiting'
          }
          if (this.ended) return 'waiting'
          if (replay == null) {
-            if (queued == null || queued.has(id)) return 'waiting'
-            const reason = `host '${hostId}' has it neither in its queue nor in its history (restarted while the socket was down ?)`
+            if (queued == null) return 'waiting'
+            const reason = `host '${hostId}' has it neither in its queue nor in its history (cancelled, or the host restarted)`
             logError(`run ${id}: ${reason}; the run fails`)
             this.ended = true
             await this._finish({ status: 'Failure', error: null, reason })
@@ -454,15 +445,7 @@ export class ComfyExecution {
          return 'history'
       } finally {
          this.reconciling = false
-         this.lastCheckedAt = Date.now()
-         this.silenceWaitMs = Math.min(this.silenceWaitMs * 2, this.host.runSilenceMaxMs)
       }
-   }
-
-   /** @internal one run checked alone (the host checks all its runs with one queue read) */
-   reconcileAfterReconnect = async (): Promise<'history' | 'waiting' | 'lost'> => {
-      this.beginReconcile()
-      return this.reconcile(await this.host.fetchQueuedPromptIdsOrNull())
    }
 
    /** audio retrievals that failed (their files are missing from `audios`) */
