@@ -103,7 +103,11 @@ export const ChoiceControl = observer(function ChoiceControl(p: { v: VarSt }) {
          <span className="hint">(unset)</span>
       ) : null
    // many choices can always be several buttons at once: a select holds one value only
-   if (choiceAsButtons(choices, looks) || select === 'many' || (select === 'zero-or-one' && !hasRichLook(choices, looks)))
+   if (
+      choiceAsButtons(choices, looks) ||
+      select === 'many' ||
+      (select === 'zero-or-one' && !hasRichLook(choices, looks))
+   )
       return (
          <span className="row-inline">
             <span className="btn-group wrap">

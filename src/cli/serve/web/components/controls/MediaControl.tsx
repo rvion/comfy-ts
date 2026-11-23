@@ -33,10 +33,16 @@ function Presets(p: { presets: MediaPresetDescriptor[]; value: string; onPick: (
                type="button"
                className={`media-preset${preset.value === p.value ? ' sel' : ''}`}
                disabled={preset.missing === true}
-               data-tip={preset.missing === true ? `${preset.label}: not on this machine (${preset.value})` : preset.value}
+               data-tip={
+                  preset.missing === true ? `${preset.label}: not on this machine (${preset.value})` : preset.value
+               }
                onClick={() => p.onPick(preset.value)}
             >
-               {preset.thumb != null ? <img src={preset.thumb} alt="" loading="lazy" /> : <span className="media-preset-none" />}
+               {preset.thumb != null ? (
+                  <img src={preset.thumb} alt="" loading="lazy" />
+               ) : (
+                  <span className="media-preset-none" />
+               )}
                <span>{preset.label}</span>
             </button>
          ))}
@@ -132,11 +138,15 @@ export const MediaControl = observer(function MediaControl(p: { v: VarSt; kind: 
             drop a {p.kind} file here, or drag one from the results (or use its <b>→ {p.v.name}</b> button)
          </div>
          {presets.length > 0 ? (
-            <Presets presets={presets} value={value} onPick={(v) => {
-               p.v.set(v)
-               p.v.setUploadedUrl(null)
-               p.v.setMediaError(null)
-            }} />
+            <Presets
+               presets={presets}
+               value={value}
+               onPick={(v) => {
+                  p.v.set(v)
+                  p.v.setUploadedUrl(null)
+                  p.v.setMediaError(null)
+               }}
+            />
          ) : null}
          {p.v.mediaError != null ? <div className="error">{p.v.mediaError}</div> : null}
          {previewUrl != null && previewUrl !== '' && !previewFailed ? (
@@ -144,7 +154,11 @@ export const MediaControl = observer(function MediaControl(p: { v: VarSt; kind: 
                <Preview kind={p.kind} url={previewUrl} alt={value} onError={() => setPreviewFailed(true)} />
             </div>
          ) : null}
-         {previewFailed ? <div className="hint">no preview: the panel shows files of the workflow's folders, the outputs and the presets</div> : null}
+         {previewFailed ? (
+            <div className="hint">
+               no preview: the panel shows files of the workflow's folders, the outputs and the presets
+            </div>
+         ) : null}
       </div>
    )
 })

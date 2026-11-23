@@ -240,7 +240,9 @@ export const RichSelect = observer(function RichSelect(p: {
                                     <span className="rs-name">{nameOf(c, look)}</span>
                                     {look?.label != null ? <span className="rs-value">{c}</span> : null}
                                  </span>
-                                 {look?.description != null ? <span className="rs-desc">{look.description}</span> : null}
+                                 {look?.description != null ? (
+                                    <span className="rs-desc">{look.description}</span>
+                                 ) : null}
                                  <Badges look={look} />
                               </span>
                               {c === value ? <span className="rs-check">✓</span> : null}
@@ -249,7 +251,8 @@ export const RichSelect = observer(function RichSelect(p: {
                      })}
                   </div>
                   <div className="rs-foot">
-                     {p.choices.length === 1 ? 'the only option on this host' : `${p.choices.length} options`} · ↑↓ ⏎ esc
+                     {p.choices.length === 1 ? 'the only option on this host' : `${p.choices.length} options`} · ↑↓ ⏎
+                     esc
                   </div>
                </div>
             </FloatingPortal>

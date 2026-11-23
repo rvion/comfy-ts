@@ -116,7 +116,13 @@ export class AppSt {
       if (t < 14) {
          this.openFocus(this.firstDoneId('depth') ?? 'da3-mono-large')
          this.set('focusView', '3d')
-         this.set('relief', { ...this.relief, yaw: -0.75 + 1.5 * wave(10, 14), pitch: 0.45, depthScale: 0.5, zoom: 0.62 })
+         this.set('relief', {
+            ...this.relief,
+            yaw: -0.75 + 1.5 * wave(10, 14),
+            pitch: 0.45,
+            depthScale: 0.5,
+            zoom: 0.62,
+         })
          return
       }
       if (t < 16.5) {

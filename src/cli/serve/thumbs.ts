@@ -50,7 +50,11 @@ export class ThumbStore {
       if (hit != null) return hit
       const sharp = await importSharp('a thumbnail')
       const bytes = new Uint8Array(
-         await sharp(p).rotate().resize({ width: w, height: w, fit: 'inside', withoutEnlargement: true }).webp({ quality: 78 }).toBuffer(),
+         await sharp(p)
+            .rotate()
+            .resize({ width: w, height: w, fit: 'inside', withoutEnlargement: true })
+            .webp({ quality: 78 })
+            .toBuffer(),
       )
       if (this.cache.size >= MAX_CACHED) {
          const oldest = this.cache.keys().next().value
