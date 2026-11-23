@@ -15,6 +15,7 @@ import type { WebSt } from 'src/cli/serve/web/state/WebSt.ts'
 import { MOD_KEY } from 'src/cli/serve/web/components/modKey.ts'
 import { SHORTCUT_KEYS } from 'src/cli/serve/web/state/shortcuts.ts'
 import { onEscape } from 'src/cli/serve/web/state/escape.ts'
+import { OutputWidgets } from 'src/cli/serve/web/widgets/OutputWidgets.tsx'
 
 /** on an output only the serve process holds: a restart, or the memory budget, loses it */
 function EphemeralPill(p: { out: { url: string | null; absPath: string | null } }): ReactNode {
@@ -520,6 +521,7 @@ export const Gallery = observer(function Gallery(p: { st: WebSt; compact?: boole
                      <Icon name="trash" />
                   </button>
                </div>
+               <OutputWidgets widgets={r.widgets} images={r.images} />
                <div className="imgs">
                   {r.images.map((img, ix) =>
                      img.url != null ? (

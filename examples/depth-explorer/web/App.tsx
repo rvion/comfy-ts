@@ -2,6 +2,8 @@ import { observer } from 'mobx-react-lite'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { GlView, type GlParams } from './gl.ts'
 import { greyDepth, loadImage, paintDepth } from './pixels.ts'
+import { RelightWidgetView } from '../../../src/cli/serve/web/widgets/RelightWidget.tsx'
+import { widget, type RelightRoles } from '../../../src/vars/outputWidgets.ts'
 import type { AppSt, ModelInfo } from './state.ts'
 
 /** grey (optionally stretched) depth canvas per result url, shared by the card, the wipe and the 3D view */
@@ -16,15 +18,16 @@ function grey(url: string, stretch: boolean): Promise<HTMLCanvasElement> {
    return hit
 }
 
-/** a depth result in the picked colormap, or a normal map as is */
+/** a depth result in the picked colormap, a material map in stretched grey, a normal map as is */
 const MapImage = observer(function MapImage(p: { st: AppSt; model: ModelInfo; url: string; className?: string }) {
    const ref = useRef<HTMLCanvasElement>(null)
    const { colormap, autoLevels } = p.st
    useEffect(() => {
-      if (p.model.kind !== 'depth') return
+      if (p.model.kind === 'normal') return
       let live = true
-      void grey(p.url, autoLevels).then((g) => {
-         if (live && ref.current != null) paintDepth(g, colormap, ref.current)
+      const material = p.model.kind === 'material'
+      void grey(p.url, material || autoLevels).then((g) => {
+         if (live && ref.current != null) paintDepth(g, material ? 'gray' : colormap, ref.current)
       })
       return () => {
          live = false
@@ -213,14 +216,14 @@ const Sidebar = observer(function Sidebar(p: { st: AppSt }) {
 
 const Wipe = observer(function Wipe(p: { st: AppSt; model: ModelInfo; url: string }) {
    const { st } = p
-   const [x, setX] = useState(50)
+   const x = st.wipeX
    const against = st.wipeAgainst === 'source' ? null : st.model(st.wipeAgainst)
    const againstUrl = against != null ? st.result(against.id)?.url : null
    const src = st.source
    if (src == null) return null
    const move = (e: React.PointerEvent<HTMLDivElement>): void => {
       const r = e.currentTarget.getBoundingClientRect()
-      setX(Math.min(100, Math.max(0, ((e.clientX - r.left) / r.width) * 100)))
+      st.set('wipeX', Math.min(100, Math.max(0, ((e.clientX - r.left) / r.width) * 100)))
    }
    return (
       <div
@@ -248,25 +251,15 @@ const Wipe = observer(function Wipe(p: { st: AppSt; model: ModelInfo; url: strin
    )
 })
 
-const GlPanel = observer(function GlPanel(p: { st: AppSt; model: ModelInfo; url: string }) {
-   const { st, model } = p
+/** the depth map as a textured 3D relief: drag to orbit, wheel to zoom */
+const ReliefPanel = observer(function ReliefPanel(p: { st: AppSt; url: string }) {
+   const { st } = p
    const ref = useRef<HTMLCanvasElement>(null)
    const view = useRef<GlView | null>(null)
-   const mode: GlParams['mode'] = model.kind === 'depth' ? 'relief' : 'relight'
-   const [params, setParams] = useState<GlParams>({
-      mode,
-      yaw: 0.35,
-      pitch: 0.2,
-      zoom: 1,
-      depthScale: 0.3,
-      shade: 0.6,
-      light: [0.4, 0.4],
-      flipG: false,
-      albedo: true,
-   })
+   const params: GlParams = st.relief
+   const setParams = (v: GlParams): void => st.set('relief', v)
    const [error, setError] = useState<string | null>(null)
    const [ready, setReady] = useState(false)
-   const pr = { ...params, mode }
 
    useEffect(() => {
       const c = ref.current
@@ -279,8 +272,7 @@ const GlPanel = observer(function GlPanel(p: { st: AppSt; model: ModelInfo; url:
          setError(e instanceof Error ? e.message : String(e))
          return
       }
-      const mapP = model.kind === 'depth' ? grey(p.url, st.autoLevels) : loadImage(p.url)
-      void Promise.all([loadImage(src.url), mapP]).then(([s, m]) => {
+      void Promise.all([loadImage(src.url), grey(p.url, st.autoLevels)]).then(([s, m]) => {
          if (!live) return
          view.current?.setImages(s, m, src.width / src.height)
          setReady(true)
@@ -288,26 +280,19 @@ const GlPanel = observer(function GlPanel(p: { st: AppSt; model: ModelInfo; url:
       return () => {
          live = false
       }
-   }, [p.url, st.source, st.autoLevels, model.kind])
+   }, [p.url, st.source, st.autoLevels])
 
    useEffect(() => {
-      if (ready) view.current?.draw(pr)
+      if (ready) view.current?.draw(params)
    })
    useEffect(() => {
-      const onResize = (): void => view.current?.draw(pr)
+      const onResize = (): void => view.current?.draw(params)
       window.addEventListener('resize', onResize)
       return () => window.removeEventListener('resize', onResize)
    })
 
    const drag = useRef<{ x: number; y: number } | null>(null)
    const onMove = (e: React.PointerEvent<HTMLCanvasElement>): void => {
-      if (mode === 'relight') {
-         const r = e.currentTarget.getBoundingClientRect()
-         const lx = ((e.clientX - r.left) / r.width) * 2 - 1
-         const ly = 1 - ((e.clientY - r.top) / r.height) * 2
-         setParams({ ...params, light: [lx * 1.6, ly * 1.6] })
-         return
-      }
       const d = drag.current
       if (d == null) return
       setParams({
@@ -335,53 +320,48 @@ const GlPanel = observer(function GlPanel(p: { st: AppSt; model: ModelInfo; url:
             }
          />
          <div className="glControls">
-            {mode === 'relief' ? (
-               <>
-                  <label>
-                     depth
-                     <input
-                        type="range"
-                        min={0}
-                        max={1}
-                        step={0.01}
-                        value={params.depthScale}
-                        onChange={(e) => setParams({ ...params, depthScale: Number(e.target.value) })}
-                     />
-                  </label>
-                  <label>
-                     shading
-                     <input
-                        type="range"
-                        min={0}
-                        max={1}
-                        step={0.01}
-                        value={params.shade}
-                        onChange={(e) => setParams({ ...params, shade: Number(e.target.value) })}
-                     />
-                  </label>
-                  <span className="dim">drag to orbit · wheel to zoom</span>
-               </>
-            ) : (
-               <>
-                  <label className="check">
-                     <input
-                        type="checkbox"
-                        checked={params.albedo}
-                        onChange={(e) => setParams({ ...params, albedo: e.target.checked })}
-                     />
-                     source colors
-                  </label>
-                  <label className="check">
-                     <input
-                        type="checkbox"
-                        checked={params.flipG}
-                        onChange={(e) => setParams({ ...params, flipG: e.target.checked })}
-                     />
-                     flip green (DirectX)
-                  </label>
-                  <span className="dim">move the pointer to move the light</span>
-               </>
-            )}
+            <label>
+               depth
+               <input
+                  type="range"
+                  min={0}
+                  max={1}
+                  step={0.01}
+                  value={params.depthScale}
+                  onChange={(e) => setParams({ ...params, depthScale: Number(e.target.value) })}
+               />
+            </label>
+            <label>
+               shading
+               <input
+                  type="range"
+                  min={0}
+                  max={1}
+                  step={0.01}
+                  value={params.shade}
+                  onChange={(e) => setParams({ ...params, shade: Number(e.target.value) })}
+               />
+            </label>
+            <span className="dim">drag to orbit · wheel to zoom</span>
+         </div>
+      </div>
+   )
+})
+
+/** the panel's relight widget, fed with the focus and the best finished maps of the grid */
+const RelightPanel = observer(function RelightPanel(p: { st: AppSt }) {
+   const maps = p.st.relightMaps
+   const roles: RelightRoles = { image: 'source' }
+   for (const m of maps) if (m.tag !== 'source') Object.assign(roles, { [m.tag]: m.tag })
+   if (roles.depth == null && roles.normal == null)
+      return <div className="err">run a depth or a normal model first</div>
+   const images = maps.map((m) => ({ filename: m.tag, url: m.url, absPath: null, tags: [m.tag] }))
+   return (
+      <div className="relightWrap">
+         <RelightWidgetView key={maps.map((m) => m.url).join('|')} widget={widget.relight(roles)} images={images} />
+         <div className="dim small">
+            maps: {maps.map((m) => m.tag).join(' · ')}. Run more models in the grid to add a map (albedo, roughness and
+            metalness come from the materials section).
          </div>
       </div>
    )
@@ -409,7 +389,20 @@ const Focus = observer(function Focus(p: { st: AppSt }) {
                </b>
                <Seg
                   value={st.focusView}
-                  options={[['wipe', 'compare'], model.kind === 'depth' ? ['3d', '3D relief'] : ['light', 'relight']]}
+                  options={
+                     model.kind === 'depth'
+                        ? [
+                             ['wipe', 'compare'],
+                             ['3d', '3D relief'],
+                             ['light', 'relight'],
+                          ]
+                        : model.kind === 'normal'
+                          ? [
+                               ['wipe', 'compare'],
+                               ['light', 'relight'],
+                            ]
+                          : [['wipe', 'compare']]
+                  }
                   onChange={(v) => st.set('focusView', v)}
                />
                {st.focusView === 'wipe' && (
@@ -431,8 +424,10 @@ const Focus = observer(function Focus(p: { st: AppSt }) {
             </div>
             {st.focusView === 'wipe' ? (
                <Wipe st={st} model={model} url={r.url} />
+            ) : st.focusView === '3d' ? (
+               <ReliefPanel key={model.id} st={st} url={r.url} />
             ) : (
-               <GlPanel key={model.id} st={st} model={model} url={r.url} />
+               <RelightPanel st={st} />
             )}
          </div>
       </div>
@@ -445,7 +440,7 @@ export const App = observer(function App(p: { st: AppSt }) {
       <div className="app">
          <header>
             <h1>depth explorer</h1>
-            <span className="dim">every depth and normal estimator on {st.host || '…'}, one image</span>
+            <span className="dim">every depth, normal and material estimator on {st.host || '…'}, one image</span>
          </header>
          {st.loadError != null && <div className="err">server: {st.loadError}</div>}
          <div className="body">
@@ -453,6 +448,7 @@ export const App = observer(function App(p: { st: AppSt }) {
             <main>
                <Section st={st} title="depth" models={st.depthModels} />
                <Section st={st} title="normals" models={st.normalModels} />
+               <Section st={st} title="materials" models={st.materialModels} />
             </main>
          </div>
          <Focus st={st} />

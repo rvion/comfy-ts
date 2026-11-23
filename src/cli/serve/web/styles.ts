@@ -1,3 +1,5 @@
+import { WIDGET_STYLES } from 'src/cli/serve/web/widgets/widgetStyles.ts'
+
 // the ONE stylesheet, injected by main.tsx — no css framework on purpose
 // (agent/coding.md: prefer obvious code over a new dependency)
 export const STYLES = /* css */ `
@@ -1233,4 +1235,5 @@ button .icon + * { margin-left: 4px; }
    .enh-grid { grid-template-columns: minmax(0, 1fr); }
    .enh-grid > label { text-align: left; }
 }
+${WIDGET_STYLES}
 `

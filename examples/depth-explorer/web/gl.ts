@@ -1,7 +1,6 @@
-// raw WebGL2, two views of one map:
-//    relief  : a 256² grid displaced by the depth map, textured with the source, drag to orbit
-//    relight : the source lit through the normal map, the light follows the pointer
-// no 3D library: one mesh, two programs, a few matrix helpers.
+// raw WebGL2 relief: a 256² grid displaced by the depth map, textured with the source, drag to
+// orbit. No 3D library: one mesh, one program, a few matrix helpers. Relighting is the panel's
+// relight widget (src/cli/serve/web/widgets/), shared with the explorer.
 
 const RELIEF_VS = `#version 300 es
 in vec2 a_uv;
@@ -30,35 +29,6 @@ void main() {
    float lam = clamp(dot(n, normalize(vec3(-0.4, 0.5, 0.8))), 0.0, 1.0);
    vec3 c = texture(u_src, v_uv).rgb;
    o = vec4(mix(c, c * (0.35 + 0.8 * lam), u_shade), 1.0);
-}`
-
-const QUAD_VS = `#version 300 es
-in vec2 a_uv;
-uniform vec2 u_fit;
-out vec2 v_uv;
-void main() {
-   v_uv = a_uv;
-   gl_Position = vec4((a_uv.x * 2.0 - 1.0) * u_fit.x, (1.0 - a_uv.y * 2.0) * u_fit.y, 0.0, 1.0);
-}`
-
-const RELIGHT_FS = `#version 300 es
-precision highp float;
-in vec2 v_uv;
-uniform sampler2D u_src;
-uniform sampler2D u_normal;
-uniform vec2 u_light;
-uniform float u_flipG;
-uniform float u_albedo;
-out vec4 o;
-void main() {
-   vec3 n = texture(u_normal, v_uv).rgb * 2.0 - 1.0;
-   n.y *= u_flipG;
-   n = normalize(n);
-   vec3 L = normalize(vec3(u_light, 0.55));
-   float lam = max(dot(n, L), 0.0);
-   float spec = pow(max(dot(reflect(-L, n), vec3(0.0, 0.0, 1.0)), 0.0), 24.0);
-   vec3 base = mix(vec3(0.78), texture(u_src, v_uv).rgb, u_albedo);
-   o = vec4(base * (0.12 + 1.05 * lam) + 0.25 * spec, 1.0);
 }`
 
 type Mat4 = Float32Array
@@ -114,23 +84,17 @@ function compile(gl: WebGL2RenderingContext, vs: string, fs: string): WebGLProgr
 const GRID = 256
 
 export type GlParams = {
-   mode: 'relief' | 'relight'
    yaw: number
    pitch: number
    zoom: number
    depthScale: number
    shade: number
-   light: [number, number]
-   flipG: boolean
-   albedo: boolean
 }
 
 export class GlView {
    private gl: WebGL2RenderingContext
    private relief: WebGLProgram
-   private relight: WebGLProgram
    private gridVao: WebGLVertexArrayObject
-   private quadVao: WebGLVertexArrayObject
    private gridCount: number
    private texSrc: WebGLTexture
    private texMap: WebGLTexture
@@ -141,7 +105,6 @@ export class GlView {
       if (gl == null) throw new Error('WebGL2 is not available in this browser')
       this.gl = gl
       this.relief = compile(gl, RELIEF_VS, RELIEF_FS)
-      this.relight = compile(gl, QUAD_VS, RELIGHT_FS)
 
       const uv = new Float32Array((GRID + 1) * (GRID + 1) * 2)
       for (let y = 0; y <= GRID; y++)
@@ -162,7 +125,6 @@ export class GlView {
          }
       this.gridCount = idx.length
       this.gridVao = this.vao(uv, idx)
-      this.quadVao = this.vao(new Float32Array([0, 0, 1, 0, 0, 1, 1, 1]), new Uint32Array([0, 2, 1, 1, 2, 3]))
       this.texSrc = this.tex()
       this.texMap = this.tex()
    }
@@ -223,33 +185,18 @@ export class GlView {
       gl.bindTexture(gl.TEXTURE_2D, this.texMap)
       const view = w / Math.max(1, h)
 
-      if (p.mode === 'relief') {
-         gl.enable(gl.DEPTH_TEST)
-         gl.useProgram(this.relief)
-         const fit = Math.max(this.aspect, 1)
-         const model = mul(rotX(p.pitch), mul(rotY(p.yaw), translate(0, 0, -p.depthScale / 2)))
-         const mvp = mul(perspective(0.7, view, 0.05, 20), mul(translate(0, 0, -1.9 * fit * p.zoom), model))
-         gl.uniformMatrix4fv(gl.getUniformLocation(this.relief, 'u_mvp'), false, mvp)
-         gl.uniform1f(gl.getUniformLocation(this.relief, 'u_scale'), p.depthScale)
-         gl.uniform1f(gl.getUniformLocation(this.relief, 'u_aspect'), this.aspect)
-         gl.uniform1f(gl.getUniformLocation(this.relief, 'u_shade'), p.shade)
-         gl.uniform1i(gl.getUniformLocation(this.relief, 'u_src'), 0)
-         gl.uniform1i(gl.getUniformLocation(this.relief, 'u_depth'), 1)
-         gl.bindVertexArray(this.gridVao)
-         gl.drawElements(gl.TRIANGLES, this.gridCount, gl.UNSIGNED_INT, 0)
-         return
-      }
-      gl.disable(gl.DEPTH_TEST)
-      gl.useProgram(this.relight)
-      const fx = this.aspect > view ? 1 : this.aspect / view
-      const fy = this.aspect > view ? view / this.aspect : 1
-      gl.uniform2f(gl.getUniformLocation(this.relight, 'u_fit'), fx, fy)
-      gl.uniform2f(gl.getUniformLocation(this.relight, 'u_light'), p.light[0], p.light[1])
-      gl.uniform1f(gl.getUniformLocation(this.relight, 'u_flipG'), p.flipG ? -1 : 1)
-      gl.uniform1f(gl.getUniformLocation(this.relight, 'u_albedo'), p.albedo ? 1 : 0)
-      gl.uniform1i(gl.getUniformLocation(this.relight, 'u_src'), 0)
-      gl.uniform1i(gl.getUniformLocation(this.relight, 'u_normal'), 1)
-      gl.bindVertexArray(this.quadVao)
-      gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_INT, 0)
+      gl.enable(gl.DEPTH_TEST)
+      gl.useProgram(this.relief)
+      const fit = Math.max(this.aspect, 1)
+      const model = mul(rotX(p.pitch), mul(rotY(p.yaw), translate(0, 0, -p.depthScale / 2)))
+      const mvp = mul(perspective(0.7, view, 0.05, 20), mul(translate(0, 0, -1.9 * fit * p.zoom), model))
+      gl.uniformMatrix4fv(gl.getUniformLocation(this.relief, 'u_mvp'), false, mvp)
+      gl.uniform1f(gl.getUniformLocation(this.relief, 'u_scale'), p.depthScale)
+      gl.uniform1f(gl.getUniformLocation(this.relief, 'u_aspect'), this.aspect)
+      gl.uniform1f(gl.getUniformLocation(this.relief, 'u_shade'), p.shade)
+      gl.uniform1i(gl.getUniformLocation(this.relief, 'u_src'), 0)
+      gl.uniform1i(gl.getUniformLocation(this.relief, 'u_depth'), 1)
+      gl.bindVertexArray(this.gridVao)
+      gl.drawElements(gl.TRIANGLES, this.gridCount, gl.UNSIGNED_INT, 0)
    }
 }

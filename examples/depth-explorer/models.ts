@@ -1,4 +1,4 @@
-// the catalog: every depth / normal estimator the explorer knows, one ComfyUI graph each.
+// the catalog: every depth / normal / material estimator the explorer knows, one ComfyUI graph each.
 // an entry runs only when the host has its nodes AND its weight files (checked live, see `availability`).
 // depth outputs follow one convention so the grid compares like with like: near = white.
 import type { BaseNode, BaseNodeFactory, ComfyWorkflow } from 'comfy-ts'
@@ -8,7 +8,7 @@ type W = ComfyWorkflow<HostId>
 type B = W['builder']
 type Img = Comfy.Windows1.Accepts['IMAGE']
 
-export type ModelKind = 'depth' | 'normal'
+export type ModelKind = 'depth' | 'normal' | 'material'
 
 /** a weight file the graph names, and where to get it when the host lacks it */
 export type WeightFile = { node: string; input: string; file: string; folder: string; url: string }
@@ -67,7 +67,9 @@ const LOTUS_FILES: WeightFile[] = [
    },
 ]
 const MARIGOLD_BASE = 'https://huggingface.co/Comfy-Org/marigold-v2-0/resolve/main'
-const marigoldFiles = (task: 'depth_log_stage2' | 'normals'): WeightFile[] => [
+type MarigoldTask = 'depth_log_stage2' | 'normals' | 'albedo'
+const condOf = (task: MarigoldTask): string => (task === 'depth_log_stage2' ? 'depth' : task)
+const marigoldFiles = (task: MarigoldTask): WeightFile[] => [
    {
       node: 'UNETLoader',
       input: 'unet_name',
@@ -91,10 +93,10 @@ const marigoldFiles = (task: 'depth_log_stage2' | 'normals'): WeightFile[] => [
    },
    {
       node: 'ConditioningLoader',
-      input: 'conditioning',
-      file: `marigold_v2_${task === 'normals' ? 'normals' : 'depth'}_conditioning.safetensors`,
+      input: 'conditioning_name',
+      file: `marigold_v2_${condOf(task)}_conditioning.safetensors`,
       folder: 'embeddings',
-      url: `${MARIGOLD_BASE}/embeddings/marigold_v2_${task === 'normals' ? 'normals' : 'depth'}_conditioning.safetensors`,
+      url: `${MARIGOLD_BASE}/embeddings/marigold_v2_${condOf(task)}_conditioning.safetensors`,
    },
 ]
 
@@ -138,7 +140,7 @@ function base(wf: W, name: string): BaseNodeFactory {
 
 /** the Marigold v2 blueprint (Comfy-Org): one flow step on a qwen image edit base + a task lora.
  * built on the BASE builder: its weight names are not in the host sdk until they are downloaded */
-const marigold = (wf: W, image: Img, task: 'depth_log_stage2' | 'normals'): BaseNode => {
+const marigold = (wf: W, image: Img, task: MarigoldTask): BaseNode => {
    const [unet, lora, vaeFile, cond] = marigoldFiles(task)
    if (unet == null || lora == null || vaeFile == null || cond == null) throw new Error('marigold files table broken')
    const vae = base(wf, 'VAELoader')({ vae_name: vaeFile.file })
@@ -164,7 +166,7 @@ const marigold = (wf: W, image: Img, task: 'depth_log_stage2' | 'normals'): Base
       guider: base(
          wf,
          'BasicGuider',
-      )({ model, conditioning: base(wf, 'ConditioningLoader')({ conditioning: cond.file }) }),
+      )({ model, conditioning: base(wf, 'ConditioningLoader')({ conditioning_name: cond.file }) }),
       sampler: base(wf, 'KSamplerSelect')({ sampler_name: 'euler' }),
       sigmas: base(wf, 'ManualSigmas')({ sigmas: '0.5, 0' }),
       latent_image: base(wf, 'VAEEncode')({ pixels: image, vae }),
@@ -176,9 +178,28 @@ const marigold = (wf: W, image: Img, task: 'depth_log_stage2' | 'normals'): Base
       'MarigoldV2PostProcess',
    )({
       image: base(wf, 'VAEDecode')({ samples, vae }),
-      prediction: task === 'normals' ? 'normals' : 'depth',
+      prediction: task === 'depth_log_stage2' ? 'depth' : task,
    })
 }
+
+/** Marigold IID through kijai/ComfyUI-Marigold (diffusers pipeline, weights in models/diffusers).
+ * appearance → [albedo, material (R roughness, G metalness)]; lighting → [albedo, diffuse shading,
+ * non diffuse residual]. One run per (image, settings): every map entry reuses it from the cache */
+const IID_NODES = ['MarigoldModelLoader', 'MarigoldDepthEstimation_v2']
+const iid = (b: B, image: Img, detail: number, which: 'appearance' | 'lighting'): Img =>
+   b['Marigold.MarigoldDepthEstimation_v2']({
+      marigold_model: b['Marigold.MarigoldModelLoader']({ model: `prs-eth/marigold-iid-${which}-v1-1` }),
+      image,
+      seed: 1,
+      denoise_steps: 4,
+      ensemble_size: 1,
+      processing_resolution: Math.round(detail / 8) * 8,
+      scheduler: 'DDIMScheduler',
+      use_taesd_vae: false,
+   })
+const batchItem = (b: B, batch: Img, ix: number): Img => b.ImageFromBatch({ image: batch, batch_index: ix, length: 1 })
+const channel = (b: B, image: Img, c: 'red' | 'green'): Img =>
+   b.MaskToImage({ mask: b.ImageToMask({ image, channel: c }) })
 
 export const MODELS: ModelEntry[] = [
    // ── depth, modern ──────────────────────────────────────────────
@@ -273,24 +294,6 @@ export const MODELS: ModelEntry[] = [
          b['controlnet_aux.DepthAnythingV2Preprocessor']({
             image,
             ckpt_name: 'depth_anything_v2_vitl.pth',
-            resolution: p.detail,
-         }),
-   },
-   {
-      id: 'dav2-vitg',
-      label: 'Depth Anything V2',
-      family: 'ViT-G',
-      year: 2024,
-      kind: 'depth',
-      tier: 'modern',
-      blurb: 'the giant V2 checkpoint, slowest of the family',
-      nodes: auxNodes('DepthAnythingV2Preprocessor'),
-      files: [],
-      autoDownload: true,
-      build: (b, image, p) =>
-         b['controlnet_aux.DepthAnythingV2Preprocessor']({
-            image,
-            ckpt_name: 'depth_anything_v2_vitg.pth',
             resolution: p.detail,
          }),
    },
@@ -491,6 +494,71 @@ export const MODELS: ModelEntry[] = [
             resolution: p.detail,
          }),
    },
+   // ── materials ──────────────────────────────────────────────────
+   {
+      id: 'marigold2-albedo',
+      label: 'Marigold v2',
+      family: 'albedo',
+      year: 2026,
+      kind: 'material',
+      tier: 'modern',
+      blurb: 'the colour without its lighting, on the Qwen Image Edit base',
+      nodes: ['UNETLoader', 'LoraLoaderModelOnly', 'ConditioningLoader', 'MarigoldV2PostProcess'],
+      files: marigoldFiles('albedo'),
+      build: (_b, image, p) => marigold(p.wf, image, 'albedo'),
+   },
+   {
+      id: 'iid-albedo',
+      label: 'Marigold IID',
+      family: 'appearance albedo',
+      year: 2025,
+      kind: 'material',
+      tier: 'modern',
+      blurb: 'intrinsic decomposition: the colour of the surface, lighting removed',
+      nodes: IID_NODES,
+      files: [],
+      autoDownload: true,
+      build: (b, image, p) => batchItem(b, iid(b, image, p.detail, 'appearance'), 0),
+   },
+   {
+      id: 'iid-roughness',
+      label: 'Marigold IID',
+      family: 'roughness',
+      year: 2025,
+      kind: 'material',
+      tier: 'modern',
+      blurb: 'white = rough (fur, stone), black = glossy',
+      nodes: IID_NODES,
+      files: [],
+      autoDownload: true,
+      build: (b, image, p) => channel(b, batchItem(b, iid(b, image, p.detail, 'appearance'), 1), 'red'),
+   },
+   {
+      id: 'iid-metalness',
+      label: 'Marigold IID',
+      family: 'metalness',
+      year: 2025,
+      kind: 'material',
+      tier: 'modern',
+      blurb: 'white = metal',
+      nodes: IID_NODES,
+      files: [],
+      autoDownload: true,
+      build: (b, image, p) => channel(b, batchItem(b, iid(b, image, p.detail, 'appearance'), 1), 'green'),
+   },
+   {
+      id: 'iid-specular',
+      label: 'Marigold IID',
+      family: 'lighting residual',
+      year: 2025,
+      kind: 'material',
+      tier: 'modern',
+      blurb: 'the light that is not diffuse: reflections and highlights',
+      nodes: IID_NODES,
+      files: [],
+      autoDownload: true,
+      build: (b, image, p) => batchItem(b, iid(b, image, p.detail, 'lighting'), 2),
+   },
 ]
 
 /** raw object_info, as the host schema keeps it */
@@ -503,7 +571,8 @@ function comboOptions(info: ObjectInfo, node: string, input: string): string[] {
    if (!Array.isArray(slot)) return []
    const head: unknown = slot[0]
    if (Array.isArray(head)) return head.filter((x): x is string => typeof x === 'string')
-   const opts: unknown = (slot[1] as { options?: unknown } | undefined)?.options
+   const meta: unknown = slot[1]
+   const opts: unknown = typeof meta === 'object' && meta != null && 'options' in meta ? meta.options : null
    return Array.isArray(opts) ? opts.filter((x): x is string => typeof x === 'string') : []
 }
 

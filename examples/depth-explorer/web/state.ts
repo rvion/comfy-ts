@@ -8,7 +8,7 @@ export type ModelInfo = {
    label: string
    family: string
    year: number
-   kind: 'depth' | 'normal'
+   kind: 'depth' | 'normal' | 'material'
    tier: 'modern' | 'classic'
    blurb: string
    autoDownload: boolean
@@ -46,6 +46,10 @@ export class AppSt {
    focusView: FocusView = 'wipe'
    /** the left side of the wipe: 'source' or a model id */
    wipeAgainst = 'source'
+   /** the wipe handle, 0..100 % of the width */
+   wipeX = 50
+   /** the 3D relief camera and surface */
+   relief = { yaw: 0.35, pitch: 0.2, zoom: 1, depthScale: 0.3, shade: 0.6 }
    results = new Map<string, ResultSt>()
    private queue: { key: string; model: string; image: string; detail: number }[] = []
    private draining = false
@@ -78,14 +82,63 @@ export class AppSt {
          else if (run != null) for (const id of run.split(',')) if (this.model(id)?.ok === true) this.enqueue(id)
          const focus = q.get('focus')
          const view = q.get('view')
+         await this.settled()
          if (focus != null) {
-            await this.settled()
             this.openFocus(focus)
             if (view === 'wipe' || view === '3d' || view === 'light') this.set('focusView', view)
          }
       } catch (e) {
          runInAction(() => (this.loadError = e instanceof Error ? e.message : String(e)))
       }
+      // the shot service waits for this mark (sk shot): every queued run has ended
+      document.querySelector('meta[name="shot-ready"]')?.setAttribute('content', 'ready')
+   }
+
+   /** the scripted tour a demo video steps through (`sk shot --step tour`), over finished results:
+    * the grid, a wipe against the source then against another model, the 3D relief, a material
+    * map, then the relight widget's own tour */
+   async tour(t: number): Promise<void> {
+      const main = document.querySelector('main')
+      const wave = (a: number, b: number): number => Math.min(1, Math.max(0, (t - a) / (b - a)))
+      if (t < 3) {
+         this.closeFocus()
+         if (main != null) main.scrollTop = wave(0.5, 3) * (main.scrollHeight - main.clientHeight)
+         return
+      }
+      if (t < 10) {
+         this.openFocus(this.firstDoneId('depth') ?? 'da3-mono-large')
+         this.set('focusView', 'wipe')
+         this.set('wipeAgainst', t < 6.5 ? 'source' : (this.firstDoneId('depth', 1) ?? 'source'))
+         const k = t < 6.5 ? wave(3, 6.5) : wave(6.5, 10)
+         this.set('wipeX', 50 + 42 * Math.sin(k * Math.PI * 2))
+         return
+      }
+      if (t < 14) {
+         this.openFocus(this.firstDoneId('depth') ?? 'da3-mono-large')
+         this.set('focusView', '3d')
+         this.set('relief', { ...this.relief, yaw: -0.7 + 1.4 * wave(10, 14), pitch: 0.25 })
+         return
+      }
+      if (t < 16.5) {
+         this.openFocus('iid-albedo')
+         this.set('focusView', 'wipe')
+         this.set('wipeAgainst', 'source')
+         this.set('wipeX', 85 - 70 * wave(14, 16.5))
+         return
+      }
+      this.openFocus(this.firstDoneId('normal') ?? 'moge2-normal')
+      this.set('focusView', 'light')
+      await new Promise((ok) => setTimeout(ok, 0))
+      const f: unknown = Reflect.get(window, 'relightTour')
+      if (typeof f === 'function') f(t - 16.5)
+   }
+
+   /** the id of the `nth` finished modern result of a kind, in catalog order */
+   firstDoneId(kind: ModelInfo['kind'], nth = 0): string | null {
+      const done = this.models.filter(
+         (m) => m.kind === kind && m.tier === 'modern' && this.result(m.id)?.status === 'done',
+      )
+      return done[nth]?.id ?? null
    }
 
    get visibleModels(): ModelInfo[] {
@@ -96,6 +149,41 @@ export class AppSt {
    }
    get normalModels(): ModelInfo[] {
       return this.visibleModels.filter((m) => m.kind === 'normal')
+   }
+   get materialModels(): ModelInfo[] {
+      return this.visibleModels.filter((m) => m.kind === 'material')
+   }
+
+   /** the url of the first finished result among `ids`, in that order of preference */
+   firstDone(ids: string[]): string | null {
+      for (const id of ids) {
+         const url = this.result(id)?.url
+         if (this.result(id)?.status === 'done' && url != null) return url
+      }
+      return null
+   }
+
+   /** every map the relight view can use for the focused model: the focus itself, the best
+    * finished depth and normal of the grid, and the finished material maps */
+   get relightMaps(): { tag: string; url: string }[] {
+      const focus = this.focus != null ? this.model(this.focus) : undefined
+      const src = this.source
+      if (focus == null || src == null) return []
+      const byKind = (kind: ModelInfo['kind']): string[] => [
+         ...(focus.kind === kind ? [focus.id] : []),
+         ...this.models.filter((m) => m.kind === kind && m.tier === 'modern').map((m) => m.id),
+      ]
+      const out: { tag: string; url: string }[] = [{ tag: 'source', url: src.url }]
+      const add = (tag: string, url: string | null): void => {
+         if (url != null) out.push({ tag, url })
+      }
+      add('depth', this.firstDone(byKind('depth')))
+      add('normal', this.firstDone(byKind('normal')))
+      add('albedo', this.firstDone(['iid-albedo', 'marigold2-albedo']))
+      add('roughness', this.firstDone(['iid-roughness']))
+      add('metalness', this.firstDone(['iid-metalness']))
+      add('specular', this.firstDone(['iid-specular']))
+      return out
    }
    get runnable(): ModelInfo[] {
       return this.visibleModels.filter((m) => m.ok)
@@ -209,13 +297,21 @@ export class AppSt {
       const m = this.model(model)
       this.focus = model
       if (m?.kind === 'normal' && this.focusView === '3d') this.focusView = 'light'
-      if (m?.kind === 'depth' && this.focusView === 'light') this.focusView = '3d'
+      if (m?.kind === 'material') this.focusView = 'wipe'
    }
 
-   set<K extends 'detail' | 'showClassic' | 'showMissing' | 'colormap' | 'autoLevels' | 'focusView' | 'wipeAgainst'>(
-      k: K,
-      v: this[K],
-   ): void {
+   set<
+      K extends
+         | 'detail'
+         | 'showClassic'
+         | 'showMissing'
+         | 'colormap'
+         | 'autoLevels'
+         | 'focusView'
+         | 'wipeAgainst'
+         | 'wipeX'
+         | 'relief',
+   >(k: K, v: this[K]): void {
       this[k] = v
    }
 

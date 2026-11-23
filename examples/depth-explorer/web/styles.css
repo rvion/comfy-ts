@@ -7,7 +7,21 @@
    --dim: #8a929c;
    --accent: #6aa8ff;
    --err: #ff7a7a;
+   /* the panel's tokens, which the shared widget rules read */
+   --panel-2: var(--card);
+   --border: var(--line);
+   --hairline: var(--line);
+   --sel-bg: #2c3542;
+   --sel-border: var(--accent);
+   --sel-text: #c3d3fb;
+   --amber: #e0af68;
    color-scheme: dark;
+}
+.relightWrap {
+   padding: 10px;
+   display: flex;
+   flex-direction: column;
+   gap: 8px;
 }
 * {
    box-sizing: border-box;

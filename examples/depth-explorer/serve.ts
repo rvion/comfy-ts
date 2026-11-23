@@ -1,11 +1,11 @@
 // depth explorer: drop any image, run every depth / normal estimator the host has, compare them
 // side by side, as a 3D relief or relit by the normals.
-//    bun examples/depth-explorer/serve.ts   →  http://127.0.0.1:8292
+//    bun examples/depth-explorer/serve.ts [--samples <dir>]   →  http://127.0.0.1:8292
 // one ComfyUI prompt per model, so each card fills as its model finishes and one failure stays one card.
 import { createHash } from 'node:crypto'
 import { readdirSync } from 'node:fs'
 import { ComfyTS, exampleImagePath, MediaImage } from 'comfy-ts'
-import { basename, dirname } from 'pathe'
+import { basename, dirname, resolve } from 'pathe'
 import { availability, MODELS, type HostId } from './models.ts'
 import page from './web/index.html'
 
@@ -14,13 +14,22 @@ const PORT = Number(process.env.PORT ?? 8292)
 
 const comfy = ComfyTS.create()
 const host = comfy.host({ id: HOST_ID })
-await host.connect()
+// a live schema: availability reads the loaders' file lists, and a weight downloaded since the
+// cache was written must show up as runnable
+await host.connect({ schema: 'refresh' })
 
 /** uploaded source images, by content hash (the page sends each one once) */
 const images = new Map<string, Uint8Array>()
 
-const samplesDir = dirname(exampleImagePath('dog_512x512.jpg'))
-const samples = readdirSync(samplesDir).filter((f) => /\.(jpe?g|png|webp)$/i.test(f))
+/** the bundled example images, plus every `--samples <dir>` given: name → file */
+const samplePaths = new Map<string, string>()
+const sampleDirs = [dirname(exampleImagePath('dog_512x512.jpg'))]
+for (let i = 2; i < process.argv.length; i++)
+   if (process.argv[i] === '--samples' && process.argv[i + 1] != null)
+      sampleDirs.push(resolve(String(process.argv[++i])))
+for (const dir of sampleDirs)
+   for (const f of readdirSync(dir)) if (/\.(jpe?g|png|webp)$/i.test(f)) samplePaths.set(f, `${dir}/${f}`)
+const samples = [...samplePaths.keys()]
 
 const json = (data: unknown, status = 200): Response => Response.json(data, { status })
 
@@ -72,9 +81,12 @@ async function run(body: RunBody): Promise<Response> {
    const ms = Math.round(performance.now() - started)
    const first = execution.images[0]
    if (execution.status !== 'Success' || first == null) {
+      // ComfyUI's own reason (a missing weight, an oom) sits in the error message's data
       const err = execution.data.error
       const message =
-         err != null && 'exception_message' in err ? err.exception_message : `run ended ${execution.status}, no image`
+         err != null && 'exception_message' in err.data
+            ? `${err.data.node_type ?? 'a node'}: ${err.data.exception_message}`
+            : `run ended ${execution.status}, no image`
       console.error(`🔴 ${model.id}: ${message}`)
       return json({ error: message, ms }, 500)
    }
@@ -94,9 +106,9 @@ const server = Bun.serve({
       '/api/models': () => json(modelsPayload()),
       '/api/samples': () => json(samples),
       '/api/samples/:name': (req) => {
-         const name = basename(req.params.name)
-         if (!samples.includes(name)) return json({ error: 'no such sample' }, 404)
-         return new Response(Bun.file(`${samplesDir}/${name}`))
+         const path = samplePaths.get(basename(req.params.name))
+         if (path == null) return json({ error: 'no such sample' }, 404)
+         return new Response(Bun.file(path))
       },
       '/api/image': {
          POST: async (req) => {

@@ -28,7 +28,9 @@ export const widget = {
    /** a point light moved over the image in 3D: left/right, up/down, nearer/farther */
    relight(roles: RelightRoles, opts: { title?: string } = {}): RelightWidget {
       if (roles.depth == null && roles.normal == null)
-         throw new Error('widget.relight needs a `depth` or a `normal` role: without either there is no surface to light')
+         throw new Error(
+            'widget.relight needs a `depth` or a `normal` role: without either there is no surface to light',
+         )
       return { kind: 'relight', roles, ...(opts.title != null ? { title: opts.title } : {}) }
    },
 }

@@ -10,7 +10,10 @@ import { resolveWidgetRoles, widget } from 'src/vars/outputWidgets.ts'
 
 describe('widget.relight: roles name output tags', () => {
    it('keeps the roles it is given', () => {
-      expect(widget.relight({ image: 'src', depth: 'd' })).toEqual({ kind: 'relight', roles: { image: 'src', depth: 'd' } })
+      expect(widget.relight({ image: 'src', depth: 'd' })).toEqual({
+         kind: 'relight',
+         roles: { image: 'src', depth: 'd' },
+      })
    })
    it('refuses a relight with neither depth nor normal: there is no surface to light', () => {
       expect(() => widget.relight({ image: 'src' })).toThrow(/depth.*normal/)
@@ -43,7 +46,12 @@ describe('serve: tags and widgets reach the run reply and the kept results', () 
    it('carries each image tag and the module widgets, also after a reload', async () => {
       const host = comfy.host({ id: 'widget-host', host: '127.0.0.1', port: 65502 })
       const relight = widget.relight({ image: 'source', depth: 'depth' })
-      const dw = host.defineWorkflow({ id: 'wf', vars: { prompt: v.prompt('hi') }, build: () => {}, widgets: [relight] })
+      const dw = host.defineWorkflow({
+         id: 'wf',
+         vars: { prompt: v.prompt('hi') },
+         build: () => {},
+         widgets: [relight],
+      })
       const mod: ServeModule = { key: 'wf', file: '/fake/wf.cflow.ts', dw }
       const images: ServeExecution['images'] = [
          { absPath: null, filename: 'a.png', buffer: new Uint8Array(4), tags: ['source'] },
@@ -54,10 +62,14 @@ describe('serve: tags and widgets reach the run reply and the kept results', () 
          starter: () => Promise.resolve({ done: Promise.resolve(null), status: 'Success', images, data: { id: 'p1' } }),
       })
       await app.handle({ method: 'PUT', url: '/settings', body: '{"saveToDisk":false}' })
-      const reply = JSON.parse(String((await app.handle({ method: 'POST', url: '/generate/wf/default', body: '{}' })).body)) as RunRecord
+      const reply = JSON.parse(
+         String((await app.handle({ method: 'POST', url: '/generate/wf/default', body: '{}' })).body),
+      ) as RunRecord
       expect(reply.images.map((i) => i.tags)).toEqual([['source'], ['depth'], undefined])
       expect(reply.widgets).toEqual([relight])
-      const kept = JSON.parse(String((await app.handle({ method: 'GET', url: '/results' })).body)) as { runs: RunRecord[] }
+      const kept = JSON.parse(String((await app.handle({ method: 'GET', url: '/results' })).body)) as {
+         runs: RunRecord[]
+      }
       expect(kept.runs[0]?.widgets).toEqual([relight])
       expect(kept.runs[0]?.images[1]?.tags).toEqual(['depth'])
    })

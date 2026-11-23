@@ -24,6 +24,8 @@ examples/
       14-video-soundtrack.cflow.ts    core nodes only on windows-1: `v.video` frames (GetVideoComponents) + `v.audio` soundtrack muxed by CreateVideo at a picked fps, SaveVideo; the media-var showcase (both default to `examples/media/`, the result lands in `execution.videos`)
       16-tts-voice-design.cflow.ts    a new voice from a written description on windows-1: Qwen3TTSEngineNode on its `Voice Design - 1.7B VoiceDesign` checkpoint into UnifiedVoiceDesignerNode (description + one sample line), PreviewAudio → `execution.audios`, and the line itself through PreviewAny → `execution.texts`, which `comfy-ts run` writes beside the clip as its transcript: the pair 15 takes as `voice` + `transcript`
       15-tts-voice-clone.cflow.ts     text to speech in a cloned voice on windows-1 through the TTS-Audio-Suite custom node pack: an engine choice (chatterbox, qwen3, fishs2, cosyvoice3, omnivoice), a language, `v.audio` voice clip + its transcript (CharacterVoicesNode) into UnifiedTTSTextNode, PreviewAudio → `execution.audios`; bundled synthetic voice `media/voice_en_6s.flac`
+      17-relight.cflow.ts             the OUTPUT WIDGET showcase on windows-1: a depth choice and a normal choice over the depth explorer catalog (`../depth-explorer/models.ts`, the runnable ones only), Marigold IID material maps behind two toggles; every map saved with a `tag`, and `widgets: [widget.relight(...)]` maps the tags to roles, so the serve panel draws the relight widget over the run
+   depth-explorer/                 a mini web app, not a module (section below)
    comfy-cloud/
       sdk.d.ts                   committed cloud catalog (gen:sdk:cloud)
       cloudHost.ts               shared host helper — NOT .cflow, invisible to the TUI
@@ -46,11 +48,15 @@ The TUI tree renders this layout as a real hierarchy (directory rows, one color 
 
 A Bun server (`serve.ts`, port 8292, `bun run depth`) plus a React + MobX page (`web/`, own dom tsconfig like `examples/web`, chained in `typecheck:full`). It is NOT a `.cflow.ts` module: it compares many graphs on one input, which the panel's one-module view cannot.
 
-- `models.ts` is the catalog: one entry per estimator (kind depth or normal, tier modern or classic, the nodes and weight files it needs), each a `build(b, image, p)` that returns the output image; the server adds `SaveImageWebsocket`. Availability is read from the live host schema: a missing node or a weight file absent from its loader's combo makes the card show the files and their urls instead of a run button.
+- `models.ts` is the catalog: one entry per estimator (kind depth, normal or material, tier modern or classic, the nodes and weight files it needs), each a `build(b, image, p)` that returns the output image; the server adds `SaveImageWebsocket`. Availability is read from the LIVE host schema at server start (`connect({ schema: 'refresh' })`): a missing node or a weight file absent from its loader's combo makes the card show the files and their urls instead of a run button. Module 17 shares the catalog.
+- Materials: Marigold v2 albedo (core nodes), and Marigold IID through kijai/ComfyUI-Marigold (diffusers pipeline, weights under `models/diffusers/`): appearance gives albedo + a material image (R roughness, G metalness, split with ImageToMask), lighting gives albedo, diffuse shading and the non diffuse residual (the `specular` map). Each map is its own entry; ComfyUI's cache runs the decomposition once per image.
+- The relight view IS the serve panel's relight widget (`src/cli/serve/web/widgets/`), fed with the focus and the best finished maps of the grid; `gl.ts` keeps only the 3D relief. One relight implementation.
+- Depth Anything V2 ViT-G is not in the catalog: its weights were never published (the controlnet_aux url answers 401).
 - One prompt per model, run one at a time by the page: each card fills as its model ends, a failure stays one card, and ComfyUI's cache reuses the shared upload and loaders.
 - Depth convention: near = white for every entry. DA3 renders LINEAR depth, so its graph squares the float tensor twice (`ImageBlend` multiply) before the 8 bit save to get a disparity-like curve comparable to the others.
 - Marigold v2 builds on the BASE builder: its weights are not in the host sdk until downloaded, and the typed builder cannot name them.
-- Deep link for headless checks and bookmarks: `?image=<sample>&run=all|<id,id>&focus=<id>&view=wipe|3d|light`.
+- Deep link for headless checks and bookmarks: `?image=<sample>&run=all|<id,id>&focus=<id>&view=wipe|3d|light`. `--samples <dir>` (repeatable) adds a folder of images to the bundled ones.
+- Demo video: the page sets `<meta name="shot-ready">` to `ready` once every queued run ended, and `window.tour(t)` draws the scripted tour at time t (grid, wipes, relief, a material, then the relight widget's own `relightTour`): `sk shot '<url>?image=…&run=all' --video 30 --dom --step tour`.
 
 ## The shared cloud host helper
 
