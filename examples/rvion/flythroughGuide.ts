@@ -1,6 +1,6 @@
 // the guide of 19-flythrough drawn on this machine: the picture's MoGe mesh (a glb) rasterized from
-// every camera of the path, a colour frame, a depth frame (near = bright, as ComfyUI's RenderMesh) and
-// its coverage. A z-buffered triangle rasterizer, perspective correct, in plain TypeScript: about a
+// every camera of the path, a colour frame, a depth frame (inverse depth, near = bright, spread between
+// its 2nd and 98th percentile, as a monocular depth model draws one) and its coverage. A z-buffered triangle rasterizer, perspective correct, in plain TypeScript: about a
 // tenth of a second a frame where the box's ray tracer takes seconds
 import { levelPoint, type PathCamera } from './flythroughPath.ts'
 
@@ -116,8 +116,10 @@ export function levelMesh(mesh: GuideMesh, pitch: number): GuideMesh {
    return { ...mesh, positions }
 }
 
-/** one frame from one camera: `fovY` vertical, degrees; the camera looks at its target, y up */
-export function renderGuideFrame(p: { mesh: GuideMesh; camera: PathCamera; width: number; height: number; fovY: number }): GuideFrame {
+/** one frame from one camera: `fovY` vertical, degrees; the camera looks at its target, y up.
+ * `fill`: the depth frame's holes take the depth around them (fillHoles), so the video model sees a
+ * surface to invent rather than a black void it copies */
+export function renderGuideFrame(p: { mesh: GuideMesh; camera: PathCamera; width: number; height: number; fovY: number; fill?: boolean }): GuideFrame {
    const { mesh, camera, width: W, height: H } = p
    const [ex, ey, ez] = camera.position
    // camera axes: forward f, right r, up u (three.js look-at with world up +y)
@@ -203,15 +205,14 @@ export function renderGuideFrame(p: { mesh: GuideMesh; camera: PathCamera; width
    const color = new Uint8Array(W * H * 3)
    const depth = new Uint8Array(W * H * 3)
    const coverage = new Uint8Array(W * H * 3)
-   let lo = Infinity
-   let hi = -Infinity
-   for (let k = 0; k < W * H; k++) {
-      const z = zbuf[k]!
-      if (z === Infinity) continue
-      if (z < lo) lo = z
-      if (z > hi) hi = z
-   }
-   const range = Math.max(hi - lo, 1e-6)
+   // inverse depth between robust ends: a far outlier (the mesh's back wall, 100 m away) must not
+   // squash every near surface into one white
+   const seen: number[] = []
+   for (let k = 0; k < W * H; k += 7) if (zbuf[k]! !== Infinity) seen.push(1 / zbuf[k]!)
+   seen.sort((a, b) => a - b)
+   const lo = seen[Math.floor(seen.length * 0.02)] ?? 0
+   const hi = seen[Math.floor(seen.length * 0.98)] ?? 1
+   const range = Math.max(hi - lo, 1e-9)
    const tex = mesh.texture
    for (let k = 0; k < W * H; k++) {
       const z = zbuf[k]!
@@ -219,12 +220,81 @@ export function renderGuideFrame(p: { mesh: GuideMesh; camera: PathCamera; width
       const tu = Math.min(tex.width - 1, Math.max(0, Math.round(ubuf[k]! * (tex.width - 1))))
       const tv = Math.min(tex.height - 1, Math.max(0, Math.round(vbuf[k]! * (tex.height - 1))))
       const o = (tv * tex.width + tu) * 3
-      const d = Math.round(((hi - z) / range) * 255)
+      const d = Math.max(0, Math.min(255, Math.round(((1 / z - lo) / range) * 255)))
       for (let ch = 0; ch < 3; ch++) {
          color[k * 3 + ch] = tex.rgb[o + ch]!
          depth[k * 3 + ch] = d
          coverage[k * 3 + ch] = 255
       }
    }
-   return { color, depth, coverage, metres: zbuf }
+   return { color, depth: p.fill ? fillHoles(depth, coverage, W, H) : depth, coverage, metres: zbuf }
+}
+
+/**
+ * the holes of a frame filled from what is around them, push-pull: the covered pixels averaged down
+ * a pyramid until every cell has some, then each hole takes the coarser level's value on the way up,
+ * so a hole gets a smooth blend of its edges. `coverage` is 255 where the frame has data
+ */
+export function fillHoles(rgb: Uint8Array, coverage: Uint8Array, W: number, H: number): Uint8Array {
+   type Level = { w: number; h: number; v: Float32Array; a: Float32Array }
+   const first: Level = { w: W, h: H, v: new Float32Array(W * H * 3), a: new Float32Array(W * H) }
+   for (let k = 0; k < W * H; k++) {
+      const a = coverage[k * 3]! > 127 ? 1 : 0
+      first.a[k] = a
+      for (let c = 0; c < 3; c++) first.v[k * 3 + c] = rgb[k * 3 + c]! * a
+   }
+   const levels = [first]
+   while (levels.at(-1)!.w > 1 || levels.at(-1)!.h > 1) {
+      const up = levels.at(-1)!
+      const w = Math.max(1, Math.ceil(up.w / 2))
+      const h = Math.max(1, Math.ceil(up.h / 2))
+      const next: Level = { w, h, v: new Float32Array(w * h * 3), a: new Float32Array(w * h) }
+      for (let y = 0; y < up.h; y++)
+         for (let x = 0; x < up.w; x++) {
+            const i = y * up.w + x
+            const j = (y >> 1) * w + (x >> 1)
+            next.a[j]! += up.a[i]!
+            for (let c = 0; c < 3; c++) next.v[j * 3 + c]! += up.v[i * 3 + c]!
+         }
+      // every level stays premultiplied by its weight, the weight capped at 1
+      for (let j = 0; j < w * h; j++) {
+         const a = next.a[j]!
+         if (a > 1) for (let c = 0; c < 3; c++) next.v[j * 3 + c]! /= a
+         next.a[j] = Math.min(1, a)
+      }
+      levels.push(next)
+   }
+   // up again: what a cell lacks of its weight comes from its parent, by then complete
+   for (let l = levels.length - 2; l >= 0; l--) {
+      const fine = levels[l]!
+      const coarse = levels[l + 1]!
+      for (let y = 0; y < fine.h; y++)
+         for (let x = 0; x < fine.w; x++) {
+            const i = y * fine.w + x
+            const a = fine.a[i]!
+            if (a >= 1) continue
+            // bilinear in the parent level, else a hole fills in blocks
+            const gx = Math.min(coarse.w - 1, Math.max(0, (x + 0.5) / 2 - 0.5))
+            const gy = Math.min(coarse.h - 1, Math.max(0, (y + 0.5) / 2 - 0.5))
+            const x0 = Math.floor(gx)
+            const y0 = Math.floor(gy)
+            const x1 = Math.min(coarse.w - 1, x0 + 1)
+            const y1 = Math.min(coarse.h - 1, y0 + 1)
+            const tx = gx - x0
+            const ty = gy - y0
+            const at = (cx: number, cy: number, c: number) => {
+               const j = cy * coarse.w + cx
+               return coarse.v[j * 3 + c]! / Math.max(coarse.a[j]!, 1e-6)
+            }
+            for (let c = 0; c < 3; c++) {
+               const top = at(x0, y0, c) * (1 - tx) + at(x1, y0, c) * tx
+               const bottom = at(x0, y1, c) * (1 - tx) + at(x1, y1, c) * tx
+               fine.v[i * 3 + c] = fine.v[i * 3 + c]! + (1 - a) * (top * (1 - ty) + bottom * ty)
+            }
+            fine.a[i] = 1
+         }
+   }
+   const out = new Uint8Array(W * H * 3)
+   for (let k = 0; k < out.length; k++) out[k] = Math.max(0, Math.min(255, Math.round(first.v[k]!)))
+   return out
 }

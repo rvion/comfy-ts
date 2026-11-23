@@ -87,6 +87,10 @@ export const flythrough = host.defineWorkflow({
       size: frameSize,
       /** what steers the video: the depth of the render (what Fun Control was trained on) or its colours */
       guide: v.choice(['depth', 'color'], 'depth'),
+      /** the guide's holes (what the picture never showed): black, or filled with the depth around them
+       * (the guide drawn on this machine only): a video model that follows its guide closely paints
+       * a black hole as a black void */
+      holes: v.choice(['black', 'filled'], 'black'),
       /** the guide render's size against the frame: 0.5 renders four times faster */
       guideScale: v.float(0.5, { min: 0.25, max: 1 }),
       seed: v.seed(42),
@@ -97,6 +101,9 @@ export const flythrough = host.defineWorkflow({
       lightning: v.toggle(true, '4-step LoRAs'),
       /** H3: how hard its Fun ControlNet holds the guide */
       control: v.float(1, { min: 0, max: 2 }),
+      /** H3: the share of the sampling steps the guide steers, from the first: below 1 the last steps
+       * paint freely over the layout it set */
+      controlEnd: v.float(1, { min: 0.05, max: 1 }),
       /** H3: control = the guide steers everything; keep = the render's pixels stay where the mesh
        * has data and only the holes are made (its ControlNet's mask and source video) */
       h3Mode: v.choice(['control', 'keep'], 'control'),
@@ -218,6 +225,7 @@ export const flythrough = host.defineWorkflow({
             model_patch: b.ModelPatchLoader({ name: 'minimax_h3_fun_controlnet_union_2.0_pruned_int8_convrot.safetensors' }),
             vae,
             strength: vars.control,
+            end_percent: vars.controlEnd,
             control_video: control,
             ...(vars.h3Mode === 'keep' ? { mask: need(guide.holes, 'h3 keep mode needs the coverage'), source_video: need(guide.render, 'h3 keep mode needs the colour render') } : {}),
          })

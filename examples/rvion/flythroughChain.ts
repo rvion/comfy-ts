@@ -122,7 +122,7 @@ const to = Number(toArg ?? v.clips.value - 1)
 for (let k = from; k <= to; k++) {
    const t0 = Date.now()
    const own = cameras.slice(k * (length - 1), k * (length - 1) + length)
-   const frames = own.map((camera) => renderGuideFrame({ mesh, camera, width: size.width, height: size.height, fovY }))
+   const frames = own.map((camera) => renderGuideFrame({ mesh, camera, width: size.width, height: size.height, fovY, fill: v.holes.value === 'filled' }))
    const guide = join(out, `clip-${k}-guide.mp4`)
    await encode(frames.map((f) => (v.guide.value === 'depth' ? f.depth : f.color)), guide)
    const render = join(out, `clip-${k}-render.mp4`)

@@ -2,6 +2,7 @@
 // stays steady where clips join, and the orbit keeps its centre in view at its radius
 import { describe, expect, it } from 'bun:test'
 import { colmapPose } from 'examples/rvion/flythroughColmap.ts'
+import { fillHoles } from 'examples/rvion/flythroughGuide.ts'
 import { readSplatPly, toViewerAxes } from 'examples/rvion/flythroughSplat.ts'
 import { levelPoint, orbitPath, pathCameras, walkPath } from 'examples/rvion/flythroughPath.ts'
 
@@ -164,5 +165,32 @@ describe('toViewerAxes', () => {
       expect(row(1).rot_1).toBeCloseTo(s, 6)
       expect(row(1).rot_2).toBeCloseTo(0, 6)
       expect(row(1).rot_3).toBeCloseTo(s, 6)
+   })
+})
+
+describe('fillHoles', () => {
+   it('keeps covered pixels and gives a hole the values around it', () => {
+      const W = 8
+      const H = 4
+      const rgb = new Uint8Array(W * H * 3)
+      const cov = new Uint8Array(W * H * 3)
+      for (let y = 0; y < H; y++)
+         for (let x = 0; x < W; x++) {
+            const k = (y * W + x) * 3
+            // left half 40, right half 200, a hole of two columns in the middle
+            const v = x < 4 ? 40 : 200
+            const hole = x === 3 || x === 4
+            rgb.fill(hole ? 0 : v, k, k + 3)
+            cov.fill(hole ? 0 : 255, k, k + 3)
+         }
+      const out = fillHoles(rgb, cov, W, H)
+      expect(out[0]).toBe(40)
+      expect(out[(W - 1) * 3]).toBe(200)
+      for (const x of [3, 4]) {
+         const v = out[x * 3]!
+         expect(v).toBeGreaterThanOrEqual(40)
+         expect(v).toBeLessThanOrEqual(200)
+      }
+      expect(out[3 * 3]!).toBeLessThan(out[4 * 3]!)
    })
 })
