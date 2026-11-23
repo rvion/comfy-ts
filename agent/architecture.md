@@ -55,7 +55,7 @@ src/host/                  per-server connection layer
    loraInfoCache.ts        the local mirror of that sweep (.comfy-ts/hosts/<id>/loras.json) + the merged read model every consumer uses: trigger words, display name, search text, preview url
 src/runner/                execution
    ComfyWorkflow.ts        live graph, prompt JSON emission, POST /prompt, progress
-   ComfyExecution.ts          one execution: done promise (success AND failure), images + imageErrors + audios + videos + models3d + texts + progressText.
+   ComfyExecution.ts          one execution: done promise (success AND failure), images + imageErrors + audios + videos + models3d + texts + progressText. Every output (an image, a video, a sound, a 3D file) carries the `tag` of the node that saved it, so two SaveVideo nodes of one graph stay apart.
                            Outputs are IN-MEMORY by default; `save:` opts into
                            disk (item 14). LOCAL OUTPUT NAMING when saving
                            (pure outputPath.ts): never
