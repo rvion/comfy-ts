@@ -1,21 +1,25 @@
 // relight a photo: one depth model, one normal model and the Marigold IID material maps, drawn
 // by the serve panel's relight widget (a point light you move over the image in 3D: drag for
 // left/right and up/down, wheel for nearer/farther, plus shadows and drifting light motes).
-// The models are the depth explorer's catalog (examples/depth-explorer/models.ts); a choice lists
-// the ones this host can run. Outside the panel (CLI, TUI) each map is a plain output image.
+// The models are the depth explorer's catalog (examples/depth-explorer/models.ts): one choice per
+// map lists the ones this host can run, each option with its picture, date, weights and quality
+// (a choice of one still says what it is). Every material map can be « none ». The image presets
+// include pictures from the web, downloaded once when a run uses them. Outside the panel (CLI,
+// TUI) each map is a plain output image.
 //
 // run directly:  bun examples/rvion/17-relight.cflow.ts [path/to/image.png]
 import { asAbsolutePath, type BaseNodeInputs, ComfyTS, exampleImagePath, MediaImage, v, widget } from 'comfy-ts'
-import { availability, MODELS, type ModelEntry } from '../depth-explorer/models.ts'
+import { availability, MODELS, optionLook, type ModelEntry } from '../depth-explorer/models.ts'
 
 const comfy = ComfyTS.create()
 const host = comfy.host({ id: 'windows-1' })
 await host.loadSchemaFromCache()
 
-/** the catalog entries of one kind this host can run (by its cached schema) */
-function runnable(kind: ModelEntry['kind']): string[] {
-   return MODELS.filter((m) => m.kind === kind && availability(host.schema.data.spec, m).ok).map((m) => m.id)
+/** the catalog entries for one map this host can run (by its cached schema) */
+function runnable(which: (m: ModelEntry) => boolean): string[] {
+   return MODELS.filter((m) => which(m) && availability(host.schema.data.spec, m).ok).map((m) => m.id)
 }
+const looks = (ids: string[]) => ({ options: Object.fromEntries(ids.map((id) => [id, optionLook(entry(id))])) })
 function entry(id: string): ModelEntry {
    const m = MODELS.find((x) => x.id === id)
    if (m == null) throw new Error(`no model '${id}' in the depth explorer catalog`)
@@ -23,20 +27,49 @@ function entry(id: string): ModelEntry {
 }
 const pick = (ids: string[], preferred: string): string => (ids.includes(preferred) ? preferred : (ids[0] ?? preferred))
 
-const depthIds = runnable('depth')
-const normalIds = runnable('normal')
-const image = v.image(exampleImagePath('lioness_768x768.jpg'))
+type MapName = NonNullable<ModelEntry['map']>
+const ofMap = (map: MapName): string[] => runnable((m) => m.map === map)
+const ids = {
+   depth: runnable((m) => m.kind === 'depth'),
+   normal: runnable((m) => m.kind === 'normal'),
+   albedo: ofMap('albedo'),
+   roughness: ofMap('roughness'),
+   metalness: ofMap('metalness'),
+   specular: ofMap('specular'),
+   shading: ofMap('shading'),
+}
+
+/** a material map: its models, the preferred one picked, or none */
+const material = (map: MapName, preferred: string, label: string) =>
+   v.choice(ids[map], pick(ids[map], preferred), { label, select: 'zero-or-one' }).ui(looks(ids[map]))
+
+const BIFOCAL = 'https://www.bifocalfiction.com'
+const image = v.image(exampleImagePath('lioness_768x768.jpg'), {
+   presets: {
+      lioness: exampleImagePath('lioness_768x768.jpg'),
+      bear: exampleImagePath('bear_1024x1024.jpg'),
+      walrus: exampleImagePath('walrus_1344x768.jpg'),
+      deer: exampleImagePath('deer_768x1344.jpg'),
+      'genomea cover': `${BIFOCAL}/images/genomea-cover-cn1.png`,
+      'dead city 1': `${BIFOCAL}/generated/la-ville-morte-chapitre-3/horizontal/strip-01.webp`,
+      'dead city 2': `${BIFOCAL}/generated/la-ville-morte-chapitre-3/horizontal/strip-02.webp`,
+      'dead city 3': `${BIFOCAL}/generated/la-ville-morte-chapitre-3/horizontal/strip-03.webp`,
+   },
+})
 
 export const relight = host.defineWorkflow({
    id: 'relight',
    vars: {
       image,
-      depth: v.choice(depthIds, pick(depthIds, 'da3-mono-large')),
-      normal: v.choice(normalIds, pick(normalIds, 'moge2-normal')),
-      /** albedo, roughness and metalness (Marigold IID appearance) */
-      materials: v.toggle(true, 'materials'),
-      /** the non diffuse light (Marigold IID lighting): what shines */
-      reflections: v.toggle(true, 'reflections'),
+      depth: v.choice(ids.depth, pick(ids.depth, 'da3-mono-large')).ui(looks(ids.depth)),
+      normal: v.choice(ids.normal, pick(ids.normal, 'moge2-normal'), 'normals').ui(looks(ids.normal)),
+      albedo: material('albedo', 'iid-albedo', 'albedo'),
+      roughness: material('roughness', 'iid-roughness', 'roughness'),
+      metalness: material('metalness', 'iid-metalness', 'metalness'),
+      /** the non diffuse light: what shines */
+      specular: material('specular', 'iid-specular', 'specular'),
+      /** the diffuse light and the cast shadows: an output to look at, the widget lights without it */
+      shading: material('shading', 'iid-shading', 'shadows'),
       detail: v.int(768, { min: 384, max: 1536 }),
    },
    widgets: [
@@ -59,12 +92,10 @@ export const relight = host.defineWorkflow({
       save(loaded, 'source')
       save(entry(vars.depth).build(b, loaded, p), 'depth')
       save(entry(vars.normal).build(b, loaded, p), 'normal')
-      if (vars.materials) {
-         save(entry('iid-albedo').build(b, loaded, p), 'albedo')
-         save(entry('iid-roughness').build(b, loaded, p), 'roughness')
-         save(entry('iid-metalness').build(b, loaded, p), 'metalness')
+      for (const map of ['albedo', 'roughness', 'metalness', 'specular', 'shading'] as const) {
+         const id = vars[map]
+         if (id != null) save(entry(id).build(b, loaded, p), map)
       }
-      if (vars.reflections) save(entry('iid-specular').build(b, loaded, p), 'specular')
    },
 })
 

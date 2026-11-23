@@ -1,7 +1,8 @@
 // the catalog: every depth / normal / material estimator the explorer knows, one ComfyUI graph each.
 // an entry runs only when the host has its nodes AND its weight files (checked live, see `availability`).
 // depth outputs follow one convention so the grid compares like with like: near = white.
-import type { BaseNode, BaseNodeFactory, ComfyWorkflow } from 'comfy-ts'
+import { fileURLToPath } from 'node:url'
+import type { BaseNode, BaseNodeFactory, ChoiceOptionLook, ComfyWorkflow } from 'comfy-ts'
 
 export type HostId = 'windows-1'
 type W = ComfyWorkflow<HostId>
@@ -18,6 +19,16 @@ export type ModelEntry = {
    label: string
    family: string
    year: number
+   /** when it came out, as precise as known: `2025-11` */
+   date: string
+   /** its weights on disk */
+   size: string
+   /** 1 (rough) to 5 (the best of its kind), judged on the explorer's samples */
+   quality: number
+   /** one run at detail 768 on an RTX class GPU, weights loaded */
+   speed: string
+   /** materials: the map it gives the relight widget */
+   map?: 'albedo' | 'roughness' | 'metalness' | 'specular' | 'shading'
    kind: ModelKind
    /** classic = pre 2023 baselines, off by default */
    tier: 'modern' | 'classic'
@@ -205,6 +216,10 @@ export const MODELS: ModelEntry[] = [
    // ── depth, modern ──────────────────────────────────────────────
    {
       id: 'da3-mono-large',
+      date: '2025-11',
+      size: '1.3 GB',
+      quality: 5,
+      speed: '~2 s',
       label: 'Depth Anything 3',
       family: 'mono large',
       year: 2025,
@@ -225,6 +240,10 @@ export const MODELS: ModelEntry[] = [
    },
    {
       id: 'moge2-depth',
+      date: '2025-07',
+      size: '0.7 GB',
+      quality: 5,
+      speed: '~1.5 s',
       label: 'MoGe-2',
       family: 'ViT-L depth',
       year: 2025,
@@ -237,6 +256,10 @@ export const MODELS: ModelEntry[] = [
    },
    {
       id: 'marigold2-depth',
+      date: '2026',
+      size: '22.5 GB',
+      quality: 4,
+      speed: '~30 s',
       label: 'Marigold v2',
       family: 'depth',
       year: 2026,
@@ -249,6 +272,10 @@ export const MODELS: ModelEntry[] = [
    },
    {
       id: 'lotus-depth',
+      date: '2024-09',
+      size: '2.1 GB',
+      quality: 4,
+      speed: '~9 s',
       label: 'Lotus',
       family: 'depth-d v1.1',
       year: 2024,
@@ -281,6 +308,10 @@ export const MODELS: ModelEntry[] = [
    },
    {
       id: 'dav2-vitl',
+      date: '2024-06',
+      size: '1.3 GB',
+      quality: 4,
+      speed: '~1 s',
       label: 'Depth Anything V2',
       family: 'ViT-L',
       year: 2024,
@@ -299,6 +330,10 @@ export const MODELS: ModelEntry[] = [
    },
    {
       id: 'metric3d-depth',
+      date: '2024-03',
+      size: '1.6 GB',
+      quality: 4,
+      speed: '~7 s',
       label: 'Metric3D v2',
       family: 'ViT-L depth',
       year: 2024,
@@ -319,6 +354,10 @@ export const MODELS: ModelEntry[] = [
    },
    {
       id: 'zoe-da',
+      date: '2024-01',
+      size: '1.3 GB',
+      quality: 3,
+      speed: '~4 s',
       label: 'ZoeDepth × Depth Anything',
       family: 'metric',
       year: 2024,
@@ -333,6 +372,10 @@ export const MODELS: ModelEntry[] = [
    },
    {
       id: 'dav1-vitl',
+      date: '2024-01',
+      size: '1.3 GB',
+      quality: 3,
+      speed: '~2 s',
       label: 'Depth Anything V1',
       family: 'ViT-L',
       year: 2024,
@@ -352,6 +395,10 @@ export const MODELS: ModelEntry[] = [
    // ── depth, classic ─────────────────────────────────────────────
    {
       id: 'zoe',
+      date: '2023-02',
+      size: '1.4 GB',
+      quality: 2,
+      speed: '~3 s',
       label: 'ZoeDepth',
       family: 'N+K',
       year: 2023,
@@ -365,6 +412,10 @@ export const MODELS: ModelEntry[] = [
    },
    {
       id: 'leres',
+      date: '2021',
+      size: '0.8 GB',
+      quality: 2,
+      speed: '~3 s',
       label: 'LeReS',
       family: 'boost',
       year: 2021,
@@ -385,6 +436,10 @@ export const MODELS: ModelEntry[] = [
    },
    {
       id: 'midas',
+      date: '2021',
+      size: '0.5 GB',
+      quality: 2,
+      speed: '~1 s',
       label: 'MiDaS',
       family: 'v3 DPT',
       year: 2021,
@@ -405,6 +460,10 @@ export const MODELS: ModelEntry[] = [
    // ── normals ────────────────────────────────────────────────────
    {
       id: 'moge2-normal',
+      date: '2025-07',
+      size: '0.7 GB, shared',
+      quality: 5,
+      speed: '~0.3 s after depth',
       label: 'MoGe-2',
       family: 'ViT-L normal',
       year: 2025,
@@ -418,6 +477,10 @@ export const MODELS: ModelEntry[] = [
    },
    {
       id: 'marigold2-normal',
+      date: '2026',
+      size: '22.5 GB',
+      quality: 3,
+      speed: '~27 s',
       label: 'Marigold v2',
       family: 'normals',
       year: 2026,
@@ -430,6 +493,10 @@ export const MODELS: ModelEntry[] = [
    },
    {
       id: 'dsine',
+      date: '2024-03',
+      size: '0.3 GB',
+      quality: 4,
+      speed: '~2 s',
       label: 'DSINE',
       family: 'normal',
       year: 2024,
@@ -444,6 +511,10 @@ export const MODELS: ModelEntry[] = [
    },
    {
       id: 'metric3d-normal',
+      date: '2024-03',
+      size: '1.6 GB',
+      quality: 4,
+      speed: '~7 s',
       label: 'Metric3D v2',
       family: 'ViT-L normal',
       year: 2024,
@@ -464,6 +535,10 @@ export const MODELS: ModelEntry[] = [
    },
    {
       id: 'bae',
+      date: '2021',
+      size: '0.3 GB',
+      quality: 2,
+      speed: '~1 s',
       label: 'BAE',
       family: 'normal',
       year: 2021,
@@ -477,6 +552,10 @@ export const MODELS: ModelEntry[] = [
    },
    {
       id: 'midas-normal',
+      date: '2021',
+      size: '0.5 GB',
+      quality: 1,
+      speed: '~1 s',
       label: 'MiDaS',
       family: 'normal from depth',
       year: 2021,
@@ -497,6 +576,11 @@ export const MODELS: ModelEntry[] = [
    // ── materials ──────────────────────────────────────────────────
    {
       id: 'marigold2-albedo',
+      date: '2026',
+      size: '22.5 GB',
+      quality: 3,
+      speed: '~25 s',
+      map: 'albedo',
       label: 'Marigold v2',
       family: 'albedo',
       year: 2026,
@@ -509,6 +593,11 @@ export const MODELS: ModelEntry[] = [
    },
    {
       id: 'iid-albedo',
+      date: '2025',
+      size: '2.5 GB',
+      quality: 4,
+      speed: '~6 s',
+      map: 'albedo',
       label: 'Marigold IID',
       family: 'appearance albedo',
       year: 2025,
@@ -522,6 +611,11 @@ export const MODELS: ModelEntry[] = [
    },
    {
       id: 'iid-roughness',
+      date: '2025',
+      size: '2.5 GB, shared',
+      quality: 3,
+      speed: '~6 s',
+      map: 'roughness',
       label: 'Marigold IID',
       family: 'roughness',
       year: 2025,
@@ -535,6 +629,11 @@ export const MODELS: ModelEntry[] = [
    },
    {
       id: 'iid-metalness',
+      date: '2025',
+      size: '2.5 GB, shared',
+      quality: 3,
+      speed: '~6 s',
+      map: 'metalness',
       label: 'Marigold IID',
       family: 'metalness',
       year: 2025,
@@ -547,7 +646,30 @@ export const MODELS: ModelEntry[] = [
       build: (b, image, p) => channel(b, batchItem(b, iid(b, image, p.detail, 'appearance'), 1), 'green'),
    },
    {
+      id: 'iid-shading',
+      date: '2025',
+      size: '2.5 GB, shared',
+      quality: 4,
+      speed: '~6 s',
+      map: 'shading',
+      label: 'Marigold IID',
+      family: 'lighting shading',
+      year: 2025,
+      kind: 'material',
+      tier: 'modern',
+      blurb: 'the diffuse light and the shadows the scene casts, colour removed',
+      nodes: IID_NODES,
+      files: [],
+      autoDownload: true,
+      build: (b, image, p) => batchItem(b, iid(b, image, p.detail, 'lighting'), 1),
+   },
+   {
       id: 'iid-specular',
+      date: '2025',
+      size: '2.5 GB',
+      quality: 4,
+      speed: '~6 s',
+      map: 'specular',
       label: 'Marigold IID',
       family: 'lighting residual',
       year: 2025,
@@ -560,6 +682,21 @@ export const MODELS: ModelEntry[] = [
       build: (b, image, p) => batchItem(b, iid(b, image, p.detail, 'lighting'), 2),
    },
 ]
+
+/** an entry as one row of the panel's dropdown (`.ui({ options })`): its name, what it is, its
+ * output on the lioness sample as the picture, when it came out, its weights, a 1..5 quality */
+export function optionLook(m: ModelEntry): ChoiceOptionLook {
+   return {
+      label: `${m.label} ${m.family}`,
+      description: m.blurb,
+      thumb: fileURLToPath(new URL(`./thumbs/${m.id}.webp`, import.meta.url)),
+      date: m.date,
+      size: m.size,
+      speed: m.speed,
+      quality: m.quality,
+      ...(m.tier === 'classic' ? { tags: ['classic'] } : {}),
+   }
+}
 
 /** raw object_info, as the host schema keeps it */
 type ObjectInfo = Record<string, { input?: { required?: Record<string, unknown>; optional?: Record<string, unknown> } }>
