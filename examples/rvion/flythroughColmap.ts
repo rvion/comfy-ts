@@ -1,7 +1,7 @@
 // a fly-through as a COLMAP text model, for a 3D gaussian splat trainer that reads one (Brush,
 // gsplat, nerfstudio): every `every`-th frame of the clips as an image, the camera we chose for it
-// as its pose (the clip follows it, measured at 0.86 to 0.92 correlation against the guide), and the
-// picture's MoGe mesh as the starting points. Reads what flythroughChain.ts wrote into <out>.
+// as its pose (retimed to the guide frame it matches best, as the video runs a little ahead or
+// behind), and the picture's MoGe mesh as the starting points. Reads what flythroughChain.ts wrote into <out>.
 //
 // run:  bun examples/rvion/flythroughColmap.ts <out> [every]
 // writes <out>/colmap/images/*.png and <out>/colmap/sparse/0/{cameras,images,points3D}.txt
@@ -44,6 +44,55 @@ export function colmapPose(c: PathCamera): { q: [number, number, number, number]
    return { q, t }
 }
 
+/** small grey frames of a video, for matching */
+const SMALL = { width: 104, height: 60 }
+const greyFrames = async (file: string): Promise<Uint8Array> =>
+   new Uint8Array(await $`ffmpeg -loglevel error -i ${file} -vf scale=${SMALL.width}:${SMALL.height} -pix_fmt gray -f rawvideo -`.arrayBuffer())
+
+/**
+ * which guide frame a clip frame shows: the video model runs a little ahead of or behind the path,
+ * so the frame takes the camera of the guide frame it matches best (correlation over the pixels the
+ * guide covers) within `window` frames; it keeps its own when the match is weak
+ */
+export function retime(p: { clip: Uint8Array; render: Uint8Array; coverage: Uint8Array; frame: number; window: number }): { frame: number; score: number } {
+   const size = SMALL.width * SMALL.height
+   const frames = Math.min(p.render.length, p.coverage.length) / size
+   const ncc = (b: number) => {
+      let sa = 0
+      let sb = 0
+      let k = 0
+      const ao = p.frame * size
+      const bo = b * size
+      for (let i = 0; i < size; i++)
+         if (p.coverage[bo + i]! > 128) {
+            sa += p.clip[ao + i]!
+            sb += p.render[bo + i]!
+            k++
+         }
+      if (k < size / 10) return -1
+      const ma = sa / k
+      const mb = sb / k
+      let num = 0
+      let da = 0
+      let db = 0
+      for (let i = 0; i < size; i++)
+         if (p.coverage[bo + i]! > 128) {
+            const x = p.clip[ao + i]! - ma
+            const y = p.render[bo + i]! - mb
+            num += x * y
+            da += x * x
+            db += y * y
+         }
+      return num / Math.sqrt(da * db || 1)
+   }
+   let best = { frame: p.frame, score: ncc(Math.min(p.frame, frames - 1)) }
+   for (let b = Math.max(0, p.frame - p.window); b <= Math.min(frames - 1, p.frame + p.window); b++) {
+      const score = ncc(b)
+      if (score > best.score) best = { frame: b, score }
+   }
+   return best.score < 0.3 ? { frame: p.frame, score: best.score } : best
+}
+
 if (import.meta.main) {
    const [out, everyArg] = process.argv.slice(2)
    if (out == null) throw new Error('usage: bun examples/rvion/flythroughColmap.ts <out> [every]')
@@ -66,13 +115,19 @@ if (import.meta.main) {
 
    const lines = ['# IMAGE_ID QW QX QY QZ TX TY TZ CAMERA_ID NAME', '# POINTS2D (none)']
    let id = 1
+   const timing: { clip: number; frame: number; camera: number; score: number }[] = []
    for (let k = 0; existsSync(join(out, `clip-${k}.mp4`)); k++) {
       const dir = join(out, `clip-${k}.frames`)
       mkdirSync(dir, { recursive: true })
       await $`ffmpeg -loglevel error -y -i ${join(out, `clip-${k}.mp4`)} ${join(dir, '%04d.png')}`
+      const [clipGrey, renderGrey, coverageGrey] = await Promise.all(
+         ['', '-render', '-coverage'].map((tag) => greyFrames(join(out, `clip-${k}${tag}.mp4`))),
+      )
       // frame 0 of a later clip is the last frame of the one before: kept once
       for (let j = k === 0 ? 0 : every; j < rig.length; j += every) {
-         const cam = rig.cameras[k * (rig.length - 1) + j]
+         const match = retime({ clip: clipGrey!, render: renderGrey!, coverage: coverageGrey!, frame: j, window: 12 })
+         timing.push({ clip: k, frame: j, camera: match.frame, score: Number(match.score.toFixed(2)) })
+         const cam = rig.cameras[k * (rig.length - 1) + match.frame]
          if (cam == null) continue
          const name = `c${k}-f${String(j).padStart(3, '0')}.png`
          await $`cp ${join(dir, `${String(j + 1).padStart(4, '0')}.png`)} ${join(imagesDir, name)}`
@@ -82,6 +137,7 @@ if (import.meta.main) {
       await $`rm -rf ${dir}`
    }
    writeFileSync(join(sparse, 'images.txt'), `${lines.join('\n')}\n`)
+   writeFileSync(join(root, 'retime.json'), JSON.stringify(timing))
 
    // starting points: the mesh's vertices, one in 8, coloured from its texture
    const mesh = readGlb(new Uint8Array(readFileSync(join(out, 'mesh.glb'))))
