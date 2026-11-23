@@ -38,6 +38,7 @@ export {
    ComfyExecution,
    type ComfyAudioOutput,
    type ComfyVideoOutput,
+   type Comfy3DOutput,
    type ComfyExecutionData,
    type ComfyTextOutput,
    type ExecutionPreview,

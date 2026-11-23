@@ -22,7 +22,8 @@ import type {
    WsMsgExecutionSuccess,
 } from 'src/runner/ComfyWsApi.ts'
 import { MediaImage } from 'src/runner/MediaImage.ts'
-import { isVideoFilename, mediaMime } from 'src/runner/mediaKinds.ts'
+import { extensionOf, isVideoFilename, mediaMime } from 'src/runner/mediaKinds.ts'
+import { model3dMime } from 'src/runner/outputs3d.ts'
 import { previewMetadataNodeId } from 'src/runner/wsBinaryFrame.ts'
 
 /** paths claimed by in-flight retrievals: two same-second runs on a
@@ -52,6 +53,10 @@ export type ComfyAudioOutput = {
 /** one video file an output node published (SaveVideo, SaveWEBM, VHS_VideoCombine), same
  * shape and same retrieval as an audio file */
 export type ComfyVideoOutput = ComfyAudioOutput
+
+/** one 3D file an output node published (SaveGLB, SaveGaussianSplat, SavePointCloud): a mesh, a point
+ * cloud or a splat, same retrieval as an audio file. `format` is the lowercase extension (glb, ply, spz…) */
+export type Comfy3DOutput = ComfyAudioOutput & { format: string }
 
 /** one text output as an output node published it (`nodeKey` is null when the node left the snapshot) */
 export type ComfyTextOutput = {
@@ -182,6 +187,7 @@ export class ComfyExecution {
       const outputs = [`${this.images.length} image(s)`]
       if (this.audios.length > 0) outputs.push(`${this.audios.length} audio(s)`)
       if (this.videos.length > 0) outputs.push(`${this.videos.length} video(s)`)
+      if (this.models3d.length > 0) outputs.push(`${this.models3d.length} 3d model(s)`)
       if (this.texts.length > 0) outputs.push(`${this.texts.length} text(s)`)
       const line = `${this.status === 'Failure' ? '🔴' : '🟢'} ${this.status.toLowerCase()} in ${(p.elapsedMs / 1000).toFixed(1)}s · ${outputs.join(' · ')}`
       if (globalThis.process?.stdout?.isTTY) process.stdout.write(`\r\x1b[2K${line}\n`)
@@ -279,10 +285,13 @@ export class ComfyExecution {
       )
       for (const video of listed.filter((f) => isVideoFilename(f.filename))) {
          this.pendingPromises.push(
-            this.retrieveFile('video', video, promptNodeID).catch((e: unknown) => {
-               console.error(`🔴 failed to retrieve ${video.filename}:`, e)
-               this.videoErrors.push({ video, error: e })
-            }),
+            this.retrieveFile(video, promptNodeID, mediaMime(video.filename)).then(
+               (o) => void this.videos.push(o),
+               (e: unknown) => {
+                  console.error(`🔴 failed to retrieve ${video.filename}:`, e)
+                  this.videoErrors.push({ video, error: e })
+               },
+            ),
          )
       }
       const images = listed.filter((f) => !isVideoFilename(f.filename))
@@ -299,10 +308,25 @@ export class ComfyExecution {
       }
       for (const audio of msg.data.output?.audio ?? []) {
          this.pendingPromises.push(
-            this.retrieveFile('audio', audio, promptNodeID).catch((e: unknown) => {
-               console.error(`🔴 failed to retrieve ${audio.filename}:`, e)
-               this.audioErrors.push({ audio, error: e })
-            }),
+            this.retrieveFile(audio, promptNodeID, mediaMime(audio.filename)).then(
+               (o) => void this.audios.push(o),
+               (e: unknown) => {
+                  console.error(`🔴 failed to retrieve ${audio.filename}:`, e)
+                  this.audioErrors.push({ audio, error: e })
+               },
+            ),
+         )
+      }
+      // a 3D loader echoes the file it READ, typed 'input', like LoadVideo
+      for (const model3d of (out?.['3d'] ?? []).filter((f) => f.type !== 'input')) {
+         this.pendingPromises.push(
+            this.retrieveFile(model3d, promptNodeID, model3dMime(model3d.filename)).then(
+               (o) => void this.models3d.push({ ...o, format: extensionOf(o.filename) }),
+               (e: unknown) => {
+                  console.error(`🔴 failed to retrieve ${model3d.filename}:`, e)
+                  this.models3dErrors.push({ model3d, error: e })
+               },
+            ),
          )
       }
    }
@@ -320,20 +344,22 @@ export class ComfyExecution {
    /** video files retrieved for this execution, in arrival order (final once `done` resolves) */
    videos: ComfyVideoOutput[] = []
 
+   /** 3D retrievals that failed (their files are missing from `models3d`) */
+   models3dErrors: { model3d: ComfyImageInfo; error: unknown }[] = []
+
+   /** 3D files retrieved for this execution, in arrival order (final once `done` resolves) */
+   models3d: Comfy3DOutput[] = []
+
+   /** one non-image file through /view, its bytes as the server wrote them; the caller files it */
    private retrieveFile = async (
-      kind: 'audio' | 'video',
       info: ComfyImageInfo,
       promptNodeID: ComfyNodeId,
-   ): Promise<void> => {
+      mime: string,
+   ): Promise<ComfyAudioOutput> => {
       const response = await this.host.fetchFile('/view?' + new URLSearchParams(info).toString())
       const bytes = new Uint8Array(await response.arrayBuffer())
-      const mime = mediaMime(info.filename)
-      const list = kind === 'audio' ? this.audios : this.videos
       const sf = this.save
-      if (sf == null) {
-         list.push({ nodeId: promptNodeID, filename: info.filename, mime, bytes, absPath: null })
-         return
-      }
+      if (sf == null) return { nodeId: promptNodeID, filename: info.filename, mime, bytes, absPath: null }
       const promptPrefix = this.workflow.data.apiJson?.[promptNodeID]?.inputs['filename_prefix']
       const written = await this.encodeAndWrite({
          bytes,
@@ -343,7 +369,7 @@ export class ComfyExecution {
          subfolder: info.subfolder,
          filename: info.filename,
       })
-      list.push({ nodeId: promptNodeID, filename: info.filename, mime, bytes, absPath: written.path })
+      return { nodeId: promptNodeID, filename: info.filename, mime, bytes, absPath: written.path }
    }
 
    /** image retrievals that failed (their images are missing from `images`);

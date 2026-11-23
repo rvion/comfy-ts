@@ -73,6 +73,8 @@ const tempScope = scope({
       // VideoHelperSuite's VHS_VideoCombine, and savers that name their list `video`
       'video?': 'ComfyImageInfo[]',
       'gifs?': 'ComfyImageInfo[]',
+      // native 3D savers (SaveGLB, SaveGaussianSplat, SavePointCloud): UI.Saved3DModels
+      '3d?': 'ComfyImageInfo[]',
       // ui payload of a text output node (PreviewAny, and how TextGenerate
       // results reach the client); entries are soft, non-strings are dropped
       'text?': 'unknown[]',
