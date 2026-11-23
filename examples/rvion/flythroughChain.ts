@@ -11,7 +11,7 @@ import { mkdirSync, existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'pathe'
 import sharp from 'sharp'
 import { ComfyTS } from 'comfy-ts'
-import flythrough, { chainStart, premadeGuide } from './19-flythrough.cflow.ts'
+import flythrough, { chainStart, premadeCoverage, premadeGuide, premadeRender } from './19-flythrough.cflow.ts'
 import { dropStretched, readGlb, renderGuideFrame, type GuideMesh } from './flythroughGuide.ts'
 import { clipFrames, ENGINES, frameFovY, pathCameras } from './flythroughPath.ts'
 
@@ -128,11 +128,15 @@ for (let k = from; k <= to; k++) {
    const frames = own.map((camera) => renderGuideFrame({ mesh, camera, width: size.width, height: size.height, fovY }))
    const guide = join(out, `clip-${k}-guide.mp4`)
    await encode(frames.map((f) => (v.guide.value === 'depth' ? f.depth : f.color)), guide)
-   await encode(frames.map((f) => f.color), join(out, `clip-${k}-render.mp4`))
-   await encode(frames.map((f) => f.coverage), join(out, `clip-${k}-coverage.mp4`))
+   const render = join(out, `clip-${k}-render.mp4`)
+   const coverage = join(out, `clip-${k}-coverage.mp4`)
+   await encode(frames.map((f) => f.color), render)
+   await encode(frames.map((f) => f.coverage), coverage)
    const drawn = ((Date.now() - t0) / 1000).toFixed(1)
 
    premadeGuide.set(guide)
+   premadeRender.set(render)
+   premadeCoverage.set(coverage)
    if (k === 0) chainStart.set('')
    else {
       const last = join(out, `clip-${k - 1}-last.png`)
@@ -145,7 +149,7 @@ for (let k = from; k <= to; k++) {
    const clip = execution.videos.find((x) => x.tags.includes('clip'))
    if (clip == null) throw new Error(`flythrough chain: clip ${k} came back without its video`)
    writeFileSync(join(out, `clip-${k}.mp4`), clip.bytes)
-   console.log(`🟢 clip ${k}: guide drawn in ${drawn} s, Wan in ${((Date.now() - t1) / 1000).toFixed(0)} s`)
+   console.log(`🟢 clip ${k}: guide drawn in ${drawn} s, ${v.engine.value} in ${((Date.now() - t1) / 1000).toFixed(0)} s`)
 }
 
 // the joined video: every clip after the first loses its first frame, the last frame of the one before

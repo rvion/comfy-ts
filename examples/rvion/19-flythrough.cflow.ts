@@ -17,6 +17,10 @@ await host.loadSchemaFromCache()
 /** Wan 2.2's own negative prompt (the Fun Control template), plus the camera moves we do not want */
 const NEGATIVE =
    '色调艳丽，过曝，静态，细节模糊不清，字幕，风格，作品，画作，画面，静止，整体发灰，最差质量，低质量，JPEG压缩残留，丑陋的，残缺的，多余的手指，画得不好的手部，画得不好的脸部，畸形的，毁容的，形态畸形的肢体，手指融合，静止不动的画面，杂乱的背景，三条腿，背景人很多，倒着走'
+const need = <T,>(x: T | undefined, what: string): T => {
+   if (x == null) throw new Error(`flythrough: ${what}`)
+   return x
+}
 /** BatchCameras takes at most this many cameras per node; longer paths nest batches */
 const BATCH_MAX = 50
 
@@ -35,6 +39,10 @@ export const chainStart = v.image('')
 /** a guide video drawn elsewhere (flythroughChain.ts draws it on this machine, in milliseconds a
  * frame): when set, the box skips MoGe and its ray traced render. Not a workflow var, as chainStart */
 export const premadeGuide = v.video('')
+/** with premadeGuide: the colour render and its coverage (white where the mesh has data), for H3's
+ * keep mode */
+export const premadeRender = v.video('')
+export const premadeCoverage = v.video('')
 
 export const flythrough = host.defineWorkflow({
    id: 'flythrough',
@@ -69,7 +77,7 @@ export const flythrough = host.defineWorkflow({
       /** the video model: Wan 2.2 Fun Control 14B (16 fps), or MiniMax H3 with its Fun ControlNet (24 fps) */
       engine: v.choice(['wan', 'h3'], 'wan'),
       /** seconds of one clip, snapped to the frame counts the engine takes */
-      seconds: v.float(5, { min: 1, max: 10 }),
+      seconds: v.float(5, { min: 1, max: 15 }),
       size: frameSize,
       /** what steers the video: the depth of the render (what Fun Control was trained on) or its colours */
       guide: v.choice(['depth', 'color'], 'depth'),
@@ -83,6 +91,9 @@ export const flythrough = host.defineWorkflow({
       lightning: v.toggle(true, '4-step LoRAs'),
       /** H3: how hard its Fun ControlNet holds the guide */
       control: v.float(1, { min: 0, max: 2 }),
+      /** H3: control = the guide steers everything; keep = the render's pixels stay where the mesh
+       * has data and only the holes are made (its ControlNet's mask and source video) */
+      h3Mode: v.choice(['control', 'keep'], 'control'),
    },
    build: async (b, vars, wf) => {
       const picture = await image.loadInWorkflow(wf)
@@ -97,7 +108,15 @@ export const flythrough = host.defineWorkflow({
       const fov = frameFovY({ picture: source, fovX: vars.fov, size })
       if (vars.clip >= vars.clips) throw new Error(`flythrough: clip ${vars.clip} of a path of ${vars.clips} clips`)
       // chained clips start from the last frame of the clip before; the mesh stays the picture's
-      const reference = chainStart.isSet() ? await chainStart.loadInWorkflow(wf) : picture
+      // cover-cropped to the frame: H3 stretches a first frame of another shape, and the guide's
+      // cameras see the cropped picture (frameFovY)
+      const reference = b.ImageScale({
+         image: chainStart.isSet() ? await chainStart.loadInWorkflow(wf) : picture,
+         upscale_method: 'lanczos',
+         width: size.width,
+         height: size.height,
+         crop: 'center',
+      })
 
       const save = (images: Comfy.Windows1.Accepts['IMAGE'], tag: string) =>
          b.SaveVideo(
@@ -162,11 +181,18 @@ export const flythrough = host.defineWorkflow({
          save(control.outputs.image, 'guide')
          if (vars.guide === 'depth') save(colour.outputs.image, 'render')
          save(b.MaskToImage({ mask: colour.outputs.mask }), 'coverage')
-         return control.outputs.image
+         return { control: control.outputs.image, render: colour.outputs.image, holes: b.InvertMask({ mask: colour.outputs.mask }) }
       }
-      const control = premadeGuide.isSet()
-         ? b.GetVideoComponents({ video: await premadeGuide.loadInWorkflow(wf) }).outputs.images
-         : boxGuide()
+      const frames = async (video: typeof premadeGuide) => b.GetVideoComponents({ video: await video.loadInWorkflow(wf) }).outputs.images
+      const premade = async () => ({
+         control: await frames(premadeGuide),
+         render: premadeRender.isSet() ? await frames(premadeRender) : undefined,
+         holes: premadeCoverage.isSet()
+            ? b.InvertMask({ mask: b.ImageToMask({ image: await frames(premadeCoverage), channel: 'red' }) })
+            : undefined,
+      })
+      const guide = premadeGuide.isSet() ? await premade() : boxGuide()
+      const control = guide.control
 
       if (vars.engine === 'h3') {
          // MiniMax H3: the first frame and the prompt condition the clip, its Fun ControlNet patches
@@ -182,6 +208,7 @@ export const flythrough = host.defineWorkflow({
             vae,
             strength: vars.control,
             control_video: control,
+            ...(vars.h3Mode === 'keep' ? { mask: need(guide.holes, 'h3 keep mode needs the coverage'), source_video: need(guide.render, 'h3 keep mode needs the colour render') } : {}),
          })
          const start = b.MiniMaxH3ImageToVideo({
             clip: b.CLIPLoader({ clip_name: 'qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors', type: 'minimax' }),
