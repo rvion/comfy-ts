@@ -429,6 +429,10 @@ export class ComfyExecution {
             await this._finish({ status: 'Failure', error: null, reason })
             return 'lost'
          }
+         // a SaveImageWebsocket frame in transit is silence too (the message event fires once the frame is
+         // whole) and /history never holds one: a quiet socket gets until runSilenceMaxMs to deliver it
+         const sinceHeard = Date.now() - this.lastHeardAt
+         if (!this.mayHaveMissedEvents && this.sendsWsFrames && sinceHeard < this.host.runSilenceMaxMs) return 'waiting'
          logInfo(`run ${id}: ended on host '${hostId}' without its end reaching the socket, finishing from its history`)
          for (const p of replay.problems) logError(`run ${id}: a history entry does not match the ws schemas, skipped: ${p}`)
          this.replayUnheardOutputs(replay)
@@ -604,6 +608,12 @@ export class ComfyExecution {
       if (promptMeta?.tag) img.tags.push(promptMeta.tag)
       if (promptMeta?.tags) img.tags.push(...promptMeta.tags)
       this.images.push(img)
+   }
+
+   /** the sent graph saves through SaveImageWebsocket: those outputs exist only as ws frames */
+   private get sendsWsFrames(): boolean {
+      const apiJson = this.snapshot?.apiJson ?? this.workflow.apiJson
+      return Object.values(apiJson).some((n) => n?.class_type === 'SaveImageWebsocket')
    }
 
    /** true while the currently executing node is a SaveImageWebsocket in the
