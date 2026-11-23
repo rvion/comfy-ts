@@ -53,6 +53,8 @@ export type ComfyAudioOutput = {
    mime: string
    bytes: Uint8Array
    absPath: AbsolutePath | null
+   /** the `tag` / `tags` of the output node's metadata, as on images */
+   tags: string[]
 }
 
 /** one video file an output node published (SaveVideo, SaveWEBM, VHS_VideoCombine), same
@@ -478,8 +480,9 @@ export class ComfyExecution {
    ): Promise<ComfyAudioOutput> => {
       const response = await this.host.fetchFile('/view?' + new URLSearchParams(info).toString())
       const bytes = new Uint8Array(await response.arrayBuffer())
+      const tags = this.tagsOf(promptNodeID)
       const sf = this.save
-      if (sf == null) return { nodeId: promptNodeID, filename: info.filename, mime, bytes, absPath: null }
+      if (sf == null) return { nodeId: promptNodeID, filename: info.filename, mime, bytes, absPath: null, tags }
       const promptPrefix = this.workflow.data.apiJson?.[promptNodeID]?.inputs['filename_prefix']
       const written = await this.encodeAndWrite({
          bytes,
@@ -489,7 +492,7 @@ export class ComfyExecution {
          subfolder: info.subfolder,
          filename: info.filename,
       })
-      return { nodeId: promptNodeID, filename: info.filename, mime, bytes, absPath: written.path }
+      return { nodeId: promptNodeID, filename: info.filename, mime, bytes, absPath: written.path, tags }
    }
 
    /** image retrievals that failed (their images are missing from `images`);
@@ -604,10 +607,14 @@ export class ComfyExecution {
 
    /** accumulate an output on the prompt; tags from node metadata ride along */
    private pushImage(img: MediaImage, promptNodeID: Maybe<string>): void {
-      const promptMeta = promptNodeID != null ? this.workflow.data.metadata?.[promptNodeID] : null
-      if (promptMeta?.tag) img.tags.push(promptMeta.tag)
-      if (promptMeta?.tags) img.tags.push(...promptMeta.tags)
+      img.tags.push(...this.tagsOf(promptNodeID))
       this.images.push(img)
+   }
+
+   /** the tags an output node was built with (`{ tag }` / `{ tags }` metadata) */
+   private tagsOf(promptNodeID: Maybe<string>): string[] {
+      const promptMeta = promptNodeID != null ? this.workflow.data.metadata?.[promptNodeID] : null
+      return [...(promptMeta?.tag ? [promptMeta.tag] : []), ...(promptMeta?.tags ?? [])]
    }
 
    /** the sent graph saves through SaveImageWebsocket: those outputs exist only as ws frames */
