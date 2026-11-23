@@ -126589,54 +126589,112 @@ declare global {
                | ((
                     x: Producer['MESH,FILE_3D_GLB,FILE_3D_GLTF,FILE_3D_OBJ,FILE_3D_FBX,FILE_3D_STL,FILE_3D_USDZ,FILE_3D_PLY,FILE_3D_SPLAT,FILE_3D_SPZ,FILE_3D_KSPLAT,FILE_3D_SPLAT_ANY,FILE_3D_POINT_CLOUD_ANY,FILE_3D'],
                  ) => Accepts['MESH,FILE_3D_GLB,FILE_3D_GLTF,FILE_3D_OBJ,FILE_3D_FBX,FILE_3D_STL,FILE_3D_USDZ,FILE_3D_PLY,FILE_3D_SPLAT,FILE_3D_SPZ,FILE_3D_KSPLAT,FILE_3D_SPLAT_ANY,FILE_3D_POINT_CLOUD_ANY,FILE_3D'])
+               | Accepts['MESH']
+               | Accepts['FILE_3D_GLB']
+               | ComfyNodeOutput<'FILE_3D_GLTF'>
+               | Accepts['FILE_3D_OBJ']
+               | Accepts['FILE_3D_FBX']
+               | ComfyNodeOutput<'FILE_3D_STL'>
+               | ComfyNodeOutput<'FILE_3D_USDZ'>
+               | ComfyNodeOutput<'FILE_3D_PLY'>
+               | ComfyNodeOutput<'FILE_3D_SPLAT'>
+               | ComfyNodeOutput<'FILE_3D_SPZ'>
+               | ComfyNodeOutput<'FILE_3D_KSPLAT'>
+               | Accepts['FILE_3D_SPLAT_ANY']
+               | Accepts['FILE_3D_POINT_CLOUD_ANY']
+               | Accepts['FILE_3D']
             'STRING,FILE_3D_GLB,FILE_3D_GLTF,FILE_3D_FBX,FILE_3D_OBJ,FILE_3D_STL,FILE_3D_USDZ,FILE_3D':
                | ComfyNodeOutput<'STRING,FILE_3D_GLB,FILE_3D_GLTF,FILE_3D_FBX,FILE_3D_OBJ,FILE_3D_STL,FILE_3D_USDZ,FILE_3D'>
                | HasSingle['STRING,FILE_3D_GLB,FILE_3D_GLTF,FILE_3D_FBX,FILE_3D_OBJ,FILE_3D_STL,FILE_3D_USDZ,FILE_3D']
                | ((
                     x: Producer['STRING,FILE_3D_GLB,FILE_3D_GLTF,FILE_3D_FBX,FILE_3D_OBJ,FILE_3D_STL,FILE_3D_USDZ,FILE_3D'],
                  ) => Accepts['STRING,FILE_3D_GLB,FILE_3D_GLTF,FILE_3D_FBX,FILE_3D_OBJ,FILE_3D_STL,FILE_3D_USDZ,FILE_3D'])
+               | Accepts['STRING']
+               | Accepts['FILE_3D_GLB']
+               | ComfyNodeOutput<'FILE_3D_GLTF'>
+               | Accepts['FILE_3D_FBX']
+               | Accepts['FILE_3D_OBJ']
+               | ComfyNodeOutput<'FILE_3D_STL'>
+               | ComfyNodeOutput<'FILE_3D_USDZ'>
+               | Accepts['FILE_3D']
             'FILE_3D_GLB,FILE_3D_GLTF,FILE_3D_FBX,FILE_3D_OBJ,FILE_3D_STL,FILE_3D_USDZ,FILE_3D':
                | ComfyNodeOutput<'FILE_3D_GLB,FILE_3D_GLTF,FILE_3D_FBX,FILE_3D_OBJ,FILE_3D_STL,FILE_3D_USDZ,FILE_3D'>
                | HasSingle['FILE_3D_GLB,FILE_3D_GLTF,FILE_3D_FBX,FILE_3D_OBJ,FILE_3D_STL,FILE_3D_USDZ,FILE_3D']
                | ((
                     x: Producer['FILE_3D_GLB,FILE_3D_GLTF,FILE_3D_FBX,FILE_3D_OBJ,FILE_3D_STL,FILE_3D_USDZ,FILE_3D'],
                  ) => Accepts['FILE_3D_GLB,FILE_3D_GLTF,FILE_3D_FBX,FILE_3D_OBJ,FILE_3D_STL,FILE_3D_USDZ,FILE_3D'])
+               | Accepts['FILE_3D_GLB']
+               | ComfyNodeOutput<'FILE_3D_GLTF'>
+               | Accepts['FILE_3D_FBX']
+               | Accepts['FILE_3D_OBJ']
+               | ComfyNodeOutput<'FILE_3D_STL'>
+               | ComfyNodeOutput<'FILE_3D_USDZ'>
+               | Accepts['FILE_3D']
             'FILE_3D,FILE_3D_SPLAT_ANY,FILE_3D_PLY,FILE_3D_SPLAT,FILE_3D_KSPLAT,FILE_3D_SPZ':
                | ComfyNodeOutput<'FILE_3D,FILE_3D_SPLAT_ANY,FILE_3D_PLY,FILE_3D_SPLAT,FILE_3D_KSPLAT,FILE_3D_SPZ'>
                | HasSingle['FILE_3D,FILE_3D_SPLAT_ANY,FILE_3D_PLY,FILE_3D_SPLAT,FILE_3D_KSPLAT,FILE_3D_SPZ']
                | ((
                     x: Producer['FILE_3D,FILE_3D_SPLAT_ANY,FILE_3D_PLY,FILE_3D_SPLAT,FILE_3D_KSPLAT,FILE_3D_SPZ'],
                  ) => Accepts['FILE_3D,FILE_3D_SPLAT_ANY,FILE_3D_PLY,FILE_3D_SPLAT,FILE_3D_KSPLAT,FILE_3D_SPZ'])
+               | Accepts['FILE_3D']
+               | Accepts['FILE_3D_SPLAT_ANY']
+               | ComfyNodeOutput<'FILE_3D_PLY'>
+               | ComfyNodeOutput<'FILE_3D_SPLAT'>
+               | ComfyNodeOutput<'FILE_3D_KSPLAT'>
+               | ComfyNodeOutput<'FILE_3D_SPZ'>
             'FILE_3D_SPLAT_ANY,FILE_3D_PLY,FILE_3D_SPLAT,FILE_3D_SPZ,FILE_3D_KSPLAT':
                | ComfyNodeOutput<'FILE_3D_SPLAT_ANY,FILE_3D_PLY,FILE_3D_SPLAT,FILE_3D_SPZ,FILE_3D_KSPLAT'>
                | HasSingle['FILE_3D_SPLAT_ANY,FILE_3D_PLY,FILE_3D_SPLAT,FILE_3D_SPZ,FILE_3D_KSPLAT']
                | ((
                     x: Producer['FILE_3D_SPLAT_ANY,FILE_3D_PLY,FILE_3D_SPLAT,FILE_3D_SPZ,FILE_3D_KSPLAT'],
                  ) => Accepts['FILE_3D_SPLAT_ANY,FILE_3D_PLY,FILE_3D_SPLAT,FILE_3D_SPZ,FILE_3D_KSPLAT'])
+               | Accepts['FILE_3D_SPLAT_ANY']
+               | ComfyNodeOutput<'FILE_3D_PLY'>
+               | ComfyNodeOutput<'FILE_3D_SPLAT'>
+               | ComfyNodeOutput<'FILE_3D_SPZ'>
+               | ComfyNodeOutput<'FILE_3D_KSPLAT'>
             'MODEL_TASK_ID,RIG_TASK_ID,RETARGET_TASK_ID,SEGMENT_TASK_ID':
                | ComfyNodeOutput<'MODEL_TASK_ID,RIG_TASK_ID,RETARGET_TASK_ID,SEGMENT_TASK_ID'>
                | HasSingle['MODEL_TASK_ID,RIG_TASK_ID,RETARGET_TASK_ID,SEGMENT_TASK_ID']
                | ((
                     x: Producer['MODEL_TASK_ID,RIG_TASK_ID,RETARGET_TASK_ID,SEGMENT_TASK_ID'],
                  ) => Accepts['MODEL_TASK_ID,RIG_TASK_ID,RETARGET_TASK_ID,SEGMENT_TASK_ID'])
+               | Accepts['MODEL_TASK_ID']
+               | Accepts['RIG_TASK_ID']
+               | Accepts['RETARGET_TASK_ID']
+               | Accepts['SEGMENT_TASK_ID']
             'FILE_3D_GLB,FILE_3D_GLTF,FILE_3D_OBJ,FILE_3D_STL,FILE_3D':
                | ComfyNodeOutput<'FILE_3D_GLB,FILE_3D_GLTF,FILE_3D_OBJ,FILE_3D_STL,FILE_3D'>
                | HasSingle['FILE_3D_GLB,FILE_3D_GLTF,FILE_3D_OBJ,FILE_3D_STL,FILE_3D']
                | ((
                     x: Producer['FILE_3D_GLB,FILE_3D_GLTF,FILE_3D_OBJ,FILE_3D_STL,FILE_3D'],
                  ) => Accepts['FILE_3D_GLB,FILE_3D_GLTF,FILE_3D_OBJ,FILE_3D_STL,FILE_3D'])
+               | Accepts['FILE_3D_GLB']
+               | ComfyNodeOutput<'FILE_3D_GLTF'>
+               | Accepts['FILE_3D_OBJ']
+               | ComfyNodeOutput<'FILE_3D_STL'>
+               | Accepts['FILE_3D']
             'FILE_3D_GLB,FILE_3D_FBX,FILE_3D_OBJ,FILE_3D_STL,FILE_3D':
                | ComfyNodeOutput<'FILE_3D_GLB,FILE_3D_FBX,FILE_3D_OBJ,FILE_3D_STL,FILE_3D'>
                | HasSingle['FILE_3D_GLB,FILE_3D_FBX,FILE_3D_OBJ,FILE_3D_STL,FILE_3D']
                | ((
                     x: Producer['FILE_3D_GLB,FILE_3D_FBX,FILE_3D_OBJ,FILE_3D_STL,FILE_3D'],
                  ) => Accepts['FILE_3D_GLB,FILE_3D_FBX,FILE_3D_OBJ,FILE_3D_STL,FILE_3D'])
+               | Accepts['FILE_3D_GLB']
+               | Accepts['FILE_3D_FBX']
+               | Accepts['FILE_3D_OBJ']
+               | ComfyNodeOutput<'FILE_3D_STL'>
+               | Accepts['FILE_3D']
             'FILE_3D_GLB,FILE_3D_OBJ,FILE_3D_FBX,FILE_3D':
                | ComfyNodeOutput<'FILE_3D_GLB,FILE_3D_OBJ,FILE_3D_FBX,FILE_3D'>
                | HasSingle['FILE_3D_GLB,FILE_3D_OBJ,FILE_3D_FBX,FILE_3D']
                | ((
                     x: Producer['FILE_3D_GLB,FILE_3D_OBJ,FILE_3D_FBX,FILE_3D'],
                  ) => Accepts['FILE_3D_GLB,FILE_3D_OBJ,FILE_3D_FBX,FILE_3D'])
+               | Accepts['FILE_3D_GLB']
+               | Accepts['FILE_3D_OBJ']
+               | Accepts['FILE_3D_FBX']
+               | Accepts['FILE_3D']
             '*':
                | string
                | number
@@ -126650,18 +126708,27 @@ declare global {
                | ((
                     x: Producer['FILE_3D_POINT_CLOUD_ANY,FILE_3D_PLY'],
                  ) => Accepts['FILE_3D_POINT_CLOUD_ANY,FILE_3D_PLY'])
+               | Accepts['FILE_3D_POINT_CLOUD_ANY']
+               | ComfyNodeOutput<'FILE_3D_PLY'>
             'FILE_3D_GLB,FILE_3D_OBJ,FILE_3D':
                | ComfyNodeOutput<'FILE_3D_GLB,FILE_3D_OBJ,FILE_3D'>
                | HasSingle['FILE_3D_GLB,FILE_3D_OBJ,FILE_3D']
                | ((x: Producer['FILE_3D_GLB,FILE_3D_OBJ,FILE_3D']) => Accepts['FILE_3D_GLB,FILE_3D_OBJ,FILE_3D'])
+               | Accepts['FILE_3D_GLB']
+               | Accepts['FILE_3D_OBJ']
+               | Accepts['FILE_3D']
             'MHR_POSE_DATA,KIMODO_POSE_DATA':
                | ComfyNodeOutput<'MHR_POSE_DATA,KIMODO_POSE_DATA'>
                | HasSingle['MHR_POSE_DATA,KIMODO_POSE_DATA']
                | ((x: Producer['MHR_POSE_DATA,KIMODO_POSE_DATA']) => Accepts['MHR_POSE_DATA,KIMODO_POSE_DATA'])
+               | Accepts['MHR_POSE_DATA']
+               | ComfyNodeOutput<'KIMODO_POSE_DATA'>
             'MODEL_TASK_ID,SEGMENT_TASK_ID':
                | ComfyNodeOutput<'MODEL_TASK_ID,SEGMENT_TASK_ID'>
                | HasSingle['MODEL_TASK_ID,SEGMENT_TASK_ID']
                | ((x: Producer['MODEL_TASK_ID,SEGMENT_TASK_ID']) => Accepts['MODEL_TASK_ID,SEGMENT_TASK_ID'])
+               | Accepts['MODEL_TASK_ID']
+               | Accepts['SEGMENT_TASK_ID']
             WANVIDEOPROMPTEXTENDER_ARGS:
                | ComfyNodeOutput<'WANVIDEOPROMPTEXTENDER_ARGS'>
                | HasSingle['WANVIDEOPROMPTEXTENDER_ARGS']
@@ -126682,10 +126749,17 @@ declare global {
                | ComfyNodeOutput<'BOUNDING_BOX,ARRAY,STRING'>
                | HasSingle['BOUNDING_BOX,ARRAY,STRING']
                | ((x: Producer['BOUNDING_BOX,ARRAY,STRING']) => Accepts['BOUNDING_BOX,ARRAY,STRING'])
+               | Accepts['BOUNDING_BOX']
+               | Accepts['ARRAY']
+               | Accepts['STRING']
             'INT,FLOAT,STRING,BOOLEAN':
                | ComfyNodeOutput<'INT,FLOAT,STRING,BOOLEAN'>
                | HasSingle['INT,FLOAT,STRING,BOOLEAN']
                | ((x: Producer['INT,FLOAT,STRING,BOOLEAN']) => Accepts['INT,FLOAT,STRING,BOOLEAN'])
+               | Accepts['INT']
+               | Accepts['FLOAT']
+               | Accepts['STRING']
+               | Accepts['BOOLEAN']
             FILE_3D_POINT_CLOUD_ANY:
                | ComfyNodeOutput<'FILE_3D_POINT_CLOUD_ANY'>
                | HasSingle['FILE_3D_POINT_CLOUD_ANY']
@@ -126750,6 +126824,8 @@ declare global {
                | ComfyNodeOutput<'SAM3_TRACK_DATA,MASK'>
                | HasSingle['SAM3_TRACK_DATA,MASK']
                | ((x: Producer['SAM3_TRACK_DATA,MASK']) => Accepts['SAM3_TRACK_DATA,MASK'])
+               | Accepts['SAM3_TRACK_DATA']
+               | Accepts['MASK']
             FACE_DETECTION_MODEL:
                | ComfyNodeOutput<'FACE_DETECTION_MODEL'>
                | HasSingle['FACE_DETECTION_MODEL']
@@ -126790,6 +126866,8 @@ declare global {
                | ComfyNodeOutput<'FILE_3D_FBX,FILE_3D'>
                | HasSingle['FILE_3D_FBX,FILE_3D']
                | ((x: Producer['FILE_3D_FBX,FILE_3D']) => Accepts['FILE_3D_FBX,FILE_3D'])
+               | Accepts['FILE_3D_FBX']
+               | Accepts['FILE_3D']
             LUMA_RAY32_KEYFRAME:
                | ComfyNodeOutput<'LUMA_RAY32_KEYFRAME'>
                | HasSingle['LUMA_RAY32_KEYFRAME']
@@ -126939,6 +127017,9 @@ declare global {
                | ComfyNodeOutput<'FLOAT,INT,BOOLEAN'>
                | HasSingle['FLOAT,INT,BOOLEAN']
                | ((x: Producer['FLOAT,INT,BOOLEAN']) => Accepts['FLOAT,INT,BOOLEAN'])
+               | Accepts['FLOAT']
+               | Accepts['INT']
+               | Accepts['BOOLEAN']
             CAMERA_INFO_STATE:
                | ComfyNodeOutput<'CAMERA_INFO_STATE'>
                | HasSingle['CAMERA_INFO_STATE']
@@ -126959,6 +127040,9 @@ declare global {
                | ComfyNodeOutput<'INT,FLOAT,BOOLEAN'>
                | HasSingle['INT,FLOAT,BOOLEAN']
                | ((x: Producer['INT,FLOAT,BOOLEAN']) => Accepts['INT,FLOAT,BOOLEAN'])
+               | Accepts['INT']
+               | Accepts['FLOAT']
+               | Accepts['BOOLEAN']
             SELECTEDDITBLOCKS:
                | ComfyNodeOutput<'SELECTEDDITBLOCKS'>
                | HasSingle['SELECTEDDITBLOCKS']
@@ -127458,6 +127542,8 @@ declare global {
                | ComfyNodeOutput<'LATENT,IMAGE'>
                | HasSingle['LATENT,IMAGE']
                | ((x: Producer['LATENT,IMAGE']) => Accepts['LATENT,IMAGE'])
+               | Accepts['LATENT']
+               | Accepts['IMAGE']
             FREEINITARGS:
                | ComfyNodeOutput<'FREEINITARGS'>
                | HasSingle['FREEINITARGS']
@@ -127622,10 +127708,14 @@ declare global {
                | ComfyNodeOutput<'IMAGE,VIDEO'>
                | HasSingle['IMAGE,VIDEO']
                | ((x: Producer['IMAGE,VIDEO']) => Accepts['IMAGE,VIDEO'])
+               | Accepts['IMAGE']
+               | Accepts['VIDEO']
             'IMAGE,MASK':
                | ComfyNodeOutput<'IMAGE,MASK'>
                | HasSingle['IMAGE,MASK']
                | ((x: Producer['IMAGE,MASK']) => Accepts['IMAGE,MASK'])
+               | Accepts['IMAGE']
+               | Accepts['MASK']
             LORA_MODEL:
                | ComfyNodeOutput<'LORA_MODEL'>
                | HasSingle['LORA_MODEL']
@@ -127666,6 +127756,8 @@ declare global {
                | ComfyNodeOutput<'MODEL,CLIP'>
                | HasSingle['MODEL,CLIP']
                | ((x: Producer['MODEL,CLIP']) => Accepts['MODEL,CLIP'])
+               | Accepts['MODEL']
+               | Accepts['CLIP']
             LTX_BLOCKS:
                | ComfyNodeOutput<'LTX_BLOCKS'>
                | HasSingle['LTX_BLOCKS']
@@ -127722,6 +127814,8 @@ declare global {
                | ComfyNodeOutput<'FLOAT,INT'>
                | HasSingle['FLOAT,INT']
                | ((x: Producer['FLOAT,INT']) => Accepts['FLOAT,INT'])
+               | Accepts['FLOAT']
+               | Accepts['INT']
             HISTOGRAM:
                | ComfyNodeOutput<'HISTOGRAM'>
                | HasSingle['HISTOGRAM']
@@ -127826,6 +127920,8 @@ declare global {
                | ComfyNodeOutput<'INT,FLOAT'>
                | HasSingle['INT,FLOAT']
                | ((x: Producer['INT,FLOAT']) => Accepts['INT,FLOAT'])
+               | Accepts['INT']
+               | Accepts['FLOAT']
             BBOX_LIST:
                | ComfyNodeOutput<'BBOX_LIST'>
                | HasSingle['BBOX_LIST']
@@ -128046,7 +128142,12 @@ declare global {
             CURVE: ComfyNodeOutput<'CURVE'> | HasSingle['CURVE'] | ((x: Producer['CURVE']) => Accepts['CURVE'])
             SPLAT: ComfyNodeOutput<'SPLAT'> | HasSingle['SPLAT'] | ((x: Producer['SPLAT']) => Accepts['SPLAT'])
             TIMER: ComfyNodeOutput<'TIMER'> | HasSingle['TIMER'] | ((x: Producer['TIMER']) => Accepts['TIMER'])
-            'BBOX,': ComfyNodeOutput<'BBOX,'> | HasSingle['BBOX,'] | ((x: Producer['BBOX,']) => Accepts['BBOX,'])
+            'BBOX,':
+               | ComfyNodeOutput<'BBOX,'>
+               | HasSingle['BBOX,']
+               | ((x: Producer['BBOX,']) => Accepts['BBOX,'])
+               | Accepts['BBOX']
+               | ComfyNodeOutput<''>
             VQVAE: ComfyNodeOutput<'VQVAE'> | HasSingle['VQVAE'] | ((x: Producer['VQVAE']) => Accepts['VQVAE'])
             BYTES: ComfyNodeOutput<'BYTES'> | HasSingle['BYTES'] | ((x: Producer['BYTES']) => Accepts['BYTES'])
             CLIP: ComfyNodeOutput<'CLIP'> | HasSingle['CLIP'] | ((x: Producer['CLIP']) => Accepts['CLIP'])

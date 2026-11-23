@@ -318,10 +318,15 @@ export function codegenSDK(this: ComfySchema, opts: CodegenOptions): string {
    // 2/3
    p('')
    p('// named slot types: everything an input of that type accepts')
+   const slotTypeNames = new Set<string>(slotTypes.map((t) => t.comfyType))
    for (const t of slotTypes) {
-      p(
-         `${escapeJSKey(t.comfyType)}: ${t.tsType} | HasSingle['${t.comfyType}'] | ((x: Producer['${t.comfyType}']) => Accepts['${t.comfyType}'])`,
+      const own = `${t.tsType} | HasSingle['${t.comfyType}'] | ((x: Producer['${t.comfyType}']) => Accepts['${t.comfyType}'])`
+      // `MESH,FILE_3D_GLB` takes an output of ANY listed type (SaveGLB's `mesh`)
+      const parts = t.comfyType.includes(',') ? t.comfyType.split(',').map((s) => s.trim()) : []
+      const anyOf = parts.map((part) =>
+         slotTypeNames.has(part) ? `Accepts['${part}']` : `ComfyNodeOutput<'${part}'>`,
       )
+      p(`${escapeJSKey(t.comfyType)}: ${[own, ...anyOf].join(' | ')}`)
    }
 
    // 3/3

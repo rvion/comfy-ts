@@ -542,7 +542,11 @@ export class ComfyNode<
    }
 
    private _getOutputForTypeOrCrash(type: string): ComfyNodeOutput<any> {
-      const i: NodeOutputExt = this.$schema.outputs.find((i: NodeOutputExt) => i.typeName === type)!
+      const i = this.$schema.outputs.find((i: NodeOutputExt) => slotTypeAccepts(type, i.typeName))
+      if (i == null)
+         throw new Error(
+            `🔴 ${this.$schema.nodeKey} has no output of type ${type}: link one of its outputs by name instead`,
+         )
       const val = (this.outputs as any)[i.outKey]
       // console.log(`this[i.name] = ${this.$schema.name}[${i.name}] = ${val}`)
       if (val instanceof ComfyNodeOutput) return val
@@ -550,11 +554,17 @@ export class ComfyNode<
    }
 
    private _getOutputForTypeOrNull(type: string): ComfyNodeOutput<any> | null {
-      const i: Maybe<NodeOutputExt> = this.$schema.outputs.find((i: NodeOutputExt) => i.typeName === type)
+      const i: Maybe<NodeOutputExt> = this.$schema.outputs.find((i: NodeOutputExt) => slotTypeAccepts(type, i.typeName))
       if (i == null) return null
       const val = (this.outputs as any)[i.outKey]
       if (val == null) return null
       if (val instanceof ComfyNodeOutput) return val
       throw new Error(`Expected ${i.outKey} to be a ComfyNodeOutput`)
    }
+}
+
+/** an input typed `MESH,FILE_3D_GLB` takes an output of ANY listed type (ComfyUI's SaveGLB) */
+export function slotTypeAccepts(inputType: string, outputType: string): boolean {
+   if (inputType === outputType) return true
+   return inputType.includes(',') && inputType.split(',').some((part) => part.trim() === outputType)
 }
