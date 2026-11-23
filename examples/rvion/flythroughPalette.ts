@@ -209,7 +209,7 @@ export async function measureVideo(picture: string, file: string): Promise<Drift
    return out
 }
 
-/** every frame of a video matched to the picture (smoothed over a second), into an mp4 at its fps */
+/** every frame of a video matched to the picture (its stats smoothed over a sixth of a second: wider, a drifting start pulls frame 0 off the picture), into an mp4 at its fps */
 export async function matchVideo(p: { picture: string; input: string; output: string; strength: number }): Promise<void> {
    const size = await videoSize(p.input)
    const fps = (await $`ffprobe -v error -select_streams v:0 -show_entries stream=r_frame_rate -of csv=p=0 ${p.input}`.text()).trim()
@@ -218,7 +218,7 @@ export async function matchVideo(p: { picture: string; input: string; output: st
    const own: Palette[] = []
    await eachFrame(p.input, small.width, small.height, (rgb) => void own.push(paletteOf(rgb)))
    const fpsValue = fps.split('/').map(Number).reduce((a, b) => a / b)
-   const smooth = smoothPalettes(own, fpsValue / 2)
+   const smooth = smoothPalettes(own, fpsValue / 6)
    const enc = Bun.spawn(
       ['ffmpeg', '-loglevel', 'error', '-y', '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-s', `${size.width}x${size.height}`, '-r', fps, '-i', '-', '-c:v', 'libx264', '-crf', '12', '-pix_fmt', 'yuv420p', p.output],
       { stdin: 'pipe' },
@@ -236,7 +236,7 @@ export async function matchVideo(p: { picture: string; input: string; output: st
 export async function driftChart(series: { label: string; drift: Drift[] }[], out: string): Promise<void> {
    const panels: { key: keyof Drift; title: string; lo: number; hi: number; mark?: number }[] = [
       { key: 'dE', title: 'ΔE of the mean colour (0 = the picture)', lo: 0, hi: 20 },
-      { key: 'dL', title: 'lightness of the mean, against the picture', lo: -15, hi: 15, mark: 0 },
+      { key: 'dL', title: 'lightness of the mean, against the picture', lo: -25, hi: 25, mark: 0 },
       { key: 'saturation', title: 'saturation, against the picture (1 = the same)', lo: 0, hi: 3, mark: 1 },
       { key: 'contrast', title: 'contrast, against the picture (1 = the same)', lo: 0, hi: 3, mark: 1 },
       { key: 'hue', title: 'hue histogram distance (0 = the same hues)', lo: 0, hi: 0.6 },

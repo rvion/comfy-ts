@@ -2,7 +2,9 @@
 // from the last frame of the clip before. The picture's MoGe mesh is made once on the box and kept,
 // the guide of every clip is drawn here (flythroughGuide.ts), so the box only runs Wan.
 // Writes into <out>: mesh.glb, clip-<k>.mp4 with its guide, colour render and coverage beside it,
-// cameras.json (every frame's camera), and flythrough.mp4, the clips joined.
+// cameras.json (every frame's camera), and flythrough.mp4, the clips joined. Each clip is the video
+// model's (clip-<k>-raw.mp4) pulled back to the picture's palette frame by frame, so the colours
+// hold across the clips and the frames a splat trainer reads agree.
 //
 // run:  bun examples/rvion/flythroughChain.ts <picture> <settings.json> <out> [from] [to]
 // settings.json holds 19-flythrough's vars ({ "path": "orbit", "clips": 7, "fov": 62, … })
@@ -13,7 +15,7 @@ import sharp from 'sharp'
 import { ComfyTS } from 'comfy-ts'
 import flythrough, { chainStart, premadeCoverage, premadeGuide, premadeRender } from './19-flythrough.cflow.ts'
 import { dropStretched, levelMesh, readGlb, renderGuideFrame, type GuideMesh } from './flythroughGuide.ts'
-import { matchFrame, paletteOf, pictureAt } from './flythroughPalette.ts'
+import { matchFrame, matchVideo, paletteOf, pictureAt } from './flythroughPalette.ts'
 import { clipFrames, ENGINES, frameFovY, pathCameras } from './flythroughPath.ts'
 
 const [picture, settingsPath, out, fromArg, toArg] = process.argv.slice(2)
@@ -143,7 +145,9 @@ for (let k = from; k <= to; k++) {
    const execution = await flythrough.run({})
    const clip = execution.videos.find((x) => x.tags.includes('clip'))
    if (clip == null) throw new Error(`flythrough chain: clip ${k} came back without its video`)
-   writeFileSync(join(out, `clip-${k}.mp4`), clip.bytes)
+   const raw = join(out, `clip-${k}-raw.mp4`)
+   writeFileSync(raw, clip.bytes)
+   await matchVideo({ picture, input: raw, output: join(out, `clip-${k}.mp4`), strength: 1 })
    console.log(`🟢 clip ${k}: guide drawn in ${drawn} s, ${v.engine.value} in ${((Date.now() - t1) / 1000).toFixed(0)} s`)
 }
 
