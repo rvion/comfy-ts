@@ -4,15 +4,16 @@
 // writes `splat-grown.ply` beside it and the pictures of each round under `grow/`.
 //
 //    bun examples/rvion/grow-splat/grow.ts <world folder> [--rounds "30 -30 60 -60"] [--extend "<what lies beyond>"]
-//                                         [--seed 1] [--fresh] [--views]
+//                                         [--seed 1] [--fresh] [--reuse] [--views]
 // a round is `<yaw>[@<x>,<z>]`: turn left by yaw degrees (negative turns right), standing at x metres right and
-// z metres forward of the picture's camera. Without --fresh the rounds go on from the last grown splat.
+// z metres forward of the picture's camera. Without --fresh the rounds go on from the last grown splat; --reuse
+// takes a round's filled view and lifted splat from an earlier run when they exist (tuning the merge alone).
 // --views only draws the grown splat (and the picture's) from a fixed set of cameras, into grow/views.png
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'pathe'
 import sharp from 'sharp'
 import { FILL_PROMPT, growSplatFill } from '../20-grow-splat.cflow.ts'
-import { place } from './align.ts'
+import { place, trimToFrame } from './align.ts'
 import { concatSplats, readSplat, writeSplat, type Splat, type SplatCamera } from './ply.ts'
 import { render, turn, type Pose, type Render } from './raster.ts'
 import { sharpPredict } from './sharp.ts'
@@ -76,15 +77,30 @@ function cameraOf(s: Splat): SplatCamera {
    return s.camera
 }
 
-async function grow(dir: string, rounds: Round[], extend: string, seed0: number, fresh: boolean): Promise<void> {
+/** a round at a glance: the render, its empty part, the filled view, the world after the merge (2 × 2, 768 px each) */
+async function sheet(path: string, pictures: string[]): Promise<void> {
+   const W = 768
+   const H = 512
+   const tiles = await Promise.all(
+      pictures.map(async (p, i) => ({
+         input: await sharp(p).flatten({ background: '#000000' }).resize(W, H).png().toBuffer(),
+         left: (i % 2) * (W + 8),
+         top: Math.floor(i / 2) * (H + 8),
+      })),
+   )
+   await sharp({ create: { width: 2 * W + 8, height: 2 * H + 8, channels: 3, background: '#ffffff' } }).composite(tiles).webp().toFile(path)
+}
+
+async function grow(dir: string, rounds: Round[], extend: string, seed0: number, fresh: boolean, reuse: boolean): Promise<void> {
    const out = join(dir, 'grow')
    mkdirSync(out, { recursive: true })
    const grownPath = join(dir, 'splat-grown.ply')
    const logPath = join(out, 'rounds.json')
    const resume = !fresh && existsSync(grownPath) && existsSync(logPath)
    const log: RoundLog[] = resume ? (JSON.parse(readFileSync(logPath, 'utf8')) as RoundLog[]) : []
-   let world = readSplat(resume ? grownPath : join(dir, 'splat.ply'))
-   const cam = cameraOf(world)
+   const picture = readSplat(join(dir, 'splat.ply'))
+   const cam = cameraOf(picture)
+   let world = resume ? readSplat(grownPath) : trimToFrame(picture, cam)
    console.log(`${resume ? 'resume' : 'start'}: ${world.n} gaussians, ${log.length} rounds done`)
    for (const r of rounds) {
       const t0 = performance.now()
@@ -96,19 +112,21 @@ async function grow(dir: string, rounds: Round[], extend: string, seed0: number,
       await writeRender(renderPng, view, true)
       const hole = await writeMask(join(out, `${tag}-mask.png`), view)
       console.log(`${tag}: ${(hole * 100).toFixed(1)} % empty, filling`)
-      const seed = seed0 + n
+      const seedN = seed0 + n
       const filledPng = join(out, `${tag}-filled.png`)
-      await sharp(await fill(renderPng, seed, extend)).removeAlpha().png().toFile(filledPng)
+      if (!(reuse && existsSync(filledPng))) await sharp(await fill(renderPng, seedN, extend)).removeAlpha().png().toFile(filledPng)
       const liftedPly = join(out, `${tag}-lifted.ply`)
       const tf = performance.now()
-      sharpPredict(filledPng, liftedPly)
+      console.log(`${tag}: filled in ${Math.round((tf - t0) / 1000)} s, lifting`)
+      if (!(reuse && existsSync(liftedPly))) sharpPredict(filledPng, liftedPly)
       const tl = performance.now()
       const placed = place({ lifted: readSplat(liftedPly), world: view, cam, pose, keepBelow: KEEP_BELOW })
       world = concatSplats([world, placed.kept])
       await writeRender(join(out, `${tag}-after.png`), render(world, cam, pose), false)
+      await sheet(join(out, `${tag}-sheet.webp`), [renderPng, join(out, `${tag}-mask.png`), filledPng, join(out, `${tag}-after.png`)])
       writeSplat(grownPath, world)
       const seconds = Math.round((performance.now() - t0) / 1000)
-      log.push({ ...r, round: n, seed, seconds, scale: placed.fit.scale, spread: placed.fit.spread, fitPixels: placed.fit.pixels, hole, kept: placed.kept.n, total: placed.total, gaussians: world.n })
+      log.push({ ...r, round: n, seed: seedN, seconds, scale: placed.fit.scale, spread: placed.fit.spread, fitPixels: placed.fit.pixels, hole, kept: placed.kept.n, total: placed.total, gaussians: world.n })
       writeFileSync(logPath, `${JSON.stringify(log, null, 3)}\n`)
       console.log(
          `${tag}: ${seconds} s (fill ${Math.round((tf - t0) / 1000)} s, SHARP ${Math.round((tl - tf) / 1000)} s), scale ×${placed.fit.scale.toFixed(3)} ` +
@@ -172,7 +190,7 @@ if (import.meta.main) {
       if (args.includes('--views')) await views(dir)
       else {
          const rounds = (flag('--rounds') ?? '30 -30 60 -60').trim().split(/\s+/).map(parseRound)
-         await grow(dir, rounds, flag('--extend') ?? '', Number(flag('--seed') ?? 1), args.includes('--fresh'))
+         await grow(dir, rounds, flag('--extend') ?? '', Number(flag('--seed') ?? 1), args.includes('--fresh'), args.includes('--reuse'))
       }
    } finally {
       growSplatFill.host.disconnect()

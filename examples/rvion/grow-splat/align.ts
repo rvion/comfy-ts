@@ -46,7 +46,24 @@ export function fitScale(world: Render, lifted: Render, minCover = 0.95): ScaleF
    }
 }
 
-export type Placed = { kept: Splat; fit: ScaleFit; total: number }
+/** only the gaussians whose centre falls inside the picture: SHARP pushes some past its border, where nothing
+ *  was seen, and from a turned camera they show as a dark smudge beyond the picture's edge */
+export function trimToFrame(s: Splat, cam: SplatCamera): Splat {
+   const keep: number[] = []
+   for (let g = 0; g < s.n; g++) {
+      const b = g * STRIDE
+      const z = s.data[b + 2]!
+      if (z <= 0) continue
+      const u = (cam.f * s.data[b]!) / z + cam.cx
+      const v = (cam.f * s.data[b + 1]!) / z + cam.cy
+      if (u >= 0 && v >= 0 && u < cam.width && v < cam.height) keep.push(g)
+   }
+   const data = new Float32Array(keep.length * STRIDE)
+   keep.forEach((g, k) => data.set(s.data.subarray(g * STRIDE, (g + 1) * STRIDE), k * STRIDE))
+   return { n: keep.length, data, camera: s.camera }
+}
+
+export type Placed ={ kept: Splat; fit: ScaleFit; total: number }
 
 /**
  * `lifted` is SHARP's splat of the filled view, in that view's camera axes; `world` is the render of the grown

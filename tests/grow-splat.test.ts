@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { place } from 'examples/rvion/grow-splat/align.ts'
+import { place, trimToFrame } from 'examples/rvion/grow-splat/align.ts'
 import { concatSplats, encodeSplat, parseSplat, STRIDE, type Splat, type SplatCamera } from 'examples/rvion/grow-splat/ply.ts'
 import { IDENTITY, apply3, matToQuat, quatToMat, render, turn } from 'examples/rvion/grow-splat/raster.ts'
 
@@ -100,6 +100,14 @@ describe('grow splat: place', () => {
          expect(placed.kept.data[b + 2]!).toBeLessThan(4.2)
          expect(placed.kept.data[b]!).toBeGreaterThan(-0.6)
       }
+   })
+
+   it('trims the gaussians that fall outside the picture', () => {
+      const s = wall(2, -3, 3)
+      const t = trimToFrame(s, CAM)
+      expect(t.n).toBeGreaterThan(0)
+      expect(t.n).toBeLessThan(s.n)
+      for (let g = 0; g < t.n; g++) expect(Math.abs((CAM.f * t.data[g * STRIDE]!) / 2)).toBeLessThanOrEqual(CAM.cx)
    })
 
    it('refuses a lifted splat made for another camera', () => {
