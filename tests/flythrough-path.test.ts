@@ -2,6 +2,7 @@
 // stays steady where clips join, and the orbit keeps its centre in view at its radius
 import { describe, expect, it } from 'bun:test'
 import { colmapPose } from 'examples/rvion/flythroughColmap.ts'
+import { readSplatPly, toViewerAxes } from 'examples/rvion/flythroughSplat.ts'
 import { orbitPath, pathCameras, walkPath } from 'examples/rvion/flythroughPath.ts'
 
 const step = (a: { position: number[] }, b: { position: number[] }) =>
@@ -90,5 +91,28 @@ describe('colmapPose', () => {
       expect(seen[0]).toBeCloseTo(0, 6)
       expect(seen[1]).toBeCloseTo(0, 6)
       expect(seen[2]).toBeCloseTo(5, 6)
+   })
+})
+
+describe('toViewerAxes', () => {
+   it('turns a splat 180° about x: position (x, -y, -z), rotation (0, 1, 0, 0) ⊗ q', () => {
+      const names = ['f_dc_0', 'f_dc_1', 'f_dc_2', 'x', 'y', 'z', 'opacity', 'scale_0', 'scale_1', 'scale_2', 'rot_0', 'rot_1', 'rot_2', 'rot_3']
+      // identity rotation, then a quarter turn about y
+      const s = Math.SQRT1_2
+      const rows = [
+         [0.1, 0.2, 0.3, 1, 2, -3, 0.5, -1, -2, -3, 1, 0, 0, 0],
+         [0.1, 0.2, 0.3, 1, 2, -3, 0.5, -1, -2, -3, s, 0, s, 0],
+      ]
+      const out = toViewerAxes({ names, count: 2, data: Float32Array.from(rows.flat()) })
+      const { names: outNames, data } = readSplatPly(out)
+      const row = (i: number) => Object.fromEntries(outNames.map((n, k) => [n, data[i * outNames.length + k]!]))
+      expect([row(0).x, row(0).y, row(0).z]).toEqual([1, -2, 3])
+      expect([row(0).rot_0, row(0).rot_1, row(0).rot_2, row(0).rot_3]).toEqual([-0, 1, -0, 0])
+      expect(row(0).f_dc_1).toBeCloseTo(0.2, 6)
+      // (0,1,0,0) ⊗ (s,0,s,0) = (0, s, 0, s)
+      expect(row(1).rot_0).toBeCloseTo(0, 6)
+      expect(row(1).rot_1).toBeCloseTo(s, 6)
+      expect(row(1).rot_2).toBeCloseTo(0, 6)
+      expect(row(1).rot_3).toBeCloseTo(s, 6)
    })
 })
