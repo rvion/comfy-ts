@@ -17,8 +17,10 @@ const HINT: Record<View, string> = {
    source: '',
 }
 
-/** the lightbox: the page's root fills the screen. Esc leaves it (the browser's own key); F toggles it */
+/** the page's own full screen, for the page opened alone: in the hub's lightbox (`mode=lightbox`) the hub fills the
+ * window and closes it. Esc leaves it (the browser's own key); F toggles it */
 async function toggleFull(): Promise<void> {
+   if (st.mode === 'lightbox') return
    if (document.fullscreenElement != null) return void (await document.exitFullscreen())
    try {
       await document.documentElement.requestFullscreen()
@@ -80,10 +82,10 @@ const Stage = observer(function Stage() {
             <div className="note">loading {st.loading}…</div>
          ) : null}
          {st.name === '' && st.standalone ? <Worlds /> : null}
-         {shown != null && HINT[shown] && !st.touched && st.loading == null ? (
+         {shown != null && HINT[shown] && !st.touched && st.loading == null && st.mode !== 'thumb' ? (
             <div className="hint">{HINT[shown]}</div>
          ) : null}
-         {st.notice != null ? <div className="hint notice">{st.notice}</div> : null}
+         {st.notice != null && st.mode !== 'thumb' ? <div className="hint notice">{st.notice}</div> : null}
       </div>
    )
 })
@@ -104,6 +106,13 @@ const Worlds = observer(function Worlds() {
 
 const App = observer(function App() {
    const shown = st.shown
+   // the hub's still: the scene alone, no bar, no hint
+   if (st.mode === 'thumb')
+      return (
+         <div className="app thumb">
+            <Stage />
+         </div>
+      )
    return (
       <div className="app">
          <div className="bar">
@@ -122,9 +131,11 @@ const App = observer(function App() {
                      reset view
                   </button>
                ) : null}
-               <button className="tab" title={st.full ? 'Esc' : 'F'} onClick={() => void toggleFull()}>
-                  {st.full ? '✕ close' : '⤢ full screen'}
-               </button>
+               {st.mode === 'lightbox' ? null : (
+                  <button className="tab" title={st.full ? 'Esc' : 'F'} onClick={() => void toggleFull()}>
+                     {st.full ? '✕ close' : '⤢ full screen'}
+                  </button>
+               )}
             </span>
          </div>
          <Stage />

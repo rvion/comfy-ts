@@ -49,6 +49,8 @@ export function axes(c: Pick<Cam, 'yaw' | 'pitch'>): {
 export class WorldSt {
    name = ''
    side = ''
+   /** how the hub frames the page: `thumb` for the still it shoots (no ui), `lightbox` (the hub closes it), else inline or alone */
+   mode: '' | 'thumb' | 'lightbox' = ''
    /** the files the shown version names: a side's state, else every file the world has on disk */
    wanted: string[] = []
    all: WorldInfo[] = []
@@ -123,6 +125,8 @@ export class WorldSt {
    fromKeys(keys: string): void {
       const q = new URLSearchParams(keys)
       this.side = q.get('side') ?? ''
+      const mode = q.get('mode')
+      this.mode = mode === 'thumb' || mode === 'lightbox' ? mode : ''
       const view = q.get('view')
       this.view = VIEWS.find((v) => v === view) ?? null
       const n = (q.get('cam') ?? '').split(',').map(Number)

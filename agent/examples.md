@@ -71,6 +71,9 @@ A Bun server (`serve.ts`, port 8293, loopback, `bun run world`, the global proce
 - The thread kind: `world-explorer.shipkit.ts` (the process), `world-page.shipkit.ts` (the page `world`, `gl: true`), `world-kind.shipkit.ts` (the `review({ kinds: { world } })` unit, `view: { page: 'world' }`, `diff: { draw: 'views' }`). A version: `sk thread post world:<name> --title … --what … --after state.json` with the state `{ "name": "<name>", "files": ["panorama.png", …] }`.
 - `three` and `@sparkjsdev/spark` are devDependencies for this example only (coding.md, Stack pins).
 
+- The hub frames the page in one of three ways, read from its `mode` key: `thumb` for the still the hub shoots after a post (the scene alone, no bar, no hint), `lightbox` for the full window view the hub opens on a click (no full screen button of its own, the hub closes it), none when it is framed inline or opened alone (the F key and the full screen button).
+- A version's state: `bun examples/world-explorer/world-state.ts <name> [--card]` writes `.comfy-ts/worlds/<name>/state.json` (`{ json: { name, files }, card? }`) and prints its path; post it with `sk thread post world:<name> --after <path> --image .comfy-ts/worlds/<name>/thumb.webp`. The card (title, the views as chips, the mesh and splat sizes) is the line the hub draws under the still.
+
 ## The shared cloud host helper
 
 `examples/comfy-cloud/cloudHost.ts` (plain `.ts`: the TUI scans only `*.cflow.ts`, so it never lists the helper as a workflow). Every cloud example imports it RELATIVELY (`./cloudHost.ts` — examples are outside src/, the absolute-src rule does not apply; everything else imports from `'comfy-ts'`):
