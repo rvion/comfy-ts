@@ -24,6 +24,9 @@ import type {
 import { MediaImage } from 'src/runner/MediaImage.ts'
 import { extensionOf, isVideoFilename, mediaMime } from 'src/runner/mediaKinds.ts'
 import { model3dMime } from 'src/runner/outputs3d.ts'
+import { type HistoryReplay, historyReplay } from 'src/runner/historyReplay.ts'
+import { extractErrorMessage } from 'src/utils/extractErrorMessage.ts'
+import { logError, logInfo } from 'src/utils/log.ts'
 import { previewMetadataNodeId } from 'src/runner/wsBinaryFrame.ts'
 
 /** paths claimed by in-flight retrievals: two same-second runs on a
@@ -224,6 +227,10 @@ export class ComfyExecution {
    }
 
    onPromptRelatedMessage = (msg: PendingWsItem): void => {
+      // a run reconciled from /history can still hear its own end late: one end only
+      if (this.ended) return
+      if (msg.type === 'execution_success' || msg.type === 'execution_error' || msg.type === 'execution_interrupted')
+         this.ended = true
       const graph = this.workflow
       // replayed pre-registration binary frame: an OUTPUT only when the ws
       // saver was executing at this point of the stream, else a preview
@@ -256,6 +263,7 @@ export class ComfyExecution {
    }
 
    private onExecutionSuccess = async (_msg: WsMsgExecutionSuccess): Promise<void> => {
+      if (this.mayHaveMissedEvents) await this.retrieveMissedOutputs()
       await Promise.all(this.pendingPromises)
       return this._finish({ status: 'Success' })
    }
@@ -269,6 +277,7 @@ export class ComfyExecution {
    /** update execution list */
    private onExecuted = (msg: WsMsgExecuted): void => {
       const promptNodeID = msg.data.node
+      this.heardExecuted.add(promptNodeID)
       // a STRING output reaches the client ONLY through an output node's ui
       // payload (PreviewAny), never through the prompt result
       for (const entry of msg.data.output?.text ?? []) {
@@ -331,6 +340,73 @@ export class ComfyExecution {
       }
    }
    private pendingPromises: Promise<void>[] = []
+
+   /** an end message arrived (or was replayed): every later message is ignored */
+   private ended: boolean = false
+   /** the output nodes whose `executed` reached us, so a /history replay never retrieves one twice */
+   private heardExecuted: Set<string> = new Set()
+
+   /** the socket dropped while this run was still on the host */
+   private mayHaveMissedEvents: boolean = false
+
+   private replayUnheardOutputs(replay: HistoryReplay): void {
+      for (const msg of replay.executed)
+         if (msg.type === 'executed' && !this.heardExecuted.has(msg.data.node)) this.onExecuted(msg)
+   }
+
+   /** the history entry is written right after the end message is queued, so it may lag by a moment */
+   historyRetry: { tries: number; ms: number } = { tries: 5, ms: 400 }
+
+   /** a run that lived through a socket drop: an output node that ended in the gap is only in /history */
+   private retrieveMissedOutputs = async (): Promise<void> => {
+      const id = this.data.id
+      for (let i = 0; i < this.historyRetry.tries; i++) {
+         if (i > 0) await new Promise((r) => setTimeout(r, this.historyRetry.ms))
+         try {
+            const replay = historyReplay(await this.host.fetchHistory(id), id)
+            if (replay == null) continue
+            return this.replayUnheardOutputs(replay)
+         } catch (e) {
+            return logError(`run ${id}: its history did not answer (${extractErrorMessage(e)}); an output sent while the socket was down may be missing`)
+         }
+      }
+      logError(`run ${id}: no history entry after its end; an output sent while the socket was down may be missing`)
+   }
+
+   /** @internal the socket dropped and came back: the events sent while it was down are lost for good,
+    * so ask the host where this run stands. Queue THEN history: the server moves a prompt from one to the
+    * other under one lock, so this order never misses a run that ended between the two reads */
+   reconcileAfterReconnect = async (): Promise<void> => {
+      if (this.ended) return
+      const id = this.data.id
+      let queued: Set<string>
+      let replay: HistoryReplay | null
+      try {
+         queued = await this.host.fetchQueuedPromptIds()
+         replay = historyReplay(await this.host.fetchHistory(id), id)
+      } catch (e) {
+         logError(`run ${id}: the socket reconnected, and the queue or history of host '${this.host.data.id}' did not answer (${extractErrorMessage(e)}); waiting for its events`)
+         return
+      }
+      if (this.ended) return
+      if (replay == null) {
+         // still on the host: its next events reach this socket, but an output sent in the gap is
+         // only in its history once it ends
+         if (queued.has(id)) return void (this.mayHaveMissedEvents = true)
+         logError(`run ${id}: host '${this.host.data.id}' has it neither in its queue nor in its history (restarted while the socket was down ?); the run fails`)
+         this.ended = true
+         return void this._finish({ status: 'Failure', error: null })
+      }
+      logInfo(`run ${id}: ended on host '${this.host.data.id}' while the socket was down, finishing from its history`)
+      for (const p of replay.problems) logError(`run ${id}: a history entry does not match the ws schemas, skipped: ${p}`)
+      this.replayUnheardOutputs(replay)
+      if (this.ephemeral)
+         logError(`run ${id}: SaveImageWebsocket frames sent while the socket was down are lost (they never reach the server disk)`)
+      if (replay.end != null) return this.onPromptRelatedMessage(replay.end)
+      logError(`run ${id}: its history entry on host '${this.host.data.id}' carries no end message; the run fails`)
+      this.ended = true
+      return void this._finish({ status: 'Failure', error: null })
+   }
 
    /** audio retrievals that failed (their files are missing from `audios`) */
    audioErrors: { audio: ComfyImageInfo; error: unknown }[] = []

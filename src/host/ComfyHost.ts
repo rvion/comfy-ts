@@ -543,6 +543,9 @@ export class ComfyHost<ID extends string = string> {
       this.ws = new ResilientWebSocketClient({
          onConnectOrReconnect: async (): Promise<void> => {
             logInfo(`[👢] WEBSOCKET: connected to ComfyUI host ${this.data.id}`)
+            this._socketIsNew = true
+            // events sent while the socket was down are lost for good: each run in flight asks
+            for (const execution of this.executions.values()) void execution.reconcileAfterReconnect()
             if (this.shouldUseSchemaCache()) {
                try {
                   await this.loadSchemaFromCache()
@@ -561,7 +564,12 @@ export class ComfyHost<ID extends string = string> {
             this.markReady()
          },
          onMessage: (e: WsMessageEvent): void => this.onMessage(e),
-         url: () => this.getWSUrl(),
+         // a reconnect keeps the session: ComfyUI routes a prompt's events to the client_id it
+         // was posted with, and drops them when that session has no socket
+         url: () =>
+            this.comfySessionId === 'temp'
+               ? this.getWSUrl()
+               : `${this.getWSUrl()}?clientId=${encodeURIComponent(this.comfySessionId)}`,
          // auth rides the upgrade headers; headerless transports (browser)
          // remap X-API-Key to ?token= inside the ws client
          headers: () => this.authHeaders(),
@@ -632,6 +640,23 @@ export class ComfyHost<ID extends string = string> {
          body: JSON.stringify(body),
       })
       if (!res.ok) throw new Error(`POST ${route} failed on ${this.getServerHostHTTP()}: ${res.status}`)
+   }
+
+   /** one prompt's `GET /history/<id>` reply, `{}` while the host has no entry for it */
+   fetchHistory = (promptId: PromptID): Promise<unknown> => {
+      return this.fetchJSON_<unknown>(`/history/${encodeURIComponent(promptId)}`)
+   }
+
+   /** the ids of the prompts waiting or running on this host, every client counted (`GET /queue`) */
+   fetchQueuedPromptIds = async (): Promise<Set<string>> => {
+      const json = await this.fetchJSON_<unknown>('/queue')
+      const ids = new Set<string>()
+      for (const key of ['queue_running', 'queue_pending']) {
+         const list: unknown = typeof json === 'object' && json != null ? Reflect.get(json, key) : null
+         if (!Array.isArray(list)) throw new Error(`GET /queue on host '${this.data.id}': no ${key} list`)
+         for (const item of list) if (Array.isArray(item) && typeof item[1] === 'string') ids.add(item[1])
+      }
+      return ids
    }
 
    /** drop every PENDING prompt from the server queue (the running one keeps going) */
@@ -870,6 +895,9 @@ export class ComfyHost<ID extends string = string> {
    private _unknownBinaryFrameTypes = new Set<number>()
    private _unknownWsEventTypes = new Set<string>()
 
+   /** the socket opened and its first 'status' has not come yet */
+   private _socketIsNew: boolean = false
+
    /** handy to keep around */
    status: ComfyStatusData['status'] | null = null
 
@@ -974,10 +1002,13 @@ export class ComfyHost<ID extends string = string> {
       if (msg.type === 'status') {
          if (msg.data.sid) {
             const sidChanged = msg.data.sid !== this.comfySessionId
+            const socketIsNew = this._socketIsNew
+            this._socketIsNew = false
             this.comfySessionId = msg.data.sid
             this._sessionResolve?.()
             this._sessionResolve = null
-            if (sidChanged) {
+            // a reconnect keeps its sid (?clientId=), and still starts a new connection
+            if (sidChanged || socketIsNew) {
                this._unknownWsEventTypes.clear()
                this._unknownBinaryFrameTypes.clear()
                this.onSession?.(msg.data.sid)

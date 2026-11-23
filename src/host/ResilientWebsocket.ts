@@ -77,6 +77,7 @@ export class ResilientWebSocketClient {
 
    constructor(
       public options: {
+         /** re-read on every connect */
          url: () => string
          /** upgrade-request headers (auth: X-API-Key & co) — a thunk, re-read on every reconnect.
           * On a headerless transport (browser) X-API-Key rides `?token=` instead
@@ -175,6 +176,8 @@ export class ResilientWebSocketClient {
 
    private async connect(): Promise<void> {
       this.isOpen = false
+      // re-read: a reconnect asks the server for the session the socket had (?clientId=)
+      this.url = this.options.url()
       const prevWS = this.currentWS
 
       // cleanup a possible re-connection timeout for an other url
