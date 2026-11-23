@@ -13,6 +13,24 @@ export function thumbUrl(abs: string, width = 160): string {
    return `/thumb?src=${encodeURIComponent(abs)}&w=${width}`
 }
 
+/** Bun's own image pipeline when the server runs on Bun, sharp only under Node (the cli runs on
+ * both). Both read the EXIF orientation */
+async function webpThumb(path: string, width: number): Promise<Uint8Array> {
+   if (typeof Bun !== 'undefined')
+      return new Bun.Image(path)
+         .resize(width, width, { fit: 'inside', withoutEnlargement: true })
+         .webp({ quality: 78 })
+         .bytes()
+   const sharp = await importSharp('a thumbnail')
+   return new Uint8Array(
+      await sharp(path)
+         .rotate()
+         .resize({ width, height: width, fit: 'inside', withoutEnlargement: true })
+         .webp({ quality: 78 })
+         .toBuffer(),
+   )
+}
+
 const MAX_WIDTH = 640
 const MAX_CACHED = 400
 
@@ -48,14 +66,7 @@ export class ThumbStore {
       const key = `${p}|${statSync(p).mtimeMs}|${w}`
       const hit = this.cache.get(key)
       if (hit != null) return hit
-      const sharp = await importSharp('a thumbnail')
-      const bytes = new Uint8Array(
-         await sharp(p)
-            .rotate()
-            .resize({ width: w, height: w, fit: 'inside', withoutEnlargement: true })
-            .webp({ quality: 78 })
-            .toBuffer(),
-      )
+      const bytes = await webpThumb(p, w)
       if (this.cache.size >= MAX_CACHED) {
          const oldest = this.cache.keys().next().value
          if (oldest != null) this.cache.delete(oldest)
