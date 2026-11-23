@@ -1,14 +1,14 @@
 // fly into a picture: MoGe measures the picture's depth and turns it into a textured mesh, a camera
-// walks into that mesh along a path we choose (forward, with a turn), and every step is rendered.
-// That render, with holes where the picture never looked, guides Wan 2.2 Fun Control (14B, two
-// stages, the 4-step lightx2v LoRAs): the picture is its reference, the render its control video.
-// The video is the camera move with the holes filled. The guide render is saved beside it, and the
-// camera of each frame is known, so the clip can be fitted back into a 3D world.
-// Videos persist on the host under comfy-ts-example/.
+// moves through that mesh along a path we choose (a walk, or round a thing), and every step is
+// rendered. That render, with holes where the picture never looked, guides the video model: Wan 2.2
+// Fun Control (14B, two stages, the 4-step lightx2v LoRAs), or MiniMax H3 with its Fun ControlNet
+// (the 4-step turbo LoRA). The picture is the first frame, the render the control video, and the
+// video is the camera move with the holes filled. The camera of each frame is known, so the clip
+// can be fitted back into a 3D world. Videos persist on the host under comfy-ts-example/.
 //
 // run directly:  bun examples/rvion/19-flythrough.cflow.ts [path/to/image.png] [seed]
 import { ComfyTS, exampleImagePath, v } from 'comfy-ts'
-import { frameFovY, pathCameras } from './flythroughPath.ts'
+import { clipFrames, ENGINES, frameFovY, pathCameras } from './flythroughPath.ts'
 
 const comfy = ComfyTS.create()
 const host = comfy.host({ id: 'windows-1' })
@@ -27,11 +27,14 @@ const image = v.image(exampleImagePath('walrus_1344x768.jpg'), {
       deer: exampleImagePath('deer_768x1344.jpg'),
    },
 })
-/** the frame Wan makes; it shows the picture's own size as a pick */
+/** the frame the video model makes; it shows the picture's own size as a pick */
 const frameSize = v.size({ width: 832, height: 480 }, { image })
 /** where a chained clip starts: the last frame of the clip before it; empty = the picture. Not a
  * workflow var (an empty media var fails the run): the script that chains the clips sets it */
 export const chainStart = v.image('')
+/** a guide video drawn elsewhere (flythroughChain.ts draws it on this machine, in milliseconds a
+ * frame): when set, the box skips MoGe and its ray traced render. Not a workflow var, as chainStart */
+export const premadeGuide = v.video('')
 
 export const flythrough = host.defineWorkflow({
    id: 'flythrough',
@@ -45,7 +48,7 @@ export const flythrough = host.defineWorkflow({
       fov: v.float(60, { min: 20, max: 120 }),
       /** walk: forward with a turn; orbit: toward the aimed thing, then around it */
       path: v.choice(['walk', 'orbit'], 'walk'),
-      /** clips the path is cut into, each `length` frames, chained by their last frame */
+      /** clips the path is cut into, each `seconds` long, chained by their last frame */
       clips: v.int(1, { min: 1, max: 16 }),
       /** which clip of the path this run makes, from 0 */
       clip: v.int(0, { min: 0, max: 15 }),
@@ -63,95 +66,142 @@ export const flythrough = host.defineWorkflow({
       radius: v.float(4, { min: 0.2, max: 50 }),
       /** orbit: degrees around it, positive = round by the right */
       sweep: v.float(180, { min: -720, max: 720 }),
-      /** frames at 16 fps: 49 = 3 s, 81 = 5 s */
-      length: v.int(81, { min: 17, max: 121 }),
+      /** the video model: Wan 2.2 Fun Control 14B (16 fps), or MiniMax H3 with its Fun ControlNet (24 fps) */
+      engine: v.choice(['wan', 'h3'], 'wan'),
+      /** seconds of one clip, snapped to the frame counts the engine takes */
+      seconds: v.float(5, { min: 1, max: 10 }),
       size: frameSize,
-      /** what steers Wan: the depth of the render (what Fun Control was trained on) or its colours */
+      /** what steers the video: the depth of the render (what Fun Control was trained on) or its colours */
       guide: v.choice(['depth', 'color'], 'depth'),
       /** the guide render's size against the frame: 0.5 renders four times faster */
       guideScale: v.float(0.5, { min: 0.25, max: 1 }),
       seed: v.seed(42),
-      /** total steps of the two stages; the first half runs on the high noise model */
+      /** sampling steps; Wan runs the first half on its high noise model */
       steps: v.int(4, { min: 2, max: 40 }),
-      /** 1 with the 4-step LoRAs; raise it (with more steps) when they are off */
+      /** Wan: 1 with the 4-step LoRAs; raise it (with more steps) when they are off */
       cfg: v.float(1, { min: 1, max: 8 }),
       lightning: v.toggle(true, '4-step LoRAs'),
+      /** H3: how hard its Fun ControlNet holds the guide */
+      control: v.float(1, { min: 0, max: 2 }),
    },
    build: async (b, vars, wf) => {
       const picture = await image.loadInWorkflow(wf)
       const source = frameSize.imageSize()
       if (source == null) throw new Error(`flythrough: cannot read the size of the picture '${image.value}'`)
       const size = vars.size
-      if (size.width % 16 !== 0 || size.height % 16 !== 0)
-         throw new Error(`flythrough: Wan needs a size in multiples of 16, got ${size.width}×${size.height}`)
-      // the length Wan takes is 4n+1
-      const length = Math.floor((vars.length - 1) / 4) * 4 + 1
+      const step = vars.engine === 'wan' ? 16 : 32
+      if (size.width % step !== 0 || size.height % step !== 0)
+         throw new Error(`flythrough: ${vars.engine} needs a size in multiples of ${step}, got ${size.width}×${size.height}`)
+      const length = clipFrames(vars.engine, vars.seconds)
+      const fps = ENGINES[vars.engine].fps
       const fov = frameFovY({ picture: source, fovX: vars.fov, size })
       if (vars.clip >= vars.clips) throw new Error(`flythrough: clip ${vars.clip} of a path of ${vars.clips} clips`)
       // chained clips start from the last frame of the clip before; the mesh stays the picture's
       const reference = chainStart.isSet() ? await chainStart.loadInWorkflow(wf) : picture
 
-      // the guide: the picture as a textured mesh, rendered from every camera of the path
-      const geometry = b.MoGeInference({
-         moge_model: b.LoadMoGeModel({ model_name: 'moge_2_vitl_normal_fp16.safetensors' }),
-         image: picture,
-         fov_x_degrees: vars.fov,
-      })
-      const mesh = b.MoGePointMapToMesh({ moge_geometry: geometry })
-      const first = vars.clip * (length - 1)
-      const cameras = pathCameras({ ...vars, fovX: vars.fov, length })
-         .slice(first, first + length)
-         .map((c) =>
-         b.CreateCameraInfo({
-            mode: 'look_at',
-            'mode.position_x': c.position[0],
-            'mode.position_y': c.position[1],
-            'mode.position_z': c.position[2],
-            target_x: c.target[0],
-            target_y: c.target[1],
-            target_z: c.target[2],
-            fov,
-            camera_type: 'perspective',
-         }),
-      )
-      const batch = (list: Comfy.Windows1.Accepts['LOAD3D_CAMERA'][]): Comfy.Windows1.Accepts['LOAD3D_CAMERA'] => {
-         const [first, ...rest] = list
-         if (first == null) throw new Error('flythrough: a camera batch needs one camera at least')
-         const more: Record<string, Comfy.Windows1.Accepts['LOAD3D_CAMERA']> = {}
-         rest.forEach((cam, i) => (more[`cameras.camera_info${i + 1}`] = cam))
-         return b.BatchCameras({ 'cameras.camera_info0': first, ...more })
-      }
-      const chunks: Comfy.Windows1.Accepts['LOAD3D_CAMERA'][] = []
-      for (let i = 0; i < cameras.length; i += BATCH_MAX) chunks.push(batch(cameras.slice(i, i + BATCH_MAX)))
-      const path = chunks.length === 1 ? chunks[0] : batch(chunks)
-      // the mesh is ray traced frame by frame (seconds a frame at full size): a smaller guide costs a
-      // fraction of that, and Wan scales its control video to the frame anyway
-      const guideSize = (side: number) => Math.max(64, Math.round((side * vars.guideScale) / 8) * 8)
-      const render = (mode: 'texture' | 'depth') =>
-         b.RenderMesh({
-            mesh,
-            mode,
-            width: guideSize(size.width),
-            height: guideSize(size.height),
-            background: '#000000',
-            camera_info: path,
-         })
-      const colour = render('texture')
-      const control = vars.guide === 'depth' ? render('depth') : colour
       const save = (images: Comfy.Windows1.Accepts['IMAGE'], tag: string) =>
          b.SaveVideo(
             {
-               video: b.CreateVideo({ images, fps: 16 }),
+               video: b.CreateVideo({ images, fps }),
                filename_prefix: `comfy-ts-example/flythrough-${tag}`,
                format: 'mp4',
                codec: 'h264',
             },
             { tag },
          )
-      // what a reconstruction needs beside the clip: the guide, the render in colour, and its holes
-      save(control.outputs.image, 'guide')
-      if (vars.guide === 'depth') save(colour.outputs.image, 'render')
-      save(b.MaskToImage({ mask: colour.outputs.mask }), 'coverage')
+      // the guide: the picture as a textured mesh, rendered from every camera of the path; drawn on
+      // this machine by the chain script (premadeGuide), or here by the box (MoGe, then RenderMesh)
+      const boxGuide = () => {
+         const geometry = b.MoGeInference({
+            moge_model: b.LoadMoGeModel({ model_name: 'moge_2_vitl_normal_fp16.safetensors' }),
+            image: picture,
+            fov_x_degrees: vars.fov,
+         })
+         const mesh = b.MoGePointMapToMesh({ moge_geometry: geometry })
+         const first = vars.clip * (length - 1)
+         const cameras = pathCameras({ ...vars, fovX: vars.fov, length })
+            .slice(first, first + length)
+            .map((c) =>
+            b.CreateCameraInfo({
+               mode: 'look_at',
+               'mode.position_x': c.position[0],
+               'mode.position_y': c.position[1],
+               'mode.position_z': c.position[2],
+               target_x: c.target[0],
+               target_y: c.target[1],
+               target_z: c.target[2],
+               fov,
+               camera_type: 'perspective',
+            }),
+         )
+         const batch = (list: Comfy.Windows1.Accepts['LOAD3D_CAMERA'][]): Comfy.Windows1.Accepts['LOAD3D_CAMERA'] => {
+            const [first, ...rest] = list
+            if (first == null) throw new Error('flythrough: a camera batch needs one camera at least')
+            const more: Record<string, Comfy.Windows1.Accepts['LOAD3D_CAMERA']> = {}
+            rest.forEach((cam, i) => (more[`cameras.camera_info${i + 1}`] = cam))
+            return b.BatchCameras({ 'cameras.camera_info0': first, ...more })
+         }
+         const chunks: Comfy.Windows1.Accepts['LOAD3D_CAMERA'][] = []
+         for (let i = 0; i < cameras.length; i += BATCH_MAX) chunks.push(batch(cameras.slice(i, i + BATCH_MAX)))
+         const path = chunks.length === 1 ? chunks[0] : batch(chunks)
+         // the mesh is ray traced frame by frame (seconds a frame at full size): a smaller guide costs a
+         // fraction of that, and Wan scales its control video to the frame anyway
+         const guideSize = (side: number) => Math.max(64, Math.round((side * vars.guideScale) / 8) * 8)
+         const render = (mode: 'texture' | 'depth') =>
+            b.RenderMesh({
+               mesh,
+               mode,
+               width: guideSize(size.width),
+               height: guideSize(size.height),
+               background: '#000000',
+               camera_info: path,
+            })
+         const colour = render('texture')
+         const control = vars.guide === 'depth' ? render('depth') : colour
+         // what a reconstruction needs beside the clip: the guide, the render in colour, and its holes
+         save(control.outputs.image, 'guide')
+         if (vars.guide === 'depth') save(colour.outputs.image, 'render')
+         save(b.MaskToImage({ mask: colour.outputs.mask }), 'coverage')
+         return control.outputs.image
+      }
+      const control = premadeGuide.isSet()
+         ? b.GetVideoComponents({ video: await premadeGuide.loadInWorkflow(wf) }).outputs.images
+         : boxGuide()
+
+      if (vars.engine === 'h3') {
+         // MiniMax H3: the first frame and the prompt condition the clip, its Fun ControlNet patches
+         // the model with the guide; one sampler, 4 steps with the turbo LoRA (its own template's graph)
+         const vae = b.VAELoader({ vae_name: 'minimax_h3_video_vae_fp16.safetensors' })
+         const unet = b.UNETLoader({ unet_name: 'minimax_h3_fl2va_pruned_fp8_scaled.safetensors', weight_dtype: 'default' })
+         const base = vars.lightning
+            ? b.LoraLoaderModelOnly({ model: unet, lora_name: 'minimax_h3_fl2v_turbo_4step_v1.0_768p_comfyui_bf16.safetensors', strength_model: 1 })
+            : unet
+         const model = b.MiniMaxH3FunControlNetApply({
+            model: base,
+            model_patch: b.ModelPatchLoader({ name: 'minimax_h3_fun_controlnet_union_2.0_pruned_int8_convrot.safetensors' }),
+            vae,
+            strength: vars.control,
+            control_video: control,
+         })
+         const start = b.MiniMaxH3ImageToVideo({
+            clip: b.CLIPLoader({ clip_name: 'qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors', type: 'minimax' }),
+            vae,
+            prompt: vars.prompt.positive,
+            width: size.width,
+            height: size.height,
+            length,
+            first_frame: reference,
+         })
+         const sampled = b.SamplerCustomAdvanced({
+            noise: b.RandomNoise({ noise_seed: vars.seed }),
+            guider: b.BasicGuider({ model, conditioning: start.outputs.positive }),
+            sampler: b.KSamplerSelect({ sampler_name: 'res_multistep' }),
+            sigmas: b.BasicScheduler({ model, scheduler: 'simple', steps: vars.steps, denoise: 1 }),
+            latent_image: start.outputs.LATENT,
+         })
+         save(b.VAEDecode({ samples: sampled.outputs.output, vae }), 'clip')
+         return
+      }
 
       // Wan 2.2 Fun Control, two stages: the high noise model lays out the motion, the low noise
       // model the detail

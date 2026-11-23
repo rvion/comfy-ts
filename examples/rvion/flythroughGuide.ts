@@ -12,7 +12,8 @@ export type GuideMesh = {
    texture: { width: number; height: number; rgb: Uint8Array }
 }
 
-export type GuideFrame = { color: Uint8Array; depth: Uint8Array; coverage: Uint8Array }
+/** `metres`: each pixel's distance along the view axis, Infinity where the mesh has no data */
+export type GuideFrame = { color: Uint8Array; depth: Uint8Array; coverage: Uint8Array; metres: Float32Array }
 
 /** the parts of a glb this needs: the first primitive's positions, uvs, indices, and its texture's
  * encoded bytes (decode them with sharp, then pass `texture`) */
@@ -69,6 +70,39 @@ type GltfJson = {
    accessors?: { bufferView: number; byteOffset?: number; componentType: number; count: number }[]
    bufferViews?: { byteOffset?: number; byteLength: number }[]
    images?: { bufferView?: number }[]
+}
+
+/**
+ * the mesh without its curtains: a picture's mesh joins a near surface to the far one behind it
+ * with long thin triangles, short from the picture's camera (the origin) and long in depth. Seen
+ * from the side they stretch into streaks the video model copies, where a hole makes it invent.
+ * A triangle goes when an edge is longer than `ratio` times what its angle from the origin spans
+ */
+export function dropStretched(mesh: GuideMesh, ratio = 4): GuideMesh {
+   const P = mesh.positions
+   const kept: number[] = []
+   const edge = (i: number, j: number) => {
+      const ax = P[i * 3]!
+      const ay = P[i * 3 + 1]!
+      const az = P[i * 3 + 2]!
+      const bx = P[j * 3]!
+      const by = P[j * 3 + 1]!
+      const bz = P[j * 3 + 2]!
+      const la = Math.hypot(ax, ay, az)
+      const lb = Math.hypot(bx, by, bz)
+      // the angle between the two rays from the origin, times the nearer distance: the edge as the
+      // picture's camera saw it
+      const across = Math.hypot(ax / la - bx / lb, ay / la - by / lb, az / la - bz / lb) * Math.min(la, lb)
+      return Math.hypot(ax - bx, ay - by, az - bz) <= ratio * across + 1e-4
+   }
+   const idx = mesh.indices
+   for (let t = 0; t < idx.length; t += 3) {
+      const a = idx[t]!
+      const b = idx[t + 1]!
+      const c = idx[t + 2]!
+      if (edge(a, b) && edge(b, c) && edge(c, a)) kept.push(a, b, c)
+   }
+   return { ...mesh, indices: Uint32Array.from(kept) }
 }
 
 /** one frame from one camera: `fovY` vertical, degrees; the camera looks at its target, y up */
@@ -181,5 +215,5 @@ export function renderGuideFrame(p: { mesh: GuideMesh; camera: PathCamera; width
          coverage[k * 3 + ch] = 255
       }
    }
-   return { color, depth, coverage }
+   return { color, depth, coverage, metres: zbuf }
 }
