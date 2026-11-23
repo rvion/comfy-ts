@@ -9,6 +9,12 @@ import type { LiteGraphJSON } from 'src/litegraph/LiteGraphJSON.ts'
 import { ComfyNode } from 'src/graph/ComfyNode.ts'
 import type { ComfyNodeId, ComfyNodeMetadata } from 'src/graph/ComfyNodeID.ts'
 import { ComfyExecution, type ExecutionPreview, type ExecutionProgress } from 'src/runner/ComfyExecution.ts'
+import {
+   ComfyOrgApiKeyMissingError,
+   type ComfyOrgApiKeySource,
+   partnerApiNodes,
+   resolveComfyOrgApiKey,
+} from 'src/runner/comfyOrgApiKey.ts'
 import { rewriteSaveNodesToWebsocket } from 'src/runner/ephemeral.ts'
 import type { ComfySchema } from 'src/sdk-generator/ComfySchema.ts'
 import type { ComfyApiJson, ComfyApiNodeJson } from 'src/sdk-generator/comfy-api-json.ts'
@@ -56,7 +62,13 @@ export type RunSettings = {
     * without it no frame is decoded for the run. ComfyUI sends frames only when launched with
     * `--preview-method`, see `host.fetchPreviewMethod()` */
    onPreview?: (p: ExecutionPreview) => void
+   /** the Comfy account key for this run's paid partner API nodes; overrides the host's
+    * `comfyOrgApiKey`. Sent only when the prompt holds one, never saved */
+   comfyOrgApiKey?: ComfyOrgApiKeySource
 }
+
+/** a Comfy Cloud host's X-API-Key is a platform.comfy.org key, the one partner nodes bill to */
+const COMFY_CLOUD_HOST = 'cloud.comfy.org'
 
 /** exactly what was sent to the host for one execution, frozen at send time */
 export type ExecutionSnapshot = {
@@ -385,6 +397,15 @@ export class ComfyWorkflow<ID extends string = string> {
                `🟡 ephemeral run: no SaveImage/SaveImageWebsocket node in workflow '${this.id}' — nothing streams back`,
             )
       }
+      // the account key rides the posted body only, never the snapshot (architecture.md, Partner API nodes)
+      const partners = partnerApiNodes(snapshot.apiJson, this.schema)
+      let comfyOrgApiKey: string | undefined
+      if (partners.length > 0) {
+         const data = this.host.data
+         const cloudKey = data.apiKey != null && this.host.base.host === COMFY_CLOUD_HOST ? data.apiKey : undefined
+         comfyOrgApiKey = await resolveComfyOrgApiKey([p.comfyOrgApiKey, data.comfyOrgApiKey, cloudKey])
+         if (comfyOrgApiKey == null) throw new ComfyOrgApiKeyMissingError(data.id, partners)
+      }
       const out: ApiPromptInput = {
          client_id: this.host.comfySessionId,
          prompt: snapshot.apiJson,
@@ -395,6 +416,7 @@ export class ComfyWorkflow<ID extends string = string> {
                comfy_ts_workflow_id: this.id,
                comfy_ts_version: comfyts.version,
             },
+            ...(comfyOrgApiKey != null ? { api_key_comfy_org: comfyOrgApiKey } : {}),
          },
       }
 

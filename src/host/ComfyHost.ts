@@ -47,6 +47,7 @@ import { ResilientWebSocketClient, type WsMessageEvent } from 'src/host/Resilien
 import { DefinedWorkflow, type DefineWorkflowSpec } from 'src/vars/DefinedWorkflow.ts'
 import type { VarsSpec } from 'src/vars/ComfyVars.ts'
 import { diffSchemas, MODEL_LISTS, type SchemaDrift } from 'src/host/schemaDrift.ts'
+import type { ComfyOrgApiKeySource } from 'src/runner/comfyOrgApiKey.ts'
 
 export type ComfyHostID = Tagged<string, { HostID: true }>
 export type ComfyHostData = {
@@ -63,6 +64,11 @@ export type ComfyHostData = {
    /** sent as X-API-Key on every request AND the ws upgrade.
     * NEVER persist the value: read it from an env var (e.g. COMFY_CLOUD_API_KEY) */
    apiKey?: string
+   /** the Comfy account key (platform.comfy.org) that paid partner API nodes bill to, sent as
+    * `extra_data.api_key_comfy_org` with a prompt that holds one. A thunk is read only when such
+    * a run starts. `RunSettings.comfyOrgApiKey` overrides it for one run; a cloud.comfy.org host
+    * falls back to its apiKey. NEVER persist the value (architecture.md, Partner API nodes) */
+   comfyOrgApiKey?: ComfyOrgApiKeySource
    /** default true. false = never write sdk.d.ts to .comfy-ts/hosts/<id>/ —
     * schema updates stay in-memory. The comfy-cloud example sets false: its sdk
     * home is the COMMITTED examples/comfy-cloud/sdk.d.ts (gen:sdk:cloud), and a

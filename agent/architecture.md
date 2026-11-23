@@ -72,6 +72,7 @@ src/runner/                execution
                            onWsImageOutput turns correlated binary frames
                            into execution.images.
    ComfyWsApi.ts           arktype schemas of every ws message
+   comfyOrgApiKey.ts       partner API nodes of a prompt + the Comfy account key for extra_data (see "Partner API nodes")
    wsBinaryFrame.ts        pure parser for BINARY ws frames (1 preview,
                            3 text, 4 preview+metadata — the cloud sends 4;
                            unknown types return 'unknown', logged once per
@@ -390,6 +391,14 @@ Ground truth: the connectivity inventory that drove this work (16 bare fetch sit
 
 - `ComfyHostData` gains `apiKey?: string`, sent as `X-API-Key` on every HTTP request and on the ws upgrade. The VALUE is never persisted to any tracked file: examples read `process.env.COMFY_CLOUD_API_KEY` and THROW a loud typed error naming the env var when it is absent. Wherever the value lives locally, it stays untracked. The banned-keywords guard machine-blocks the key shape (`re:comfyui-[a-z0-9]{16,}` — see `scripts/check-banned.ts` regex rows) in staged content, paths, and commit messages.
 - Auth failures are loud and specific: 401 invalid key, 402 insufficient credits, 429 subscription inactive (per the imported error table) — the helper below maps them to typed errors instead of generic HTTP noise.
+
+### Partner API nodes: the Comfy account key (`extra_data.api_key_comfy_org`)
+
+- A partner node (object_info `api_node: true`, hidden inputs `auth_token_comfy_org` / `api_key_comfy_org`, python module `comfy_api_nodes.*`) calls a paid service billed to a Comfy account. ComfyUI fills its hidden key from the prompt's `extra_data.api_key_comfy_org` (imported docs: `getting-an-api-key.md`, Using your API Key; `api-reference.md`, Using Partner Nodes). The ComfyUI frontend packs it for its own runs; a direct client must send it.
+- Where the key comes from, first one set wins: `RunSettings.comfyOrgApiKey` (one run; `DefinedWorkflow.run` threads it), then `ComfyHostData.comfyOrgApiKey` (every run of that host), then, on a Comfy Cloud host (`cloud.comfy.org`) only, its `apiKey`: the cloud key IS a platform.comfy.org key and that host already holds it. Each is `string | (() => string | undefined | Promise<string | undefined>)`: a thunk lets a caller read a secret store only when a paid run starts, never at import. A later `comfyts.host({ id, comfyOrgApiKey })` on a registered id gives the registered host that key (it is a credential provider, not part of the address identity), so a second registration never drops it silently.
+- Sent ONLY with a prompt that holds a partner node (`src/runner/comfyOrgApiKey.ts` reads `api_node` from the schema of each `class_type` of the snapshot), so the thunk runs only then and the key never reaches a server that has no use for it (an older ComfyUI keeps `extra_data` in its queue and history).
+- A prompt with a partner node and no key resolved fails LOUD before any POST: `ComfyOrgApiKeyMissingError` names each partner node (`class_type #id`) and the two ways to set the key. Nothing is spent, nothing is queued.
+- The key lives ONLY in the posted body. It is never in `ExecutionSnapshot` (apiJson + workflowJson, what `execution`, `InvalidPromptError` and saved outputs carry), never in `extra_pnginfo` (the workflow embedded in output files), never logged, never in an error message. `tests/comfy-org-api-key.test.ts` is the guard.
 
 ### host.fetch — the ONE http path (kills the 16-site debt)
 

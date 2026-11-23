@@ -27,6 +27,8 @@ export const ComfyUIObjectInfoScope = scope({
       // Stability Flags
       'deprecated?': 'boolean',
       'experimental?': 'boolean',
+      // a partner node: a paid service billed to a Comfy account, its key from extra_data.api_key_comfy_org
+      'api_node?': 'boolean',
    },
    ComfyInputSpecAlt1: ['ComfyInputType', 'ComfyInputOpts'],
    ComfyInputSpecAlt2: ['ComfyInputType'],

@@ -14,7 +14,7 @@ const tempScope = scope({
 
    ApiPromptInput: {
       client_id: 'string',
-      extra_data: { extra_pnginfo: 'unknown' },
+      extra_data: { extra_pnginfo: 'unknown', 'api_key_comfy_org?': 'string' },
       prompt: 'unknown',
    },
 

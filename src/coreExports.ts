@@ -48,6 +48,11 @@ export type { PromptID, WsMsg, PromptRelated_WsMsg } from 'src/runner/ComfyWsApi
 export { MediaImage, type MediaImageData } from 'src/runner/MediaImage.ts'
 export type { ComfyExecutionStatus } from 'src/runner/ComfyExecutionStatus.ts'
 export { InvalidPromptError } from 'src/errors/InvalidPromptError.ts'
+export {
+   ComfyOrgApiKeyMissingError,
+   type ComfyOrgApiKeySource,
+   type PartnerApiNode,
+} from 'src/runner/comfyOrgApiKey.ts'
 
 // graph (programmatic node graph)
 export { ComfyNode } from 'src/graph/ComfyNode.ts'

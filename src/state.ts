@@ -75,6 +75,8 @@ export class ComfyTS {
                `host id '${data.id}' already registered ${cur == null ? 'with no address' : `at ${renderHttpBase(cur)}`}${authed(existing.data)} — refusing ${incoming == null ? 'the id alone' : renderHttpBase(incoming)}${authed(data)}`,
             )
          }
+         // a credential provider, not the address: a later registration hands it over, never drops it
+         if (data.comfyOrgApiKey != null) existing.data.comfyOrgApiKey = data.comfyOrgApiKey
          // cast: whitelist item 7 (agent/coding.md) — id equality checked just above
          return existing as ComfyHost<ID>
       }

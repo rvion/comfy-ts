@@ -204,6 +204,7 @@ export class DefinedWorkflow<ID extends string = string, V extends VarsSpec = Va
             log: settings.log,
             onProgress: settings.onProgress,
             onPreview: settings.onPreview,
+            comfyOrgApiKey: settings.comfyOrgApiKey,
          })
          this.lastExecution = execution
          return execution
