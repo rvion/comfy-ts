@@ -534,6 +534,9 @@ input[type='range'].setting-range:disabled { opacity: 0.3; }
 .gallery.by-cols .video-cell { width: 100%; }
 .video-cell video { width: 100%; max-height: 480px; border-radius: 6px; background: #000; }
 .img-cell[draggable='true'], .audio-cell[draggable='true'], .video-cell[draggable='true'] { cursor: grab; }
+.model3d-cell { display: flex; align-items: center; gap: 8px; width: min(100%, 480px); }
+.model3d-cell a { display: inline-flex; align-items: center; gap: 4px; }
+.model3d-cell .ephemeral-pill { position: static; }
 .use-as { display: flex; flex-wrap: wrap; gap: 4px; }
 /* a media var takes desktop files and gallery outputs: the zone lights while one hovers it */
 .media-drop { border: 1px dashed var(--border); border-radius: 6px; padding: 6px; }

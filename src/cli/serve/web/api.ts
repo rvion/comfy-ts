@@ -37,6 +37,9 @@ export type GeneratedAudio = { filename: string; mime: string; url: string | nul
 /** a video file (SaveVideo, SaveWEBM, VHS_VideoCombine): the panel plays it in a <video> player */
 export type GeneratedVideo = GeneratedAudio
 
+/** a 3D file (SaveGLB, SaveGaussianSplat, SavePointCloud): the panel lists it as a download, `size` in bytes */
+export type GeneratedModel3D = GeneratedAudio & { format: string; size: number }
+
 export type GenerateOk = {
    ok: true
    module: string
@@ -50,6 +53,7 @@ export type GenerateOk = {
    texts?: GeneratedText[]
    audios?: GeneratedAudio[]
    videos?: GeneratedVideo[]
+   models3d?: GeneratedModel3D[]
    /** the module's output widgets (`widget.relight(...)`), drawn over this run's tagged images */
    widgets?: OutputWidget[]
 }

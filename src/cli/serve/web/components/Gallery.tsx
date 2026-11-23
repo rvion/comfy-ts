@@ -17,6 +17,13 @@ import { SHORTCUT_KEYS } from 'src/cli/serve/web/state/shortcuts.ts'
 import { onEscape } from 'src/cli/serve/web/state/escape.ts'
 import { OutputWidgets } from 'src/cli/serve/web/widgets/OutputWidgets.tsx'
 
+/** a 3D file is often tens of MB (a splat), sometimes a few KB (a small mesh) */
+function formatSize(bytes: number): string {
+   if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`
+   const mb = bytes / (1024 * 1024)
+   return `${mb < 10 ? mb.toFixed(1) : Math.round(mb)} MB`
+}
+
 /** on an output only the serve process holds: a restart, or the memory budget, loses it */
 function EphemeralPill(p: { out: { url: string | null; absPath: string | null } }): ReactNode {
    if (!isEphemeral(p.out)) return null
@@ -643,10 +650,26 @@ export const Gallery = observer(function Gallery(p: { st: WebSt; compact?: boole
                         </div>
                      ),
                   )}
+                  {(r.models3d ?? []).map((m, ix) =>
+                     m.url != null ? (
+                        <div key={`${r.promptId}-model3d-${ix}`} className="model3d-cell">
+                           <a href={m.url} download={m.filename} data-tip={`${m.format} 3D file, ${m.mime}`}>
+                              <Icon name="save" /> {m.filename}
+                           </a>
+                           <span className="hint">{formatSize(m.size)}</span>
+                           <EphemeralPill out={m} />
+                        </div>
+                     ) : (
+                        <div key={`${r.promptId}-model3d-${ix}`} className="noimg">
+                           {m.filename} (not saved, and no longer in memory)
+                        </div>
+                     ),
+                  )}
                   {r.images.length === 0 &&
                   (r.texts ?? []).length === 0 &&
                   (r.audios ?? []).length === 0 &&
-                  (r.videos ?? []).length === 0 ? (
+                  (r.videos ?? []).length === 0 &&
+                  (r.models3d ?? []).length === 0 ? (
                      <div className="noimg">no outputs</div>
                   ) : null}
                </div>

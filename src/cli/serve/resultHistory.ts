@@ -7,6 +7,8 @@ import type { OutputWidget } from 'src/vars/outputWidgets.ts'
 /** `tags`: the save node's metadata tags, which output widgets read (absent on older records) */
 export type RunOutput = { filename: string; url: string | null; absPath: string | null; tags?: string[] }
 export type RunAudioOutput = RunOutput & { mime: string }
+/** a mesh, point cloud or splat: `format` the lowercase extension, `size` in bytes */
+export type RunModel3DOutput = RunAudioOutput & { format: string; size: number }
 
 /** the run reply `POST /generate` answers, and what `GET /results` lists */
 export type RunRecord = {
@@ -24,6 +26,8 @@ export type RunRecord = {
    audios: RunAudioOutput[]
    /** absent on a record from an older server */
    videos?: RunAudioOutput[]
+   /** absent on a record from an older server */
+   models3d?: RunModel3DOutput[]
    /** the module's output widgets at run time, so a kept result draws them after a reload */
    widgets?: OutputWidget[]
 }
@@ -44,6 +48,7 @@ type Kept = {
    imageKeys: (string | null)[]
    audioKeys: (string | null)[]
    videoKeys: (string | null)[]
+   model3dKeys: (string | null)[]
 }
 
 export class ResultHistory {
@@ -60,6 +65,7 @@ export class ResultHistory {
       imageKeys: (string | null)[]
       audioKeys: (string | null)[]
       videoKeys?: (string | null)[]
+      model3dKeys?: (string | null)[]
       blobs: KeptBlob[]
    }): void {
       this.remove(p.record.promptId)
@@ -67,7 +73,13 @@ export class ResultHistory {
          this.blobs.set(b.key, { bytes: b.bytes, contentType: b.contentType })
          this.used += b.bytes.byteLength
       }
-      const kept = { record: p.record, imageKeys: p.imageKeys, audioKeys: p.audioKeys, videoKeys: p.videoKeys ?? [] }
+      const kept = {
+         record: p.record,
+         imageKeys: p.imageKeys,
+         audioKeys: p.audioKeys,
+         videoKeys: p.videoKeys ?? [],
+         model3dKeys: p.model3dKeys ?? [],
+      }
       this.runs = [kept, ...this.runs]
       for (const dropped of this.runs.slice(KEPT_RUNS)) this.freeRun(dropped)
       this.runs = this.runs.slice(0, KEPT_RUNS)
@@ -85,6 +97,7 @@ export class ResultHistory {
          images: k.record.images.map((img, ix) => this.withLiveUrl(img, k.imageKeys[ix])),
          audios: k.record.audios.map((a, ix) => this.withLiveUrl(a, k.audioKeys[ix])),
          videos: (k.record.videos ?? []).map((a, ix) => this.withLiveUrl(a, k.videoKeys[ix])),
+         models3d: (k.record.models3d ?? []).map((a, ix) => this.withLiveUrl(a, k.model3dKeys[ix])),
       }))
    }
 
@@ -116,7 +129,7 @@ export class ResultHistory {
    }
 
    private freeRun(k: Kept): void {
-      for (const key of [...k.imageKeys, ...k.audioKeys, ...k.videoKeys]) {
+      for (const key of [...k.imageKeys, ...k.audioKeys, ...k.videoKeys, ...k.model3dKeys]) {
          if (key == null) continue
          const b = this.blobs.get(key)
          if (b == null) continue
@@ -139,8 +152,13 @@ export class ResultHistory {
          const live = (keys: (string | null)[]): boolean => keys.some((key) => key == null || this.blobs.has(key))
          const hasText = k.record.texts.length > 0
          const hasNothing =
-            k.record.images.length === 0 && k.record.audios.length === 0 && (k.record.videos ?? []).length === 0
-         return hasText || hasNothing || live(k.imageKeys) || live(k.audioKeys) || live(k.videoKeys)
+            k.record.images.length === 0 &&
+            k.record.audios.length === 0 &&
+            (k.record.videos ?? []).length === 0 &&
+            (k.record.models3d ?? []).length === 0
+         return (
+            hasText || hasNothing || live(k.imageKeys) || live(k.audioKeys) || live(k.videoKeys) || live(k.model3dKeys)
+         )
       })
    }
 }

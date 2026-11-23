@@ -76,6 +76,7 @@ import {
 import { getLoraKeyword } from 'src/vars/loraKeywords.ts'
 import type { ComfyHost } from 'src/host/ComfyHost.ts'
 import { DEFAULT_MEDIA_EXTENSIONS, MEDIA_KINDS, type MediaKind } from 'src/runner/mediaKinds.ts'
+import { MODEL_3D_MIMES } from 'src/runner/outputs3d.ts'
 import type {
    ChoiceOptionLook,
    ChoiceVar,
@@ -106,6 +107,8 @@ export type ServeExecution = {
    audios?: { absPath: string | null; filename: string; mime: string; bytes: Uint8Array }[]
    /** video files (SaveVideo, SaveWEBM, VHS_VideoCombine), same shape as audios */
    videos?: { absPath: string | null; filename: string; mime: string; bytes: Uint8Array }[]
+   /** 3D files (SaveGLB, SaveGaussianSplat, SavePointCloud), the same shape plus `format` */
+   models3d?: { absPath: string | null; filename: string; mime: string; format: string; bytes: Uint8Array }[]
    data: { id: string; error?: unknown }
    /** live global progress (ComfyExecution has it; fakes may omit) — the /run/<module> poll reads it */
    progressGlobal?: { percent: number }
@@ -271,6 +274,7 @@ const CONTENT_TYPES: Record<string, string> = {
    '.m4a': 'audio/mp4',
    '.json': 'application/json',
    '.txt': 'text/plain',
+   ...Object.fromEntries(Object.entries(MODEL_3D_MIMES).map(([ext, mime]) => [`.${ext}`, mime])),
 }
 
 /** magic-byte sniff for the preview proxy — fetchLoraPreviewBytes already guarantees an image */
@@ -352,7 +356,7 @@ const USAGE = [
    'DELETE /drafts/<module>/<draft> — delete that draft file',
    'GET  /run/<module> — live run status · /run/<module>/preview — latent preview bytes',
    'POST /upload with {"name","dataBase64"} — store a browser file for an image, audio or video var',
-   'GET  /images|audio|video/<promptId>/<ix> — an output kept in memory (saving off)',
+   'GET  /images|audio|video|model3d/<promptId>/<ix> — an output kept in memory (saving off)',
    'GET  /tags/<module>/<var>?q=<text>&limit=<n> — tag completion from the list a prompt var declares (`tags`)',
    'GET  /hosts/<hostId>/drift[?full=1] — what changed on the host since the schema was loaded (model files; node types with full=1)',
    'GET  /lora-info/<hostId>/<lora> — display name + trigger words (local mirror)',
@@ -510,6 +514,8 @@ export class ServeApp {
                return this.replyMemoryImage(`audio/${segs[1]}/${segs[2]}`)
             if (segs[0] === 'video' && segs.length === 3 && segs[1] != null && segs[2] != null)
                return this.replyMemoryImage(`video/${segs[1]}/${segs[2]}`)
+            if (segs[0] === 'model3d' && segs.length === 3 && segs[1] != null && segs[2] != null)
+               return this.replyMemoryImage(`model3d/${segs[1]}/${segs[2]}`)
             if (segs[0] === 'results' && segs.length === 1)
                return json(200, { runs: this.kept.list(), memory: this.kept.usage() })
             if (segs[0] === 'outputs') return this.replyOutput(segs.slice(1))
@@ -1696,6 +1702,8 @@ export class ServeApp {
       if (audios.length > 0) produced.push(`${audios.length} audio(s)`)
       const videos = execution.videos ?? []
       if (videos.length > 0) produced.push(`${videos.length} video(s)`)
+      const models3d = execution.models3d ?? []
+      if (models3d.length > 0) produced.push(`${models3d.length} 3d model(s)`)
       if ((execution.texts ?? []).length > 0) produced.push(`${(execution.texts ?? []).length} text(s)`)
       console.log(`[serve] 🟢 ${mod.key}/${draft} done in ${(durationMs / 1000).toFixed(1)}s · ${produced.join(' · ')}`)
 
@@ -1719,6 +1727,12 @@ export class ServeApp {
          if (a.absPath != null) return null
          const key = `video/${execution.data.id}/${ix}`
          blobs.push(this.memoryBlob(key, a.bytes, a.filename))
+         return key
+      })
+      const model3dKeys = models3d.map((m, ix) => {
+         if (m.absPath != null) return null
+         const key = `model3d/${execution.data.id}/${ix}`
+         blobs.push(this.memoryBlob(key, m.bytes, m.filename))
          return key
       })
       // the KEY is raw (`<promptId>/<ix>`); the url encodes each segment, and handle() decodes
@@ -1766,9 +1780,20 @@ export class ServeApp {
                absPath: a.absPath,
             }
          }),
+         models3d: models3d.map((m, ix) => {
+            const key = model3dKeys[ix]
+            return {
+               filename: m.filename,
+               mime: m.mime,
+               format: m.format,
+               size: m.bytes.byteLength,
+               url: m.absPath != null ? this.outputUrl(m.absPath) : key != null ? memoryUrl('model3d', key) : null,
+               absPath: m.absPath,
+            }
+         }),
          ...(mod.dw.spec.widgets != null && mod.dw.spec.widgets.length > 0 ? { widgets: mod.dw.spec.widgets } : {}),
       }
-      this.kept.add({ record, imageKeys, audioKeys, videoKeys, blobs })
+      this.kept.add({ record, imageKeys, audioKeys, videoKeys, model3dKeys, blobs })
 
       // Accept: image/* → first image's bytes directly (curl -o, <img src>)
       const first = execution.images[0]
