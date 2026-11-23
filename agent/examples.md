@@ -72,7 +72,7 @@ A Bun server (`serve.ts`, port 8293, loopback, `bun run world`, the global proce
 - `three` and `@sparkjsdev/spark` are devDependencies for this example only (coding.md, Stack pins).
 
 - The hub frames the page in one of three ways, read from its `mode` key: `thumb` for the still the hub shoots after a post (the scene alone, no bar, no hint), `lightbox` for the full window view the hub opens on a click (no full screen button of its own, the hub closes it), none when it is framed inline or opened alone (the F key and the full screen button).
-- A version's state: `bun examples/world-explorer/world-state.ts <name> [--card]` writes `.comfy-ts/worlds/<name>/state.json` (`{ json: { name, files }, card? }`) and prints its path; post it with `sk thread post world:<name> --after <path> --image .comfy-ts/worlds/<name>/thumb.webp`. The card (title, the views as chips, the mesh and splat sizes) is the line the hub draws under the still.
+- A version's state: `bun examples/world-explorer/world-state.ts <name> [--card]` writes `.comfy-ts/worlds/<name>/state.json` (`{ json: { name, files }, views, card? }`, `views` one `{ id, label }` per view: the hub draws one still per view with its label under it and switches between them with its gallery, so the page framed in a thread shows no tabs and draws the view its `view` key names; alone it keeps its tabs) and prints its path; post it with `sk thread post world:<name> --after <path> --image .comfy-ts/worlds/<name>/thumb.webp`. The card (title, the views as chips, the mesh and splat sizes) is the line the hub draws under the still.
 
 ## The shared cloud host helper
 

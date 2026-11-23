@@ -116,7 +116,8 @@ const App = observer(function App() {
    return (
       <div className="app">
          <div className="bar">
-            {st.views.map((v) => (
+            {/* tabs only when the page is opened alone: in a thread the hub switches views, one still per view */}
+            {(st.standalone ? st.views : []).map((v) => (
                <button key={v} className={`tab${v === shown ? ' on' : ''}`} onClick={() => st.setView(v)}>
                   {LABEL[v]}
                </button>

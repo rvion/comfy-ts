@@ -1,16 +1,18 @@
-// the state of a `world:<name>` thread version, from the files its folder holds: `{ json: { name, files }, card? }`.
-// The card (title, chips, sizes) is the hub's line under the still; `--card` adds it
+// the state of a `world:<name>` thread version, from the files its folder holds: `{ json: { name, files }, views, card? }`.
+// `views` is one still per view with its legend (the page's `view` key, the word under it); the card (title, chips,
+// sizes) is the hub's line under the stills, `--card` adds it
 //
 // usage:  bun examples/world-explorer/world-state.ts <name> [--card]   → prints the state file's path
 //   then: sk thread post world:<name> --title … --what … --after <path> --image .comfy-ts/worlds/<name>/thumb.webp
 import { existsSync, readdirSync, statSync, writeFileSync } from 'node:fs'
 import { join } from 'pathe'
 
-const VIEWS: [file: string, view: string][] = [
-   ['panorama.png', '360°'],
-   ['world.glb', 'walk'],
-   ['splat.ply', 'splat'],
-   ['source.png', 'picture'],
+/** the file each view draws, its id (the page's `view` key) and its legend under the still */
+const VIEWS: [file: string, label: string, id: string][] = [
+   ['panorama.png', '360°', 'pano'],
+   ['world.glb', 'walk', 'world'],
+   ['splat.ply', 'splat', 'splat'],
+   ['source.png', 'picture', 'source'],
 ]
 
 const name = process.argv[2]
@@ -31,7 +33,8 @@ const card = {
       ...(present.has('splat.ply') ? [{ label: 'splat', text: mb('splat.ply') }] : []),
    ],
 }
-const state = { json: { name, files }, ...(process.argv.includes('--card') ? { card } : {}) }
+const views = VIEWS.filter(([f]) => present.has(f)).map(([, label, id]) => ({ id, label }))
+const state = { json: { name, files }, views, ...(process.argv.includes('--card') ? { card } : {}) }
 const out = join(dir, 'state.json')
 writeFileSync(out, JSON.stringify(state, null, 2))
 console.log(out)
