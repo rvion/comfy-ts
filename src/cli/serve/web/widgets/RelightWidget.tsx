@@ -1,9 +1,9 @@
 // the relight widget: the photo lit again by a point light you move over it. Drag = left/right,
 // up/down; wheel = nearer/farther; the bar holds colour, power, shadows, orbit, motes and the map
 // views. `window.relightAt(t)` draws instant t (sk shot --step), `window.relightTour(t)` the
-// scripted tour a demo video steps through.
+// scripted tour a demo video steps through; both wait for the maps first.
 import { observer } from 'mobx-react-lite'
-import { autorun } from 'mobx'
+import { autorun, when } from 'mobx'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { GeneratedImage } from 'src/cli/serve/web/api.ts'
 import { RelightGl, type RelightMaps, type RelightView } from 'src/cli/serve/web/widgets/relightGl.ts'
@@ -103,6 +103,7 @@ export const RelightWidgetView = observer(function RelightWidgetView(p: {
          setError(e instanceof Error ? e.message : String(e))
          return
       }
+      st.set('ready', false)
       const loads = ROLE_KEYS.map((role) => {
          const url = urlOf(role)
          return url == null ? Promise.resolve(null) : loadImage(url).then((img) => [role, img] as const)
@@ -126,7 +127,7 @@ export const RelightWidgetView = observer(function RelightWidgetView(p: {
          setAspect(w / Math.max(1, h))
          setPresent(got)
          glRef.current?.setMaps(maps, w / Math.max(1, h), w, h)
-         glRef.current?.draw(st.params)
+         st.set('ready', true)
       })
       return () => {
          live = false
@@ -135,7 +136,11 @@ export const RelightWidgetView = observer(function RelightWidgetView(p: {
 
    // redraw on every parameter change; animate while the orbit or the motes run
    useEffect(() => {
-      const stopDraw = autorun(() => glRef.current?.draw(st.params))
+      // never before the maps: the placeholder textures would flash a flat colour
+      const draw = (): void => {
+         if (st.ready) glRef.current?.draw(st.params)
+      }
+      const stopDraw = autorun(draw)
       let raf = 0
       let last = performance.now()
       const loop = (now: number): void => {
@@ -144,16 +149,20 @@ export const RelightWidgetView = observer(function RelightWidgetView(p: {
          raf = requestAnimationFrame(loop)
       }
       raf = requestAnimationFrame(loop)
-      const onResize = (): void => glRef.current?.draw(st.params)
+      const onResize = (): void => draw()
       window.addEventListener('resize', onResize)
+      // a stepped capture waits for the maps, then draws the instant it is given
+      const whenReady = (): Promise<void> => when(() => st.ready, { timeout: 10_000 })
       Object.assign(window, {
-         relightAt: (t: number) => {
+         relightAt: async (t: number) => {
+            await whenReady()
             st.at(t)
-            glRef.current?.draw(st.params)
+            draw()
          },
-         relightTour: (t: number) => {
+         relightTour: async (t: number) => {
+            await whenReady()
             tour(st, t)
-            glRef.current?.draw(st.params)
+            draw()
          },
          relight: st,
       })

@@ -116,7 +116,7 @@ export class AppSt {
       if (t < 14) {
          this.openFocus(this.firstDoneId('depth') ?? 'da3-mono-large')
          this.set('focusView', '3d')
-         this.set('relief', { ...this.relief, yaw: -0.7 + 1.4 * wave(10, 14), pitch: 0.25 })
+         this.set('relief', { ...this.relief, yaw: -0.75 + 1.5 * wave(10, 14), pitch: 0.45, depthScale: 0.5, zoom: 0.62 })
          return
       }
       if (t < 16.5) {
@@ -128,9 +128,11 @@ export class AppSt {
       }
       this.openFocus(this.firstDoneId('normal') ?? 'moge2-normal')
       this.set('focusView', 'light')
-      await new Promise((ok) => setTimeout(ok, 0))
+      // the widget mounts on this render, and registers its hook when it does
+      for (let i = 0; i < 200 && typeof Reflect.get(window, 'relightTour') !== 'function'; i++)
+         await new Promise((ok) => setTimeout(ok, 16))
       const f: unknown = Reflect.get(window, 'relightTour')
-      if (typeof f === 'function') f(t - 16.5)
+      if (typeof f === 'function') await f(t - 16.5)
    }
 
    /** the id of the `nth` finished modern result of a kind, in catalog order */

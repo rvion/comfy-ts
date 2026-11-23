@@ -22,11 +22,11 @@ export class RelightSt {
    /** above the surface, in image heights */
    lightZ = 0.35
    color = '#ffd9a8'
-   intensity = 2.2
-   falloff = 0.6
-   ambient = 0.25
+   intensity = 1.7
+   falloff = 0.45
+   ambient = 0.4
    depthScale = 0.35
-   exposure = 1.4
+   exposure = 1.0
    shadows = true
    orbit = false
    particles = false
@@ -35,6 +35,8 @@ export class RelightSt {
    view: RelightView = 'lit'
    /** seconds, advanced by the animation loop or set by `at(t)` */
    time = 0
+   /** every map of the run is on the GPU: nothing is drawn before */
+   ready = false
 
    constructor() {
       makeAutoObservable(this)
