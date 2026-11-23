@@ -2,7 +2,10 @@
 // again. Unsaved outputs keep their bytes here, the ONLY copy, under one byte budget, FIFO.
 // Nothing is written to disk: a server restart forgets it all. PURE, headless-tested
 
-export type RunOutput = { filename: string; url: string | null; absPath: string | null }
+import type { OutputWidget } from 'src/vars/outputWidgets.ts'
+
+/** `tags`: the save node's metadata tags, which output widgets read (absent on older records) */
+export type RunOutput = { filename: string; url: string | null; absPath: string | null; tags?: string[] }
 export type RunAudioOutput = RunOutput & { mime: string }
 
 /** the run reply `POST /generate` answers, and what `GET /results` lists */
@@ -21,6 +24,8 @@ export type RunRecord = {
    audios: RunAudioOutput[]
    /** absent on a record from an older server */
    videos?: RunAudioOutput[]
+   /** the module's output widgets at run time, so a kept result draws them after a reload */
+   widgets?: OutputWidget[]
 }
 
 export type MemoryUsage = { usedBytes: number; budgetBytes: number; outputs: number; runs: number }

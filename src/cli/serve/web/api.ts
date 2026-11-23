@@ -1,6 +1,7 @@
 // typed fetch layer over the serve json api — the ONLY web-ui module that talks http
 import type { LlmConfigEntry } from 'src/cli/serve/llmConfigShape.ts'
 import type { VarDescriptor } from 'src/cli/serve/describeVar.ts'
+import type { OutputWidget } from 'src/vars/outputWidgets.ts'
 
 export type ModuleDescription = {
    module: string
@@ -24,7 +25,8 @@ export type IndexPayload = {
    loadErrors?: Record<string, string>
 }
 
-export type GeneratedImage = { filename: string; url: string | null; absPath: string | null }
+/** `tags`: the save node's metadata tags, read by output widgets */
+export type GeneratedImage = { filename: string; url: string | null; absPath: string | null; tags?: string[] }
 
 /** a STRING output (PreviewAny). An llm graph produces these and no images at all */
 export type GeneratedText = { nodeKey: string | null; text: string }
@@ -48,6 +50,8 @@ export type GenerateOk = {
    texts?: GeneratedText[]
    audios?: GeneratedAudio[]
    videos?: GeneratedVideo[]
+   /** the module's output widgets (`widget.relight(...)`), drawn over this run's tagged images */
+   widgets?: OutputWidget[]
 }
 
 async function jsonFetch<T>(url: string, init?: RequestInit): Promise<T> {

@@ -153,6 +153,14 @@ export {
    type SlotValueOf,
 } from 'src/vars/DefinedWorkflow.ts'
 export {
+   widget,
+   resolveWidgetRoles,
+   type OutputWidget,
+   type OutputWidgetKind,
+   type RelightRoles,
+   type RelightWidget,
+} from 'src/vars/outputWidgets.ts'
+export {
    clearLoraKeywordOverride,
    getLoraKeyword,
    isLoraKeywordFromMirror,

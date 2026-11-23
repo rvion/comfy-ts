@@ -88,7 +88,7 @@ export type ServeExecution = {
    status: string
    /** buffer is the ONLY copy for an in-memory image (saving off); reading it on a
     * SAVED image would hit the disk, so it is only touched when absPath is null */
-   images: { absPath: string | null; filename: string; buffer?: Uint8Array }[]
+   images: { absPath: string | null; filename: string; buffer?: Uint8Array; tags?: string[] }[]
    /** STRING outputs (PreviewAny, i.e. every llm graph). A text-only workflow has no images at
     * all, so without these its run reply is empty and the panel shows nothing */
    texts?: { nodeId: string; nodeKey: string | null; text: string }[]
@@ -1680,6 +1680,7 @@ export class ServeApp {
                filename: img.filename,
                url: img.absPath != null ? this.outputUrl(img.absPath) : key != null ? memoryUrl('images', key) : null,
                absPath: img.absPath,
+               ...(img.tags != null && img.tags.length > 0 ? { tags: [...img.tags] } : {}),
             }
          }),
          audios: audios.map((a, ix) => {
@@ -1700,6 +1701,7 @@ export class ServeApp {
                absPath: a.absPath,
             }
          }),
+         ...(mod.dw.spec.widgets != null && mod.dw.spec.widgets.length > 0 ? { widgets: mod.dw.spec.widgets } : {}),
       }
       this.kept.add({ record, imageKeys, audioKeys, videoKeys, blobs })
 

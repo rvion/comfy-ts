@@ -3,6 +3,7 @@ import type { ComfyExecution } from 'src/runner/ComfyExecution.ts'
 import type { ComfyWorkflow, RunSettings } from 'src/runner/ComfyWorkflow.ts'
 import type { SdkForHost } from 'src/types/comfy-sdk.ts'
 import type { LorasInput } from 'src/vars/lanes.ts'
+import type { OutputWidget } from 'src/vars/outputWidgets.ts'
 import {
    type AnyVar,
    type ChoiceVar,
@@ -73,6 +74,9 @@ export type DefineWorkflowSpec<ID extends string, V extends VarsSpec> = {
    /** free search tags for the serve omnibox, added to the ones read from the graph
     * (`image`, `audio`, `video`, `text`, `llm`, `edit`) */
    tags?: string[]
+   /** built-in web panel widgets drawn over a run's outputs (`widget.relight(...)`), each role
+    * naming the `tag` of a save node. The CLI and the TUI ignore them */
+   widgets?: OutputWidget[]
 }
 
 /** type predicate (not a cast): a VarsSpec is a plain record, never callable */
