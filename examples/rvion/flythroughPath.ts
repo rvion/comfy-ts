@@ -7,9 +7,10 @@ export type PathCamera = { position: [number, number, number]; target: [number, 
 /**
  * the walk: `distance` metres forward with an eased speed (still at both ends, so frame 0 is the
  * picture), the heading turning `turn` degrees (positive = right) and the eye rising `rise` metres
- * on the same ease. The camera always looks along its heading, one metre ahead
+ * on the same ease. The camera always looks along its heading, one metre ahead, `pitch` degrees down
  */
-export function walkPath(p: { frames: number; distance: number; turn: number; rise: number }): PathCamera[] {
+export function walkPath(p: { frames: number; distance: number; turn: number; rise: number; pitch?: number }): PathCamera[] {
+   const down = ((p.pitch ?? 0) * Math.PI) / 180
    const ease = (t: number) => t * t * (3 - 2 * t)
    const out: PathCamera[] = []
    let x = 0
@@ -24,7 +25,7 @@ export function walkPath(p: { frames: number; distance: number; turn: number; ri
       z -= (s - prev) * p.distance * Math.cos(mid)
       prev = s
       const y = p.rise * s
-      out.push({ position: [x, y, z], target: [x + Math.sin(heading), y, z - Math.cos(heading)] })
+      out.push({ position: [x, y, z], target: [x + Math.sin(heading) * Math.cos(down), y - Math.sin(down), z - Math.cos(heading) * Math.cos(down)] })
    }
    return out
 }
@@ -32,12 +33,15 @@ export function walkPath(p: { frames: number; distance: number; turn: number; ri
 /**
  * around a thing: fly from the picture's camera toward `center` (x, z on the floor of the render's
  * world), bend into a circle of `radius` metres around it and sweep `sweep` degrees (positive = the
- * camera goes round by the right), the eye level and the thing centred. One steady speed over the whole path, eased
+ * camera goes round by the right), the eye at its height and the thing centred. One steady speed over the whole path, eased
  * only at its two ends, so clips cut from it (`frames` per clip, the last frame of one the first of
- * the next) join without a jump
+ * the next) join without a jump. `centerY` is the thing's height against the eye (below: negative),
+ * `pitch` the degrees the first frame looks down, as the picture did
  */
-export function orbitPath(p: { frames: number; center: [number, number]; radius: number; sweep: number }): PathCamera[] {
+export function orbitPath(p: { frames: number; center: [number, number]; radius: number; sweep: number; centerY?: number; pitch?: number }): PathCamera[] {
    const [cx, cz] = p.center
+   const cy = p.centerY ?? 0
+   const down = ((p.pitch ?? 0) * Math.PI) / 180
    const dist = Math.hypot(cx, cz)
    if (dist <= p.radius) throw new Error(`orbitPath: the camera starts inside the circle (${dist.toFixed(2)} m from its centre, radius ${p.radius} m)`)
    // the circle starts where the line from the centre to the camera meets it
@@ -57,17 +61,17 @@ export function orbitPath(p: { frames: number; center: [number, number]; radius:
       return [0, 1].map((a) => ctrl.reduce((acc, c, i) => acc + w[i]! * c[a]!, 0)) as [number, number]
    }
    // dense samples of the whole path: position, then where it looks
-   const samples: { at: [number, number]; look: [number, number] }[] = []
+   const samples: { at: [number, number]; look: [number, number, number] }[] = []
    const N = 4000
    for (let i = 0; i <= N; i++) {
       const t = i / N
       const at = bezier(t)
       // the look turns from straight ahead to the centre over the approach
       const ease = t * t * (3 - 2 * t)
-      const ahead: [number, number] = [at[0], at[1] - dist]
-      samples.push({ at, look: [ahead[0] + (cx - ahead[0]) * ease, ahead[1] + (cz - ahead[1]) * ease] })
+      const ahead: [number, number, number] = [at[0], -dist * Math.sin(down), at[1] - dist * Math.cos(down)]
+      samples.push({ at, look: [ahead[0] + (cx - ahead[0]) * ease, ahead[1] + (cy - ahead[1]) * ease, ahead[2] + (cz - ahead[2]) * ease] })
    }
-   for (let i = 1; i <= N; i++) samples.push({ at: onCircle(phi0 + (sweep * i) / N), look: [cx, cz] })
+   for (let i = 1; i <= N; i++) samples.push({ at: onCircle(phi0 + (sweep * i) / N), look: [cx, cy, cz] })
    const cum = [0]
    for (let i = 1; i < samples.length; i++) {
       const a = samples[i - 1]!.at
@@ -95,7 +99,7 @@ export function orbitPath(p: { frames: number; center: [number, number]; radius:
       const mix = (x: number, y: number) => x + (y - x) * r
       out.push({
          position: [mix(a.at[0], b.at[0]), 0, mix(a.at[1], b.at[1])],
-         target: [mix(a.look[0], b.look[0]), 0, mix(a.look[1], b.look[1])],
+         target: [mix(a.look[0], b.look[0]), mix(a.look[1], b.look[1]), mix(a.look[2], b.look[2])],
       })
    }
    return out
@@ -112,20 +116,40 @@ export type PathSettings = {
    turn: number
    rise: number
    aim: number
+   /** the aimed thing's row in the picture, 0 = top edge, 1 = bottom edge */
+   aimRow: number
+   /** the picture's height over its width: the aimed row's angle */
+   aspect: number
    aimDistance: number
    radius: number
    sweep: number
+   /** degrees the picture's camera looks down at its floor. The path's world is levelled by it: y is
+    * the floor's up, the orbit circles round that vertical, and frame 0 still looks down as the
+    * picture did. A mesh in the picture's camera axes takes the same turn (levelPoint) */
+   pitch: number
 }
 
 /** every camera of the whole path, `clips × (length - 1) + 1` of them; clip `k` is frames
  * `k × (length - 1)` to `(k + 1) × (length - 1)` */
 export function pathCameras(p: PathSettings): PathCamera[] {
    const frames = p.clips * (p.length - 1) + 1
-   if (p.path === 'walk') return walkPath({ frames, distance: p.distance, turn: p.turn, rise: p.rise })
-   // the aimed thing: the picture's column `aim` (0 = left edge, 1 = right edge), `aimDistance` away
-   const across = Math.atan((p.aim - 0.5) * 2 * Math.tan((p.fovX * Math.PI) / 360))
-   const center: [number, number] = [p.aimDistance * Math.sin(across), -p.aimDistance * Math.cos(across)]
-   return orbitPath({ frames, center, radius: p.radius, sweep: p.sweep })
+   if (p.path === 'walk') return walkPath({ frames, distance: p.distance, turn: p.turn, rise: p.rise, pitch: p.pitch })
+   // the aimed thing: the picture's pixel (`aim`, `aimRow`), `aimDistance` along its ray, levelled
+   const half = Math.tan((p.fovX * Math.PI) / 360)
+   const ray: [number, number, number] = [(p.aim - 0.5) * 2 * half, (0.5 - p.aimRow) * 2 * half * p.aspect, -1]
+   const length = Math.hypot(...ray)
+   const [cx, cy, cz] = levelPoint(
+      ray.map((x) => (x / length) * p.aimDistance) as [number, number, number],
+      p.pitch,
+   )
+   return orbitPath({ frames, center: [cx, cz], centerY: cy, radius: p.radius, sweep: p.sweep, pitch: p.pitch })
+}
+
+/** a point of the picture's camera axes (y up, -z ahead) in the path's levelled world: turned
+ * `pitch` degrees about x, so the picture's view axis points that much below the horizon */
+export function levelPoint(q: [number, number, number], pitch: number): [number, number, number] {
+   const a = (pitch * Math.PI) / 180
+   return [q[0], q[1] * Math.cos(a) + q[2] * Math.sin(a), -q[1] * Math.sin(a) + q[2] * Math.cos(a)]
 }
 
 /** the vertical field of view of the frame Wan sees: the picture cover-cropped to `size`, its

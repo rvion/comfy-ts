@@ -12,7 +12,8 @@ import { join, resolve } from 'pathe'
 import sharp from 'sharp'
 import { ComfyTS } from 'comfy-ts'
 import flythrough, { chainStart, premadeCoverage, premadeGuide, premadeRender } from './19-flythrough.cflow.ts'
-import { dropStretched, readGlb, renderGuideFrame, type GuideMesh } from './flythroughGuide.ts'
+import { dropStretched, levelMesh, readGlb, renderGuideFrame, type GuideMesh } from './flythroughGuide.ts'
+import { matchFrame, paletteOf, pictureAt } from './flythroughPalette.ts'
 import { clipFrames, ENGINES, frameFovY, pathCameras } from './flythroughPath.ts'
 
 const [picture, settingsPath, out, fromArg, toArg] = process.argv.slice(2)
@@ -54,13 +55,16 @@ if (!existsSync(meshPath)) {
 }
 const parsed = readGlb(new Uint8Array(readFileSync(meshPath)))
 const decoded = await sharp(parsed.textureBytes).removeAlpha().raw().toBuffer({ resolveWithObject: true })
-// without its curtains (dropStretched): seen from the side they are streaks Wan would copy
-const mesh: GuideMesh = dropStretched(
-   { ...parsed, texture: { width: decoded.info.width, height: decoded.info.height, rgb: new Uint8Array(decoded.data) } },
-   3,
+// without its curtains (dropStretched): seen from the side they are streaks Wan would copy; in the
+// path's levelled world (the picture's pitch)
+const mesh: GuideMesh = levelMesh(
+   dropStretched({ ...parsed, texture: { width: decoded.info.width, height: decoded.info.height, rgb: new Uint8Array(decoded.data) } }, 3),
+   v.pitch.value,
 )
 
 // the whole path, every camera, written once
+const source = v.size.imageSize()
+if (source == null) throw new Error(`flythrough chain: cannot read the size of ${picture}`)
 const length = clipFrames(v.engine.value, v.seconds.value)
 const fps = ENGINES[v.engine.value].fps
 const cameras = pathCameras({
@@ -72,15 +76,16 @@ const cameras = pathCameras({
    turn: v.turn.value,
    rise: v.rise.value,
    aim: v.aim.value,
+   aimRow: v.aimRow.value,
+   aspect: source.height / source.width,
    aimDistance: v.aimDistance.value,
    radius: v.radius.value,
    sweep: v.sweep.value,
+   pitch: v.pitch.value,
 })
-const source = v.size.imageSize()
-if (source == null) throw new Error(`flythrough chain: cannot read the size of ${picture}`)
 const size = v.size.value
 const fovY = frameFovY({ picture: source, fovX: v.fov.value, size })
-writeFileSync(join(out, 'cameras.json'), JSON.stringify({ fovY, width: size.width, height: size.height, length, cameras }, null, 1))
+writeFileSync(join(out, 'cameras.json'), JSON.stringify({ fovY, pitch: v.pitch.value, width: size.width, height: size.height, length, cameras }, null, 1))
 
 /** frames of raw rgb into an mp4 at the engine's fps */
 const encode = async (frames: Uint8Array[], file: string) => {
@@ -98,23 +103,13 @@ const encode = async (frames: Uint8Array[], file: string) => {
 }
 
 /** a chained clip starts from the last frame of the one before, and each clip drifts a little in
- * colour: before it seeds the next clip, that frame moves half way to the picture's mean and spread
- * per channel (half, since a frame of bark alone should not take the whole picture's colours) */
+ * colour: before it seeds the next clip, that frame moves to the picture's Lab mean and spread
+ * (flythroughPalette.ts), so the drift cannot add up from clip to clip */
 async function matchColours(frame: string, reference: string): Promise<string> {
-   const target = await sharp(reference).removeAlpha().stats()
    const img = await sharp(frame).removeAlpha().raw().toBuffer({ resolveWithObject: true })
-   const own = await sharp(frame).removeAlpha().stats()
-   const data = new Uint8Array(img.data)
-   for (let c = 0; c < 3; c++) {
-      const a = own.channels[c]
-      const b = target.channels[c]
-      if (a == null || b == null) throw new Error(`matchColours: no channel ${c}`)
-      const gain = b.stdev / Math.max(a.stdev, 1e-3)
-      for (let i = c; i < data.length; i += 3) {
-         const matched = (data[i]! - a.mean) * gain + b.mean
-         data[i] = Math.max(0, Math.min(255, Math.round((data[i]! + matched) / 2)))
-      }
-   }
+   const own = new Uint8Array(img.data)
+   const target = paletteOf(await pictureAt(reference, img.info.width, img.info.height))
+   const data = matchFrame(own, paletteOf(own), target, 1)
    const outFile = frame.replace(/\.png$/, '-matched.png')
    await sharp(data, { raw: { width: img.info.width, height: img.info.height, channels: 3 } }).png().toFile(outFile)
    return outFile

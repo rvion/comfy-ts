@@ -10,7 +10,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'pathe'
 import sharp from 'sharp'
 import { readGlb } from './flythroughGuide.ts'
-import type { PathCamera } from './flythroughPath.ts'
+import { levelPoint, type PathCamera } from './flythroughPath.ts'
 
 /** world to camera, COLMAP axes (x right, y down, z ahead), as a quaternion and a translation */
 export function colmapPose(c: PathCamera): { q: [number, number, number, number]; t: [number, number, number] } {
@@ -99,6 +99,7 @@ if (import.meta.main) {
    const every = Number(everyArg ?? 4)
    const rig = JSON.parse(readFileSync(join(out, 'cameras.json'), 'utf8')) as {
       fovY: number
+      pitch?: number
       width: number
       height: number
       length: number
@@ -139,14 +140,12 @@ if (import.meta.main) {
    writeFileSync(join(sparse, 'images.txt'), `${lines.join('\n')}\n`)
    writeFileSync(join(root, 'retime.json'), JSON.stringify(timing))
 
-   // starting points: the mesh's vertices, one in 8, coloured from its texture
+   // starting points: the mesh's vertices, one in 8, coloured from its texture, in the path's levelled world
    const mesh = readGlb(new Uint8Array(readFileSync(join(out, 'mesh.glb'))))
    const tex = await sharp(mesh.textureBytes).removeAlpha().raw().toBuffer({ resolveWithObject: true })
    const pts = ['# POINT3D_ID X Y Z R G B ERROR TRACK[]']
    for (let i = 0, n = 1; i < mesh.positions.length / 3; i += 8) {
-      const x = mesh.positions[i * 3]!
-      const y = mesh.positions[i * 3 + 1]!
-      const z = mesh.positions[i * 3 + 2]!
+      const [x, y, z] = levelPoint([mesh.positions[i * 3]!, mesh.positions[i * 3 + 1]!, mesh.positions[i * 3 + 2]!], rig.pitch ?? 0)
       if (!Number.isFinite(x + y + z)) continue
       const u = Math.round(mesh.uvs[i * 2]! * (tex.info.width - 1))
       const v = Math.round(mesh.uvs[i * 2 + 1]! * (tex.info.height - 1))

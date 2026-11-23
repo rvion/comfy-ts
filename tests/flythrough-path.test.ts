@@ -3,7 +3,7 @@
 import { describe, expect, it } from 'bun:test'
 import { colmapPose } from 'examples/rvion/flythroughColmap.ts'
 import { readSplatPly, toViewerAxes } from 'examples/rvion/flythroughSplat.ts'
-import { orbitPath, pathCameras, walkPath } from 'examples/rvion/flythroughPath.ts'
+import { levelPoint, orbitPath, pathCameras, walkPath } from 'examples/rvion/flythroughPath.ts'
 
 const step = (a: { position: number[] }, b: { position: number[] }) =>
    Math.hypot(b.position[0]! - a.position[0]!, b.position[1]! - a.position[1]!, b.position[2]! - a.position[2]!)
@@ -52,16 +52,65 @@ describe('orbitPath', () => {
 
 describe('pathCameras', () => {
    it('clips share their joining frame: clips × (length - 1) + 1 cameras', () => {
-      const all = pathCameras({ path: 'walk', length: 81, clips: 3, fovX: 60, distance: 6, turn: 0, rise: 0, aim: 0.5, aimDistance: 10, radius: 3, sweep: 90 })
+      const all = pathCameras({ path: 'walk', length: 81, clips: 3, fovX: 60, distance: 6, turn: 0, rise: 0, aim: 0.5, aimRow: 0.5, aspect: 1, aimDistance: 10, radius: 3, sweep: 90, pitch: 0 })
       expect(all.length).toBe(241)
    })
 
    it('aims the orbit at the picture column `aim`, `aimDistance` away', () => {
-      const all = pathCameras({ path: 'orbit', length: 81, clips: 2, fovX: 90, distance: 0, turn: 0, rise: 0, aim: 1, aimDistance: 10, radius: 3, sweep: 90 })
+      const all = pathCameras({ path: 'orbit', length: 81, clips: 2, fovX: 90, distance: 0, turn: 0, rise: 0, aim: 1, aimRow: 0.5, aspect: 1, aimDistance: 10, radius: 3, sweep: 90, pitch: 0 })
       // aim 1 = the right edge: 45° right of straight ahead for a 90° picture
       const end = all.at(-1)
       expect(end?.target[0]).toBeCloseTo(10 * Math.SQRT1_2, 6)
       expect(end?.target[2]).toBeCloseTo(-10 * Math.SQRT1_2, 6)
+   })
+})
+
+describe('a picture that looks down (pitch)', () => {
+   const pitch = 28
+   const down = (pitch * Math.PI) / 180
+   const settings = { path: 'orbit' as const, length: 81, clips: 2, fovX: 42, distance: 0, turn: 0, rise: 0, aim: 0.6, aimRow: 0.3, aspect: 4 / 3, aimDistance: 11, radius: 4, sweep: 180, pitch }
+   const all = pathCameras(settings)
+   const dir = (c: { position: number[]; target: number[] }) => {
+      const d = c.target.map((x, i) => x - c.position[i]!)
+      const l = Math.hypot(...d)
+      return d.map((x) => x / l)
+   }
+
+   it('frame 0 is the picture: the eye at the origin, looking `pitch` below the horizon', () => {
+      const first = all[0]!
+      expect(first.position).toEqual([0, 0, 0])
+      const d = dir(first)
+      expect(d[0]).toBeCloseTo(0, 6)
+      expect(d[1]).toBeCloseTo(-Math.sin(down), 6)
+      expect(d[2]).toBeCloseTo(-Math.cos(down), 6)
+   })
+
+   it('circles round the floor vertical through the aimed pixel, the eye kept at its height', () => {
+      const half = Math.tan((42 * Math.PI) / 360)
+      const ray = [(0.6 - 0.5) * 2 * half, (0.5 - 0.3) * 2 * half * (4 / 3), -1]
+      const l = Math.hypot(...ray)
+      const center = levelPoint(ray.map((x) => (x / l) * 11) as [number, number, number], pitch)
+      const last = all.at(-1)!
+      expect(last.target[0]).toBeCloseTo(center[0], 6)
+      expect(last.target[1]).toBeCloseTo(center[1], 6)
+      expect(last.target[2]).toBeCloseTo(center[2], 6)
+      for (const c of all) expect(c.position[1]).toBe(0)
+      expect(Math.hypot(last.position[0] - center[0], last.position[2] - center[2])).toBeCloseTo(4, 3)
+   })
+
+   it('a walk starts looking `pitch` down too', () => {
+      const d = dir(walkPath({ frames: 10, distance: 2, turn: 0, rise: 0, pitch })[0]!)
+      expect(d[1]).toBeCloseTo(-Math.sin(down), 6)
+   })
+
+   it('levelling then the viewer turn puts a picture point back in the picture camera axes (SHARP: x, -y, -z)', () => {
+      const q: [number, number, number] = [0.4, 1.3, -6]
+      const [x, y, z] = levelPoint(q, pitch)
+      const names = ['x', 'y', 'z', 'f_dc_0', 'f_dc_1', 'f_dc_2', 'opacity', 'scale_0', 'scale_1', 'scale_2', 'rot_0', 'rot_1', 'rot_2', 'rot_3']
+      const out = readSplatPly(toViewerAxes({ names, count: 1, data: Float32Array.from([x, y, z, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0]) }, pitch))
+      expect(out.data[0]).toBeCloseTo(0.4, 5)
+      expect(out.data[1]).toBeCloseTo(-1.3, 5)
+      expect(out.data[2]).toBeCloseTo(6, 5)
    })
 })
 
@@ -107,7 +156,8 @@ describe('toViewerAxes', () => {
       const { names: outNames, data } = readSplatPly(out)
       const row = (i: number) => Object.fromEntries(outNames.map((n, k) => [n, data[i * outNames.length + k]!]))
       expect([row(0).x, row(0).y, row(0).z]).toEqual([1, -2, 3])
-      expect([row(0).rot_0, row(0).rot_1, row(0).rot_2, row(0).rot_3]).toEqual([-0, 1, -0, 0])
+      const r0 = [row(0).rot_0, row(0).rot_1, row(0).rot_2, row(0).rot_3]
+      ;[0, 1, 0, 0].forEach((x, i) => expect(r0[i]).toBeCloseTo(x, 6))
       expect(row(0).f_dc_1).toBeCloseTo(0.2, 6)
       // (0,1,0,0) ⊗ (s,0,s,0) = (0, s, 0, s)
       expect(row(1).rot_0).toBeCloseTo(0, 6)

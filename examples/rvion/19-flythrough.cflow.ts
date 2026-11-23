@@ -68,12 +68,18 @@ export const flythrough = host.defineWorkflow({
       rise: v.float(0, { min: -5, max: 5 }),
       /** orbit: the aimed thing's column in the picture, 0 = left edge, 1 = right edge */
       aim: v.float(0.5, { min: 0, max: 1 }),
-      /** orbit: metres from the picture's camera to the aimed thing's centre */
+      /** orbit: the aimed thing's row in the picture, 0 = top edge, 1 = bottom edge */
+      aimRow: v.float(0.5, { min: 0, max: 1 }),
+      /** orbit: metres from the picture's camera to the aimed thing's centre, along its ray */
       aimDistance: v.float(8, { min: 0.5, max: 100 }),
       /** orbit: metres from that centre the camera circles at */
       radius: v.float(4, { min: 0.2, max: 50 }),
       /** orbit: degrees around it, positive = round by the right */
       sweep: v.float(180, { min: -720, max: 720 }),
+      /** degrees the picture looks down at its floor (a picture's mesh measures it): the orbit circles
+       * round the floor's vertical. Needs the guide drawn on this machine (flythroughChain.ts), which
+       * levels the mesh by it */
+      pitch: v.float(0, { min: -80, max: 80 }),
       /** the video model: Wan 2.2 Fun Control 14B (16 fps), or MiniMax H3 with its Fun ControlNet (24 fps) */
       engine: v.choice(['wan', 'h3'], 'wan'),
       /** seconds of one clip, snapped to the frame counts the engine takes */
@@ -94,6 +100,10 @@ export const flythrough = host.defineWorkflow({
       /** H3: control = the guide steers everything; keep = the render's pixels stay where the mesh
        * has data and only the holes are made (its ControlNet's mask and source video) */
       h3Mode: v.choice(['control', 'keep'], 'control'),
+      /** H3: how the picture conditions the clip. frame = the start frame alone (the picture, or the
+       * last frame of the clip before); reference = the picture also as a reference image every clip
+       * (its look held beyond frame 0), the start frame anchored at frame 0 */
+      h3Look: v.choice(['frame', 'reference'], 'frame'),
    },
    build: async (b, vars, wf) => {
       const picture = await image.loadInWorkflow(wf)
@@ -131,6 +141,7 @@ export const flythrough = host.defineWorkflow({
       // the guide: the picture as a textured mesh, rendered from every camera of the path; drawn on
       // this machine by the chain script (premadeGuide), or here by the box (MoGe, then RenderMesh)
       const boxGuide = () => {
+         if (vars.pitch !== 0) throw new Error('flythrough: a pitched path needs the guide drawn by flythroughChain.ts, which levels the mesh')
          const geometry = b.MoGeInference({
             moge_model: b.LoadMoGeModel({ model_name: 'moge_2_vitl_normal_fp16.safetensors' }),
             image: picture,
@@ -138,7 +149,7 @@ export const flythrough = host.defineWorkflow({
          })
          const mesh = b.MoGePointMapToMesh({ moge_geometry: geometry })
          const first = vars.clip * (length - 1)
-         const cameras = pathCameras({ ...vars, fovX: vars.fov, length })
+         const cameras = pathCameras({ ...vars, fovX: vars.fov, aspect: source.height / source.width, length })
             .slice(first, first + length)
             .map((c) =>
             b.CreateCameraInfo({
@@ -210,18 +221,26 @@ export const flythrough = host.defineWorkflow({
             control_video: control,
             ...(vars.h3Mode === 'keep' ? { mask: need(guide.holes, 'h3 keep mode needs the coverage'), source_video: need(guide.render, 'h3 keep mode needs the colour render') } : {}),
          })
-         const start = b.MiniMaxH3ImageToVideo({
-            clip: b.CLIPLoader({ clip_name: 'qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors', type: 'minimax' }),
-            vae,
-            prompt: vars.prompt.positive,
-            width: size.width,
-            height: size.height,
-            length,
-            first_frame: reference,
-         })
+         const clip = b.CLIPLoader({ clip_name: 'qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors', type: 'minimax' })
+         const start =
+            vars.h3Look === 'reference'
+               ? b.MiniMaxH3ReferenceToVideo({
+                    clip,
+                    vae,
+                    prompt: vars.prompt.positive,
+                    width: size.width,
+                    height: size.height,
+                    length,
+                    'ref_images.ref_image_0': b.ImageScale({ image: picture, upscale_method: 'lanczos', width: size.width, height: size.height, crop: 'center' }),
+                 })
+               : b.MiniMaxH3ImageToVideo({ clip, vae, prompt: vars.prompt.positive, width: size.width, height: size.height, length, first_frame: reference })
+         const positive =
+            vars.h3Look === 'reference'
+               ? b.MiniMaxH3AddGuide({ positive: start.outputs.positive, latent: start.outputs.LATENT, vae, image: reference, frame_idx: 0 }).outputs.positive
+               : start.outputs.positive
          const sampled = b.SamplerCustomAdvanced({
             noise: b.RandomNoise({ noise_seed: vars.seed }),
-            guider: b.BasicGuider({ model, conditioning: start.outputs.positive }),
+            guider: b.BasicGuider({ model, conditioning: positive }),
             sampler: b.KSamplerSelect({ sampler_name: 'res_multistep' }),
             sigmas: b.BasicScheduler({ model, scheduler: 'simple', steps: vars.steps, denoise: 1 }),
             latent_image: start.outputs.LATENT,

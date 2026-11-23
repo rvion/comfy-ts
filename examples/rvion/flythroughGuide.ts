@@ -2,7 +2,7 @@
 // every camera of the path, a colour frame, a depth frame (near = bright, as ComfyUI's RenderMesh) and
 // its coverage. A z-buffered triangle rasterizer, perspective correct, in plain TypeScript: about a
 // tenth of a second a frame where the box's ray tracer takes seconds
-import type { PathCamera } from './flythroughPath.ts'
+import { levelPoint, type PathCamera } from './flythroughPath.ts'
 
 /** a textured triangle mesh in the render's world (y up, -z ahead) */
 export type GuideMesh = {
@@ -103,6 +103,17 @@ export function dropStretched(mesh: GuideMesh, ratio = 4): GuideMesh {
       if (edge(a, b) && edge(b, c) && edge(c, a)) kept.push(a, b, c)
    }
    return { ...mesh, indices: Uint32Array.from(kept) }
+}
+
+/** the mesh in the path's levelled world: every vertex turned by the picture's `pitch` (levelPoint) */
+export function levelMesh(mesh: GuideMesh, pitch: number): GuideMesh {
+   if (pitch === 0) return mesh
+   const positions = new Float32Array(mesh.positions.length)
+   for (let i = 0; i < positions.length; i += 3) {
+      const q = levelPoint([mesh.positions[i]!, mesh.positions[i + 1]!, mesh.positions[i + 2]!], pitch)
+      positions.set(q, i)
+   }
+   return { ...mesh, positions }
 }
 
 /** one frame from one camera: `fovY` vertical, degrees; the camera looks at its target, y up */
