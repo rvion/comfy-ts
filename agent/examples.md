@@ -25,7 +25,9 @@ examples/
       16-tts-voice-design.cflow.ts    a new voice from a written description on windows-1: Qwen3TTSEngineNode on its `Voice Design - 1.7B VoiceDesign` checkpoint into UnifiedVoiceDesignerNode (description + one sample line), PreviewAudio → `execution.audios`, and the line itself through PreviewAny → `execution.texts`, which `comfy-ts run` writes beside the clip as its transcript: the pair 15 takes as `voice` + `transcript`
       15-tts-voice-clone.cflow.ts     text to speech in a cloned voice on windows-1 through the TTS-Audio-Suite custom node pack: an engine choice (chatterbox, qwen3, fishs2, cosyvoice3, omnivoice), a language, `v.audio` voice clip + its transcript (CharacterVoicesNode) into UnifiedTTSTextNode, PreviewAudio → `execution.audios`; bundled synthetic voice `media/voice_en_6s.flac`
       17-relight.cflow.ts             the OUTPUT WIDGET showcase on windows-1: a depth choice and a normal choice over the depth explorer catalog (`../depth-explorer/models.ts`, the runnable ones only), Marigold IID material maps behind two toggles; every map saved with a `tag`, and `widgets: [widget.relight(...)]` maps the tags to roles, so the serve panel draws the relight widget over the run
+   explorer-kit/                   what the explorer apps share: catalog, server, run queue, widgets (section below)
    depth-explorer/                 a mini web app, not a module (section below)
+   upscale-explorer/               a mini web app, not a module (section below)
    world-explorer/                 a viewer of 3D worlds, the `world` kind's page in the hub's threads (section below)
    comfy-cloud/
       sdk.d.ts                   committed cloud catalog (gen:sdk:cloud)
@@ -45,11 +47,19 @@ The TUI tree renders this layout as a real hierarchy (directory rows, one color 
 - Variant suffix only when a family gets TWO files for the same mode (`flux2-t2i-dev` next to `flux2-t2i`); the unsuffixed name is the recommended default.
 - A local-host example names its host by id ONLY: `comfy.host({ id: 'windows-1' })`. The address lives in the gitignored `.comfy-ts/hosts/<id>/host.json` that `comfy-ts gen --host … --id …` writes. examples/ ships on npm, so a machine name or an address in a host line is a leak (SK035 fails it).
 
+## examples/explorer-kit (what the explorer apps share)
+
+The depth and upscale explorers are one shape: a catalog of models, one ComfyUI graph each, run one at a time on one source image, each result its own card. The kit holds that shape once; an explorer adds its catalog, its params and its views.
+
+- `catalog.ts`: `CatalogEntry` (the card facts: label, family, date, weights size, quality, speed, blurb, the nodes and `WeightFile`s it needs), `availability(info, entry)` read from the LIVE schema (a missing node or a weight file absent from its loader's combo), `base(wf, name)` for graphs that name weight files the generated sdk does not know yet.
+- `server.ts`: `serveExplorer({ name, port, page, catalog, card, readParams, build })` serves the catalog with its availability, the samples (the bundled images plus every `--samples <dir>`), the source upload (by content hash, sent once) and `/api/run` (one prompt per run, ending in `SaveImageWebsocket`, so a result never touches the host disk). The last 48 results stay in memory by (image, model, params): a reload of the page gets them back at once (`x-cached: server`, the time the run's own). When ComfyUI reused a prompt it ran before (no node but the save ran), the answer says `x-cached: box` and the page shows « box cache » instead of a time, which would only be the transfer. `COMFY_URL` points it at another road to the same box (the ssh tunnel, `http://127.0.0.1:8085`).
+- `web/runs.ts` (`RunQueue`, `RunSt` with time, bytes and pixel size, `uploadSource`, `fetchCatalog`), `web/ui.tsx` (`Seg`, `SourcePicker`: drop, click, paste or a sample, `RunBody`: missing files, run, queued, the timer, the error), `web/base.css` (tokens, sidebar, grid of cards, focus box). Each page links `base.css` before its own `styles.css`.
+
 ## examples/depth-explorer (a mini app, not a module)
 
-A Bun server (`serve.ts`, port 8292, `bun run depth`) plus a React + MobX page (`web/`, own dom tsconfig like `examples/web`, chained in `typecheck:full`). It is NOT a `.cflow.ts` module: it compares many graphs on one input, which the panel's one-module view cannot.
+A Bun server (`serve.ts`, port 8292, `bun run depth`, on the explorer kit) plus a React + MobX page (`web/`, own dom tsconfig like `examples/web`, chained in `typecheck:full`). It is NOT a `.cflow.ts` module: it compares many graphs on one input, which the panel's one-module view cannot.
 
-- `models.ts` is the catalog: one entry per estimator (kind depth, normal or material, tier modern or classic, the nodes and weight files it needs), each a `build(b, image, p)` that returns the output image; the server adds `SaveImageWebsocket`. Availability is read from the LIVE host schema at server start (`connect({ schema: 'refresh' })`): a missing node or a weight file absent from its loader's combo makes the card show the files and their urls instead of a run button. Module 17 shares the catalog.
+- `models.ts` is the catalog: one entry per estimator (kind depth, normal or material, tier modern or classic, the nodes and weight files it needs), each a `build(b, image, p)` that returns the output image; the server adds `SaveImageWebsocket`. Availability is the kit's. Module 17 shares the catalog.
 - Materials: Marigold v2 albedo (core nodes), and Marigold IID through kijai/ComfyUI-Marigold (diffusers pipeline, weights under `models/diffusers/`): appearance gives albedo + a material image (R roughness, G metalness, split with ImageToMask), lighting gives albedo, diffuse shading and the non diffuse residual (the `specular` map). Each map is its own entry; ComfyUI's cache runs the decomposition once per image.
 - The relight view IS the serve panel's relight widget (`src/cli/serve/web/widgets/`), fed with the focus and the best finished maps of the grid; `gl.ts` keeps only the 3D relief. One relight implementation.
 - Depth Anything V2 ViT-G is not in the catalog: its weights were never published (the controlnet_aux url answers 401).
@@ -58,6 +68,17 @@ A Bun server (`serve.ts`, port 8292, `bun run depth`) plus a React + MobX page (
 - Marigold v2 builds on the BASE builder: its weights are not in the host sdk until downloaded, and the typed builder cannot name them.
 - Deep link for headless checks and bookmarks: `?image=<sample>&run=all|<id,id>&focus=<id>&view=wipe|3d|light`. `--samples <dir>` (repeatable) adds a folder of images to the bundled ones.
 - Demo video: the page sets `<meta name="shot-ready">` to `ready` once every queued run ended, and `window.tour(t)` draws the scripted tour at time t (grid, wipes, relief, a material, then the relight widget's own `relightTour`): `sk shot '<url>?image=…&run=all' --video 30 --dom --step tour`.
+
+## examples/upscale-explorer (a mini app, not a module)
+
+A Bun server (`serve.ts`, port 8294, `bun run upscale`, the global process `upscale-explorer` through the tunnel) plus a React + MobX page (`web/`, own dom tsconfig, chained in `typecheck:full`), on the explorer kit. Its question: which upscaler makes a scan crispest where print shows it (text, symbols, fine lines).
+
+- `models.ts`: the Lanczos baseline, the spandrel models (`ImageUpscaleWithModel`: DAT2, HAT-L, RCAN, RealPLKSR, ESRGAN) and SeedVR2 (the Comfy-Org image template on core nodes: Lanczos to size, one diffusion step, tiled VAE). Every result lands at the SAME size, the source times the page's scale (×2 or ×4): a model of another native factor is brought there with Lanczos (`ImageScaleBy`), so every comparison is pixel for pixel. The loaders name their weight files on the base builder: a file downloaded since the sdk was generated must run.
+- ONE view (centre 0..1, zoom in device pixels per result pixel, or fit) for every picture of the page: the loupe (every finished result on the same crop, a navigator on the source to move it) and both sides of the compared pair follow it. Wheel or pinch zooms at the pointer, a drag pans, a double click goes to 100 % there and back to fit, + − 0 (fit) 1 (100 %).
+- The pair compares two results (or a result against the source) in the hub's five modes, its glyphs and tips (shipkit `review-views.tsx`): side by side ◫, curtain ⇹ (a press within 12 px of the line drags it, anywhere else pans), onion skin ◐ with its opacity, the after alone ▣ with the before under the pointer, and only what changed ≠ (the hub's noise threshold, computed at full size in the browser). D cycles, ⇧D back. A card clicked opens it against Lanczos at 100 % where the click landed.
+- The grid shows a 640 px copy of each result, never the 12 MP files; the loupe and the pair draw the full files, `image-rendering: pixelated` above 100 %.
+- Rejected for this catalog: SUPIR and the Flux or PiD upscalers (generative: they redraw small text; SUPIR also needs an SDXL base and a prompt), LDSR (its own node pack, slow), the FDAT IllustrationJaNai variants (spandrel 0.4.1 has no FDAT).
+- Deep link: `?image=<sample>&scale=2|4&classic=1&run=all|<id,id>&layout=loupe&at=<cx>,<cy>&z=<zoom|fit>&compare=<after>&before=<id>&mode=side|swipe|onion|mod|diff`. The ready mark waits for every run and its grid copy.
 
 ## examples/world-explorer (a viewer of 3D worlds)
 

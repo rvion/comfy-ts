@@ -1,0 +1,241 @@
+/* the upscale explorer over the shared explorer look (examples/explorer-kit/web/base.css) */
+:root {
+   --before: #ff6b6b;
+   --after: #4cd07d;
+}
+.toolbar {
+   display: flex;
+   align-items: center;
+   gap: 12px;
+   margin-bottom: 14px;
+   flex-wrap: wrap;
+}
+.toolbar > .seg {
+   width: auto;
+}
+.frame > img {
+   width: 100%;
+   height: 100%;
+   object-fit: contain;
+   display: block;
+}
+.facts {
+   display: flex;
+   flex-wrap: wrap;
+   gap: 4px;
+   padding: 8px 10px 0;
+}
+.chip {
+   font-size: 11px;
+   padding: 1px 6px;
+   border-radius: 4px;
+   background: var(--bg);
+   border: 1px solid var(--line);
+   color: var(--dim);
+}
+.chip.out {
+   color: var(--text);
+}
+
+/* a frame on the shared view */
+.viewport {
+   position: relative;
+   overflow: hidden;
+   background: #0c0d0f;
+   cursor: grab;
+   touch-action: none;
+   user-select: none;
+}
+.viewport:active {
+   cursor: grabbing;
+}
+.layer {
+   position: absolute;
+   max-width: none;
+   display: block;
+   pointer-events: none;
+}
+.layer.px {
+   image-rendering: pixelated;
+}
+.fill {
+   position: absolute;
+   inset: 0;
+}
+
+/* the loupe */
+.loupe {
+   display: grid;
+   gap: 12px;
+}
+.tile {
+   background: var(--card);
+   border: 1px solid var(--line);
+   border-radius: 8px;
+   overflow: hidden;
+}
+.tileHead {
+   display: flex;
+   justify-content: space-between;
+   gap: 8px;
+   padding: 6px 10px;
+   cursor: pointer;
+}
+.tileHead:hover .name {
+   color: var(--accent);
+}
+.tileView {
+   aspect-ratio: 1;
+}
+.nav {
+   position: relative;
+   cursor: crosshair;
+   touch-action: none;
+   border-radius: 6px;
+   overflow: hidden;
+}
+.nav img {
+   display: block;
+   width: 100%;
+   height: 100%;
+}
+.navBox {
+   position: absolute;
+   border: 2px solid var(--accent);
+   box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.45);
+   pointer-events: none;
+   min-width: 4px;
+   min-height: 4px;
+}
+
+/* the compared pair, over the page */
+.pair {
+   position: fixed;
+   inset: 0;
+   z-index: 10;
+   background: var(--bg);
+   display: flex;
+   flex-direction: column;
+}
+.pairBar {
+   display: flex;
+   align-items: center;
+   gap: 8px;
+   padding: 8px 12px;
+   border-bottom: 1px solid var(--line);
+   flex-wrap: wrap;
+}
+.pairBar select {
+   max-width: 240px;
+}
+.pairBar .meta {
+   margin-left: auto;
+}
+.modes {
+   display: flex;
+   align-items: center;
+   gap: 6px;
+}
+.modes .seg button {
+   font-size: 15px;
+   padding: 2px 9px;
+}
+kbd {
+   font: 11px ui-monospace, monospace;
+   border: 1px solid var(--line);
+   border-radius: 4px;
+   padding: 1px 5px;
+   color: var(--dim);
+}
+.zoombar {
+   display: inline-flex;
+   align-items: center;
+   gap: 4px;
+}
+.zoombar button {
+   padding: 3px 8px;
+}
+.zoombar button.on {
+   border-color: var(--accent);
+}
+.zoompct {
+   min-width: 54px;
+   text-align: center;
+   font-variant-numeric: tabular-nums;
+}
+.stage {
+   flex: 1;
+   min-height: 0;
+   display: flex;
+   flex-direction: column;
+   padding: 10px;
+   gap: 6px;
+}
+.stage.side {
+   flex-direction: row;
+}
+.cell {
+   position: relative;
+   flex: 1;
+   min-height: 0;
+   min-width: 0;
+   display: flex;
+}
+.cell > .viewport {
+   flex: 1;
+   border-radius: 6px;
+}
+.viewport.side-before {
+   outline: 2px solid var(--before);
+   outline-offset: -2px;
+}
+.viewport.side-after {
+   outline: 2px solid var(--after);
+   outline-offset: -2px;
+}
+.sidetag {
+   position: absolute;
+   top: 8px;
+   right: 8px;
+   padding: 2px 8px;
+   border-radius: 4px;
+   font-size: 12px;
+   color: #0b1220;
+   pointer-events: none;
+}
+.sidetag.left {
+   right: auto;
+   left: 8px;
+}
+.sidetag.before {
+   background: var(--before);
+}
+.sidetag.after {
+   background: var(--after);
+}
+.curtain {
+   position: absolute;
+   top: 0;
+   bottom: 0;
+   width: 2px;
+   transform: translateX(-1px);
+   background: #fff;
+   box-shadow: 0 0 6px rgba(0, 0, 0, 0.7);
+   cursor: ew-resize;
+   pointer-events: none;
+}
+.caption {
+   color: var(--dim);
+   font-size: 12px;
+   text-align: center;
+}
+.keys {
+   padding: 0 12px 8px;
+   text-align: center;
+}
+aside label.first {
+   margin-top: 0;
+}
+.nav {
+   margin-bottom: 16px;
+}

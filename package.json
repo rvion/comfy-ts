@@ -73,7 +73,7 @@
       "test:raw": "bun test",
       "test:watch": "bun test --watch",
       "typecheck": "tsc -p tsconfig.lib.json && tsc -p examples/web/tsconfig.json && tsc -p src/cli/serve/web/tsconfig.json",
-      "typecheck:full": "tsc --noEmit --tsBuildInfoFile node_modules/.cache/tsbuildinfo-typecheck.json && tsc -p examples/web/tsconfig.json && tsc -p src/cli/serve/web/tsconfig.json && tsc -p examples/depth-explorer/web/tsconfig.json && tsc -p examples/world-explorer/web/tsconfig.json",
+      "typecheck:full": "tsc --noEmit --tsBuildInfoFile node_modules/.cache/tsbuildinfo-typecheck.json && tsc -p examples/web/tsconfig.json && tsc -p src/cli/serve/web/tsconfig.json && tsc -p examples/depth-explorer/web/tsconfig.json && tsc -p examples/world-explorer/web/tsconfig.json && tsc -p examples/upscale-explorer/web/tsconfig.json",
       "lint": "oxlint src examples scripts tests",
       "imports:check": "rvt imports --check",
       "imports:fix": "rvt imports --fix",
@@ -102,6 +102,7 @@
       "serve:rvion": "bun --watch src/cli/comfy-ts-cli.ts serve examples/rvion",
       "depth": "bun examples/depth-explorer/serve.ts",
       "world": "bun --watch examples/world-explorer/serve.ts",
+      "upscale": "bun examples/upscale-explorer/serve.ts",
       "check:panel-scroll": "bun scripts/check-panel-scroll.ts"
    },
    "rvt": {
