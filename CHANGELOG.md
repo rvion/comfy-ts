@@ -2,6 +2,16 @@
 
 <!-- made from .shipkit/releases/ by sk bump: edit those files, never this one -->
 
+## 2.22.0 (2026-11-23)
+
+### Web panel
+
+- **Output widgets: relight a photo with its depth and normal maps**: A workflow can now name a widget the web panel draws over its outputs. Tag the images (b.SaveImageWebsocket({ images }, { tag: 'depth' })) and list widget.relight({ image, depth, normal, albedo, roughness, metalness, specular }) in defineWorkflow({ widgets }): the panel shows the photo lit by a point light you drag over it, with the wheel for nearer or farther, shadows from the depth map and drifting light motes. The new example 17-relight runs a depth model, a normal model and Marigold material maps for it. The CLI and the terminal UI keep the tagged images as plain outputs.
+- **Choices that show what each option is**: A choice var can describe each option: `.ui({ options: { <value>: { label, description, thumb, date, size, quality, speed, tags } } })`. The web panel then draws the choice as its own dropdown: each row shows a picture, a name, a short description, badges for the date, the size and the speed, and a quality bar from 1 to 5. A list of 8 options or more gets a filter box, and the arrows, enter and esc keys work. An optional choice starts with a « none » row, and a choice with a single option still opens and says that it is the only one. A thumb is a url or a local path next to the workflow file.
+  ![Choices that show what each option is](https://shipkit.fra1.cdn.digitaloceanspaces.com/public/release/e2225e1bc324044ac1ee70b079c7b49bd157642da252e10c07afb6f80cac7e93.png)
+- **Image presets**: `v.image(default, { presets: { label: path or url } })` puts one-click starting files under the field, each with its thumbnail; audio and video vars take the same option. A url preset downloads once, when a run first uses it. A local preset that is not on this machine shows greyed out instead of failing. The field also shows the current image as a thumbnail.
+  ![Image presets](https://shipkit.fra1.cdn.digitaloceanspaces.com/public/release/4617fc803140aeb715f82e588c489b260b523ba10df6f03165ea0e8687dd7496.png)
+
 ## 2.21.0 (2026-11-21)
 
 ### Hosts

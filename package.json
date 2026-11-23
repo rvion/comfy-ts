@@ -1,6 +1,6 @@
 {
    "name": "comfy-ts",
-   "version": "2.21.0",
+   "version": "2.22.0",
    "description": "An efficient way to create, run, maintain and operate your ComfyUI workflows, for humans and agents. A TypeScript SDK typed from your own install, with a CLI, a terminal UI, a web panel and a guide for coding agents.",
    "keywords": [
       "comfyui",
