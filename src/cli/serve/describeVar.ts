@@ -70,7 +70,12 @@ export type VarDescriptor = {
    /** size: preset labels starred by default (quick buttons before the list) */
    starredPresets?: string[]
    extensions?: readonly string[]
+   /** image, audio, video: one-click starting files. `thumb` (a url the page can show) and
+    * `missing` (a local file not on this machine) are filled by ServeApp.describeModule */
+   mediaPresets?: MediaPresetDescriptor[]
 }
+
+export type MediaPresetDescriptor = { label: string; value: string; thumb?: string; missing?: boolean }
 
 /** an empty list is absent from the json: every var without presets would otherwise carry `[]` */
 function presetsOrUndefined(presets: VarPreset[]): VarPreset[] | undefined {
@@ -166,7 +171,13 @@ export function describeVar(varDef: AnyVar): VarDescriptor {
       case 'audio':
       case 'video': {
          const v = varDef as MediaVar
-         return { ...base, payload: 'local file path or http(s) url', extensions: v.extensions }
+         const presets = v.presets
+         return {
+            ...base,
+            payload: 'local file path or http(s) url',
+            extensions: v.extensions,
+            ...(presets.length > 0 ? { mediaPresets: presets } : {}),
+         }
       }
       default: {
          // an unknown kind CAN reach here: a globally installed cli against a project on a

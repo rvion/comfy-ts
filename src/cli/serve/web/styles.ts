@@ -539,6 +539,42 @@ input[type='range'].setting-range:disabled { opacity: 0.3; }
 .media-drop { border: 1px dashed var(--border); border-radius: 6px; padding: 6px; }
 .media-drop.over { border-color: var(--accent); background: var(--accent-dim); }
 .media-drop .error { color: var(--red); font-size: 12px; margin-top: 4px; white-space: pre-wrap; }
+/* a media var's one-click presets (v.image(…, { presets })) */
+.media-presets { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.media-preset { display: flex; flex-direction: column; align-items: stretch; gap: 3px; width: 92px; padding: 3px; font-size: 11px; color: var(--dim); background: var(--panel-2); border: 1px solid var(--border); border-radius: 6px; cursor: pointer; }
+.media-preset img, .media-preset-none { width: 100%; height: 62px; object-fit: cover; border-radius: 4px; background: #0b0c10; display: block; }
+.media-preset span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: left; }
+.media-preset:hover:not(:disabled) { border-color: var(--accent); color: var(--text); }
+.media-preset.sel { border-color: var(--sel-border); background: var(--sel-bg); color: var(--sel-text); }
+.media-preset:disabled { opacity: 0.35; cursor: not-allowed; }
+/* the rich choice dropdown (components/controls/RichSelect.tsx) */
+.rs-trigger { display: flex; align-items: center; gap: 8px; width: 100%; max-width: 620px; padding: 4px 8px; font: inherit; color: var(--text); text-align: left; background: var(--panel-2); border: 1px solid var(--border); border-radius: 6px; cursor: pointer; }
+.rs-trigger:hover, .rs-trigger.open { border-color: var(--accent); }
+.rs-trigger-text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.rs-trigger .rs-badges { flex-shrink: 0; }
+.rs-chevron { color: var(--dim); }
+.rs-name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rs-value { color: var(--dim); font-size: 11px; font-family: ui-monospace, monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rs-thumb { width: 30px; height: 30px; flex-shrink: 0; object-fit: cover; border-radius: 4px; background: #0b0c10; display: inline-flex; align-items: center; justify-content: center; }
+.rs-thumb.big { width: 56px; height: 56px; }
+.rs-pop { z-index: 60; display: flex; flex-direction: column; max-width: min(560px, calc(100vw - 16px)); background: var(--panel); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45); overflow: hidden; }
+.rs-filter { margin: 8px; padding: 5px 8px; font: inherit; color: var(--text); background: var(--panel-2); border: 1px solid var(--border); border-radius: 6px; }
+.rs-list { overflow-y: auto; outline: none; padding: 4px; }
+.rs-row { display: flex; align-items: flex-start; gap: 10px; padding: 6px 8px; border-radius: 6px; cursor: pointer; }
+.rs-row.active { background: var(--panel-2); }
+.rs-row.sel { box-shadow: inset 2px 0 0 var(--accent); }
+.rs-row-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.rs-row-head { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.rs-desc { color: var(--dim); font-size: 12px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.rs-badges { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.rs-badge { font-size: 11px; color: var(--dim); background: var(--panel-2); border: 1px solid var(--hairline); border-radius: 4px; padding: 0 5px; white-space: nowrap; }
+.rs-quality { display: inline-flex; gap: 2px; margin-left: 2px; }
+.rs-quality i { width: 6px; height: 10px; border-radius: 2px; background: var(--border); }
+.rs-quality i.on { background: var(--green); }
+.rs-check { color: var(--accent); font-weight: 700; }
+.rs-none .rs-thumb { color: var(--dim); font-size: 22px; border: 1px dashed var(--border); }
+.rs-empty { color: var(--dim); padding: 10px; font-size: 12px; }
+.rs-foot { color: var(--dim); font-size: 11px; padding: 5px 10px; border-top: 1px solid var(--hairline); }
 .media-preview-audio audio { width: min(100%, 360px); }
 .media-preview-video video { max-width: 320px; max-height: 220px; border-radius: 6px; border: 1px solid var(--border); background: #000; }
 .run-card.running { border-color: var(--accent-dim); }

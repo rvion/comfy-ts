@@ -46,6 +46,28 @@ export type VarKind = 'text' | 'prompt' | 'int' | 'float' | 'seed' | 'toggle' | 
  */
 /** how a var LOOKS in the panel, set by the workflow: `v.int(8).ui({ icon, color, description })`.
  * Every slot is optional, a color is any css color */
+/** how one option of a choice var looks in the panel. Every field is optional: a bare option
+ * shows its value */
+export type ChoiceOptionLook = {
+   /** a 24×24 svg path drawn in the color, or a whole `<svg …>` string */
+   icon?: string
+   color?: string
+   /** the name shown instead of the raw value (the value stays the payload) */
+   label?: string
+   description?: string
+   /** a picture: an http(s) url, or a local path relative to the workflow file */
+   thumb?: string
+   /** when it came out: `2025`, `2025-11` */
+   date?: string
+   /** what it weighs on disk: `1.3 GB` */
+   size?: string
+   /** 1 (rough) to 5 (the best of its kind) */
+   quality?: number
+   /** how long it takes: `0.9 s`, `30 s` */
+   speed?: string
+   tags?: string[]
+}
+
 export type VarUi = {
    /** shown as a (?) after the label, the text is its tooltip */
    description?: string
@@ -62,8 +84,8 @@ export type VarUi = {
    groupColor?: string
    border?: string
    /** choice vars: a look per option, keyed by the option value. The lit option is filled
-    * with its own color */
-   options?: Record<string, { icon?: string; color?: string }>
+    * with its own color; a dropdown row shows the rest (ChoiceOptionLook) */
+   options?: Record<string, ChoiceOptionLook>
    /** the field is shown but disabled unless every named var holds one of the listed values:
     * `{ model: ['aesthetic', 'base'] }`. Checked against the var names when the workflow loads.
     * Display only: a disabled var's value still reaches the build */
@@ -909,6 +931,10 @@ export type MediaVarOpts = {
    /** the text var a file's `<name>.txt` sidecar fills, when a driver sets this var from a file
     * and leaves that one unset: a voice clip's transcript (`comfy-ts run`) */
    sidecarText?: TextVar
+   /** one-click starting files: `{ 'a lioness': exampleImagePath(…), 'a ruin': 'https://…' }`.
+    * A local path that is not on this machine is shown disabled, a url is fetched when a run
+    * uses it. Key order is display order */
+   presets?: Record<string, string>
 }
 export type ImageVarOpts = MediaVarOpts
 export type AudioVarOpts = MediaVarOpts
@@ -964,6 +990,10 @@ export abstract class MediaVar extends ComfyVar<string> {
    /** what the picker lists (lowercase, no dots) */
    get extensions(): readonly string[] {
       return this.opts.extensions ?? DEFAULT_MEDIA_EXTENSIONS[this.kind]
+   }
+   /** the one-click starting files, `~/` expanded, in their declared order */
+   get presets(): { label: string; value: string }[] {
+      return Object.entries(this.opts.presets ?? {}).map(([label, value]) => ({ label, value: expandUserPath(value) }))
    }
    override set(value: string): this {
       return super.set(expandUserPath(value))

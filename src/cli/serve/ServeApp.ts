@@ -13,8 +13,10 @@ import {
    statSync,
    writeFileSync,
 } from 'node:fs'
+import { createHash } from 'node:crypto'
 import { nanoid } from 'nanoid'
-import { basename, dirname, extname, join, resolve } from 'pathe'
+import { basename, dirname, extname, isAbsolute, join, resolve } from 'pathe'
+import { isHttpUrl, ThumbStore, thumbUrl } from 'src/cli/serve/thumbs.ts'
 import { applyVarPayload } from 'src/cli/serve/applyVarPayload.ts'
 import { describeVar, type VarDescriptor } from 'src/cli/serve/describeVar.ts'
 import { deletePromptEnhancer, listPromptEnhancers, writePromptEnhancer } from 'src/promptEnhancers.ts'
@@ -74,7 +76,15 @@ import {
 import { getLoraKeyword } from 'src/vars/loraKeywords.ts'
 import type { ComfyHost } from 'src/host/ComfyHost.ts'
 import { DEFAULT_MEDIA_EXTENSIONS, MEDIA_KINDS, type MediaKind } from 'src/runner/mediaKinds.ts'
-import type { ChoiceVar, LorasVar, MediaVar, OptionalChoiceVar, PromptVar, SeedVar } from 'src/vars/ComfyVars.ts'
+import type {
+   ChoiceOptionLook,
+   ChoiceVar,
+   LorasVar,
+   MediaVar,
+   OptionalChoiceVar,
+   PromptVar,
+   SeedVar,
+} from 'src/vars/ComfyVars.ts'
 import type { DefinedWorkflow } from 'src/vars/DefinedWorkflow.ts'
 import { bang } from 'src/utils/bang.ts'
 import { extractErrorMessage } from 'src/utils/extractErrorMessage.ts'
@@ -485,6 +495,7 @@ export class ServeApp {
             if (segs[0] === 'tags' && segs.length === 3 && segs[1] != null && segs[2] != null)
                return await this.replyTags(segs[1], segs[2], req.url)
             if (segs[0] === 'settings' && segs.length === 1) return this.replySettings()
+            if (segs[0] === 'thumb' && segs.length === 1) return await this.replyThumb(req.url)
             if (segs[0] === 'tabs' && segs.length === 1) return this.replyTabs()
             if (segs[0] === 'hosts' && segs.length === 1) return this.replyHosts()
             if (segs[0] === 'hosts' && segs.length === 3 && segs[1] != null && segs[2] === 'logs')
@@ -617,12 +628,64 @@ export class ServeApp {
    }
 
    // #region introspection ----------------------------------------------------
+   /** the pictures of a descriptor made concrete for the page: a local thumb or preset becomes a
+    * /thumb url the store allows, a local preset not on this machine is flagged missing, a url
+    * stays as it is. Relative paths are relative to the workflow file */
+   private decorateLooks(desc: VarDescriptor, mod: ServeModule): void {
+      const dir = dirname(mod.file)
+      this.thumbs.allowRoot(dir)
+      this.thumbs.allowRoot(this.outputRoot)
+      const local = (p: string): string => (isAbsolute(p) ? p : resolve(dir, p))
+      const options = desc.ui?.options
+      if (desc.ui != null && options != null) {
+         const looks: Record<string, ChoiceOptionLook> = {}
+         for (const [value, look] of Object.entries(options)) {
+            if (look.thumb == null || isHttpUrl(look.thumb)) {
+               looks[value] = look
+               continue
+            }
+            const abs = local(look.thumb)
+            this.thumbs.allow(abs)
+            looks[value] = { ...look, thumb: thumbUrl(abs, 128) }
+         }
+         // a copy: the var's own ui object must keep the authored paths
+         desc.ui = { ...desc.ui, options: looks }
+      }
+      if (desc.mediaPresets != null)
+         desc.mediaPresets = desc.mediaPresets.map((preset) => {
+            if (isHttpUrl(preset.value)) {
+               // once a run fetched it, the tile is a small local thumb, not the whole remote file
+               const cached = this.urlInputPath(preset.value, basename(new URL(preset.value).pathname))
+               return { ...preset, thumb: existsSync(cached) ? thumbUrl(cached, 160) : preset.value }
+            }
+            const abs = local(preset.value)
+            this.thumbs.allow(abs)
+            return existsSync(abs)
+               ? { ...preset, value: abs, thumb: thumbUrl(abs, 160) }
+               : { ...preset, value: abs, missing: true }
+         })
+      if (MEDIA_KINDS.includes(desc.kind as MediaKind) && typeof desc.default === 'string' && desc.default !== '')
+         if (!isHttpUrl(desc.default)) this.thumbs.allow(local(desc.default))
+   }
+
+   private async replyThumb(url: string): Promise<ServeReply> {
+      const q = new URLSearchParams(url.split('?')[1] ?? '')
+      const src = q.get('src')
+      if (src == null || src === '') return json(400, { error: 'thumb needs ?src=<local path>' })
+      const out = await this.thumbs.render(src, Number(q.get('w') ?? 160) || 160)
+      if (out === 'forbidden')
+         return json(403, { error: 'not a picture a served workflow declared, nor under its folder or the outputs' })
+      if (out === 'missing') return json(404, { error: 'not on this machine' })
+      return { status: 200, contentType: 'image/webp', body: out, headers: { 'cache-control': 'max-age=300' } }
+   }
+
    private describeModule(mod: ServeModule): Record<string, unknown> {
       refreshLoraInfoCacheIfChanged()
       const hostId = mod.dw.host.data.id
       const vars: Record<string, VarDescriptor> = {}
       for (const [name, varDef] of mod.dw.entries()) {
          const desc = describeVar(varDef)
+         this.decorateLooks(desc, mod)
          // the raw enum values stay the payload keys; the mirror's names are for humans
          if (desc.kind === 'loras' && desc.options != null) {
             const labels: Record<string, string> = {}
@@ -700,6 +763,8 @@ export class ServeApp {
 
    /** per module, read once from a dry build: the omnibox searches and shows them */
    private tagsByModule = new Map<string, string[]>()
+   /** the local images the page may preview (GET /thumb), filled by describeModule */
+   private thumbs = new ThumbStore()
 
    private async tagsFor(mod: ServeModule): Promise<string[]> {
       const known = this.tagsByModule.get(mod.key)
@@ -1874,8 +1939,16 @@ export class ServeApp {
       return next
    }
 
+   /** one file per url: a preset or a pasted url downloads once per output root, not per run */
+   private urlInputPath(url: string, name: string): string {
+      const hash = createHash('sha1').update(url).digest('hex').slice(0, 16)
+      return join(this.outputRoot, 'serve-inputs', `url-${hash}${extname(name)}`)
+   }
+
    /** payload image urls land as local files under outputs/serve-inputs/ */
    private async downloadInput(url: string): Promise<string> {
+      const cached = this.urlInputPath(url, basename(new URL(url).pathname))
+      if (existsSync(cached)) return cached
       // every failure below answers the SAME thing. Refused, DNS miss, 403 and 200-of-the-wrong
       // -type were four distinguishable replies, which is a port and host scanner for anything
       // this box can reach. The reason goes to the server log
@@ -1902,7 +1975,7 @@ export class ServeApp {
       if (declared > INPUT_DOWNLOAD_CAP) throw new Error(`download too large (${declared} bytes): ${url}`)
       const bytes = await readCapped(res, INPUT_DOWNLOAD_CAP, url)
       const name = basename(new URL(url).pathname) || 'input'
-      const abs = join(this.outputRoot, 'serve-inputs', `${nanoid(6)}-${name}`)
+      const abs = this.urlInputPath(url, name)
       mkdirSync(dirname(abs), { recursive: true })
       writeFileSync(abs, bytes)
       return abs

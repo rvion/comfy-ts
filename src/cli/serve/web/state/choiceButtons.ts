@@ -1,10 +1,34 @@
 // a choice var with a few short options renders as a row of buttons, every option visible and
-// one click away; anything longer stays a select. PURE, tests/serve-web-choice-buttons.test.ts
+// one click away; anything longer, or any option the workflow describes, is the dropdown. PURE,
+// tests/serve-web-choice-buttons.test.ts
+import type { ChoiceOptionLook } from 'src/vars/ComfyVars.ts'
+
 export const MAX_BUTTONS = 5
 export const MAX_BUTTON_LABEL = 16
 
-export function choiceAsButtons(choices: readonly string[]): boolean {
+export function choiceAsButtons(choices: readonly string[], looks: Record<string, ChoiceOptionLook> = {}): boolean {
+   // an option the workflow describes (a picture, a name, a quality…) needs the dropdown's rows to show it
+   if (hasRichLook(choices, looks)) return false
    return choices.length > 0 && choices.length <= MAX_BUTTONS && choices.every((c) => c.length <= MAX_BUTTON_LABEL)
+}
+
+export function hasRichLook(choices: readonly string[], looks: Record<string, ChoiceOptionLook>): boolean {
+   return choices.some((c) => isRichLook(looks[c]))
+}
+
+/** more than a button can say: anything beyond an icon and a colour */
+export function isRichLook(look: ChoiceOptionLook | undefined): boolean {
+   if (look == null) return false
+   return (
+      look.label != null ||
+      look.description != null ||
+      look.thumb != null ||
+      look.date != null ||
+      look.size != null ||
+      look.quality != null ||
+      look.speed != null ||
+      (look.tags?.length ?? 0) > 0
+   )
 }
 
 export type ChoiceSelectMode = 'one' | 'zero-or-one' | 'many'

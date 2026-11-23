@@ -113,6 +113,7 @@ export type {
    VarKind,
    VarsSpec,
    VarUi,
+   ChoiceOptionLook,
    AnyChoiceVar,
    ChoiceSelect,
    VarValues,

@@ -23,6 +23,14 @@ describe('choice vars: buttons or a select', () => {
    it('an empty choice list is not a row of zero buttons', () => {
       expect(choiceAsButtons([])).toBe(false)
    })
+
+   it('two described options are the dropdown: a button cannot show a picture or a quality', () => {
+      expect(choiceAsButtons(['iid', 'none'], { iid: { label: 'Marigold IID', quality: 4 } })).toBe(false)
+   })
+
+   it('an icon and a colour alone still fit on a button', () => {
+      expect(choiceAsButtons(['a', 'b'], { a: { icon: 'M0 0h24v24H0z', color: 'red' } })).toBe(true)
+   })
 })
 
 describe('choice modes', () => {

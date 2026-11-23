@@ -2,8 +2,9 @@
 // bigger kinds (prompt, seed, size, loras, image) have their own files
 import { observer } from 'mobx-react-lite'
 import { PresetPicker } from 'src/cli/serve/web/components/controls/PresetPicker.tsx'
+import { RichSelect } from 'src/cli/serve/web/components/controls/RichSelect.tsx'
 import { VarIcon } from 'src/cli/serve/web/components/VarIcon.tsx'
-import { choiceAsButtons, clickChoice, pickedChoices } from 'src/cli/serve/web/state/choiceButtons.ts'
+import { choiceAsButtons, clickChoice, hasRichLook, pickedChoices } from 'src/cli/serve/web/state/choiceButtons.ts'
 import type { VarSt } from 'src/cli/serve/web/state/FormSt.ts'
 
 export const TextControl = observer(function TextControl(p: { v: VarSt }) {
@@ -102,7 +103,7 @@ export const ChoiceControl = observer(function ChoiceControl(p: { v: VarSt }) {
          <span className="hint">(unset)</span>
       ) : null
    // many choices can always be several buttons at once: a select holds one value only
-   if (choiceAsButtons(choices) || select !== 'one')
+   if (choiceAsButtons(choices, looks) || select === 'many' || (select === 'zero-or-one' && !hasRichLook(choices, looks)))
       return (
          <span className="row-inline">
             <span className="btn-group wrap">
@@ -140,21 +141,13 @@ export const ChoiceControl = observer(function ChoiceControl(p: { v: VarSt }) {
             {staleNote}
          </span>
       )
-   const value = picked[0] ?? ''
    return (
-      <select value={value} onChange={(e) => p.v.set(e.target.value)}>
-         {/* honest display for a value outside the current union (stale draft): the
-             browser would silently SHOW the first option while the state differs */}
-         {choices.includes(value) ? null : (
-            <option value={value} disabled>
-               {value === '' ? '(unset)' : `${value} (not on this host)`}
-            </option>
-         )}
-         {choices.map((c) => (
-            <option key={c} value={c}>
-               {c}
-            </option>
-         ))}
-      </select>
+      <RichSelect
+         choices={choices}
+         value={picked[0] ?? (select === 'zero-or-one' ? null : '')}
+         looks={looks}
+         allowNone={select === 'zero-or-one'}
+         onPick={(c) => p.v.set(c)}
+      />
    )
 })
