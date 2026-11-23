@@ -27,6 +27,10 @@ export type ExplorerSpec<E extends CatalogEntry, P> = {
 }
 
 const HOST_ID: HostId = 'windows-1'
+const KEEP_RESULTS = 48
+
+/** `box`: ComfyUI reused a prompt it ran before, so no node but the save ran and `ms` is the transfer */
+type Result = { bytes: Uint8Array<ArrayBuffer>; type: string; ms: number; box: boolean }
 
 const json = (data: unknown, status = 200): Response => Response.json(data, { status })
 
@@ -51,6 +55,17 @@ export async function serveExplorer<E extends CatalogEntry, P>(p: ExplorerSpec<E
    await host.connect({ schema: 'refresh' })
 
    const images = new Map<string, Uint8Array>()
+   /** the last runs by (image, model, params), in flight or done: a reload of the page gets them
+    * back at once (their time the run's own), and a second ask while one runs waits for it */
+   const runs = new Map<string, Promise<Result>>()
+   const answer = (r: Result, kept: boolean): Response =>
+      new Response(r.bytes, {
+         headers: {
+            'content-type': `image/${r.type}`,
+            'x-ms': String(r.ms),
+            'x-cached': r.box ? 'box' : kept ? 'server' : 'no',
+         },
+      })
    const samplePaths = samplesOf(process.argv)
    const slug = p.name.replaceAll(' ', '-')
 
@@ -71,7 +86,21 @@ export async function serveExplorer<E extends CatalogEntry, P>(p: ExplorerSpec<E
       const bytes = images.get(body.image)
       if (bytes == null) return json({ error: 'unknown image, upload it again' }, 404)
       const params = p.readParams(body)
+      const key = `${body.image}:${model.id}:${JSON.stringify(params)}`
+      const kept = runs.get(key)
+      if (kept != null) return answer(await kept, true)
+      const fresh = runOnce(bytes, model, params)
+      runs.set(key, fresh)
+      // a failed run is never kept; the oldest results leave first (a 12 MP png weighs 15 to 30 MB)
+      fresh.catch(() => runs.delete(key))
+      for (const old of runs.keys()) {
+         if (runs.size <= KEEP_RESULTS) break
+         runs.delete(old)
+      }
+      return answer(await fresh, false)
+   }
 
+   const runOnce = async (bytes: Uint8Array, model: E, params: P): Promise<Result> => {
       const started = performance.now()
       const wf = host.workflow({ id: `${slug}-${model.id}` })
       const loaded = await new MediaImage({ buffer: bytes }).loadInWorkflow_viaLoadImageNode(wf)
@@ -90,12 +119,11 @@ export async function serveExplorer<E extends CatalogEntry, P>(p: ExplorerSpec<E
                ? `${err.data.node_type ?? 'a node'}: ${err.data.exception_message}`
                : `run ended ${execution.status}, no image`
          console.error(`🔴 ${model.id}: ${message}`)
-         return json({ error: message, ms }, 500)
+         throw new Error(message)
       }
-      console.log(`🟢 ${model.id} ${ms} ms`)
-      return new Response(first.buffer as Uint8Array<ArrayBuffer>, {
-         headers: { 'content-type': `image/${first.metadata.type ?? 'png'}`, 'x-ms': String(ms) },
-      })
+      const box = !wf.nodes.some((n) => n.status === 'done' && n.json.class_type !== 'SaveImageWebsocket')
+      console.log(`🟢 ${model.id} ${ms} ms${box ? ' (the box reused its cache)' : ''}`)
+      return { bytes: first.buffer as Uint8Array<ArrayBuffer>, type: first.metadata.type ?? 'png', ms, box }
    }
 
    const server = Bun.serve({

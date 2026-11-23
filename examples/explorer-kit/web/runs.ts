@@ -56,6 +56,8 @@ export class RunSt {
    bytes = 0
    width = 0
    height = 0
+   /** 'box': ComfyUI reused an earlier run (`ms` is then the transfer); 'server': the server kept it */
+   cached: 'no' | 'box' | 'server' = 'no'
    constructor() {
       makeAutoObservable(this)
    }
@@ -133,12 +135,14 @@ export class RunQueue {
                img.src = url
                await img.decode()
                const ms = Number(res.headers.get('x-ms'))
+               const cached = res.headers.get('x-cached')
                runInAction(() => {
                   r.url = url
                   r.ms = ms
                   r.bytes = blob.size
                   r.width = img.naturalWidth
                   r.height = img.naturalHeight
+                  r.cached = cached === 'box' || cached === 'server' ? cached : 'no'
                   r.status = 'done'
                })
                job.onDone?.(r)

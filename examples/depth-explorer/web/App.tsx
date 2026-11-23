@@ -1,6 +1,6 @@
 import { observer } from 'mobx-react-lite'
 import { useEffect, useRef, useState } from 'react'
-import { RunBody, Seg, SourcePicker } from '../../explorer-kit/web/ui.tsx'
+import { RunBody, Seg, SourcePicker, timeOf } from '../../explorer-kit/web/ui.tsx'
 import { GlView, type GlParams } from './gl.ts'
 import { greyDepth, loadImage, paintDepth } from './pixels.ts'
 import { RelightWidgetView } from '../../../src/cli/serve/web/widgets/RelightWidget.tsx'
@@ -63,7 +63,7 @@ const Card = observer(function Card(p: { st: AppSt; model: ModelInfo }) {
                {model.label} <span className="fam">{model.family}</span>
             </span>
             <span className="meta">
-               {r?.ms != null && done ? `${(r.ms / 1000).toFixed(1)} s · ` : ''}
+               {done ? `${timeOf(r)} · ` : ''}
                {model.year}
             </span>
          </div>

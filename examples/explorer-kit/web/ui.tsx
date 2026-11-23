@@ -21,6 +21,10 @@ export function Seg<T extends string | number>(p: {
    )
 }
 
+/** a finished run's time; a result ComfyUI took from its cache has none of its own */
+export const timeOf = (r: RunSt): string =>
+   r.cached === 'box' ? 'box cache' : r.ms != null ? `${(r.ms / 1000).toFixed(1)} s` : ''
+
 /** the source image: drop a file, click to pick one, paste anywhere on the page, or a sample */
 export function SourcePicker(p: {
    source: Source | null
