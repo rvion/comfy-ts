@@ -26,6 +26,7 @@ examples/
       15-tts-voice-clone.cflow.ts     text to speech in a cloned voice on windows-1 through the TTS-Audio-Suite custom node pack: an engine choice (chatterbox, qwen3, fishs2, cosyvoice3, omnivoice), a language, `v.audio` voice clip + its transcript (CharacterVoicesNode) into UnifiedTTSTextNode, PreviewAudio → `execution.audios`; bundled synthetic voice `media/voice_en_6s.flac`
       17-relight.cflow.ts             the OUTPUT WIDGET showcase on windows-1: a depth choice and a normal choice over the depth explorer catalog (`../depth-explorer/models.ts`, the runnable ones only), Marigold IID material maps behind two toggles; every map saved with a `tag`, and `widgets: [widget.relight(...)]` maps the tags to roles, so the serve panel draws the relight widget over the run
    depth-explorer/                 a mini web app, not a module (section below)
+   world-explorer/                 a viewer of 3D worlds, the `world` kind's page in the hub's threads (section below)
    comfy-cloud/
       sdk.d.ts                   committed cloud catalog (gen:sdk:cloud)
       cloudHost.ts               shared host helper — NOT .cflow, invisible to the TUI
@@ -57,6 +58,17 @@ A Bun server (`serve.ts`, port 8292, `bun run depth`) plus a React + MobX page (
 - Marigold v2 builds on the BASE builder: its weights are not in the host sdk until downloaded, and the typed builder cannot name them.
 - Deep link for headless checks and bookmarks: `?image=<sample>&run=all|<id,id>&focus=<id>&view=wipe|3d|light`. `--samples <dir>` (repeatable) adds a folder of images to the bundled ones.
 - Demo video: the page sets `<meta name="shot-ready">` to `ready` once every queued run ended, and `window.tour(t)` draws the scripted tour at time t (grid, wipes, relief, a material, then the relight widget's own `relightTour`): `sk shot '<url>?image=…&run=all' --video 30 --dom --step tour`.
+
+## examples/world-explorer (a viewer of 3D worlds)
+
+A Bun server (`serve.ts`, port 8293, loopback, `bun run world`, the global process `world-explorer`) plus a three.js + Spark page (`web/`, own dom tsconfig, chained in `typecheck:full`). It runs nothing on ComfyUI: it shows what a world pipeline made, so a scene is explored in a thread of the hub instead of watched as a video.
+
+- A world is a folder `.comfy-ts/worlds/<name>/` (gitignored data) holding any of `source.png` (the picture), `panorama.png` (equirectangular 2:1), `world.glb` (a textured mesh around the origin, y up, the eye at the origin, drawn unlit) and `splat.ply` (SHARP 3D Gaussians in OpenCV axes; the server reads the camera's vertical fov from its `intrinsic` and `image_size` elements, so the splat opens framed as the picture was).
+- The page has one tab per file the world has: `pano` (drag to look, wheel for the field of view), `world` (drag to look, WASD or arrows walk within 3 m of the eye), `splat` (a small orbit around the median depth of the splats: past about 15% of that depth the splat opens holes, so the orbit is clamped there) and `source` (the flat picture).
+- Its keys: `key=<world>`, `view=<tab>`, `cam=<yaw>,<pitch>,<zoom>[,<x>,<z>]`. Alone at `http://127.0.0.1:8293/?key=<world>` the keys live in its own address; framed by the hub, `view` and `cam` are the shared state of a before and an after, so both sides switch tab and turn together.
+- Everything is RELATIVE (`./` assets, `api/worlds`, `worlds/<name>/<file>?v=<stamp>`): the hub's page proxy serves it again on its own origin. The server bundles `web/` with `Bun.build({ publicPath: './' })` in memory, rebuilt when a file of `web/` moved; a world file is served `immutable` under its size and mtime stamp, since one weighs 60 to 80 MB.
+- The thread kind: `world-explorer.shipkit.ts` (the process), `world-page.shipkit.ts` (the page `world`, `gl: true`), `world-kind.shipkit.ts` (the `review({ kinds: { world } })` unit, `view: { page: 'world' }`, `diff: { draw: 'views' }`). A version: `sk thread post world:<name> --title … --what … --after state.json` with the state `{ "name": "<name>", "files": ["panorama.png", …] }`.
+- `three` and `@sparkjsdev/spark` are devDependencies for this example only (coding.md, Stack pins).
 
 ## The shared cloud host helper
 
