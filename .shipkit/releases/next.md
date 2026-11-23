@@ -1,9 +1,23 @@
 ---
+"3D outputs: meshes, splats and point clouds come back with the run": commit bfa14a4, weight feature
+"An input of several types accepts an output of any of them": commit 0908e0f, weight improvement
 "A run survives a dropped connection": commit 1f3b262, weight improvement
+"Faster thumbnails in the web panel": commit a1b52dd, weight improvement
 ---
-# next (patch)
+# next (minor)
 
 ## Workflows
 
+### 3D outputs: meshes, splats and point clouds come back with the run
+A workflow that saves a 3D file (SaveGLB, SaveGaussianSplat, SavePointCloud and other nodes that return ComfyUI's 3d output) now gets it back like an image: `execution.models3d` lists each file (glb, gltf, ply, spz, obj, stl, and any other extension as a plain file) downloaded next to the images, and a file that failed to download is in `execution.models3dErrors` with the reason. In the web panel, a run's 3D files show as rows in the gallery with their name, size and a download link, and the run reply of the local HTTP API lists them too. The new example 18-world turns one picture into a 360° panorama (the HY-Pano 2.0 LoRA on Qwen-Image-Edit) and a mesh of the scene (MoGe), and the panorama's left and right edges join without a seam.
+
+### An input of several types accepts an output of any of them
+Some nodes take an input that lists several types, such as SaveGLB's `mesh` (`MESH,FILE_3D_GLB,…`). The generated SDK refused an output of one of the listed types there, and the graph builder could crash when it wired one. Both now accept an output of any listed type, and a wiring that matches none of them fails with a clear error.
+
 ### A run survives a dropped connection
 A run whose websocket dropped and reconnected while ComfyUI worked could wait forever with no error: ComfyUI sent the rest of its events to the old connection, and after some reconnects the connection stayed open but received nothing. The reconnect now keeps the same session. When the whole connection has heard nothing for a moment, the runs that heard nothing either ask the server where they stand, less and less often while it stays quiet: a run that ended without its events reaching the client finishes from the server history with its outputs, a run still in the queue keeps going, and a run the server no longer knows (it was cancelled, or the server restarted) fails with the reason in `execution.data.reason`. A connection found deaf this way reconnects by itself. A healthy run costs no extra request, and a server whose queue or history is not shaped like ComfyUI's (Comfy Cloud) is left alone. `host.runSilenceMs` (1 s) and `host.runSilenceMaxMs` (30 s) set when it asks.
+
+## Web panel
+
+### Faster thumbnails in the web panel
+The thumbnails of image presets and rich choices are made with Bun's own image API when the panel runs under Bun, so they need no native module there; under Node they still use sharp.
