@@ -40,6 +40,8 @@ export type ComfyExecutionData = {
    graphID: ComfyWorkflowID
    executed: boolean
    error?: WsMsgExecutionError | WsMsgExecutionInterrupted | null
+   /** why comfy-ts failed the run itself, when no ComfyUI message says it (the host lost the prompt) */
+   reason?: string | null
    status?: ComfyExecutionStatus | null
 }
 
@@ -126,7 +128,8 @@ export class ComfyExecution {
       this.logProgress = init.logProgress ?? false
       // register with the host so websocket messages route here,
       // then flush messages that arrived before we existed
-      this.host.executions.set(data.id, this)
+      this.silenceWaitMs = this.host.runSilenceMs
+      this.host.trackExecution(this)
       this.onCreate()
    }
 
@@ -229,6 +232,7 @@ export class ComfyExecution {
    onPromptRelatedMessage = (msg: PendingWsItem): void => {
       // a run reconciled from /history can still hear its own end late: one end only
       if (this.ended) return
+      this.heard()
       if (msg.type === 'execution_success' || msg.type === 'execution_error' || msg.type === 'execution_interrupted')
          this.ended = true
       const graph = this.workflow
@@ -346,7 +350,7 @@ export class ComfyExecution {
    /** the output nodes whose `executed` reached us, so a /history replay never retrieves one twice */
    private heardExecuted: Set<string> = new Set()
 
-   /** the socket dropped while this run was still on the host */
+   /** the run may have lost events (a reconnect, a long silence): its end reads /history for them */
    private mayHaveMissedEvents: boolean = false
 
    private replayUnheardOutputs(replay: HistoryReplay): void {
@@ -373,39 +377,92 @@ export class ComfyExecution {
       logError(`run ${id}: no history entry after its end; an output sent while the socket was down may be missing`)
    }
 
-   /** @internal the socket dropped and came back: the events sent while it was down are lost for good,
-    * so ask the host where this run stands. Queue THEN history: the server moves a prompt from one to the
-    * other under one lock, so this order never misses a run that ended between the two reads */
-   reconcileAfterReconnect = async (): Promise<void> => {
-      if (this.ended) return
+   // ---- reconcile over http (architecture.md, ResilientWebsocket.ts) ------------------------
+   /** @internal the watchdog's clock: the last event of this run, and the last http check */
+   lastHeardAt: number = Date.now()
+   private lastCheckedAt: number = 0
+   /** @internal the silence before the next http check: host.runSilenceMs, doubled after each check
+    * that finds the run still on the host, up to host.runSilenceMaxMs; any event resets it */
+   silenceWaitMs: number = 0
+   /** @internal a check is in flight: never two at once */
+   reconciling: boolean = false
+   private loggedReconcileProblems: Set<string> = new Set()
+
+   private heard(): void {
+      this.lastHeardAt = Date.now()
+      this.silenceWaitMs = this.host.runSilenceMs
+   }
+
+   /** @internal the run heard nothing for its current wait, and no check is in flight */
+   isCheckDue(now: number): boolean {
+      if (this.ended || this.reconciling) return false
+      return now - Math.max(this.lastHeardAt, this.lastCheckedAt) >= this.silenceWaitMs
+   }
+
+   private logReconcileOnce(msg: string): void {
+      if (this.loggedReconcileProblems.has(msg)) return
+      this.loggedReconcileProblems.add(msg)
+      logError(`run ${this.data.id}: ${msg}`)
+   }
+
+   /** @internal called before the host reads its queue, so a live end that lands during the reads
+    * still looks for the outputs of the gap */
+   beginReconcile(): void {
+      this.reconciling = true
+      this.mayHaveMissedEvents = true
+   }
+
+   /** @internal ask the host where this run stands. `queued` is the host's queue read BEFORE this
+    * history read (the server moves a prompt from one to the other under one lock, so this order never
+    * misses a run that ended between the two reads); null when it did not answer or its shape was not
+    * recognised, and then the run is never declared lost. Says how the check ended */
+   reconcile = async (queued: Set<string> | null): Promise<'history' | 'waiting' | 'lost'> => {
+      this.beginReconcile()
       const id = this.data.id
-      let queued: Set<string>
-      let replay: HistoryReplay | null
+      const hostId = this.host.data.id
       try {
-         queued = await this.host.fetchQueuedPromptIds()
-         replay = historyReplay(await this.host.fetchHistory(id), id)
-      } catch (e) {
-         logError(`run ${id}: the socket reconnected, and the queue or history of host '${this.host.data.id}' did not answer (${extractErrorMessage(e)}); waiting for its events`)
-         return
-      }
-      if (this.ended) return
-      if (replay == null) {
-         // still on the host: its next events reach this socket, but an output sent in the gap is
-         // only in its history once it ends
-         if (queued.has(id)) return void (this.mayHaveMissedEvents = true)
-         logError(`run ${id}: host '${this.host.data.id}' has it neither in its queue nor in its history (restarted while the socket was down ?); the run fails`)
+         if (this.ended) return 'waiting'
+         let replay: HistoryReplay | null
+         try {
+            replay = historyReplay(await this.host.fetchHistory(id), id)
+         } catch (e) {
+            this.logReconcileOnce(`the history of host '${hostId}' did not answer (${extractErrorMessage(e)}); waiting for its events`)
+            return 'waiting'
+         }
+         if (this.ended) return 'waiting'
+         if (replay == null) {
+            if (queued == null || queued.has(id)) return 'waiting'
+            const reason = `host '${hostId}' has it neither in its queue nor in its history (restarted while the socket was down ?)`
+            logError(`run ${id}: ${reason}; the run fails`)
+            this.ended = true
+            await this._finish({ status: 'Failure', error: null, reason })
+            return 'lost'
+         }
+         logInfo(`run ${id}: ended on host '${hostId}' without its end reaching the socket, finishing from its history`)
+         for (const p of replay.problems) logError(`run ${id}: a history entry does not match the ws schemas, skipped: ${p}`)
+         this.replayUnheardOutputs(replay)
+         if (this.ephemeral)
+            logError(`run ${id}: SaveImageWebsocket frames sent while the socket did not hear are lost (they never reach the server disk)`)
+         if (replay.end != null) {
+            this.onPromptRelatedMessage(replay.end)
+            return 'history'
+         }
+         const reason = `its history entry on host '${hostId}' carries no end message`
+         logError(`run ${id}: ${reason}; the run fails`)
          this.ended = true
-         return void this._finish({ status: 'Failure', error: null })
+         await this._finish({ status: 'Failure', error: null, reason })
+         return 'history'
+      } finally {
+         this.reconciling = false
+         this.lastCheckedAt = Date.now()
+         this.silenceWaitMs = Math.min(this.silenceWaitMs * 2, this.host.runSilenceMaxMs)
       }
-      logInfo(`run ${id}: ended on host '${this.host.data.id}' while the socket was down, finishing from its history`)
-      for (const p of replay.problems) logError(`run ${id}: a history entry does not match the ws schemas, skipped: ${p}`)
-      this.replayUnheardOutputs(replay)
-      if (this.ephemeral)
-         logError(`run ${id}: SaveImageWebsocket frames sent while the socket was down are lost (they never reach the server disk)`)
-      if (replay.end != null) return this.onPromptRelatedMessage(replay.end)
-      logError(`run ${id}: its history entry on host '${this.host.data.id}' carries no end message; the run fails`)
-      this.ended = true
-      return void this._finish({ status: 'Failure', error: null })
+   }
+
+   /** @internal one run checked alone (the host checks all its runs with one queue read) */
+   reconcileAfterReconnect = async (): Promise<'history' | 'waiting' | 'lost'> => {
+      this.beginReconcile()
+      return this.reconcile(await this.host.fetchQueuedPromptIdsOrNull())
    }
 
    /** audio retrievals that failed (their files are missing from `audios`) */
@@ -579,6 +636,7 @@ export class ComfyExecution {
    /** @internal a live preview frame of this run; never an output (the host routes ws saver frames
     * to onWsImageOutput before they get here) */
    onPreviewFrame(p: { bytes: Uint8Array; mime: string; metadata: unknown }): void {
+      this.heard()
       const listener = this.onPreview
       if (listener == null) return
       const current = this.workflow.currentExecutingNode
@@ -600,6 +658,7 @@ export class ComfyExecution {
    /** one binary ws frame = one output image of the executing SaveImageWebsocket
     * node (architecture.md item 14 — the zero-server-disk path) */
    onWsImageOutput = (p: { bytes: Uint8Array; mime: string }): void => {
+      this.heard()
       const promptNodeID = this.workflow.currentExecutingNode?.uid ?? null
       this.pendingPromises.push(
          this.storeWsImage(p, promptNodeID).catch((e: unknown) => {
@@ -647,6 +706,7 @@ export class ComfyExecution {
 
    /** @internal a live-text frame for one node */
    onProgressText(p: { nodeId: string; text: string }): void {
+      this.heard()
       this.progressTexts.set(p.nodeId, p.text)
       this.progressText = p.text
       this.emitProgress()
@@ -662,7 +722,7 @@ export class ComfyExecution {
    }
 
    private alreadyDone: boolean = false
-   private _finish = async (p: Pick<ComfyExecutionData, 'status' | 'error'>): Promise<void> => {
+   private _finish = async (p: Pick<ComfyExecutionData, 'status' | 'error' | 'reason'>): Promise<void> => {
       if (this.alreadyDone) throw new Error(`❌ invariant violation: already finished`)
       this.alreadyDone = true
       this.update({ ...p, executed: true })

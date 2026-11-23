@@ -460,6 +460,7 @@ export class ComfyHost<ID extends string = string> {
    /** close the websocket (e.g. to let a script exit) */
    disconnect = (): void => {
       this.clearConnectTimer()
+      this.stopWatchdog()
       this.ws?.disconnectPermanently()
       this.ws = null
       this._ready = null
@@ -545,7 +546,7 @@ export class ComfyHost<ID extends string = string> {
             logInfo(`[👢] WEBSOCKET: connected to ComfyUI host ${this.data.id}`)
             this._socketIsNew = true
             // events sent while the socket was down are lost for good: each run in flight asks
-            for (const execution of this.executions.values()) void execution.reconcileAfterReconnect()
+            void this.reconcileRuns([...this.executions.values()], 'reconnect')
             if (this.shouldUseSchemaCache()) {
                try {
                   await this.loadSchemaFromCache()
@@ -654,10 +655,76 @@ export class ComfyHost<ID extends string = string> {
       for (const key of ['queue_running', 'queue_pending']) {
          const list: unknown = typeof json === 'object' && json != null ? Reflect.get(json, key) : null
          if (!Array.isArray(list)) throw new Error(`GET /queue on host '${this.data.id}': no ${key} list`)
-         for (const item of list) if (Array.isArray(item) && typeof item[1] === 'string') ids.add(item[1])
+         // an item of another shape (a cloud host) could hide a run: refuse the whole answer
+         for (const item of list) {
+            if (!Array.isArray(item) || typeof item[1] !== 'string')
+               throw new Error(`GET /queue on host '${this.data.id}': an item of ${key} is not [number, prompt_id, …]`)
+            ids.add(item[1])
+         }
       }
       return ids
    }
+
+   /** fetchQueuedPromptIds, null when the queue did not answer or its shape was not recognised (logged
+    * once per message): a run is then never declared lost */
+   fetchQueuedPromptIdsOrNull = async (): Promise<Set<string> | null> => {
+      try {
+         return await this.fetchQueuedPromptIds()
+      } catch (e) {
+         const msg = extractErrorMessage(e)
+         if (!this._loggedQueueProblems.has(msg)) {
+            this._loggedQueueProblems.add(msg)
+            toastError(`host '${this.data.id}': its queue cannot say which runs it still holds (${msg}); runs are never failed as lost here`)
+         }
+         return null
+      }
+   }
+   private _loggedQueueProblems = new Set<string>()
+
+   // RUN WATCHDOG (architecture.md, ResilientWebsocket.ts) -------------------------------
+   /** a run that heard nothing for this long asks the host over http where it stands */
+   runSilenceMs: number = 1000
+   /** the wait doubles after each check that finds the run still on the host, up to this */
+   runSilenceMaxMs: number = 30_000
+   private _watchdog: Maybe<ReturnType<typeof setInterval>> = null
+
+   /** @internal a new run routes its ws messages here, and the watchdog watches it */
+   trackExecution(execution: ComfyExecution): void {
+      this.executions.set(execution.data.id, execution)
+      // a run with no socket (tests that drive messages by hand) has nothing to watch
+      if (this.ws == null || this._watchdog != null) return
+      this._watchdog = setInterval(() => this.watchdogTick(), Math.min(250, this.runSilenceMs))
+      this._watchdog.unref?.()
+   }
+
+   private stopWatchdog(): void {
+      if (this._watchdog != null) clearInterval(this._watchdog)
+      this._watchdog = null
+   }
+
+   private watchdogTick(): void {
+      if (this.executions.size === 0 || this.ws == null) return this.stopWatchdog()
+      const now = Date.now()
+      const due = [...this.executions.values()].filter((e) => e.isCheckDue(now))
+      if (due.length > 0) void this.reconcileRuns(due, 'silence')
+   }
+
+   /** one queue read for all the runs, then each one's history. A run that ends from its history while
+    * the socket looked fine means the socket hears nothing: ComfyUI removes a session BY KEY when a
+    * socket's handler ends, so an old handler that ends after a reconnect evicts the new socket of the
+    * same session. A clean close lets the server end that handler before the reconnect */
+   private async reconcileRuns(runs: ComfyExecution[], why: 'reconnect' | 'silence'): Promise<void> {
+      const todo = runs.filter((r) => !r.reconciling)
+      if (todo.length === 0) return
+      for (const r of todo) r.beginReconcile()
+      const queued = await this.fetchQueuedPromptIdsOrNull()
+      const verdicts = await Promise.all(todo.map((r) => r.reconcile(queued)))
+      if (why === 'silence' && verdicts.includes('history') && this.ws?.isOpen === true) {
+         toastError(`host '${this.data.id}': a run ended without its end reaching the socket, which hears nothing; reconnecting`)
+         this.ws.reconnect()
+      }
+   }
+
 
    /** drop every PENDING prompt from the server queue (the running one keeps going) */
    clearQueue = (): Promise<void> => {

@@ -105,6 +105,35 @@ describe('a run in flight when the socket reconnects', () => {
       await execution.reconcileAfterReconnect()
       await execution.done
       expect(execution.status).toBe('Failure')
+      expect(execution.data.reason).toContain('neither in its queue nor in its history')
+   })
+
+   it('the live end lands while the queue read is in flight: the output of the gap still comes from /history', async () => {
+      const { execution, first, last } = runOn('r-race')
+      let release: (s: Set<string>) => void = () => {}
+      const real = host.fetchQueuedPromptIds
+      host.fetchQueuedPromptIds = (): Promise<Set<string>> => new Promise((r) => (release = r))
+      const check = execution.reconcileAfterReconnect()
+      execution.onPromptRelatedMessage(ws({ type: 'executed', data: { node: last, output: glb('b.glb'), prompt_id: 'r-race' } }))
+      execution.onPromptRelatedMessage(ws({ type: 'execution_success', data: { prompt_id: 'r-race', timestamp: 2 } }))
+      history['r-race'] = successEntry('r-race', { [first]: glb('a.glb'), [last]: glb('b.glb') })
+      release(new Set())
+      await check
+      await execution.done
+      host.fetchQueuedPromptIds = real
+      expect(execution.status).toBe('Success')
+      expect(execution.models3d.map((m) => m.filename).sort()).toEqual(['a.glb', 'b.glb'])
+   })
+
+   it('a queue of another shape (a cloud host) never fails a run as lost', async () => {
+      const { execution } = runOn('r-cloud')
+      const real = host.fetchQueuedPromptIds
+      host.fetchQueuedPromptIds = async (): Promise<Set<string>> => {
+         throw new Error('an item of queue_running is not [number, prompt_id, …]')
+      }
+      expect(await execution.reconcileAfterReconnect()).toBe('waiting')
+      host.fetchQueuedPromptIds = real
+      expect(execution.status).toBe('New')
    })
 
    it('control: a run that never reconnected does not ask /history at its end', async () => {
@@ -118,6 +147,26 @@ describe('a run in flight when the socket reconnects', () => {
       host.fetchHistory = real
       expect(asked).toBe(0)
       expect(execution.models3d.length).toBe(1)
+   })
+})
+
+describe('the queue read', () => {
+   const answering = (json: unknown): ComfyHost => {
+      const comfy = globalHack.comfyts
+      if (comfy == null) throw new Error('no comfyts')
+      const h = comfy.host({ id: `queue-${Math.random()}`, host: '127.0.0.1', port: 65504 })
+      h.fetch = async (): Promise<Response> => Response.json(json)
+      return h
+   }
+
+   it('reads the prompt ids of ComfyUI queue items', async () => {
+      const h = answering({ queue_running: [[3, 'a', {}, {}, []]], queue_pending: [[4, 'b', {}, {}, []]] })
+      expect([...(await h.fetchQueuedPromptIds())]).toEqual(['a', 'b'])
+   })
+
+   it('refuses a queue whose items have another shape, instead of reading it as empty', async () => {
+      const h = answering({ queue_running: [{ prompt_id: 'a' }], queue_pending: [] })
+      expect(await h.fetchQueuedPromptIdsOrNull()).toBe(null)
    })
 })
 

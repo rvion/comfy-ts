@@ -150,6 +150,13 @@ export class ResilientWebSocketClient {
       }, ms)
    }
 
+   /** close the socket cleanly, then reconnect as after any close: the server ends its handler first */
+   reconnect(): void {
+      if (this.permanentlyClosed || this.currentWS == null) return
+      this.addInfo('closing the socket to reconnect')
+      this.currentWS.close()
+   }
+
    /** close and stop reconnecting (lets a script exit cleanly) */
    disconnectPermanently(): void {
       this.permanentlyClosed = true

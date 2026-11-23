@@ -1,8 +1,10 @@
 // why we think it is actually a bug, and not just meaning spec should change: the prompt ended with execution_success on the box (its /history says so, its glb downloads in 1.6 s) and `execution.done` never settled, with no error, for 18 minutes; a library whose run can neither end nor fail after a routine websocket reconnect is broken, whatever the spec says about reconnects.
 //
 // a fake ComfyUI with the routing of its server.py: a socket opened with `?clientId=X` takes the session
-// X, any other socket gets a new random session, and an event for a session with no socket is dropped.
-// The host's own reconnect pause (2 s) is the floor of each drop case
+// X, any other socket gets a new random session, an event for a session with no socket is dropped, and
+// a handler that ends removes its session BY KEY (`finally: self.sockets.pop(sid, None)`), so an old
+// handler that ends late evicts the new socket of the same session. The host's own reconnect pause (2 s)
+// is the floor of each drop case
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
 import { copyFileSync, mkdirSync, mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -25,6 +27,8 @@ class FakeComfy {
    running = new Set<string>()
    history = new Map<string, unknown>()
    outputsOf = new Map<string, Record<string, unknown>>()
+   /** how long after a socket closes its handler's finally runs (the server learns late of a dead peer) */
+   lateFinallyMs = 0
    server = Bun.serve<{ sid: string }>({
       port: 0,
       fetch: async (req, srv): Promise<Response | undefined> => {
@@ -59,7 +63,9 @@ class FakeComfy {
             ws.send(JSON.stringify({ type: 'status', data: { status: { exec_info: { queue_remaining: 0 } }, sid: ws.data.sid } }))
          },
          close: (ws: Sock): void => {
-            if (this.sockets.get(ws.data.sid) === ws) this.sockets.delete(ws.data.sid)
+            const sid = ws.data.sid
+            if (this.lateFinallyMs === 0) this.sockets.delete(sid)
+            else setTimeout(() => this.sockets.delete(sid), this.lateFinallyMs)
          },
          message: (): void => {},
       },
@@ -104,7 +110,6 @@ class FakeComfy {
    /** the socket dies under the client (a heartbeat drop, a proxy idle cut) */
    dropAll(): void {
       for (const ws of this.sockets.values()) ws.close(1006 as never)
-      this.sockets.clear()
    }
 
    async waitOpens(n: number): Promise<void> {
@@ -202,6 +207,29 @@ describe('a run outlives a websocket drop', () => {
       expect(execution.status).toBe('Success')
       expect(execution.models3d.map((m) => m.filename).sort()).toEqual(['world_00001_.glb', 'world_00002_.glb'])
    }, 10_000)
+
+   it('an old handler that ends after the reconnect evicts the new socket: the run still ends', async () => {
+      const opens = fake.opens
+      fake.lateFinallyMs = 2500
+      const { execution, node } = await startRun('stale-handler')
+      fake.dropAll()
+      await fake.waitOpens(opens + 1)
+      await Bun.sleep(2800) // the old handler's finally has evicted the new socket by now
+      fake.finish(execution.data.id, node)
+      const r = await settle(execution, 3000)
+      fake.lateFinallyMs = 0
+      expect(r).not.toBe('hung')
+      expect(execution.status).toBe('Success')
+      expect(execution.models3d.length).toBe(1)
+   }, 15_000)
+
+   it('a later run with no drop of its own ends, though the session was evicted before it', async () => {
+      const { execution, node } = await startRun('after-eviction')
+      fake.finish(execution.data.id, node)
+      const r = await settle(execution, 3000)
+      expect(r).not.toBe('hung')
+      expect(execution.status).toBe('Success')
+   }, 15_000)
 
    it('the run fails loud when the host lost the prompt (restarted while the socket was down)', async () => {
       const opens = fake.opens
