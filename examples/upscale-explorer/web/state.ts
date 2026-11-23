@@ -60,7 +60,7 @@ export class AppSt {
    thumbs = new Map<string, string>()
 
    constructor() {
-      makeAutoObservable<this, 'thumbing'>(this, { thumbs: true, frame: false, thumbing: false })
+      makeAutoObservable<this, 'thumbing'>(this, { thumbs: true, thumbing: false })
    }
 
    async boot(): Promise<void> {
