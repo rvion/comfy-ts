@@ -42,6 +42,16 @@ The TUI tree renders this layout as a real hierarchy (directory rows, one color 
 - Variant suffix only when a family gets TWO files for the same mode (`flux2-t2i-dev` next to `flux2-t2i`); the unsuffixed name is the recommended default.
 - A local-host example names its host by id ONLY: `comfy.host({ id: 'windows-1' })`. The address lives in the gitignored `.comfy-ts/hosts/<id>/host.json` that `comfy-ts gen --host … --id …` writes. examples/ ships on npm, so a machine name or an address in a host line is a leak (SK035 fails it).
 
+## examples/depth-explorer (a mini app, not a module)
+
+A Bun server (`serve.ts`, port 8292, `bun run depth`) plus a React + MobX page (`web/`, own dom tsconfig like `examples/web`, chained in `typecheck:full`). It is NOT a `.cflow.ts` module: it compares many graphs on one input, which the panel's one-module view cannot.
+
+- `models.ts` is the catalog: one entry per estimator (kind depth or normal, tier modern or classic, the nodes and weight files it needs), each a `build(b, image, p)` that returns the output image; the server adds `SaveImageWebsocket`. Availability is read from the live host schema: a missing node or a weight file absent from its loader's combo makes the card show the files and their urls instead of a run button.
+- One prompt per model, run one at a time by the page: each card fills as its model ends, a failure stays one card, and ComfyUI's cache reuses the shared upload and loaders.
+- Depth convention: near = white for every entry. DA3 renders LINEAR depth, so its graph squares the float tensor twice (`ImageBlend` multiply) before the 8 bit save to get a disparity-like curve comparable to the others.
+- Marigold v2 builds on the BASE builder: its weights are not in the host sdk until downloaded, and the typed builder cannot name them.
+- Deep link for headless checks and bookmarks: `?image=<sample>&run=all|<id,id>&focus=<id>&view=wipe|3d|light`.
+
 ## The shared cloud host helper
 
 `examples/comfy-cloud/cloudHost.ts` (plain `.ts`: the TUI scans only `*.cflow.ts`, so it never lists the helper as a workflow). Every cloud example imports it RELATIVELY (`./cloudHost.ts` — examples are outside src/, the absolute-src rule does not apply; everything else imports from `'comfy-ts'`):
