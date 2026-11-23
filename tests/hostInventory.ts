@@ -28,7 +28,10 @@ export const MAX_HOST_MODEL_NAMES = 3
 const MIN_STEM_CHARS = 8
 
 /** public models no tracked catalog carries, each checked by hand: lowercase basename, then where anyone downloads it */
-export const PUBLIC_MODEL_NAMES: [name: string, url: string][] = []
+export const PUBLIC_MODEL_NAMES: [name: string, url: string][] = [
+   // Tencent's HY-Pano 2.0 LoRA (HY-World 2.0), saved under this name by examples/rvion/18-world.cflow.ts
+   ['hy-pano-2-qwen-lora.safetensors', 'https://huggingface.co/tencent/HY-World-2.0/blob/main/HY-Pano-2.0/pytorch_lora_weights.safetensors'],
+]
 
 /** the files whose names are public by construction: the committed cloud catalog and the Manager's model list */
 export const PUBLIC_CATALOG_FILES = [
