@@ -5,7 +5,7 @@ import { createRoot } from 'react-dom/client'
 import { frameClient } from 'rvlib-shipkit/src/pages/frame-client.ts'
 import { camText, View3d, type Space } from 'rvlib-shipkit/src/view3d/viewer.ts'
 import { WorldSt, type View } from './state.ts'
-import { sendThumb } from './thumb.ts'
+import { postThumb, sendThumb, THUMB_W } from './thumb.ts'
 
 // one world of .comfy-ts/worlds, the view page of the `world` thread kind (agent/examples.md, world-explorer). Framed by
 // the hub or alone at its url: the frame client hands it its keys either way
@@ -47,6 +47,8 @@ const frame = frameClient({
       st.fromKeys(k)
       if (viewer != null && camText(viewer.cam) !== camText(st.cam)) viewer.setCam(st.cam)
    },
+   // a frame the hub does not show draws nothing
+   onFocus: (on) => viewer?.pause(!on),
 })
 // console debugging path (app-state-tree: expose the root)
 Object.assign(window, { world: st })
@@ -58,20 +60,23 @@ const shotReady = (on: boolean): void =>
 function drawn(v: View3d): void {
    shotReady(true)
    if (!st.wantsThumb || st.shown !== st.thumbView || st.touched) return
-   const c = v.renderer.domElement
    st.thumbSent()
-   // right after the frame is drawn: the canvas still holds it
-   sendThumb(st.name, c, c.width, c.height).catch((e: unknown) => st.setNotice((e as Error).message))
+   v.snapshot({ type: 'image/webp', quality: 0.85, width: THUMB_W })
+      .then((blob) => postThumb(st.name, blob))
+      .catch((e: unknown) => st.setNotice((e as Error).message))
 }
 
 /** the 3D views through the house viewer: one viewer while a 3D tab shows, each tab's file loaded into it */
 const Scene = observer(function Scene() {
    const host = useRef<HTMLDivElement>(null)
+   // in the hub's lightbox the wheel is the view's at once; inline or alone it scrolls until he clicks in
+   const mode = st.mode === 'lightbox' ? 'lightbox' : 'thumb'
    useEffect(() => {
       const el = host.current
       if (el == null) return
       const v: View3d = new View3d(el, {
          keys: 'window',
+         mode,
          onCam: (c) => st.setCam(c),
          onLoading: (what) => st.setLoading(what),
          onError: (why) => st.setError(why),
@@ -95,7 +100,7 @@ const Scene = observer(function Scene() {
          v.destroy()
          if (viewer === v) viewer = null
       }
-   }, [])
+   }, [mode])
    return <div ref={host} className="view" />
 })
 
