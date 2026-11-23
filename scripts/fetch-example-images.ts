@@ -111,10 +111,6 @@ async function main(): Promise<void> {
    for (const spec of EXAMPLE_IMAGES) infos.set(spec.id, await fetchInfo({ id: spec.id }))
    const readmePath = join(EXAMPLE_IMAGES_DIR, 'README.md')
    writeFileSync(readmePath, renderReadme({ infos }))
-   // format the generated README so the ci gate stays green after a regen
-   // (gen:manager precedent; run via `bun run examples:images` so oxfmt is on PATH)
-   const fmt = Bun.spawnSync(['oxfmt', readmePath], { stdout: 'inherit', stderr: 'inherit' })
-   if (fmt.exitCode !== 0) throw new Error(`[examples:images] 🔴 oxfmt failed on ${readmePath} (exit ${fmt.exitCode})`)
    console.log(`[examples:images] 🟢 README.md written`)
 
    const total = EXAMPLE_IMAGES.reduce((sum, spec) => sum + readFileSync(join(EXAMPLE_IMAGES_DIR, spec.name)).length, 0)

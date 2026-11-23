@@ -17,10 +17,3 @@ console.log(`   custom node keys:   ${registry.plugins_byNodeKey.size}`)
 console.log(`   models:             ${registry.knownModels.size}`)
 console.log(`   alterations:        ${registry.alterations.length}`)
 console.log(`   github stats:       ${registry.githubStats.size}`)
-
-// the generator aligns its own `// x N` comments and emits trailing blank
-// lines; oxfmt disagrees on both, so WITHOUT this the ci gate goes red right
-// after any regeneration. Runs here, not chained in package.json: a `&&` there
-// swallows this script's own flags (`--skip-download` landed on oxfmt).
-const fmt = Bun.spawnSync(['oxfmt', 'src/manager/generated'], { stdout: 'inherit', stderr: 'inherit' })
-if (fmt.exitCode !== 0) throw new Error(`🔴 oxfmt failed on src/manager/generated (exit ${fmt.exitCode})`)

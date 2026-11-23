@@ -6,7 +6,7 @@ Update the matching `agent/` doc BEFORE code. Renaming a file, moving a responsi
 
 ## Stack pins (closed list)
 
-Runtime deps: `arktype`, `image-meta`, `nanoid`, `pathe`, `sharp`, `ws`, `ink` + `react` + `react-dom` + `mobx` + `mobx-react-lite` (the TUI, added 2026-07-24). `react-resizable-panels` + `@floating-ui/react` (the serve web panel: the resizable side split and the tooltip layer, both his pick 2026-09-24). `@codemirror/state` + `view` + `commands` + `autocomplete` (the serve web prompt editor: highlighting, keymaps, completion popup, his pick 2026-09-24; bundled into the panel, never imported by the library). (terminal-image was tried and dropped 2026-07-24: v5 hard-emits the iTerm image protocol under iTerm/VSCode which ink mangles — `src/utils/ansiImage.ts` renders half-block ANSI with sharp instead.) Dev: `typescript` (v7, tsgo-native), `tsdown`, `oxlint`, `oxfmt`, `oxlint-tsgolint`, `rvlib-ts-tools`, `@types/bun`, `@types/ws`. (tsdown replaced tsup 2026-07-24: typescript@7 dropped the JS compiler API tsup's dts bundling needs; tsdown emits dts through tsgo itself.) Dev, for `examples/world-explorer` ONLY: `three` + `@types/three` + `@sparkjsdev/spark` (the world viewer: a panorama, a mesh, a Gaussian splat). `src/` never imports them, so they never reach the library bundle. New dep = a decision. First ask: can ~20 lines of current code do it? (house example: `src/utils/ansi.ts` replaced chalk).
+Runtime deps: `arktype`, `image-meta`, `nanoid`, `pathe`, `sharp`, `ws`, `ink` + `react` + `react-dom` + `mobx` + `mobx-react-lite` (the TUI, added 2026-07-24). `react-resizable-panels` + `@floating-ui/react` (the serve web panel: the resizable side split and the tooltip layer, both his pick 2026-09-24). `@codemirror/state` + `view` + `commands` + `autocomplete` (the serve web prompt editor: highlighting, keymaps, completion popup, his pick 2026-09-24; bundled into the panel, never imported by the library). (terminal-image was tried and dropped 2026-07-24: v5 hard-emits the iTerm image protocol under iTerm/VSCode which ink mangles — `src/utils/ansiImage.ts` renders half-block ANSI with sharp instead.) Dev: `typescript` (v7, tsgo-native), `tsdown`, `oxlint`, `oxlint-tsgolint`, `rvlib-ts-tools`, `@types/bun`, `@types/ws`. (tsdown replaced tsup 2026-07-24: typescript@7 dropped the JS compiler API tsup's dts bundling needs; tsdown emits dts through tsgo itself.) Dev, for `examples/world-explorer` ONLY: `three` + `@types/three` + `@sparkjsdev/spark` (the world viewer: a panorama, a mesh, a Gaussian splat). `src/` never imports them, so they never reach the library bundle. New dep = a decision. First ask: can ~20 lines of current code do it? (house example: `src/utils/ansi.ts` replaced chalk).
 
 ## TypeScript
 
@@ -32,7 +32,7 @@ Runtime deps: `arktype`, `image-meta`, `nanoid`, `pathe`, `sharp`, `ws`, `ink` +
 
 Every tsconfig that is actually invoked (root, `tsconfig.lib.json`, `src/cli/serve/web`, `examples/web`) sets its OWN `tsBuildInfoFile`. Two configs with different `include` sets writing one tsbuildinfo poison each other: the gate then fails on a symbol that exists (an editor typechecking in the background with the root config is enough to trigger it), which is a red gate on green code. The folder-open `tsc --watch` also runs the root config, so `bun run typecheck` passes its own `--tsBuildInfoFile` (`tsbuildinfo-typecheck.json`) rather than share the watcher's. `tests/tsconfig-buildinfo.test.ts` is the guard. Stale cache symptom, if it ever returns: `rm node_modules/.cache/tsbuildinfo*.json`.
 
-## Lint & format config (zero output is the contract)
+## Lint config (zero output is the contract)
 
 `bun run lint` must print NOTHING. A permanent warning stream trains everyone to ignore the one warning that matters, so a warning is either fixed or the rule is turned off ON PURPOSE in `.oxlintrc.json`. Currently off, each because the house style disagrees, not because the code is wrong:
 
@@ -45,7 +45,7 @@ Every tsconfig that is actually invoked (root, `tsconfig.lib.json`, `src/cli/ser
 - `eslint/no-control-regex`, `src/utils/ansi.ts` ONLY (override) — stripAnsi matches ESC on purpose; everywhere else the rule stays on.
 - `unicorn/require-module-specifiers`, `examples/comfy-cloud/sdk.d.ts` ONLY (override) — the generated sdk ends with `export {}` to force module-ness; generated files are never hand-edited, so the warning is unfixable there.
 
-Formatting ignores live in `.prettierignore` (oxfmt reads it, so does the VSCode oxc extension): captured fixtures and upstream json mirrors are DATA, never restyled; `src/manager/generated/**` is formatted on purpose, as the last step of `gen:manager`.
+No formatter (the house rule, `patterns/typescript` No formatter, held by shipkit's SK051): nothing formats the code, not a gate, a script, a hook, on save, nor by hand. A generator writes its output as it comes; the style of hand-written code is the one the file already has.
 
 ## Naming
 
