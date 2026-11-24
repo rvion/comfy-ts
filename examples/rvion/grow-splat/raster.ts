@@ -88,6 +88,8 @@ export type RenderOptions = {
    near?: number
    /** an ellipse never reaches past this many pixels from its centre */
    maxRadius?: number
+   /** rgb 0..1 a gaussian, in place of its sh dc colour (a view dependent colour evaluated for this camera) */
+   colors?: Float32Array
 }
 
 export function render(s: Splat, cam: SplatCamera, pose: Pose, o: RenderOptions = {}): Render {
@@ -159,9 +161,9 @@ export function render(s: Splat, cam: SplatCamera, pose: Pose, o: RenderOptions 
       const b = g * STRIDE
       const op = 1 / (1 + Math.exp(-d[b + F.opacity]!))
       if (op < 1 / 255) continue
-      const cr = Math.min(1, Math.max(0, 0.5 + SH_C0 * d[b + F.dc]!))
-      const cg = Math.min(1, Math.max(0, 0.5 + SH_C0 * d[b + F.dc + 1]!))
-      const cb = Math.min(1, Math.max(0, 0.5 + SH_C0 * d[b + F.dc + 2]!))
+      const cr = o.colors != null ? o.colors[g * 3]! : Math.min(1, Math.max(0, 0.5 + SH_C0 * d[b + F.dc]!))
+      const cg = o.colors != null ? o.colors[g * 3 + 1]! : Math.min(1, Math.max(0, 0.5 + SH_C0 * d[b + F.dc + 1]!))
+      const cb = o.colors != null ? o.colors[g * 3 + 2]! : Math.min(1, Math.max(0, 0.5 + SH_C0 * d[b + F.dc + 2]!))
       const u = u0[g]!
       const v = v0[g]!
       const z = depthOf[g]!
