@@ -15,8 +15,8 @@ const SPACE: Record<Exclude<View, 'source'>, Space> = { pano: 'pano', world: 'me
 const LABEL: Record<View, string> = { pano: '360°', world: 'walk', splat: 'splat', source: 'picture' }
 const HINT: Record<View, string> = {
    pano: 'drag to look around · wheel or pinch to zoom',
-   world: 'drag to look · right drag or shift to pan · WASD to walk, Q E down and up · wheel to go forward',
-   splat: 'drag to orbit · right drag or shift to pan · WASD to fly, Q E down and up · wheel to go forward',
+   world: 'drag to look · ↑ to go forward · ↓ back · double click: back at the start',
+   splat: 'drag to look · ↑ to go forward · ↓ back · double click: back at the start',
    source: '',
 }
 
