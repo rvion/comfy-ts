@@ -69,12 +69,12 @@ CLAUDE.local.md
 .comfy-ts/*
 *.loras.local.txt
 # shipkit writes these on every run — ignored AND untracked (untrack-generated.ts)
-STATUS.md
-STATUS.md.lock
-.STATUS.md.tmp-*
-STATUS.full.md
-STATUS.full.md.lock
-.STATUS.full.md.tmp-*
+/STATUS.md
+/STATUS.md.lock
+/.STATUS.md.tmp-*
+/STATUS.full.md
+/STATUS.full.md.lock
+/.STATUS.full.md.tmp-*
 # <<< shipkit gitignore policy
 
 # drafts are hand-tuned prompts and values (some of them explicit): private to this machine,
