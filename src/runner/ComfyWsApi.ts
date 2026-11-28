@@ -18,7 +18,8 @@ const tempScope = scope({
       prompt: 'unknown',
    },
 
-   NodeProgress: { value: 'number', max: 'number' },
+   // the server also names the prompt and the node on a `progress` frame; older ones send neither
+   NodeProgress: { value: 'number', max: 'number', 'prompt_id?': 'string | null', 'node?': 'string | null' },
 
    ComfyStatusData: {
       'sid?': 'string',
