@@ -54,12 +54,12 @@ describe('the TUI state tree never mutates observables outside an action', () =>
       // constructor's `settings.lastWorkflow = currentFile` write is exactly
       // the strict-mode case (repro: the warning showed up in every run of
       // tests/workflow-builder.test.ts)
-      let st: InstanceType<typeof TuiSt> | null = null
+      const made: InstanceType<typeof TuiSt>[] = []
       const warnings = mobxWarnings(() => {
-         st = new TuiSt(wf, { currentFile: '/tmp/mobx-strict-test.cflow.ts' })
+         made.push(new TuiSt(wf, { currentFile: '/tmp/mobx-strict-test.cflow.ts' }))
       })
       expect(warnings).toEqual([])
-      expect(st).not.toBeNull()
-      st?.dispose()
+      expect(made.length).toBe(1)
+      made[0]?.dispose()
    })
 })

@@ -16,6 +16,7 @@ import {
    toLoraLanes,
    toPromptLanes,
    updateLora,
+   type LoraLanes,
 } from 'src/vars/lanes.ts'
 
 describe('prompt lanes', () => {
@@ -87,14 +88,14 @@ describe('lora lanes', () => {
 
    it('an edit lands in the lane that holds the lora, a new one in the first lane', () => {
       const v = toLoraLanes({ a: 1 })
-      const two = { lanes: [...v.lanes, { name: 'b', active: true, loras: { x: 1 } }] }
-      expect(updateLora(two, 'x', 0.5)).toEqual({
+      const two: LoraLanes = { lanes: [...v.lanes, { name: 'b', active: true, loras: { x: 1 } }] }
+      expect(updateLora<string>(two, 'x', 0.5)).toEqual({
          lanes: [
             { name: 'main', active: true, loras: { a: 1 } },
             { name: 'b', active: true, loras: { x: 0.5 } },
          ],
       })
-      expect(updateLora(two, 'new', 1).lanes[0]?.loras).toEqual({ a: 1, new: 1 })
+      expect(toLoraLanes(updateLora<string>(two, 'new', 1)).lanes[0]?.loras).toEqual({ a: 1, new: 1 })
       expect(updateLora({ lanes: [] }, 'z', 1)).toEqual({ lanes: [{ name: 'main', active: true, loras: { z: 1 } }] })
    })
 })
@@ -119,13 +120,13 @@ describe('lane list edits', () => {
    })
 
    it('a lora moves to another lane, before a given lora or last, keeping its setting', () => {
-      const v = {
+      const v: LoraLanes = {
          lanes: [
             { name: 'x', active: true, loras: { a: 0.5, b: 1 } },
             { name: 'y', active: true, loras: { c: 1, d: 1 } },
          ],
       }
-      const moved = moveLoraToLane(v, { from: 0, name: 'a', to: 1, beforeName: 'd' })
+      const moved = moveLoraToLane<string>(v, { from: 0, name: 'a', to: 1, beforeName: 'd' })
       expect(moved.lanes[0]?.loras).toEqual({ b: 1 })
       expect(Object.keys(moved.lanes[1]?.loras ?? {})).toEqual(['c', 'a', 'd'])
       expect(moved.lanes[1]?.loras.a).toBe(0.5)

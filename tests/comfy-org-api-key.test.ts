@@ -9,6 +9,7 @@ import { InvalidPromptError } from 'src/errors/InvalidPromptError.ts'
 import type { ComfyExecution } from 'src/runner/ComfyExecution.ts'
 import { ComfyOrgApiKeyMissingError } from 'src/runner/comfyOrgApiKey.ts'
 import { PromptID_ark } from 'src/runner/ComfyWsApi.ts'
+import type { ComfySchemaJSON } from 'src/sdk-generator/ComfyUIObjectInfoTypes.ts'
 import { ComfyTS } from 'src/state.ts'
 
 const KEY = 'test-account-key-not-a-real-one'
@@ -33,13 +34,13 @@ afterEach(() => {
 })
 
 /** the fixture schema, EmptyLatentImage marked as a partner node */
-function spec(): unknown {
-   const raw: { [k: string]: { [k: string]: unknown } } = JSON.parse(
+function spec(): ComfySchemaJSON {
+   const raw: ComfySchemaJSON = JSON.parse(
       readFileSync('tests/fixtures/object_info.json', 'utf-8'),
    )
    const node = raw['EmptyLatentImage']
    if (node == null) throw new Error('fixture lost EmptyLatentImage')
-   node['api_node'] = true
+   node.api_node = true
    return raw
 }
 
@@ -171,7 +172,7 @@ describe('extra_data.api_key_comfy_org', () => {
    it('a later host() call with a key hands it to the registered host', async () => {
       const host = fakeHost({ id: 'h-later' })
       const again = ComfyTS.create().host({ id: 'h-later', comfyOrgApiKey: KEY })
-      expect(again).toBe(host)
+      expect<ComfyHost<string>>(again).toBe(host)
       const execution = await partnerWorkflow(host).start()
       finish(host, execution)
       expect(extraData(0)['api_key_comfy_org']).toBe(KEY)

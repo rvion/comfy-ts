@@ -6,6 +6,7 @@ import type { Server } from 'bun'
 import { ComfyHostAuthError } from 'src/host/ComfyHost.ts'
 import { fetchLoraList, loraPreviewMapFrom } from 'src/host/loraManagerApi.ts'
 import { ResilientWebSocketClient } from 'src/host/ResilientWebsocket.ts'
+import { bang } from 'src/utils/bang.ts'
 import { ComfyTS } from 'src/state.ts'
 
 // the shape is what matters, never a real key (and never the guarded key shape)
@@ -15,7 +16,7 @@ const DUMMY_KEY = 'test-api-key-12345'
 // whatever another test file may have registered
 const globalHack = globalThis as { comfyts?: ComfyTS }
 let prior: ComfyTS | undefined
-const servers: Server[] = []
+const servers: Server<undefined>[] = []
 beforeEach(() => {
    prior = globalHack.comfyts
    Reflect.deleteProperty(globalThis, 'comfyts')
@@ -43,7 +44,7 @@ function serve(handler: (req: Request, seen: Seen[]) => Response | undefined): {
       },
    })
    servers.push(server)
-   return { port: server.port, seen }
+   return { port: bang(server.port, 'the fake host has no port'), seen }
 }
 
 function freshComfy(): ComfyTS {

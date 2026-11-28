@@ -165,8 +165,8 @@ describe('import', () => {
          links: [[2, 3, 0, 2, 2, 'FLOAT']],
          extra: [prim],
       })
-      const lora = doc.nodes[1]
-      const strength = lora?.inputs?.find((i) => i.name === 'loras.0.strength')
+      const lora = doc.nodes[1] as { inputs: { name: string; link: number | null }[] }
+      const strength = lora.inputs.find((i) => i.name === 'loras.0.strength')
       if (strength == null) throw new Error('fixture: no strength socket')
       strength.link = 2
       expect(loraInputs(doc)?.['loras.0.strength']).toBe(0.4)
@@ -253,7 +253,7 @@ describe('programmatic graph', () => {
    })
 
    it('a prompt json keeps its dotted row keys as they are', () => {
-      const api = {
+      const api: ComfyApiJson = {
          '1': { class_type: 'CheckpointLoaderSimple', inputs: { ckpt_name: 'model.safetensors' } },
          '2': {
             class_type: 'LoadLoraModel',

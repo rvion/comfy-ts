@@ -3,6 +3,7 @@ import { mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'pathe'
 import type { ComfyHost } from 'src/host/ComfyHost.ts'
+import type { ComfySchemaJSON } from 'src/sdk-generator/ComfyUIObjectInfoTypes.ts'
 import { ComfyTS } from 'src/state.ts'
 import { v } from 'src/vars/ComfyVars.ts'
 
@@ -91,7 +92,7 @@ describe('DefinedWorkflow.run reads its vars at the call', () => {
    test('set a var, run, set it again, run: each run keeps its own value', async () => {
       const comfy = freshComfy()
       const host = comfy.host({ id: 'snap', host: '127.0.0.1', port: 65501 })
-      const spec: unknown = JSON.parse(readFileSync('tests/fixtures/object_info.json', 'utf-8'))
+      const spec: ComfySchemaJSON = JSON.parse(readFileSync('tests/fixtures/object_info.json', 'utf-8'))
       host.schema.update({ spec, embeddings: [] })
       // the await a real connect takes, without a server
       host.connect = () => Promise.resolve()

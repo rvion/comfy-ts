@@ -97,7 +97,7 @@ describe('vars are discriminated by kind, never by instanceof', () => {
       const foreign = v.text('x')
       Object.defineProperty(foreign, 'kind', { value: 'color', configurable: true })
       const d = describeVar(foreign)
-      expect(d.kind).toBe('color')
+      expect<string>(d.kind).toBe('color')
       expect(() => renderDescriptorLine('tint', d, 6)).not.toThrow()
       // and the payload error stays actionable, never a bare token
       expect(applyVarPayload(foreign, '#fff')).toContain('unsupported kind')

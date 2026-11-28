@@ -66,6 +66,15 @@ describe('the gate typecheck: its own cache, every config', () => {
          expect(script, `typecheck must chain tsc -p ${cfg}`).toContain(`tsc -p ${cfg}`)
    })
 
+   it('the gate typecheck covers tests/, with no incremental cache', () => {
+      expect(scripts.typecheck ?? '').toContain('tsc -p tsconfig.tests.json')
+      const text = readFileSync(join(repoRoot, 'tsconfig.tests.json'), 'utf8').replaceAll(/^\s*\/\/.*$/gm, '')
+      const opts = (JSON.parse(text) as { compilerOptions: Record<string, unknown> }).compilerOptions
+      // a partial re-check of tests/ reports errors a full check does not
+      expect(opts.incremental).toBe(false)
+      expect(opts.noUncheckedIndexedAccess).toBe(false)
+   })
+
    it('control: the root config still declares the cache the watcher uses', () => {
       expect(buildInfoOf('tsconfig.json')).toBe('node_modules/.cache/tsbuildinfo.json')
    })

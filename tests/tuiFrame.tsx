@@ -36,7 +36,14 @@ export async function tuiFrame(st: TuiSt, p: { rows?: number; columns?: number }
       unref: (): void => {},
       read: (): null => null,
    })
-   const app = render(<TuiApp st={st} />, { stdout, stdin, debug: true, patchConsole: false, exitOnCtrlC: false })
+   const app = render(<TuiApp st={st} />, {
+      // fakes: they hold what ink calls, never the whole stream
+      stdout: stdout as never,
+      stdin: stdin as never,
+      debug: true,
+      patchConsole: false,
+      exitOnCtrlC: false,
+   })
    // a measured panel re-renders from an effect: wait until a few macrotasks pass with no new frame
    let quiet = 0
    for (let i = 0; i < 200 && quiet < 3; i++) {

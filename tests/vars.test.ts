@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test'
 import { homedir } from 'node:os'
 import { join, resolve } from 'pathe'
 import { activeLoras, DEFAULT_IMAGE_EXTENSIONS, ImageVarEmptyError, v, varValues } from 'src/vars/ComfyVars.ts'
+import { flatLoras } from 'tests/flatLoras.ts'
 
 describe('vars', () => {
    it('derives value types and snapshots values', () => {
@@ -104,23 +105,23 @@ describe('vars', () => {
 
       // untick keeps the old strength for re-tick
       loras.toggleItem('a')
-      expect(loras.value.a).toBe(false)
+      expect(flatLoras(loras.value).a).toBe(false)
       loras.toggleItem('a')
-      expect(loras.value.a).toBe(0.65)
+      expect(flatLoras(loras.value).a).toBe(0.65)
       // first tick of a never-on entry defaults to true
       loras.toggleItem('d')
-      expect(loras.value.d).toBe(true)
+      expect(flatLoras(loras.value).d).toBe(true)
 
       // adjust: true → 1+delta, tuple steps both, off is a no-op, floor at 0
       loras.adjustItem('b', 0.05)
-      expect(loras.value.b).toBe(1.05)
+      expect(flatLoras(loras.value).b).toBe(1.05)
       loras.adjustItem('c', -0.05)
-      expect(loras.value.c).toEqual([0.75, 0.55])
+      expect(flatLoras(loras.value).c).toEqual([0.75, 0.55])
       loras.toggleItem('d')
       loras.adjustItem('d', 0.05)
-      expect(loras.value.d).toBe(false)
+      expect(flatLoras(loras.value).d).toBe(false)
       loras.adjustItem('a', -5)
-      expect(loras.value.a).toBe(0)
+      expect(flatLoras(loras.value).a).toBe(0)
 
       expect(loras.strengthLabel('c')).toBe('m:0.75 c:0.55')
    })
@@ -129,7 +130,7 @@ describe('vars', () => {
       const loras = v.loras(['a', 'b'], { a: { strength: [0.6, 0.6], off: true }, b: false })
       loras.setAll(true)
       expect(loras.activeNames()).toEqual(['a', 'b'])
-      expect(loras.value.a).toEqual([0.6, 0.6])
+      expect(flatLoras(loras.value).a).toEqual([0.6, 0.6])
    })
 
    it('the palette form: a paused lora never reaches the graph, a muted keyword never changes what runs', () => {

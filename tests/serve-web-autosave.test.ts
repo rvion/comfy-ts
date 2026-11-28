@@ -8,7 +8,7 @@ import { FormSt } from 'src/cli/serve/web/state/FormSt.ts'
 import type { ModuleDescription } from 'src/cli/serve/web/api.ts'
 
 const MOD: ModuleDescription = {
-   key: 'wf',
+   module: 'wf',
    file: '/x/wf.cflow.ts',
    host: 'h',
    drafts: ['default'],
@@ -146,10 +146,13 @@ describe('draft autosave', () => {
    it('a FAILED save stays dirty, so the next attempt really re-sends', async () => {
       const g = globalThis as { fetch: typeof fetch }
       let n = 0
-      g.fetch = (() => {
-         n++
-         return Promise.resolve(new Response('nope', { status: 500 }))
-      }) as typeof fetch
+      g.fetch = Object.assign(
+         () => {
+            n++
+            return Promise.resolve(new Response('nope', { status: 500 }))
+         },
+         { preconnect: (): void => {} },
+      )
       const form = new FormSt('wf', 'default', MOD, { prompt: 'V1' })
       form.vars[0]?.set('V2')
       expect(await form.save()).toBe(false)

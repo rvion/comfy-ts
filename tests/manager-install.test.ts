@@ -499,7 +499,7 @@ describe('installPlugin', () => {
 
    it('a pack the Manager does not list is refused before anything is queued', async () => {
       const box = new FakeManager('v3')
-      const stranger = { ...plugin, files: ['https://github.com/nobody/nothing'] } as ComfyManagerPluginInfo
+      const stranger: ComfyManagerPluginInfo = { ...plugin, files: ['https://github.com/nobody/nothing' as never] }
       const r = await capturingErrors(() => box.manager().installPlugin(stranger))
       expect(r.value).toBe(false)
       expect(r.errors).toContain("https://github.com/nobody/nothing is not in the Manager's own list")
@@ -563,7 +563,7 @@ describe('4.x default ui: the installed view', () => {
       expect(manager.getPluginStatus('Unmapped Pack' as never)).toBe('not-installed')
       expect(manager.getPluginStatus('Cased Pack' as never)).toBe('installed')
       expect(manager.isPluginInstalled('ComfyUI Impact Pack' as never)).toBe(true)
-      expect(manager.titlesOfAllInstalledPlugins.sort()).toEqual(
+      expect<string[]>(manager.titlesOfAllInstalledPlugins.sort()).toEqual(
          ['ComfyUI Impact Pack', 'Comfy Cliption', 'Cased Pack'].sort(),
       )
       expect(manager.pluginList.custom_nodes.some((x) => x.installed === 'Update')).toBe(false)

@@ -9,7 +9,10 @@ import {
    shortcutOf,
 } from 'src/cli/serve/web/state/shortcuts.ts'
 
-const key = (k: string, mods: Partial<{ metaKey: boolean; ctrlKey: boolean; altKey: boolean; shiftKey: boolean }>) => ({
+const key = (
+   k: string,
+   mods: Partial<{ metaKey: boolean; ctrlKey: boolean; altKey: boolean; shiftKey: boolean }> = {},
+) => ({
    key: k,
    metaKey: false,
    ctrlKey: false,

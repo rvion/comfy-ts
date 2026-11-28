@@ -41,7 +41,7 @@ afterEach(() => {
    logs.mockRestore()
    for (const id of [...host.executions.keys()]) host.executions.delete(id)
    host._pendingMsgs.clear()
-   host.activePromptID = null
+   host['activePromptID'] = null
 })
 
 const send = (frame: object): void => host.onMessage({ data: JSON.stringify(frame) } as MessageEvent)
@@ -75,7 +75,7 @@ describe('real v0.45.5 frames', () => {
 
    it('the reconnect resend of the running node (no prompt_id) routes to the active prompt', () => {
       const exec = execution('p-active')
-      host.activePromptID = PromptID_ark.assert('p-active')
+      host['activePromptID'] = PromptID_ark.assert('p-active')
       const seen: string[] = []
       exec.onPromptRelatedMessage = (m) => {
          seen.push(m.type)

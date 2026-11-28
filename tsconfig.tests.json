@@ -1,0 +1,18 @@
+{
+   // tests/ typechecked on their own: the API they call must exist as they call it.
+   // noUncheckedIndexedAccess is off HERE ONLY: tests drive schema-less hosts whose base
+   // builder is index-typed, so every `b.KSampler(...)` would be possibly-undefined. a factory
+   // that is missing at runtime throws and turns the test red, which is the check that matters.
+   // src/ keeps the strict flag through tsconfig.lib.json.
+   "extends": "./tsconfig.lib.json",
+   "compilerOptions": {
+      "noUncheckedIndexedAccess": false,
+      // no incremental cache: a partial re-check reported 17 `DefinedWorkflow<…>` errors that a
+      // full check of the same files does not, and a full check takes 1.5 s
+      "incremental": false,
+      "tsBuildInfoFile": null
+   },
+   "include": ["tests"],
+   // imports a workflow module that needs a generated host sdk: the root config checks it
+   "exclude": ["tests/anima-example.test.ts"]
+}

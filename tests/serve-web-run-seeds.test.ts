@@ -7,7 +7,7 @@ import type { ModuleDescription } from 'src/cli/serve/web/api.ts'
 import { asSeedForm } from 'src/cli/serve/web/state/payload.ts'
 
 const MOD: ModuleDescription = {
-   key: 'wf',
+   module: 'wf',
    file: '/x/wf.cflow.ts',
    host: 'h',
    drafts: ['default'],

@@ -9,10 +9,11 @@ import { join } from 'pathe'
 import type { Server } from 'bun'
 import { runGen } from 'src/cli/gen.ts'
 import { ComfyTS } from 'src/state.ts'
+import { bang } from 'src/utils/bang.ts'
 
 const globalHack = globalThis as { comfyts?: ComfyTS }
 let prior: ComfyTS | undefined
-const servers: Server[] = []
+const servers: Server<undefined>[] = []
 beforeEach(() => {
    prior = globalHack.comfyts
    Reflect.deleteProperty(globalThis, 'comfyts')
@@ -38,7 +39,7 @@ function serveSchema(): number {
       },
    })
    servers.push(server)
-   return server.port
+   return bang(server.port, 'the fake host has no port')
 }
 
 describe('sdkAutoWrite', () => {

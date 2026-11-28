@@ -6,6 +6,7 @@ import type { ComfyHost } from 'src/host/ComfyHost.ts'
 import type { ComfyExecution } from 'src/runner/ComfyExecution.ts'
 import type { RunSettings } from 'src/runner/ComfyWorkflow.ts'
 import { ComfyTS } from 'src/state.ts'
+import { flatLoras } from 'tests/flatLoras.ts'
 
 // ONE ComfyTS per process (global singleton): the files of a test worker share globals,
 // so this file takes the slot for its own run and gives the prior instance back after
@@ -263,17 +264,17 @@ describe('tui overlays', () => {
       expect(wf.vars.loras.display()).toBe('(2/3) a, c')
       // untick 'a', remembers strength; re-tick restores it
       st.loras.toggle()
-      expect(wf.vars.loras.value['a.safetensors']).toBe(false)
+      expect(flatLoras(wf.vars.loras.value)['a.safetensors']).toBe(false)
       st.loras.toggle()
-      expect(wf.vars.loras.value['a.safetensors']).toBe(1)
+      expect(flatLoras(wf.vars.loras.value)['a.safetensors']).toBe(1)
       // step strength on the tuple entry
       st.loras.move(2)
       st.loras.adjust(0.05)
-      expect(wf.vars.loras.value['c.safetensors']).toEqual([0.85, 0.65])
+      expect(flatLoras(wf.vars.loras.value)['c.safetensors']).toEqual([0.85, 0.65])
       // filter + bulk: tick everything matching 'b'
       st.loras.filterInput('b')
       st.loras.setAll(true)
-      expect(wf.vars.loras.value['b.safetensors']).toBe(true)
+      expect(flatLoras(wf.vars.loras.value)['b.safetensors']).toBe(true)
       st.loras.filterBackspace()
       st.loras.setAll(false)
       expect(wf.vars.loras.display()).toBe('(0/3) none')
@@ -645,7 +646,12 @@ describe('vars as a lambda', () => {
       expect(() => lv.names).toThrow() // regex source without a host: throw, never silence
       // structural stub host: bindHost only needs schema.getLoras
       const stubLoras = ['krea2/a.safetensors', 'xl/b.safetensors', 'KREA-2/c.safetensors']
-      lv.bindHost({ schema: { getLoras: (re?: RegExp) => stubLoras.filter((n) => re == null || re.test(n)) } })
+      lv.bindHost({
+         schema: {
+            getLoras: (re?: RegExp) => stubLoras.filter((n) => re == null || re.test(n)),
+            stringValues: () => [],
+         },
+      })
       expect(lv.names).toEqual(['krea2/a.safetensors', 'KREA-2/c.safetensors'])
       // end to end: defineWorkflow binds automatically (fixture has zero loras)
       const wf = host.defineWorkflow({ id: 'regex-loras', vars: (vv) => ({ loras: vv.loras(/any/) }), build: () => {} })
@@ -688,6 +694,7 @@ describe('tui queued runs', () => {
                      nodeName: 'KSampler',
                      elapsedMs: 1000,
                      nodeProgress: null,
+                     progressText: null,
                   }),
             })
          })
@@ -1057,7 +1064,8 @@ describe('autogrow containers (builder face)', () => {
       const node = bang(lite.nodes.find((n) => n.id === grow.uidNumber))
       const linkOf = (name: string) => {
          const id = node.inputs?.find((i) => i.name === name)?.link
-         return lite.links.find((l) => l[0] === id)
+         const link = lite.links.find((l) => Array.isArray(l) && l[0] === id)
+         return Array.isArray(link) ? link : undefined
       }
       // control: a plain link input exports linked, before and after the fix
       expect(linkOf('text')?.[1]).toBe(a.uidNumber)
@@ -1124,8 +1132,9 @@ describe('export/import control-widget parity (v3 config spellings)', () => {
       const lite = await wf.toWorkflowJson()
       const values = lite.nodes.find((n) => n.id === sampled.uidNumber)?.widgets_values
       // control: the seed itself rides first, unchanged
-      expect(values?.[0]).toBe(7)
-      expect(values?.[1]).toBe('fixed')
+      const list = Array.isArray(values) ? values : []
+      expect(list[0]).toBe(7)
+      expect(list[1]).toBe('fixed')
       const imported = host.importWorkflowJson(lite, { id: 'control-mode-imported' })
       expect(imported.toApiJson('use_stringified_numbers_only')).toEqual(wf.toApiJson('use_stringified_numbers_only'))
    })

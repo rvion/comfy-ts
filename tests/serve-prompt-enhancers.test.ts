@@ -35,8 +35,8 @@ function makeApp(): ServeApp {
    return new ServeApp([mod], { starter: () => Promise.reject(new Error('never runs here')) })
 }
 
-function body(reply: { body: string }): Record<string, unknown> {
-   return JSON.parse(reply.body) as Record<string, unknown>
+function body(reply: { body: string | Uint8Array }): Record<string, unknown> {
+   return JSON.parse(String(reply.body)) as Record<string, unknown>
 }
 
 describe('the shared name gate', () => {

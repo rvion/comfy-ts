@@ -41,10 +41,10 @@
 
       "jsx": "react-jsx"
    },
-   // tests/ stays OUT of tsc on purpose: tests drive a schema-less host whose
-   // base builder is index-typed (factories possibly-undefined under
-   // noUncheckedIndexedAccess). bun test executes them; oxlint/oxfmt cover them.
-   "include": ["src", "scripts", "examples", ".comfy-ts/hosts/**/sdk.d.ts", "*.ts"],
+   // tests/ have their OWN config (tsconfig.tests.json): they drive schema-less hosts whose
+   // base builder is index-typed, so they are checked without noUncheckedIndexedAccess.
+   // the one test listed here imports a workflow module, which needs the generated host sdk
+   "include": ["src", "scripts", "examples", "tests/anima-example.test.ts", ".comfy-ts/hosts/**/sdk.d.ts", "*.ts"],
    // dom-typed corners have their OWN configs (dom lib): `bun run typecheck` chains
    // both, `typecheck:lib` chains src/cli/serve/web
    "exclude": ["examples/web", "examples/depth-explorer/web", "examples/world-explorer/web", "examples/upscale-explorer/web", "examples/explorer-kit/web", "src/cli/serve/web"]

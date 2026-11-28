@@ -8,7 +8,7 @@ import { ComfyTS } from 'src/state.ts'
 
 const globalHack = globalThis as { comfyts?: ComfyTS }
 let prior: ComfyTS | undefined
-const servers: Server[] = []
+const servers: Server<undefined>[] = []
 beforeEach(() => {
    prior = globalHack.comfyts
    Reflect.deleteProperty(globalThis, 'comfyts')

@@ -3,8 +3,13 @@
 import { describe, expect, it } from 'bun:test'
 import { slotTypeAccepts } from 'src/graph/ComfyNode.ts'
 import { ComfySchema } from 'src/sdk-generator/ComfySchema.ts'
+import type { ComfyNodeSchemaJSON } from 'src/sdk-generator/ComfyUIObjectInfoTypes.ts'
 
-const node = (p: { name: string; input: Record<string, unknown>; output: string[] }) => ({
+const node = (p: {
+   name: string
+   input: NonNullable<ComfyNodeSchemaJSON['input']['required']>
+   output: string[]
+}): ComfyNodeSchemaJSON => ({
    input: { required: p.input },
    input_order: { required: Object.keys(p.input) },
    output: p.output,

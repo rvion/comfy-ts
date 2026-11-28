@@ -259,7 +259,7 @@ describe('two hosts never share a lora entry (a merged cache injected the wrong 
       const { v } = await import('src/vars/ComfyVars.ts')
       const loras = v.loras([SHARED], { [SHARED]: 1 })
       // bindHost is what DefinedWorkflow does at define time
-      loras.bindHost({ data: { id: 'host-b' }, schema: { getLoras: () => [SHARED] } })
+      loras.bindHost({ data: { id: 'host-b' }, schema: { getLoras: () => [SHARED], stringValues: () => [] } })
       const prompt = v.prompt('a cat', { loraKeywordsFrom: loras })
       expect(prompt.outValue().positive).toBe('portrait b style, a cat')
    })

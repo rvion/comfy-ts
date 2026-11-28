@@ -4,7 +4,7 @@ import { optionsFor, type PromptEditorCtx } from 'src/cli/serve/web/promptEditor
 const ctx = (tags: PromptEditorCtx['tags']): PromptEditorCtx => ({
    weights: true,
    tags,
-   searchTags: () => Promise.resolve([{ name: 'silver_hair', count: 1000 }]),
+   searchTags: () => Promise.resolve([{ name: 'silver_hair', category: null, count: 1000 }]),
    injected: () => [],
    loraWords: () => [{ word: 'silver sheep', source: 'sheep lora' }],
    onTagError: () => {},

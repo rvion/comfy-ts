@@ -35,7 +35,7 @@ function makeApp(key: string, exec: () => ServeExecution): ServeApp {
    })
 }
 
-type Model3D = { filename: string; mime: string; format: string; size: number; url: string | null }
+type Model3D = { filename: string; mime: string; format: string; size: number; url: string | null; absPath: string | null }
 
 async function generate(app: ServeApp, key: string): Promise<Record<string, unknown>> {
    const r = await app.handle({ method: 'POST', url: `/generate/${key}/default`, body: '{}' })

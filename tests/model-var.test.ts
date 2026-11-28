@@ -8,18 +8,20 @@ import { applyVarPayload } from 'src/cli/serve/applyVarPayload.ts'
 import { describeVar } from 'src/cli/serve/describeVar.ts'
 import { ServeApp } from 'src/cli/serve/ServeApp.ts'
 import type { ComfyHost } from 'src/host/ComfyHost.ts'
+import type { ComfySchemaJSON } from 'src/sdk-generator/ComfyUIObjectInfoTypes.ts'
 import { ComfyTS } from 'src/state.ts'
+import { bang } from 'src/utils/bang.ts'
 import { v } from 'src/vars/ComfyVars.ts'
 
 const globalHack = globalThis as { comfyts?: ComfyTS }
 let prior: ComfyTS | undefined
 let host: ComfyHost<'model-host'>
-let spec: Record<string, { input: { required: Record<string, unknown[]> } }>
+let spec: ComfySchemaJSON
 const root = mkdtempSync(join(tmpdir(), 'comfy-ts-model-var-'))
 
-function withUnets(names: string[]): typeof spec {
+function withUnets(names: string[]): ComfySchemaJSON {
    const copy = structuredClone(spec)
-   const unet = copy.UNETLoader!.input.required
+   const unet = bang(copy.UNETLoader?.input.required, 'fixture lost UNETLoader')
    unet.unet_name = [names, {}]
    return copy
 }
