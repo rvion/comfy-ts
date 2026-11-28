@@ -1,5 +1,4 @@
 {
-   "$schema": "./node_modules/oxlint/configuration_schema.json",
    "categories": {
       "correctness": "warn",
       "suspicious": "warn"
@@ -41,6 +40,7 @@
       "src/manager/generated/**",
       "output/**",
       ".comfy-ts/**",
-      "dist/**"
+      "dist/**",
+      "trailer/**"
    ]
 }

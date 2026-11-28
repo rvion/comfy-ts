@@ -1,7 +1,7 @@
 // the menu column: where you are, widest scope first (workspace, workflow, draft, host, preview).
 // a left Panel above 760px (collapsible to an icon rail), a drawer behind ☰ below
 import { dialogs } from 'src/cli/serve/web/state/dialog.ts'
-import { observer, useLocalObservable } from 'mobx-react-lite'
+import { observer } from 'mobx-react-lite'
 import type { ReactNode } from 'react'
 import { Icon, type IconName } from 'src/cli/serve/web/components/Icon.tsx'
 import { MOD_KEY } from 'src/cli/serve/web/components/modKey.ts'

@@ -7,8 +7,7 @@
       "paths": {
          "src/*": ["../../../src/*"],
          "comfy-ts": ["../../../src/index.ts"]
-      },
-      "tsBuildInfoFile": "../../../node_modules/.cache/tsbuildinfo-depth-explorer-web.json"
+      }
    },
    // MUST override the root's exclude, which lists this directory
    "exclude": ["../../web"],

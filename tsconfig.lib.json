@@ -6,10 +6,6 @@
    // meet the same and have their own config, tsconfig.tests.json). Typecheck them locally with
    // `bun run typecheck:full` after `bun run gen:sdk`.
    "extends": "./tsconfig.json",
-   // its OWN incremental cache: sharing the root's meant an editor typechecking with the
-   // root config (a different include set) invalidated this one mid-flight, and the gate
-   // reported a phantom error — a red gate on green code is worse than a slow one
-   "compilerOptions": { "tsBuildInfoFile": "node_modules/.cache/tsbuildinfo-lib.json" },
    "include": ["src", "scripts", "*.ts"],
    // the house files (repo.config.ts, *.shipkit.ts) are typed against the toolkit this machine runs, never the
    // published one a clone installs: the house checks them, so a clone's gate never fails on them

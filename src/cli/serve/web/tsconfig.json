@@ -8,8 +8,7 @@
       "paths": {
          "src/*": ["../../../../src/*"],
          "comfy-ts": ["../../../../src/index.ts"]
-      },
-      "tsBuildInfoFile": "../../../../node_modules/.cache/tsbuildinfo-serve-web.json"
+      }
    },
    // MUST override the root's exclude: it lists this very directory (so the dom-free
    // rule holds there), and `extends` would otherwise make this config exclude the only

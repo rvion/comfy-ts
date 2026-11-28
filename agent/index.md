@@ -8,8 +8,9 @@ Push discipline: normal house rules (commit own work, push after committing). Pu
 
 ## Quick start
 
-- `bun run ci` — typecheck + lint + format + imports + tests (the gate; what GitHub runs, portable to a clone with no host sdk on disk)
+- `bun run ci` — typecheck + lint + imports + tests (the gate; what GitHub runs, portable to a clone with no host sdk on disk)
 - `bun run ci:local` — the gate PLUS the full typecheck (examples included, needs a generated `.comfy-ts/hosts/*/sdk.d.ts`) — use this one while developing here
+- `bun run build` then `bun run check:package` — write dist/, then prove it as a consumer gets it: the packed tarball installed in an empty project, types checked in esm, cjs and web, loaded in node (needs the network; run it before a release that touched the build or a dependency)
 - `bun run gen:sdk` — regenerate `.comfy-ts/hosts/<id>/sdk.d.ts` from cached object_info
 - `bun run sdk:outline` — inspect a generated sdk.d.ts section by section
 - `bun run loras -- --id <host-id> [--host http://…]` — refresh `.comfy-ts/hosts/<id>/loras.json`, the local mirror of what ComfyUI-Lora-Manager knows about each lora (model name, trigger words, tags, preview url); the TUI fuzzy-matches and injects prompt keywords from it
@@ -17,7 +18,7 @@ Push discipline: normal house rules (commit own work, push after committing). Pu
 - `bun run templates:check` — compat sweep of that corpus against our litegraph schemas; the failure ranking is the format-grind worklist
 - `bun run tui` opens the TUI over `**/*.cflow.ts` under cwd (tweak & re-run)
 - `bun run serve` exposes drafts as a local HTTP API (`POST /generate/<module>/<draft>`)
-- `bun run serve:rvion` = the web panel over `examples/rvion` at http://127.0.0.1:8288, under `bun --watch` (an edited module restarts it). `.vscode/tasks.json` starts it with the TSC watcher on folder open (master task `starts everything`)
+- `bun run serve:rvion` = the web panel over `examples/rvion` at http://127.0.0.1:8288, under `bun --watch` (an edited module restarts it)
 - `bun run hooks:install` activates the banned-keywords commit guard (`.githooks/`)
 - examples in `examples/` are `*.cflow.ts` workflow modules: they import offline from the schema cache, connect to a live ComfyUI host on first run
 

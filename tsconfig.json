@@ -1,13 +1,13 @@
 {
-   // ONE tsconfig at the repo root. tsc only typechecks (noEmit) —
-   // tsdown emits dist/ for npm, bun runs scripts/tests directly.
+   // ONE tsconfig at the repo root. bun check only typechecks (noEmit) —
+   // scripts/build.ts emits dist/ for npm with bun build, bun runs scripts/tests directly.
    "compilerOptions": {
       // real node resolution — what tsc resolves is what bun resolves at runtime
       "module": "nodenext",
       "moduleResolution": "nodenext",
 
       // the pair that legalizes `from 'src/foo/Bar.ts'` — extensions are part
-      // of the exact-path search key; tsc only typechecks, bun/tsdown emit
+      // of the exact-path search key; the type check emits nothing, bun build emits
       "allowImportingTsExtensions": true,
       "noEmit": true,
 
@@ -30,8 +30,6 @@
       "noUncheckedIndexedAccess": true,
       "isolatedModules": true,
       "skipLibCheck": true,
-      "incremental": true,
-      "tsBuildInfoFile": "node_modules/.cache/tsbuildinfo.json",
 
       "resolveJsonModule": true,
 

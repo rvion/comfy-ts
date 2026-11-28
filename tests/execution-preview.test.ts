@@ -33,7 +33,7 @@ afterAll(() => {
 
 afterEach(() => {
    host.onLatentPreview = null
-   for (const id of [...host.executions.keys()]) host.executions.delete(id)
+   host.executions.clear()
    host._pendingMsgs.clear()
 })
 

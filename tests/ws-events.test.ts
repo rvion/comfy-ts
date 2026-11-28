@@ -39,7 +39,7 @@ beforeEach(() => {
 afterEach(() => {
    errors.mockRestore()
    logs.mockRestore()
-   for (const id of [...host.executions.keys()]) host.executions.delete(id)
+   host.executions.clear()
    host._pendingMsgs.clear()
    host['activePromptID'] = null
 })

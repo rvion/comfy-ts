@@ -2,8 +2,7 @@
    // the world explorer page: dom-typed like examples/web, so it keeps its own config
    "extends": "../../../tsconfig.json",
    "compilerOptions": {
-      "lib": ["ESNext", "DOM", "DOM.Iterable"],
-      "tsBuildInfoFile": "../../../node_modules/.cache/tsbuildinfo-world-explorer-web.json"
+      "lib": ["ESNext", "DOM", "DOM.Iterable"]
    },
    // MUST override the root's exclude, which lists this directory
    "exclude": [],

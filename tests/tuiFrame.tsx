@@ -22,8 +22,11 @@ export async function tuiFrame(st: TuiSt, p: { rows?: number; columns?: number }
       rows,
       columns,
       isTTY: false,
-      write: (s: string): boolean => {
+      writable: true,
+      // ink ends its unmount with a write it waits on: a write that drops the callback never exits
+      write: (s: string, done?: () => void): boolean => {
          frames.push(s)
+         done?.()
          return true
       },
    })

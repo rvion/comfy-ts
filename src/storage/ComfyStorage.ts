@@ -25,7 +25,8 @@ export type ComfyStorage = {
 /** the fs/os surface createNodeStorageFrom needs — structural, so this file
  * never imports node types into the web graph */
 export type NodeFsLike = {
-   readFileSync(path: string, encoding?: 'utf8'): string | Uint8Array
+   readFileSync(path: string): Uint8Array
+   readFileSync(path: string, encoding: 'utf8'): string
    writeFileSync(path: string, data: string | Uint8Array): void
    existsSync(path: string): boolean
    mkdirSync(path: string, opts: { recursive: boolean }): unknown
@@ -43,9 +44,9 @@ function dirnameOf(path: string): string {
 export function createNodeStorageFrom(fs: NodeFsLike, os: NodeOsLike): ComfyStorage {
    return {
       kind: 'node',
-      readText: (p) => fs.readFileSync(p, 'utf8') as string,
-      readTextIfExists: (p) => (fs.existsSync(p) ? (fs.readFileSync(p, 'utf8') as string) : null),
-      readBytes: (p) => new Uint8Array(fs.readFileSync(p) as Uint8Array),
+      readText: (p) => fs.readFileSync(p, 'utf8'),
+      readTextIfExists: (p) => (fs.existsSync(p) ? fs.readFileSync(p, 'utf8') : null),
+      readBytes: (p) => new Uint8Array(fs.readFileSync(p)),
       writeText: (p, text) => {
          fs.mkdirSync(dirnameOf(p), { recursive: true })
          fs.writeFileSync(p, text)
