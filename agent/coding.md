@@ -31,7 +31,7 @@ Runtime deps: `arktype`, `image-meta`, `nanoid`, `pathe`, `sharp`, `ws`, `ink` +
 
 ## tsconfigs: every one is in a typecheck script, none keeps a cache (hard)
 
-`bun check -p <config>` checks one config in a fraction of a second and writes no build info, so no tsconfig sets `incremental` or `tsBuildInfoFile`. `bun run typecheck` chains the portable configs (`tsconfig.lib.json`, `tsconfig.tests.json`, `examples/web`, `src/cli/serve/web`), and `bun run typecheck:full` adds the ones that need a generated host sdk (the root config, the three explorer pages). A new tsconfig joins one of the two scripts, or nothing checks its files. `tests/typecheck-wiring.test.ts` is the guard.
+`bun check -p <config>` checks one config in a fraction of a second and writes no build info, so no tsconfig sets `incremental` or `tsBuildInfoFile`. `bun run typecheck` chains the portable configs (`tsconfig.lib.json`, `tsconfig.tests.json`, `examples/web`, `src/cli/serve/web`), and `bun run typecheck:full` adds the ones that need a generated host sdk (the root config, the three explorer pages). A new tsconfig joins one of the two scripts AND the list of `tests/typecheck-wiring.test.ts`, or nothing checks its files: that test holds the configs it lists, it does not find a new one.
 
 ## Lint config (zero output is the contract)
 

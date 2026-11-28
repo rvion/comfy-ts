@@ -2,7 +2,7 @@
 
 ## Stack
 
-- **Runtime**: Bun (scripts, tests); library ships dual ESM/CJS, built by `bun build`, for node ≥22 consumers (ink and nanoid need 22)
+- **Runtime**: Bun (scripts, tests); library ships dual ESM/CJS, built by `bun build`, for node ≥22.12 consumers (ink and nanoid need 22, and `require()` of the cjs entry loads ES module only dependencies, which node allows from 22.12)
 - **Language**: TypeScript strict, `module: nodenext`, absolute `src/...ts` imports
 - **Validation**: ArkType (all wire payloads: object_info, ws messages, manager JSONs)
 - **Images**: sharp (re-encode) + image-meta (introspection)

@@ -16,20 +16,25 @@ function run(label: string, cmd: string[], cwd: string): string {
 }
 
 const IS_ANY = 'type IsAny<T> = 0 extends 1 & T ? true : false'
-const FILES: Record<string, string> = {
-   'package.json': '{ "name": "consumer", "private": true, "type": "module" }',
-   'tsconfig.json': JSON.stringify({
+// one program per flavour, and skipLibCheck off: with it on, a declaration that names a file
+// that is not there turns into any and the check stays green. the three are never mixed, because
+// the esm and the cjs declarations each declare the global Comfy namespace
+const PROGRAMS = ['esm.ts', 'cjs.cts', 'web.ts']
+const tsconfigFor = (file: string): string =>
+   JSON.stringify({
       compilerOptions: {
          module: 'nodenext',
          moduleResolution: 'nodenext',
          target: 'es2022',
          strict: true,
          noEmit: true,
-         skipLibCheck: true,
+         skipLibCheck: false,
          types: ['node'],
       },
-      include: ['esm.ts', 'cjs.cts', 'web.ts'],
-   }),
+      include: [file],
+   })
+const FILES: Record<string, string> = {
+   'package.json': '{ "name": "consumer", "private": true, "type": "module" }',
    // a type that resolved to any would accept the bad call: the expect-error line then fails the check
    'esm.ts': [
       "import { ComfyTS, type ComfyHost } from 'comfy-ts'",
@@ -60,6 +65,11 @@ const FILES: Record<string, string> = {
       "if (typeof esm.ComfyTS !== 'function' || typeof cjs.ComfyTS !== 'function' || typeof web.ComfyTS !== 'function') throw new Error('an entry has no ComfyTS')",
       "const names = (m) => Object.keys(m).sort().join(',')",
       "if (names(esm) !== names(cjs)) throw new Error('the esm and cjs entries export different names')",
+      '// each bundle finds the package from its own location: a path baked in at build time fails here',
+      "for (const [kind, m] of [['esm', esm], ['cjs', cjs]]) {",
+      "   const path = m.exampleImagePath('bear_1024x1024.jpg')",
+      "   if (!path.includes('node_modules/comfy-ts/examples/')) throw new Error(kind + ' entry: exampleImagePath left the installed package: ' + path)",
+      '}',
       'console.log(`exports: esm ${Object.keys(esm).length}, cjs ${Object.keys(cjs).length}, web ${Object.keys(web).length}`)',
    ].join('\n'),
 }
@@ -75,7 +85,10 @@ try {
    if (tarball == null) throw new Error('check-package: bun pm pack wrote no tarball')
    for (const [name, text] of Object.entries(FILES)) writeFileSync(join(consumer, name), text)
    run('install', [process.execPath, 'add', join(packDir, tarball), '@types/node'], consumer)
-   run('type check', [process.execPath, 'check'], consumer)
+   for (const file of PROGRAMS) {
+      writeFileSync(join(consumer, `tsconfig.${file}.json`), tsconfigFor(file))
+      run(`type check of ${file}`, [process.execPath, 'check', '-p', `tsconfig.${file}.json`], consumer)
+   }
    const node = Bun.which('node')
    if (node == null) throw new Error('check-package: node is not on PATH, and the package must load in node')
    console.log(run('load in node', [node, 'run.mjs'], consumer).trim())

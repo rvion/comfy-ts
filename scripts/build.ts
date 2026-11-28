@@ -33,6 +33,12 @@ type Bundle = {
    splitting?: boolean
 }
 
+// a cjs bundle has no import.meta: bun replaces import.meta.url with the SOURCE file's url, the
+// build machine's own path. the bundle's own location is what the code means (exampleAssets.ts
+// walks up from it to the package), so it is read from __filename when the bundle loads
+const CJS_META_URL = '__comfyTsBundleUrl'
+const CJS_BANNER = `var ${CJS_META_URL} = require("node:url").pathToFileURL(__filename).href;`
+
 async function bundle(p: Bundle): Promise<void> {
    const built = await Bun.build({
       entrypoints: [join(repoRoot, p.entry)],
@@ -44,6 +50,10 @@ async function bundle(p: Bundle): Promise<void> {
       splitting: p.splitting ?? false,
       naming: p.entryName == null ? undefined : { entry: p.entryName },
       plugins: [packageVersionOnly],
+      // the dev jsx runtime is undefined in react's production build: the TUI would crash under NODE_ENV=production
+      jsx: { runtime: 'automatic', development: false },
+      define: p.format === 'cjs' ? { 'import.meta.url': CJS_META_URL } : undefined,
+      banner: p.format === 'cjs' ? CJS_BANNER : undefined,
    })
    if (built.success) return
    for (const log of built.logs) console.error(log)
@@ -60,6 +70,33 @@ function emitDeclarations(outdir: string): void {
    console.error(run.stdout.toString())
    console.error(run.stderr.toString())
    throw new Error(`build: the declarations failed with exit code ${run.exitCode}`)
+}
+
+function allFiles(dir: string): string[] {
+   const out: string[] = []
+   for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const path = join(dir, entry.name)
+      if (entry.isDirectory()) out.push(...allFiles(path))
+      else out.push(path)
+   }
+   return out
+}
+
+/** what a published file must never hold: each one was a real defect of a bun bundle */
+const FORBIDDEN_IN_DIST: { text: string; why: string }[] = [
+   { text: repoRoot, why: "the build machine's path: it resolves on this machine only" },
+   { text: 'react/jsx-dev-runtime', why: "react's dev jsx runtime: undefined under NODE_ENV=production" },
+]
+
+function assertPublishable(): void {
+   const hits: string[] = []
+   for (const file of allFiles(dist)) {
+      const text = readFileSync(file, 'utf8')
+      for (const bad of FORBIDDEN_IN_DIST) {
+         if (text.includes(bad.text)) hits.push(`${relative(repoRoot, file)} holds ${bad.why}`)
+      }
+   }
+   if (hits.length > 0) throw new Error(`build: dist/ is not publishable\n${hits.join('\n')}`)
 }
 
 function declarationFiles(dir: string): string[] {
@@ -114,6 +151,7 @@ async function main(): Promise<void> {
 
    const webJs = await buildWebJsText(repoRoot)
    writeFileSync(join(dist, 'serve-web.js'), webJs)
+   assertPublishable()
    console.log(`dist/: ${files.length} declaration files, serve-web.js ${(webJs.length / 1024).toFixed(0)} kB`)
 }
 
