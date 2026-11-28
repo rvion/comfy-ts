@@ -6,7 +6,7 @@
 - **Language**: TypeScript strict, `module: nodenext`, absolute `src/...ts` imports
 - **Validation**: ArkType (all wire payloads: object_info, ws messages, manager JSONs)
 - **Images**: sharp (re-encode) + image-meta (introspection)
-- **Lint**: `bun lint` (rules in `.oxlintrc.json`); no formatter (house rule). The style: 3-space, single quotes, no semi
+- **Lint**: `bun lint` (its config in `bunfig.toml` `[lint]`); no formatter (house rule). The style: 3-space, single quotes, no semi
 - **Testing**: bun test
 - **Publish**: npm `comfy-ts` (`scripts/build.ts` → dist/ with `bun build`: `index.js` + `index.cjs`, `web.js`, `cli.js` and its chunks, `serve-web.js`. Types are one `.d.ts` per source file, with a `.d.cts` twin for `require` consumers: bun writes them with repo-root specifiers and the script makes those relative. `src/` also shipped for `comfy-ts/src/*` subpath imports)
 

@@ -38,7 +38,7 @@ describe('no private draft name in a tracked file', () => {
    it('no tracked file spells a draft name from this machine', () => {
       const names = localDraftNames()
       if (names.length === 0) return
-      let out = ''
+      let out: string
       try {
          out = execFileSync('git', ['grep', '-l', '-F', ...names.flatMap((n) => ['-e', n])], {
             cwd: ROOT,

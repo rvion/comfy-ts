@@ -18,6 +18,7 @@ declare global {
        *
        * `SdkForHost<'windows-1'>` then resolves to the precise types of that host.
        */
+      // eslint-disable-next-line @typescript-eslint/no-empty-object-type -- empty on purpose: each generated sdk merges its host into it
       interface Hosts {}
 
       // ---- permissive base surface --------------------------------------

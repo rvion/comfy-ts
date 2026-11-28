@@ -131,7 +131,7 @@ export class HostSt {
       }, 120)
       spin.unref?.()
       this.spinTimer = spin
-      let ok = false
+      let ok: boolean
       let probeError: string | null = null
       try {
          // host.fetch: /api preferred + auth header, so cloud hosts probe up too

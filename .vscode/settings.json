@@ -1,14 +1,10 @@
 {
    "editor.tabSize": 3,
    "editor.formatOnSave": false,
-   "editor.defaultFormatter": "oxc.oxc-vscode",
 
    // THE key pair: auto-import inserts 'src/...' absolute specifiers, never './relative'
    "js/ts.preferences.importModuleSpecifier": "non-relative",
    "js/ts.preferences.importModuleSpecifierPreference": "non-relative",
-
-   // use the workspace typescript, not vscode's bundled one
-   "js/ts.tsdk.path": "node_modules/typescript/lib",
 
    // auto-imports emit `import type`
    "js/ts.preferences.preferTypeOnlyAutoImports": true,
@@ -17,8 +13,6 @@
    "editor.suggest.showWords": false,
    "editor.wordBasedSuggestions": "off",
 
-   // oxc lints + formats in-editor; formatter owns formatting, not tsserver
-   "oxc.enable": true,
    "eslint.enable": false,
    "workbench.colorCustomizations": {
       "activityBar.activeBackground": "#55477b",

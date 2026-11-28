@@ -562,7 +562,9 @@ export class ComfyExecution {
          try {
             const res = getPngMetadataFromUint8Array(p.bytes)
             if (res.success) textChunk = res.value
-         } catch {}
+         } catch {
+            // a png whose text chunk cannot be read is saved without its provenance: the image matters more
+         }
 
          const format = ((): keyof FormatEnum => {
             if (p.sf.format === 'image/jpeg') return 'jpeg'

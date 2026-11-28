@@ -44,25 +44,26 @@ describe('the type check is bun check, on every config', () => {
       expect(Object.keys(pkg.scripts)).not.toContain('check')
    })
 
-   // a `lint` script runs in place of `bun lint`, so it must be bun's own linter, and fail on a warning
-   it('the lint script is bun lint, and one warning fails it', () => {
-      expect(pkg.scripts.lint).toBe('bun lint --no-script --max-warnings=0')
-      expect(pkg.scripts.ci).toContain('bun run lint')
+   // a `lint` script would run in place of bun's own linter
+   it('the linter is bun lint: no lint script, its rules in bunfig.toml, one warning fails the gate', () => {
+      expect(Object.keys(pkg.scripts)).not.toContain('lint')
+      expect(readFileSync(join(repoRoot, 'bunfig.toml'), 'utf8')).toMatch(/^\[lint\]$/m)
+      expect(pkg.scripts.ci).toContain('bun lint --max-warnings=0')
    })
 
-   it('no script calls tsc, tsgo, tsdown or oxlint', () => {
+   it('no script calls tsc, tsgo or tsdown', () => {
       for (const [name, script] of Object.entries(pkg.scripts))
-         expect(script, `script ${name}`).not.toMatch(/\b(tsc|tsgo|tsdown|oxlint)\b/)
+         expect(script, `script ${name}`).not.toMatch(/\b(tsc|tsgo|tsdown)\b/)
    })
 
    it('control: that pattern does catch a tsc call', () => {
-      expect('tsc -p tsconfig.lib.json && bun test').toMatch(/\b(tsc|tsgo|tsdown|oxlint)\b/)
-      expect('bun check -p tsconfig.lib.json').not.toMatch(/\b(tsc|tsgo|tsdown|oxlint)\b/)
+      expect('tsc -p tsconfig.lib.json && bun test').toMatch(/\b(tsc|tsgo|tsdown)\b/)
+      expect('bun check -p tsconfig.lib.json').not.toMatch(/\b(tsc|tsgo|tsdown)\b/)
    })
 
    it('the compiler and the tools built on it are not installed', () => {
       const deps = Object.keys({ ...pkg.dependencies, ...pkg.devDependencies })
-      for (const name of ['typescript', '@typescript/native-preview', 'tsdown', 'oxlint', 'oxlint-tsgolint'])
+      for (const name of ['typescript', '@typescript/native-preview', 'tsdown'])
          expect(deps, name).not.toContain(name)
    })
 

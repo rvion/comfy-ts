@@ -1,0 +1,30 @@
+# the linter is `bun lint`, the `lint` slot of the gate. zero output is the contract:
+# a finding is fixed, or its rule goes off here with the reason on the line above
+[lint]
+ignorePatterns = [
+   # generator output, never edited by hand
+   "src/manager/generated/**",
+   "examples/comfy-cloud/sdk.d.ts",
+   # archived repros and plans: kept as written, run by nothing
+   ".shipkit/**",
+   # the trailer kit loads its files as plain scripts that share globals
+   "trailer/**",
+]
+
+[lint.rules]
+# `{}` as a type accepts any non nullish value: name the shape, or write Record<string, never>
+"typescript/no-empty-object-type" = "error"
+# ComfyWorkflowBuilder is a class merged with an interface on purpose: the interface is the typed face of a host
+"typescript/no-unsafe-declaration-merging" = "off"
+
+# the one prompt-json shape built from the schema at run time: agent/coding.md lists these sites
+# to burn down together. everywhere else an `any` fails the gate
+[[lint.overrides]]
+files = [
+   "src/graph/ComfyNode.ts",
+   "src/host/ComfyManager.ts",
+   "src/litegraph/convertFlowToLiteGraphJSON.ts",
+   "src/types/index.ts",
+   "src/utils/stringifyReadable.ts",
+]
+rules = { "typescript/no-explicit-any" = "off" }

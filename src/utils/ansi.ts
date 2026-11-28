@@ -29,6 +29,7 @@ function styler(open: string = '', close: string = ''): Styler {
 export const ansi: Styler = styler()
 
 // CSI sequences + lone ESC-letter escapes (server logs re-rendered inside ink)
+// eslint-disable-next-line no-control-regex -- ESC is what this pattern is for
 const ANSI_RE = /\x1b\[[0-9;?]*[A-Za-z]|\x1b[A-Za-z]/g
 
 export function stripAnsi(s: string): string {

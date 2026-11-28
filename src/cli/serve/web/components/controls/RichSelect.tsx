@@ -133,6 +133,7 @@ export const RichSelect = observer(function RichSelect(p: {
       st.setActive(ix >= 0 ? ix : 0)
       if (p.choices.length >= FILTER_FROM) filterRef.current?.focus()
       else listRef.current?.focus()
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- runs when the list opens, never on a keystroke of the filter
    }, [st.open])
    useEffect(() => {
       listRef.current?.querySelector('.rs-row.active')?.scrollIntoView({ block: 'nearest' })

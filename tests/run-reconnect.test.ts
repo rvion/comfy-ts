@@ -16,7 +16,7 @@ const globalHack = globalThis as { comfyts?: ComfyTS }
 let prior: ComfyTS | undefined
 let host: ComfyHost<'reconnect-host'>
 let queued = new Set<string>()
-let history: Record<string, unknown> = {}
+const history: Record<string, unknown> = {}
 
 beforeAll(() => {
    prior = globalHack.comfyts

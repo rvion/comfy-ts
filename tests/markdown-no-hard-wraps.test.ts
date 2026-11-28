@@ -28,7 +28,7 @@ const SKIP_DIRS = new Set([
 ])
 
 /** SKIP_DIRS holds bare names AND root-relative paths (`.shipkit/journal`) */
-export function markdownFiles(dir: string, out: string[] = [], root = dir): string[] {
+function markdownFiles(dir: string, out: string[] = [], root = dir): string[] {
    for (const name of readdirSync(dir)) {
       const abs = join(dir, name)
       if (SKIP_DIRS.has(name) || SKIP_DIRS.has(relative(root, abs))) continue
@@ -54,7 +54,7 @@ function startsOwnBlock(line: string): boolean {
 }
 
 /** 1-indexed line numbers where a sentence was cut for width */
-export function findHardWraps(markdown: string): number[] {
+function findHardWraps(markdown: string): number[] {
    const lines = markdown.split('\n')
    const hits: number[] = []
    let inFence = false

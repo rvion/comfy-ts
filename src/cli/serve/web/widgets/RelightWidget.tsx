@@ -132,6 +132,7 @@ export const RelightWidgetView = observer(function RelightWidgetView(p: {
       return () => {
          live = false
       }
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- urlKey names every url this effect loads
    }, [urlKey])
 
    // redraw on every parameter change; animate while the orbit or the motes run
