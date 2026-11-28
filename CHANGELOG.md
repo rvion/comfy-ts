@@ -2,6 +2,17 @@
 
 <!-- made from .shipkit/releases/ by sk bump: edit those files, never this one -->
 
+## 2.25.0 (2026-11-28)
+
+### Package
+
+- **Node 22.12 is the minimum**: `engines.node` goes from `>=20` to `>=22.12`. `ink` 8 (the terminal UI) and `nanoid` 6 need node 22, and `nanoid` already did in earlier versions. `require('comfy-ts')` needs 22.12, the first version that can `require()` a dependency published as ES modules only, which three dependencies are. Node 20 reached its end of life in April 2026. Under bun nothing changes.
+- **Every dependency at its latest**: All dependencies are at their latest versions, with two majors: `ink` 8 and `image-meta` 0.3. The exports of `comfy-ts` and `comfy-ts/web` are the same. One type follows `image-meta` 0.3: in `MediaImage.metadata`, `width` and `height` are now `number` (they were `number | undefined`), and an animated or multi page image also has `animated` and `pages`. The type declarations now ship as one file per source file under `dist/`, with a `.d.cts` twin for `require()` consumers, in place of one bundled `index.d.ts`. `import … from 'comfy-ts'` and `comfy-ts/web` resolve the same types as before.
+
+### Types
+
+- **A progress frame is typed with its prompt and node**: `NodeProgress`, the data of a `progress` websocket frame, now has the optional `prompt_id` and `node` that ComfyUI sends with it.
+
 ## 2.24.0 (2026-11-24)
 
 ### Workflows
